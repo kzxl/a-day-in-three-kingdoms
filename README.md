@@ -49,31 +49,55 @@ dotnet run --project src/SimT.Cli -- info     # where modules and assets resolve
 ## Golden replay
 
 ```bash
-dotnet run --project src/SimT.Cli -- golden samples/merchant-30d.json samples/merchant-30d.expected.txt
+dotnet run --project src/SimT.Cli -- golden samples/merchant-30d.json  samples/merchant-30d.expected.txt
+dotnet run --project src/SimT.Cli -- golden samples/merchant-full.json samples/merchant-full.expected.txt
 ```
 
 The hash covers every ledger line: date, journal code, direction, amount and running balance.
 Same seed plus same action script must produce the same hash, so a rules refactor cannot change
-the numbers silently. This is the mechanism that lets the slice be ported or extended safely.
+the numbers silently. Every replay also runs all registered invariants and exits non-zero if
+any table contradicts another.
+
+## Modules shipped today
+
+| Module | Kind | Adds | Owns |
+| --- | --- | --- | --- |
+| `base.content` | base | 8 trade goods with base prices | `ct_item` |
+| `base.world` | base | 3 citadels, roads with travel time, regional price factors | `wd_citadel`, `wd_route` |
+| `base.player` | base | protagonist, per-city bag, wallet facade over the ledger | `pl_player`, `pl_bag` |
+| `base.npc` | base | character stub that proves the boundary | `np_npc` |
+| `dlc.market` | DLC | stall buy/sell, seasonal pricing, per-city warehouse with rent | `mk_*` |
+| `dlc.caravan` | DLC | freight between cities, travel in days, arrival on the day it lands | `cv_*` |
+| `dlc.professions` | DLC | 4 day-labour trades, practice tiers that raise yield | `pf_*` |
+| `dlc.lineage` | DLC | marriage, children, one heir, monthly household upkeep | `ln_*` |
+
+Every DLC declares its tables and migrations in its own `module.json`, reaches other modules
+only through capabilities, and registers its own screens. Disabling one in
+`assets/products/merchant-slice.json` removes its tabs and rules while its rows stay in the save.
 
 ## Current content of the slice
 
-- 30-day months, 12-month years; day advance with automatic month close.
-- 3 citadels with regional price factors, 8 trade goods.
-- Buy/sell at the stall, seasonal and regional pricing, 60% buy-back.
-- Per-city warehouses with capacity and a real monthly rent cashflow.
-- Every cash movement posted by one ledger writer; balance = liquid + vault.
+- 30-day months, 12-month years; day advance with `DayAdvanced` per day and one idempotent
+  `MonthClosed` per boundary.
+- Trade goods, regional and seasonal pricing, 60% buy-back.
+- Warehouses with capacity and a real monthly rent cashflow.
+- Freight: goods leave the current city, arrive in the destination after the road's duration.
+- Day labour: each batch costs its tool fee and days; practice raises the tier and the yield.
+- Household: dowry, children, a single heir enforced by a unique index, monthly upkeep.
+- Every cash movement posted by one ledger writer; spending draws on liquid cash, not the vault.
 - Multiple independent campaigns, each one SQLite file, with duplicate/delete.
-- 3 screens contributed by DLC (`market.stall`, `market.warehouse`) plus a kernel ledger view.
+- Six screens contributed by DLCs plus a kernel ledger view, rendered by a generic host.
 
 ## Verification snapshot
 
 | Gate | Count | Command |
 | --- | --- | --- |
-| Architecture rules | 23 | `dotnet test tests/SimT.Architecture.Tests` |
-| Kernel primitives | 8 | `dotnet test tests/SimT.Core.Tests` |
+| Architecture rules | 29 | `dotnet test tests/SimT.Architecture.Tests` |
+| Kernel primitives and hardening | 13 | `dotnet test tests/SimT.Core.Tests` |
 | Market slice + pricing budget | 11 | `dotnet test tests/SimT.Modules.Market.Tests` |
-| Golden ledger hash | 1 | `SimT.Cli golden …` |
+| DLC behaviour (caravan, professions, lineage) | 25 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| Golden ledger hashes | 2 | `SimT.Cli golden …` |
+| Invariants at end of every replay | 16 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |
 
 ## Documents

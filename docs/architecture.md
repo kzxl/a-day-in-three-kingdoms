@@ -18,14 +18,14 @@ arbitrates file access. Disabling a DLC leaves its tables and rows in `campaign.
 | # | Contract | Implementation | Rule |
 | --- | --- | --- | --- |
 | K1 | `IDbSession` | `SqliteSession` | Modules never open a connection; transaction boundaries stay visible |
-| K2 | `IGameClock`, `GameDate` | `SimClock` | No wall clock in domain code; one `MonthClosed` event per boundary |
+| K2 | `IGameClock`, `GameDate` | `SimClock` | No wall clock in domain code; `DayAdvanced` per day, one `MonthClosed` per boundary recorded in `core_period_log` |
 | K3 | `ILedger` | `SqliteLedger` | Single writer; balance = liquid + vault; amounts are positive integers |
 | K4 | `IIdGenerator`, `IRng` | `SequenceIdGenerator`, `SplitMix64Rng` | Deterministic ids and rolls; RNG state is persisted in the save |
 | K5 | `ModuleManifest`, `ICapabilityBroker` | `ModuleLoader`, `ModuleGraph`, `CapabilityBroker` | Deterministic topological order; duplicate ownership is a hard error |
 | K6 | `IEventPublisher` | `EventPublisher` | Explicit subscription through `ModuleContext`, no discovery |
 | K7 | `IUiRegistry` | `UiRegistry` | Screens are read models; the host renders them generically |
 | K8 | `GameConstants` | `GameConstantsLoader` | JSON is the single source of truth, cross-checked by a test |
-| K9 | `ILog` | `TextLog` | Module scoped; no empty catch in the kernel |
+| K9 | `ILog`, `IInvariant` | `TextLog`, `InvariantRunner` | Module-scoped logging; kernel and modules register consistency rules that `RunInvariants()` and every CLI replay execute |
 
 `GameDate` fixes a 30-day month and a 12-month year. `assets/config/game-constants.json` holds
 the same numbers and an architecture test fails when the two drift.
@@ -63,12 +63,15 @@ Every table has exactly one owner and a prefix:
 
 | Module | Prefix | Tables |
 | --- | --- | --- |
-| kernel | `core_` | ledger, state, sequence, module state, migration log |
+| kernel | `core_` | ledger, state, sequence, module state, migration log, period log |
 | base.content | `ct_` | item catalog |
 | base.world | `wd_` | citadels, routes |
 | base.player | `pl_` | protagonist, per-city bag |
 | base.npc | `np_` | character stub |
 | dlc.market | `mk_` | stall listings, warehouses, warehouse stock |
+| dlc.caravan | `cv_` | freight runs, cargo in transit |
+| dlc.professions | `pf_` | trade definitions, player practice |
+| dlc.lineage | `ln_` | spouse, children and the designated heir |
 
 Cash is not duplicated in `pl_player`: the wallet is a read of the kernel ledger.
 
@@ -119,3 +122,6 @@ The host renders sections as tables and commands as buttons. Command ids are opa
 | Consumers have providers | `Capabilities_consumed_are_provided_somewhere` |
 | Host knows no module | `Host_source_never_mentions_module_types` |
 | Same seed, same ledger | `Same_seed_and_same_actions_produce_the_same_ledger` |
+| One month close per boundary | `Clock_publishes_each_boundary_only_once_even_if_the_date_is_rewound` |
+| Pricing path allocates nothing | `Quote_allocates_nothing_over_ten_thousand_calls` |
+| A newer save is refused | `Kernel_rejects_a_save_written_by_a_newer_schema` |

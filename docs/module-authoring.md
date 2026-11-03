@@ -113,6 +113,12 @@ public sealed class LineageModule : ISimModule
         context.Ui.AddScreen(new FamilyScreen(family));
         context.Ui.AddCommandHandler(new FamilyCommandHandler(family));
         context.Events.Subscribe<MonthClosed>(closed => family.AdvanceMonth(closed.Date));
+        context.Events.Subscribe<DayAdvanced>(day => family.OnDay(day.Date));
+
+        foreach (var invariant in FamilyInvariants.All())
+        {
+            context.AddInvariant(invariant);
+        }
 
         context.Log.Info($"lineage ready for player {player.PlayerId}");
     }
@@ -170,8 +176,19 @@ dotnet test tests/SimT.Modules.Lineage.Tests   # behaviour
 dotnet run --project src/SimT.Cli -- golden samples/<scenario>.json samples/<scenario>.expected.txt
 ```
 
+Your scenario can drive your screens without the CLI knowing your module:
+
+```json
+{ "type": "command", "screen": "lineage.family", "id": "heir:3" }
+```
+
+Every replay prints `invariants ok (n rules)` and exits non-zero when a rule fails, so a new
+invariant becomes a standing regression check the moment it is registered.
+
 Add your assembly to `RepoLayout.ModuleAssemblies()` so the gate inspects it, plus one behaviour
-test that boots the kernel with your module enabled.
+test that boots the kernel with your module enabled. Test projects should use
+`SimT.Testing.TestHost`, which filters the product manifest to the module artefacts present in
+the test output — that way adding a DLC never breaks an unrelated test project.
 
 ## Checklist
 
