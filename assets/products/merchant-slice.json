@@ -7,7 +7,8 @@
     "base.player",
     "base.npc",
     "dlc.market",
-    "dlc.caravan"
+    "dlc.caravan",
+    "dlc.professions"
   ],
   "seed": 1840502,
   "startLocation": "lac_duong",

@@ -20,6 +20,7 @@
     <ModuleProject Include="..\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
     <ModuleProject Include="..\SimT.Modules.Dlc.Market\SimT.Modules.Dlc.Market.csproj" />
     <ModuleProject Include="..\SimT.Modules.Dlc.Caravan\SimT.Modules.Dlc.Caravan.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Dlc.Professions\SimT.Modules.Dlc.Professions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

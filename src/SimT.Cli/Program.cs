@@ -108,6 +108,21 @@ internal static class Program
                     Console.WriteLine($"  take  -> {takeMessage}");
                     break;
 
+                case "command":
+                {
+                    // Generic DLC command: the CLI must be able to drive any registered screen
+                    // without knowing which module owns it.
+                    var screen = action.GetProperty("screen").GetString() ?? string.Empty;
+                    var id = action.GetProperty("id").GetString() ?? string.Empty;
+                    if (!kernel.TryGetCommandHandler(screen, out var handler) || handler is null)
+                    {
+                        throw new SimException("cli.unknown_screen", $"Scenario targets screen '{screen}', which no enabled module registers.");
+                    }
+
+                    Console.WriteLine($"  {screen}:{id} -> {handler.Execute(id)}");
+                    break;
+                }
+
                 default:
                     throw new SimException("cli.unknown_action", $"Scenario action '{type}' is not supported.");
             }
@@ -115,11 +130,23 @@ internal static class Program
 
         kernel.Save();
 
+        var failures = kernel.RunInvariants();
         var hash = LedgerHash(kernel);
         Console.WriteLine($"date        {kernel.Today}");
         Console.WriteLine($"balance     {kernel.Ledger.Balance}");
         Console.WriteLine($"ledgerHash  {hash}");
+        Console.WriteLine($"invariants  {(failures.Count == 0 ? "ok" : "FAILED")} ({kernel.Invariants.Count} rules)");
         Console.WriteLine($"save        {options.DatabasePath}");
+
+        foreach (var failure in failures)
+        {
+            Console.Error.WriteLine($"INVARIANT {failure.InvariantId}: {failure.Message}");
+        }
+
+        if (failures.Count > 0)
+        {
+            return 1;
+        }
 
         if (expectPath is null)
         {
