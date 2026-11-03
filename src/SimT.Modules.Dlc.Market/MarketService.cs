@@ -309,7 +309,11 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
                 continue;
             }
 
-            _wallet.Charge(warehouse.Rent, JournalCodes.WarehouseRent, $"Tiền kho tháng {date.Month:00}/{date.Year}");
+            _wallet.Charge(
+                warehouse.Rent,
+                JournalCodes.WarehouseRent,
+                $"Tiền kho tháng {date.Month:00}/{date.Year}",
+                $"market.warehouse_rent:{warehouse.CityId}:{date.DayIndex}");
         }
     }
 

@@ -173,7 +173,11 @@ internal sealed class LineageService : ILineageHouse
             return;
         }
 
-        _wallet.Charge(upkeep, JournalCodes.FamilyUpkeep, $"Phí gia đình tháng {date.Month:00}/{date.Year}");
+        _wallet.Charge(
+            upkeep,
+            JournalCodes.FamilyUpkeep,
+            $"Phí gia đình tháng {date.Month:00}/{date.Year}",
+            $"lineage.upkeep:{date.DayIndex}");
     }
 
     private string NameOfSpouse() => SpouseName ?? "chính thất";

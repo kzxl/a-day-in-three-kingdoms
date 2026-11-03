@@ -72,18 +72,22 @@ public sealed class PlayerModule : ISimModule
 
         public long Liquid => _context.Ledger.Liquid;
 
-        public void Charge(long amount, string journalCode, string description)
+        public void Charge(long amount, string journalCode, string description, string? idempotencyKey = null)
         {
             if (Liquid < amount)
             {
                 throw new SimException("wallet.insufficient", $"Cần {amount} tiền mặt nhưng chỉ có {Liquid}.");
             }
 
-            _context.Ledger.Post(_context.Clock.Today, new LedgerEntry(journalCode, LedgerDirection.Out, amount, description));
+            _context.Ledger.Post(
+                _context.Clock.Today,
+                new LedgerEntry(journalCode, LedgerDirection.Out, amount, description, idempotencyKey));
         }
 
-        public void Pay(long amount, string journalCode, string description) =>
-            _context.Ledger.Post(_context.Clock.Today, new LedgerEntry(journalCode, LedgerDirection.In, amount, description));
+        public void Pay(long amount, string journalCode, string description, string? idempotencyKey = null) =>
+            _context.Ledger.Post(
+                _context.Clock.Today,
+                new LedgerEntry(journalCode, LedgerDirection.In, amount, description, idempotencyKey));
     }
 
     private sealed class Bag : IBag

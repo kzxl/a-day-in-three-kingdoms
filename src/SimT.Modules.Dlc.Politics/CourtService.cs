@@ -125,7 +125,11 @@ internal sealed class CourtService : IPoliticalCourt
             return;
         }
 
-        _wallet.Pay(stipend, JournalCodes.CourtStipend, $"Bổng lộc tháng {date.Month:00}/{date.Year}");
+        _wallet.Pay(
+            stipend,
+            JournalCodes.CourtStipend,
+            $"Bổng lộc tháng {date.Month:00}/{date.Year}",
+            $"politics.stipend:{date.DayIndex}");
         _log.Info($"stipend {stipend} paid on {date}");
     }
 

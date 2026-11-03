@@ -180,6 +180,36 @@ public sealed class KernelPrimitiveTests : IDisposable
     }
 
     [Fact]
+    public void Posting_the_same_idempotency_key_twice_writes_one_line()
+    {
+        var ledger = new SqliteLedger(_db);
+        ledger.Post(GameDate.Start, new LedgerEntry(JournalCodes.StartingCash, LedgerDirection.In, 500, "start"));
+
+        var first = ledger.Post(
+            GameDate.Start,
+            new LedgerEntry(JournalCodes.FarmRent, LedgerDirection.Out, 60, "rent", "rent:plot:1"));
+        var second = ledger.Post(
+            GameDate.Start,
+            new LedgerEntry(JournalCodes.FarmRent, LedgerDirection.Out, 60, "rent", "rent:plot:1"));
+
+        Assert.Equal(first, second);
+        Assert.Equal(440, ledger.Balance);
+        Assert.Single(ledger.Recent(20), line => line.JournalCode == JournalCodes.FarmRent);
+    }
+
+    [Fact]
+    public void Different_keys_post_separately()
+    {
+        var ledger = new SqliteLedger(_db);
+        ledger.Post(GameDate.Start, new LedgerEntry(JournalCodes.StartingCash, LedgerDirection.In, 500, "start"));
+
+        ledger.Post(GameDate.Start, new LedgerEntry(JournalCodes.FarmRent, LedgerDirection.Out, 60, "rent", "rent:1"));
+        ledger.Post(GameDate.Start, new LedgerEntry(JournalCodes.FarmRent, LedgerDirection.Out, 60, "rent", "rent:2"));
+
+        Assert.Equal(380, ledger.Balance);
+    }
+
+    [Fact]
     public void Transaction_rolls_back_every_statement_on_failure()
     {
         var ledger = new SqliteLedger(_db);

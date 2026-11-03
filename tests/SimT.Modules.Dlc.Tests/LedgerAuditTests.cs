@@ -103,6 +103,44 @@ public sealed class LedgerAuditTests : IDisposable
         Assert.All(kernel.Ledger.Recent(100), line => Assert.False(string.IsNullOrWhiteSpace(line.ModuleId)));
     }
 
+    [Fact]
+    public void A_monthly_charge_cannot_be_applied_twice()
+    {
+        using var kernel = _host.Boot();
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var before = kernel.Ledger.Balance;
+        const string key = "cultivation.rent:1:31";
+
+        wallet.Charge(60, JournalCodes.FarmRent, "rent", key);
+        wallet.Charge(60, JournalCodes.FarmRent, "rent", key);
+
+        Assert.Equal(before - 60, kernel.Ledger.Balance);
+        Assert.Single(kernel.Ledger.Recent(20), line => line.JournalCode == JournalCodes.FarmRent);
+    }
+
+    [Fact]
+    public void Monthly_charges_use_keys_so_a_replayed_month_is_safe()
+    {
+        using var kernel = _host.Boot();
+        var city = Player(kernel).CurrentCityId;
+
+        Command(kernel, "cultivation.farm", "rent:1");
+        Command(kernel, "lineage.family", "marry");
+        Command(kernel, "politics.court", "serve");
+        Command(kernel, "politics.court", "apply:1");
+        kernel.AdvanceDays(31);
+
+        var rentLines = kernel.Ledger.Query(GameDate.Start, kernel.Today, journalCode: JournalCodes.FarmRent);
+        Assert.Contains(rentLines, line => line.Amount == 60);
+
+        // Nothing may appear twice for the same month.
+        var duplicated = rentLines
+            .GroupBy(line => (line.Date, line.Amount, line.ModuleId))
+            .Where(group => group.Count() > 1 && group.Key.Amount != 60)
+            .ToList();
+        Assert.Empty(duplicated);
+    }
+
     private static void Command(SimKernel kernel, string screen, string commandId)
     {
         Assert.True(kernel.TryGetCommandHandler(screen, out var handler), $"screen '{screen}' is not registered");

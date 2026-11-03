@@ -17,7 +17,8 @@ public readonly record struct LedgerEntry(
     string JournalCode,
     LedgerDirection Direction,
     long Amount,
-    string Description)
+    string Description,
+    string? IdempotencyKey = null)
 {
     public long Signed => (long)Direction * Amount;
 }

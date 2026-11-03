@@ -316,7 +316,11 @@ internal sealed class FarmService : ICultivationEstate
                 continue;
             }
 
-            _wallet.Charge(plot.Rent, JournalCodes.FarmRent, $"Tiền ruộng khu {plot.Id} tháng {date.Month:00}/{date.Year}");
+            _wallet.Charge(
+                plot.Rent,
+                JournalCodes.FarmRent,
+                $"Tiền ruộng khu {plot.Id} tháng {date.Month:00}/{date.Year}",
+                $"cultivation.rent:{plot.Id}:{date.DayIndex}");
         }
     }
 

@@ -104,6 +104,19 @@ public sealed class SqliteLedger : ILedger
     private long PostTo(GameDate date, LedgerEntry entry, string account)
     {
         var moduleId = JournalCodes.ModuleOf(entry.JournalCode);
+
+        // Idempotent posting: the same key never produces a second line.
+        if (entry.IdempotencyKey is { Length: > 0 } key)
+        {
+            var existing = _db.ScalarString(
+                "SELECT CAST(balance_after AS TEXT) FROM core_ledger WHERE idempotency_key=@key",
+                DbArgs.One("@key", key));
+
+            if (existing is not null)
+            {
+                return long.Parse(existing, System.Globalization.CultureInfo.InvariantCulture);
+            }
+        }
         if (entry.Amount <= 0)
         {
             throw new SimException("ledger.invalid_amount", $"Journal '{entry.JournalCode}' posts amount {entry.Amount}; amounts must be positive.");
@@ -126,8 +139,8 @@ public sealed class SqliteLedger : ILedger
 
         _db.Execute(
             """
-            INSERT INTO core_ledger(day_index, game_date, account, journal_code, direction, amount, balance_after, description, module_id)
-            VALUES(@day, @date, @account, @journal, @direction, @amount, @balance, @description, @module)
+            INSERT INTO core_ledger(day_index, game_date, account, journal_code, direction, amount, balance_after, description, module_id, idempotency_key)
+            VALUES(@day, @date, @account, @journal, @direction, @amount, @balance, @description, @module, @key)
             """,
             new DbArgs()
                 .Add("@day", date.DayIndex)
@@ -138,7 +151,8 @@ public sealed class SqliteLedger : ILedger
                 .Add("@amount", entry.Amount)
                 .Add("@balance", balanceAfter)
                 .Add("@description", entry.Description)
-                .Add("@module", moduleId));
+                .Add("@module", moduleId)
+                .Add("@key", entry.IdempotencyKey));
 
         return balanceAfter;
     }

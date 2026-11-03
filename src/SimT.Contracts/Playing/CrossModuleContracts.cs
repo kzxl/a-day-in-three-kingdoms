@@ -30,10 +30,13 @@ public interface IWallet
 
     long Liquid { get; }
 
-    /// <summary>Charges the player; throws when short. Posts through the kernel ledger.</summary>
-    void Charge(long amount, string journalCode, string description);
+    /// <summary>
+    /// Charges the player; throws when short. Posts through the kernel ledger. An idempotency
+    /// key makes a repeated call (retry, replayed month) a no-op instead of a second charge.
+    /// </summary>
+    void Charge(long amount, string journalCode, string description, string? idempotencyKey = null);
 
-    void Pay(long amount, string journalCode, string description);
+    void Pay(long amount, string journalCode, string description, string? idempotencyKey = null);
 }
 
 public sealed record ItemDef(
