@@ -1,0 +1,14 @@
+{
+  "id": "dlc.lineage",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "kind": "dlc",
+  "requires": ["base.world", "base.player"],
+  "provides": ["lineage.house"],
+  "consumes": ["world.map", "player.wallet", "player.state"],
+  "owns": {
+    "tables": ["ln_spouse", "ln_child"],
+    "migrations": ["migrations"]
+  },
+  "screens": ["lineage.family"]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "merchant-full",
+  "notes": "Một tháng đầy đủ: chợ, kho, nghề, gia đạo, thương đội sang thành Trường An rồi bán lại.",
+  "actions": [
+    { "type": "buy", "item": "gao", "qty": 4 },
+    { "type": "rent" },
+    { "type": "store", "item": "gao", "qty": 2 },
+    { "type": "command", "screen": "professions.trades", "id": "work:1" },
+    { "type": "command", "screen": "lineage.family", "id": "marry" },
+    { "type": "command", "screen": "lineage.family", "id": "beget" },
+    { "type": "advance", "days": 5 },
+    { "type": "command", "screen": "caravan.routes", "id": "send:2" },
+    { "type": "advance", "days": 4 },
+    { "type": "command", "screen": "caravan.routes", "id": "goto:2" },
+    { "type": "sell", "item": "gao", "qty": 2 },
+    { "type": "buy", "item": "tra", "qty": 2 },
+    { "type": "advance", "days": 40 }
+  ]
+}
