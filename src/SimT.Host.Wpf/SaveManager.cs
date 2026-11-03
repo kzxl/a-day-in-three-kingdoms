@@ -88,6 +88,12 @@ public sealed class SaveManager
 
         foreach (var file in Directory.GetFiles(from))
         {
+            // The lock file belongs to a running session, never to the saved state.
+            if (file.EndsWith(".lock", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             File.Copy(file, Path.Combine(to, Path.GetFileName(file)), overwrite: true);
         }
 

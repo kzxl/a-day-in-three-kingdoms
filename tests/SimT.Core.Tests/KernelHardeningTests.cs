@@ -103,6 +103,20 @@ public sealed class KernelHardeningTests : IDisposable
     }
 
     [Fact]
+    public void A_save_cannot_be_open_in_two_kernels_at_once()
+    {
+        var first = Boot();
+
+        var error = Assert.Throws<SimException>(() => Boot());
+        Assert.Equal("save.locked", error.Code);
+
+        first.Dispose();
+
+        using var second = Boot();
+        Assert.Empty(second.RunInvariants());
+    }
+
+    [Fact]
     public void Module_states_are_recorded_for_every_started_module()
     {
         using var kernel = Boot();

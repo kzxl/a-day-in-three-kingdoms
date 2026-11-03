@@ -48,6 +48,7 @@ public sealed class SimKernel : IDisposable
     private readonly InvariantRunner _invariants;
     private readonly List<ModuleContext> _contexts = new();
     private readonly List<ISimModule> _started = new();
+    private readonly CampaignLock _lock;
     private bool _disposed;
 
     private SimKernel(
@@ -58,7 +59,8 @@ public sealed class SimKernel : IDisposable
         SimClock clock,
         SqliteLedger ledger,
         GameConstants constants,
-        ProductManifest product)
+        ProductManifest product,
+        CampaignLock campaignLock)
     {
         _db = db;
         _rng = rng;
@@ -68,6 +70,7 @@ public sealed class SimKernel : IDisposable
         _ledger = ledger;
         Constants = constants;
         Product = product;
+        _lock = campaignLock;
 
         _invariants = new InvariantRunner(new KernelInvariantContext(db, clock, ledger));
         foreach (var invariant in KernelInvariants.All())
@@ -99,9 +102,12 @@ public sealed class SimKernel : IDisposable
     public static SimKernel Open(KernelOptions options)
     {
         var existedBefore = File.Exists(Path.GetFullPath(options.DatabasePath));
-        var db = SqliteSession.Open(options.DatabasePath);
+        var campaignLock = CampaignLock.Acquire(options.DatabasePath);
+
+        SqliteSession? db = null;
         try
         {
+            db = SqliteSession.Open(options.DatabasePath);
             var runner = new MigrationRunner(db);
             var log = new TextLog("kernel", options.LogSink);
 
@@ -125,7 +131,7 @@ public sealed class SimKernel : IDisposable
 
             var broker = new CapabilityBroker();
             var ui = new UiRegistry();
-            var kernel = new SimKernel(db, rng, ui, broker, clock, ledger, constants, product);
+            var kernel = new SimKernel(db, rng, ui, broker, clock, ledger, constants, product, campaignLock);
 
             var campaign = new CampaignStart(product.Seed, product.StartLocationCode, product.StartingCash);
 
@@ -169,7 +175,8 @@ public sealed class SimKernel : IDisposable
         }
         catch
         {
-            db.Dispose();
+            db?.Dispose();
+            campaignLock.Dispose();
             throw;
         }
     }
@@ -230,6 +237,7 @@ public sealed class SimKernel : IDisposable
 
         Save();
         _db.Dispose();
+        _lock.Dispose();
     }
 
     private static void BackupIfMigrationsPending(
