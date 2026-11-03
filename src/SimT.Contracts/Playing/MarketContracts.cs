@@ -12,6 +12,9 @@ public interface IMarketTrade
     TradeResult Sell(long cityId, long itemId, int quantity);
 
     int StallStock(long cityId, long itemId);
+
+    /// <summary>Stock level the stall restocks toward; also the reference for the price curve.</summary>
+    int StallBaseline(long cityId, long itemId);
 }
 
 public readonly record struct TradeResult(bool Ok, long UnitPrice, long Total, string Message)

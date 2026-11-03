@@ -56,10 +56,37 @@ internal static class MarketInvariants
         }
     }
 
+    public sealed class StockWithinBuyBackCapacity : IInvariant
+    {
+        public string Id => "market.stall.within_buy_back_capacity";
+
+        public string? Check(IInvariantContext context)
+        {
+            var over = context.Db.Query(
+                "SELECT citadel_id, item_id, stock, baseline_stock FROM mk_stall_listing WHERE stock > baseline_stock * 2",
+                row => $"{row.GetInt64(0)}/{row.GetInt64(1)}: {row.GetInt32(2)} vs baseline {row.GetInt32(3)}");
+
+            return over.Count == 0 ? null : $"listing(s) above buy-back capacity: {string.Join(", ", over)}";
+        }
+    }
+
+    public sealed class BaselinePositive : IInvariant
+    {
+        public string Id => "market.stall.baseline_positive";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM mk_stall_listing WHERE baseline_stock <= 0");
+            return bad == 0 ? null : $"{bad} listing(s) have a non-positive baseline";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new NonNegativeStallStock();
         yield return new WarehouseWithinCapacity();
         yield return new StockRowsRequireWarehouse();
+        yield return new StockWithinBuyBackCapacity();
+        yield return new BaselinePositive();
     }
 }

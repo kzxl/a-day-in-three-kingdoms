@@ -10,7 +10,7 @@ namespace SimT.Modules.Dlc.Market;
 /// </summary>
 internal sealed class StallScreen : IScreenContribution
 {
-    private static readonly string[] Columns = ["Vật phẩm", "Giá mua", "Giá bán", "Tồn sạp", "Trong túi"];
+    private static readonly string[] Columns = ["Vật phẩm", "Giá mua", "Giá bán", "Tồn sạp", "Mức cung", "Trong túi"];
 
     private readonly IMarketTrade _trade;
     private readonly IItemCatalog _items;
@@ -49,6 +49,7 @@ internal sealed class StallScreen : IScreenContribution
             var buy = _trade.QuoteBuy(city.Id, item.Id);
             var sell = _trade.QuoteSell(city.Id, item.Id);
             var stock = _trade.StallStock(city.Id, item.Id);
+            var baseline = _trade.StallBaseline(city.Id, item.Id);
             var held = _bag.Quantity(city.Id, item.Id);
 
             rows.Add(new ScreenRow(
@@ -57,6 +58,7 @@ internal sealed class StallScreen : IScreenContribution
                     Fmt(buy),
                     Fmt(sell),
                     Fmt(stock),
+                    SupplyLabel(stock, baseline),
                     Fmt(held)
                 ],
                 [
@@ -84,6 +86,26 @@ internal sealed class StallScreen : IScreenContribution
     }
 
     private static string Fmt(long value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string SupplyLabel(int stock, int baseline)
+    {
+        if (baseline <= 0)
+        {
+            return "—";
+        }
+
+        if (stock == 0)
+        {
+            return "cạn";
+        }
+
+        if (stock < baseline / 2)
+        {
+            return "khan";
+        }
+
+        return stock > baseline ? "dư" : "đủ";
+    }
 }
 
 /// <summary>

@@ -84,6 +84,7 @@ public sealed class MarketModule : ISimModule
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.warehouse", service, player));
 
         context.Events.Subscribe<MonthClosed>(closed => service.ChargeMonthlyRent(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed => service.RestockMonthly(closed.Date));
 
         foreach (var invariant in MarketInvariants.All())
         {

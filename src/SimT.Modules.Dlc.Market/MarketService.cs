@@ -44,11 +44,21 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
             "SELECT COALESCE(stock, 0) FROM mk_stall_listing WHERE citadel_id=@city AND item_id=@item",
             new DbArgs().Add("@city", cityId).Add("@item", itemId));
 
+    public int StallBaseline(long cityId, long itemId) =>
+        (int)_db.ScalarLong(
+            "SELECT COALESCE((SELECT baseline_stock FROM mk_stall_listing WHERE citadel_id=@city AND item_id=@item), 40)",
+            new DbArgs().Add("@city", cityId).Add("@item", itemId));
+
     public long QuoteBuy(long cityId, long itemId)
     {
         var item = RequireItem(itemId);
         var citadel = RequireCitadel(cityId);
-        return MarketPricing.Quote(item, citadel, _clock.Today.Month);
+        return MarketPricing.Quote(
+            item,
+            citadel,
+            _clock.Today.Month,
+            StallStock(cityId, itemId),
+            StallBaseline(cityId, itemId));
     }
 
     public long QuoteSell(long cityId, long itemId) => MarketPricing.SellQuote(QuoteBuy(cityId, itemId));
@@ -67,12 +77,13 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
             return TradeResult.Fail("Mặt hàng hoặc thành trấn không tồn tại.");
         }
 
-        if (StallStock(cityId, itemId) < quantity)
+        var stock = StallStock(cityId, itemId);
+        if (stock < quantity)
         {
             return TradeResult.Fail("Sạp không đủ hàng.");
         }
 
-        var unit = MarketPricing.Quote(item, citadel, _clock.Today.Month);
+        var unit = MarketPricing.Quote(item, citadel, _clock.Today.Month, stock, StallBaseline(cityId, itemId));
         var total = MarketPricing.Total(unit, quantity);
         if (_wallet.Liquid < total)
         {
@@ -110,7 +121,16 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
             return TradeResult.Fail("Trong túi không đủ hàng.");
         }
 
-        var unit = MarketPricing.SellQuote(MarketPricing.Quote(item, citadel, _clock.Today.Month));
+        var stock = StallStock(cityId, itemId);
+        var baseline = StallBaseline(cityId, itemId);
+        if (stock + quantity > MarketPricing.BuyBackCapacity(baseline))
+        {
+            return TradeResult.Fail(
+                $"Sạp chỉ thu mua thêm {Math.Max(0, MarketPricing.BuyBackCapacity(baseline) - stock)} đơn vị nữa.");
+        }
+
+        var unit = MarketPricing.SellQuote(
+            MarketPricing.Quote(item, citadel, _clock.Today.Month, stock, baseline));
         var total = MarketPricing.Total(unit, quantity);
 
         var moved = false;
@@ -286,6 +306,31 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
         }
     }
 
+    /// <summary>
+    /// Monthly restock: a stall refills 60% of the gap back to its baseline, so buying a market
+    /// dry has a lasting but not permanent effect. Supply is a real constraint, not a number
+    /// that silently resets.
+    /// </summary>
+    public void RestockMonthly(GameDate date)
+    {
+        var rows = _db.Query(
+            "SELECT citadel_id, item_id, stock, baseline_stock FROM mk_stall_listing WHERE stock < baseline_stock",
+            row => (City: row.GetInt64(0), Item: row.GetInt64(1), Stock: row.GetInt32(2), Baseline: row.GetInt32(3)));
+
+        foreach (var row in rows)
+        {
+            var refill = Math.Max(1, (row.Baseline - row.Stock) * 60 / 100);
+            _db.Execute(
+                "UPDATE mk_stall_listing SET stock = stock + @refill WHERE citadel_id=@city AND item_id=@item",
+                new DbArgs().Add("@city", row.City).Add("@item", row.Item).Add("@refill", refill));
+        }
+
+        if (rows.Count > 0)
+        {
+            _log.Info($"restocked {rows.Count} stall listing(s) on {date}");
+        }
+    }
+
     /// <summary>Seeds stall supply from the catalog and the map. No foreign table is read here.</summary>
     public void EnsureListings(IItemCatalog items, IWorldMap map)
     {
@@ -302,7 +347,10 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
                 foreach (var item in items.All)
                 {
                     _db.Execute(
-                        "INSERT OR IGNORE INTO mk_stall_listing(citadel_id, item_id, stock) VALUES(@city, @item, 40)",
+                        """
+                        INSERT OR IGNORE INTO mk_stall_listing(citadel_id, item_id, stock, baseline_stock)
+                        VALUES(@city, @item, 40, 40)
+                        """,
                         new DbArgs().Add("@city", citadel.Id).Add("@item", item.Id));
                 }
             }
