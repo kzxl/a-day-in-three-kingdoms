@@ -203,6 +203,94 @@ public sealed class MigrationRunnerTests
     }
 }
 
+public sealed class GameConstantsValidationTests : IDisposable
+{
+    private readonly string _workspace;
+
+    public GameConstantsValidationTests()
+    {
+        _workspace = Path.Combine(Path.GetTempPath(), "simt-constants", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_workspace);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_workspace))
+        {
+            Directory.Delete(_workspace, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void The_shipped_constants_load()
+    {
+        var constants = Core.Config.GameConstantsLoader.Load(
+            Path.Combine(FindRepoRoot(), "assets", "config", "game-constants.json"));
+
+        Assert.True(constants.PhasesPerDay >= 1);
+        Assert.Equal(30, constants.DaysPerMonth);
+    }
+
+    [Fact]
+    public void A_zero_day_month_is_rejected()
+    {
+        var error = Assert.Throws<SimException>(() => Core.Config.GameConstantsLoader.Load(Write(daysPerMonth: 0)));
+        Assert.Equal("config.invalid_value", error.Code);
+    }
+
+    [Fact]
+    public void A_zero_phase_day_is_rejected()
+    {
+        var error = Assert.Throws<SimException>(() => Core.Config.GameConstantsLoader.Load(Write(phasesPerDay: 0)));
+        Assert.Equal("config.invalid_value", error.Code);
+    }
+
+    [Fact]
+    public void Negative_fatigue_is_rejected()
+    {
+        var error = Assert.Throws<SimException>(() => Core.Config.GameConstantsLoader.Load(Write(fatigueMax: -1)));
+        Assert.Equal("config.invalid_value", error.Code);
+    }
+
+    private string Write(int daysPerMonth = 30, int phasesPerDay = 3, int fatigueMax = 100)
+    {
+        var path = Path.Combine(_workspace, Guid.NewGuid().ToString("N") + ".json");
+        File.WriteAllText(path, $$"""
+            {
+              "currency": { "vi": "Quan", "en": "quan" },
+              "grain": { "vi": "Thạch", "en": "piculs" },
+              "calendar": {
+                "daysPerMonth": {{daysPerMonth}},
+                "phasesPerDay": {{phasesPerDay}},
+                "monthsPerYear": 12,
+                "grainPerDay": 0.02,
+                "dailyFatigueRecovery": 1,
+                "fallbackDate": "184-05-02"
+              },
+              "fatigue": { "max": {{fatigueMax}} }
+            }
+            """);
+
+        return path;
+    }
+
+    private static string FindRepoRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "SimT.sln")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException("SimT.sln not found above the test output directory.");
+    }
+}
+
 public sealed class ModuleConfigTests
 {
     [Fact]

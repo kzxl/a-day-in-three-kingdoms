@@ -104,9 +104,9 @@ only through capabilities, and registers its own screens. Disabling one in
 | Gate | Count | Command |
 | --- | --- | --- |
 | Architecture rules | 33 | `dotnet test tests/SimT.Architecture.Tests` |
-| Kernel primitives, contracts and hardening | 42 | `dotnet test tests/SimT.Core.Tests` |
+| Kernel primitives, contracts and hardening | 49 | `dotnet test tests/SimT.Core.Tests` |
 | Market slice + pricing budget | 26 | `dotnet test tests/SimT.Modules.Market.Tests` |
-| DLC behaviour (6 DLCs) | 58 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| DLC behaviour (6 DLCs) | 60 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
 | Invariants at end of every replay | 26 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |

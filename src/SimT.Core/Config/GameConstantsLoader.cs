@@ -25,7 +25,7 @@ public static class GameConstantsLoader
         var calendar = Require(root, "calendar");
         var fatigue = Require(root, "fatigue");
 
-        return new GameConstants(
+        var constants = new GameConstants(
             CurrencyNameVi: Text(currency, "vi"),
             CurrencyNameEn: Text(currency, "en"),
             GrainNameVi: Text(grain, "vi"),
@@ -37,6 +37,41 @@ public static class GameConstantsLoader
             GrainPerDay: Number(calendar, "grainPerDay"),
             DailyFatigueRecovery: Integer(calendar, "dailyFatigueRecovery"),
             FallbackDate: Text(calendar, "fallbackDate"));
+
+        Validate(constants);
+        return constants;
+    }
+
+    /// <summary>
+    /// A zero or absurd calendar value would silently divide by zero or freeze time later, so it
+    /// is rejected at load time with the key that is wrong.
+    /// </summary>
+    private static void Validate(GameConstants constants)
+    {
+        if (constants.DaysPerMonth is < 1 or > 60)
+        {
+            throw new SimException("config.invalid_value", $"daysPerMonth must be 1..60, got {constants.DaysPerMonth}.");
+        }
+
+        if (constants.MonthsPerYear is < 1 or > 24)
+        {
+            throw new SimException("config.invalid_value", $"monthsPerYear must be 1..24, got {constants.MonthsPerYear}.");
+        }
+
+        if (constants.PhasesPerDay is < 1 or > 12)
+        {
+            throw new SimException("config.invalid_value", $"phasesPerDay must be 1..12, got {constants.PhasesPerDay}.");
+        }
+
+        if (constants.FatigueCap < 0 || constants.GrainPerDay < 0 || constants.DailyFatigueRecovery < 0)
+        {
+            throw new SimException("config.invalid_value", "fatigue and grain values cannot be negative.");
+        }
+
+        if (string.IsNullOrWhiteSpace(constants.CurrencyNameVi) || string.IsNullOrWhiteSpace(constants.GrainNameVi))
+        {
+            throw new SimException("config.invalid_value", "currency and grain names are required.");
+        }
     }
 
     private static JsonElement Require(JsonElement root, string name) =>

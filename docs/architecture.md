@@ -7,11 +7,14 @@
   index.json                  list of campaigns (id, name, game date, last played)
   <uuid>\
     campaign.db              one SQLite database = one independent campaign
+    campaign.lock            exclusive handle while the campaign is open
+    backups\campaign-*.db    snapshot taken before a pending migration (last 5 kept)
 ```
 
-There is no registry database, no lock table, no lease and no heartbeat. A single local user
-opening a single file does not need distributed coordination; the operating system already
-arbitrates file access. Disabling a DLC leaves its tables and rows in `campaign.db` untouched.
+There is no registry database, no lease and no heartbeat. A single local user opening a single
+file does not need distributed coordination; an exclusive lock file covers the one case that
+matters — the same campaign opened twice — and reports it at open time instead of failing
+half-way through a turn. Disabling a DLC leaves its tables and rows in `campaign.db` untouched.
 
 ## 2. Kernel services (K1–K9)
 
@@ -132,6 +135,9 @@ The kernel assumes a module can be wrong and puts the last line of defence behin
 | A migration leaves the save unreadable | snapshot before the first pending migration, keep 5 | `DatabaseBackup`, `SimKernel.BackupIfMigrationsPending` |
 | A crash after a committed roll | RNG position written inside the same transaction as the day | `SimKernel.AdvanceDays` |
 | A module spends money it does not have | `ledger.overdraft` refusal at the writer | `SqliteLedger.PostTo` |
+| A retried command charges twice | optional idempotency key; the same key never writes a second line | `LedgerEntry.IdempotencyKey` |
+| Two windows on one campaign | exclusive `<campaign>.lock` held for the kernel's lifetime, `save.locked` with the path | `CampaignLock` |
+| An absurd calendar value | validated at load: 30-day month, 12-month year, 1–12 phases, non-negative fatigue | `GameConstantsLoader.Validate` |
 | A driver error reaches the UI | `SqliteException` translated to `SimException("db.sqlite")` | `SqliteSession` |
 | A save from a newer build | `save.future_version` refusal | `SimKernel.EnsureSchemaVersion` |
 | Cash that cannot be attributed | every line carries the owning module | `JournalCodes.ModuleOf` |

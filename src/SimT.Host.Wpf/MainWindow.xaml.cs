@@ -190,11 +190,18 @@ public partial class MainWindow : Window
 
     private void Advance_Click(object sender, RoutedEventArgs e)
     {
-        _kernel.AdvanceDay();
-        _kernel.Save();
-        UpdateHeader();
-        RenderSelected();
-        StatusText.Text = $"Đã sang ngày {_kernel.Today}.";
+        try
+        {
+            _kernel.AdvanceDay();
+            _kernel.Save();
+            UpdateHeader();
+            RenderSelected();
+            StatusText.Text = $"Đã sang ngày {_kernel.Today}.";
+        }
+        catch (Exception error)
+        {
+            StatusText.Text = Describe(error);
+        }
     }
 
     private void RowCommand_Click(object sender, RoutedEventArgs e)
@@ -214,15 +221,25 @@ public partial class MainWindow : Window
         {
             StatusText.Text = handler.Execute(commandId) ?? "Xong.";
         }
-        catch (SimException error)
+        catch (Exception error)
         {
-            StatusText.Text = $"[{error.Code}] {error.Message}";
+            StatusText.Text = Describe(error);
         }
 
         _kernel.Save();
         UpdateHeader();
         RenderSelected();
     }
+
+    /// <summary>
+    /// One place that turns any failure into a line the player can read: a coded simulation
+    /// error keeps its code, anything else is reported as an internal fault instead of a crash.
+    /// </summary>
+    private static string Describe(Exception error) => error switch
+    {
+        SimException sim => $"[{sim.Code}] {sim.Message}",
+        _ => $"[internal] {error.GetType().Name}: {error.Message}"
+    };
 
     private void UpdateHeader()
     {
