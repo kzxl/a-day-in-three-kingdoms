@@ -1,0 +1,17 @@
+## Build output
+
+bin/
+obj/
+
+## Local saves and logs
+
+saves/
+*.db
+*.db-shm
+*.db-wal
+
+## IDE
+
+.vs/
+.idea/
+*.user

@@ -1,0 +1,14 @@
+{
+  "id": "merchant-slice",
+  "name": "Merchant Slice",
+  "modules": [
+    "base.content",
+    "base.world",
+    "base.player",
+    "base.npc",
+    "dlc.market"
+  ],
+  "seed": 1840502,
+  "startLocation": "lac_duong",
+  "startingCash": 2000
+}

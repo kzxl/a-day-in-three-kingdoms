@@ -1,0 +1,317 @@
+using SimT.Contracts;
+using SimT.Contracts.Data;
+using SimT.Contracts.Ledger;
+using SimT.Contracts.Logging;
+using SimT.Contracts.Playing;
+using SimT.Contracts.Time;
+
+namespace SimT.Modules.Dlc.Market;
+
+/// <summary>
+/// Trade + warehouse rules for <c>dlc.market</c>. Everything it touches is reached through a
+/// capability, never through another module's assembly.
+/// </summary>
+internal sealed class MarketService : IMarketTrade, IMarketWarehouse
+{
+    public const int DefaultCapacity = 200;
+    public const long DefaultMonthlyRent = 150;
+
+    private readonly IDbSession _db;
+    private readonly IGameClock _clock;
+    private readonly IWallet _wallet;
+    private readonly IBag _bag;
+    private readonly IItemCatalog _items;
+    private readonly IWorldMap _map;
+    private readonly ILog _log;
+
+    public MarketService(IDbSession db, IGameClock clock, IWallet wallet, IBag bag, IItemCatalog items, IWorldMap map, ILog log)
+    {
+        _db = db;
+        _clock = clock;
+        _wallet = wallet;
+        _bag = bag;
+        _items = items;
+        _map = map;
+        _log = log;
+    }
+
+    long IMarketWarehouse.DefaultCapacity => DefaultCapacity;
+
+    long IMarketWarehouse.DefaultMonthlyRent => DefaultMonthlyRent;
+
+    public int StallStock(long cityId, long itemId) =>
+        (int)_db.ScalarLong(
+            "SELECT COALESCE(stock, 0) FROM mk_stall_listing WHERE citadel_id=@city AND item_id=@item",
+            new DbArgs().Add("@city", cityId).Add("@item", itemId));
+
+    public long QuoteBuy(long cityId, long itemId)
+    {
+        var item = RequireItem(itemId);
+        var citadel = RequireCitadel(cityId);
+        return MarketPricing.Quote(item, citadel, _clock.Today.Month);
+    }
+
+    public long QuoteSell(long cityId, long itemId) => MarketPricing.SellQuote(QuoteBuy(cityId, itemId));
+
+    public TradeResult Buy(long cityId, long itemId, int quantity)
+    {
+        if (quantity <= 0)
+        {
+            return TradeResult.Fail("Số lượng phải lớn hơn 0.");
+        }
+
+        var item = _items.Find(itemId);
+        var citadel = _map.Find(cityId);
+        if (item is null || citadel is null)
+        {
+            return TradeResult.Fail("Mặt hàng hoặc thành trấn không tồn tại.");
+        }
+
+        if (StallStock(cityId, itemId) < quantity)
+        {
+            return TradeResult.Fail("Sạp không đủ hàng.");
+        }
+
+        var unit = MarketPricing.Quote(item, citadel, _clock.Today.Month);
+        var total = MarketPricing.Total(unit, quantity);
+        if (_wallet.Balance < total)
+        {
+            return TradeResult.Fail($"Không đủ tiền: cần {total}, có {_wallet.Balance}.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(total, JournalCodes.MarketBuy, $"Mua {quantity} {item.NameVi}");
+            _bag.Add(cityId, itemId, quantity);
+            _db.Execute(
+                "UPDATE mk_stall_listing SET stock = stock - @quantity WHERE citadel_id=@city AND item_id=@item",
+                new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@quantity", quantity));
+        });
+
+        return new TradeResult(true, unit, total, $"Mua {quantity} {item.NameVi} hết {total} Quan.");
+    }
+
+    public TradeResult Sell(long cityId, long itemId, int quantity)
+    {
+        if (quantity <= 0)
+        {
+            return TradeResult.Fail("Số lượng phải lớn hơn 0.");
+        }
+
+        var item = _items.Find(itemId);
+        var citadel = _map.Find(cityId);
+        if (item is null || citadel is null)
+        {
+            return TradeResult.Fail("Mặt hàng hoặc thành trấn không tồn tại.");
+        }
+
+        if (_bag.Quantity(cityId, itemId) < quantity)
+        {
+            return TradeResult.Fail("Trong túi không đủ hàng.");
+        }
+
+        var unit = MarketPricing.SellQuote(MarketPricing.Quote(item, citadel, _clock.Today.Month));
+        var total = MarketPricing.Total(unit, quantity);
+
+        var moved = false;
+        _db.Transaction(() =>
+        {
+            moved = _bag.Remove(cityId, itemId, quantity);
+            if (!moved)
+            {
+                throw new SimException("market.bag_race", "Bag changed while selling; the transaction was rolled back.");
+            }
+
+            _wallet.Pay(total, JournalCodes.MarketSell, $"Bán {quantity} {item.NameVi}");
+            _db.Execute(
+                """
+                INSERT INTO mk_stall_listing(citadel_id, item_id, stock) VALUES(@city, @item, @quantity)
+                ON CONFLICT(citadel_id, item_id) DO UPDATE SET stock = stock + excluded.stock
+                """,
+                new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@quantity", quantity));
+        });
+
+        if (!moved)
+        {
+            return TradeResult.Fail("Trong túi không đủ hàng.");
+        }
+
+        return new TradeResult(true, unit, total, $"Bán {quantity} {item.NameVi} được {total} Quan.");
+    }
+
+    public WarehouseInfo? Info(long cityId)
+    {
+        var warehouse = _db.QueryOne(
+            "SELECT citadel_id, capacity, monthly_rent FROM mk_warehouse WHERE citadel_id=@city",
+            row => new WarehouseInfo(row.GetInt64(0), row.GetInt32(1), row.GetInt64(2), 0),
+            DbArgs.One("@city", cityId));
+
+        if (warehouse is null)
+        {
+            return null;
+        }
+
+        var used = (int)_db.ScalarLong(
+            "SELECT COALESCE(SUM(quantity), 0) FROM mk_warehouse_stock WHERE citadel_id=@city",
+            DbArgs.One("@city", cityId));
+
+        return warehouse with { Used = used };
+    }
+
+    public int StockAt(long cityId, long itemId) =>
+        (int)_db.ScalarLong(
+            "SELECT COALESCE(quantity, 0) FROM mk_warehouse_stock WHERE citadel_id=@city AND item_id=@item",
+            new DbArgs().Add("@city", cityId).Add("@item", itemId));
+
+    public bool Store(long cityId, long itemId, int quantity, out string message)    {
+        if (quantity <= 0)
+        {
+            message = "Số lượng phải lớn hơn 0.";
+            return false;
+        }
+
+        var warehouse = Info(cityId);
+        if (warehouse is null)
+        {
+            message = "Chưa thuê kho ở thành này.";
+            return false;
+        }
+
+        if (warehouse.Used + quantity > warehouse.Capacity)
+        {
+            message = $"Kho đầy: {warehouse.Used}/{warehouse.Capacity}.";
+            return false;
+        }
+
+        if (_bag.Quantity(cityId, itemId) < quantity)
+        {
+            message = "Trong túi không đủ hàng.";
+            return false;
+        }
+
+        _db.Transaction(() =>
+        {
+            if (!_bag.Remove(cityId, itemId, quantity))
+            {
+                throw new SimException("market.bag_race", "Bag changed while storing; rolled back.");
+            }
+
+            _db.Execute(
+                """
+                INSERT INTO mk_warehouse_stock(citadel_id, item_id, quantity) VALUES(@city, @item, @quantity)
+                ON CONFLICT(citadel_id, item_id) DO UPDATE SET quantity = quantity + excluded.quantity
+                """,
+                new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@quantity", quantity));
+        });
+
+        message = $"Gửi {quantity} vào kho.";
+        return true;
+    }
+
+    public bool Take(long cityId, long itemId, int quantity, out string message)
+    {
+        if (quantity <= 0)
+        {
+            message = "Số lượng phải lớn hơn 0.";
+            return false;
+        }
+
+        var inStock = (int)_db.ScalarLong(
+            "SELECT COALESCE(quantity, 0) FROM mk_warehouse_stock WHERE citadel_id=@city AND item_id=@item",
+            new DbArgs().Add("@city", cityId).Add("@item", itemId));
+
+        if (inStock < quantity)
+        {
+            message = "Kho không đủ hàng.";
+            return false;
+        }
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "UPDATE mk_warehouse_stock SET quantity = quantity - @quantity WHERE citadel_id=@city AND item_id=@item",
+                new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@quantity", quantity));
+            _db.Execute(
+                "DELETE FROM mk_warehouse_stock WHERE citadel_id=@city AND item_id=@item AND quantity <= 0",
+                new DbArgs().Add("@city", cityId).Add("@item", itemId));
+            _bag.Add(cityId, itemId, quantity);
+        });
+
+        message = $"Lấy {quantity} khỏi kho.";
+        return true;
+    }
+
+    public bool Rent(long cityId, out string message)
+    {
+        if (Info(cityId) is not null)
+        {
+            message = "Đã thuê kho ở thành này.";
+            return false;
+        }
+
+        if (_wallet.Balance < DefaultMonthlyRent)
+        {
+            message = $"Cần {DefaultMonthlyRent} Quan để thuê kho.";
+            return false;
+        }
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(DefaultMonthlyRent, JournalCodes.WarehouseRent, "Thuê kho tháng đầu");
+            _db.Execute(
+                "INSERT INTO mk_warehouse(citadel_id, capacity, monthly_rent) VALUES(@city, @capacity, @rent)",
+                new DbArgs().Add("@city", cityId).Add("@capacity", DefaultCapacity).Add("@rent", DefaultMonthlyRent));
+        });
+
+        message = $"Thuê kho {DefaultCapacity} đơn vị, {DefaultMonthlyRent} Quan/tháng.";
+        return true;
+    }
+
+    /// <summary>Called on every month boundary. Rent is a real cashflow, never a silent freebie.</summary>
+    public void ChargeMonthlyRent(GameDate date)
+    {
+        var warehouses = _db.Query(
+            "SELECT citadel_id, monthly_rent FROM mk_warehouse ORDER BY citadel_id",
+            row => (CityId: row.GetInt64(0), Rent: row.GetInt64(1)));
+
+        foreach (var warehouse in warehouses)
+        {
+            if (_wallet.Balance < warehouse.Rent)
+            {
+                _log.Warn($"Chưa trả được tiền kho {warehouse.Rent} Quan tại thành {warehouse.CityId} ngày {date}.");
+                continue;
+            }
+
+            _wallet.Charge(warehouse.Rent, JournalCodes.WarehouseRent, $"Tiền kho tháng {date.Month:00}/{date.Year}");
+        }
+    }
+
+    /// <summary>Seeds stall supply from the catalog and the map. No foreign table is read here.</summary>
+    public void EnsureListings(IItemCatalog items, IWorldMap map)
+    {
+        var existing = _db.ScalarLong("SELECT COUNT(*) FROM mk_stall_listing");
+        if (existing > 0)
+        {
+            return;
+        }
+
+        _db.Transaction(() =>
+        {
+            foreach (var citadel in map.Citadels)
+            {
+                foreach (var item in items.All)
+                {
+                    _db.Execute(
+                        "INSERT OR IGNORE INTO mk_stall_listing(citadel_id, item_id, stock) VALUES(@city, @item, 40)",
+                        new DbArgs().Add("@city", citadel.Id).Add("@item", item.Id));
+                }
+            }
+        });
+    }
+
+    private ItemDef RequireItem(long itemId) =>
+        _items.Find(itemId) ?? throw new SimException("market.item_missing", $"Item {itemId} is not in the catalog.");
+
+    private CitadelDef RequireCitadel(long cityId) =>
+        _map.Find(cityId) ?? throw new SimException("market.citadel_missing", $"Citadel {cityId} is not on the map.");
+}

@@ -1,0 +1,21 @@
+{
+  "currency": {
+    "vi": "Quan",
+    "en": "quan"
+  },
+  "grain": {
+    "vi": "Thạch",
+    "en": "piculs"
+  },
+  "calendar": {
+    "daysPerMonth": 30,
+    "phasesPerDay": 3,
+    "monthsPerYear": 12,
+    "grainPerDay": 0.02,
+    "dailyFatigueRecovery": 1,
+    "fallbackDate": "184-05-02"
+  },
+  "fatigue": {
+    "max": 100
+  }
+}

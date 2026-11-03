@@ -1,0 +1,40 @@
+namespace SimT.Contracts.Playing;
+
+/// <summary>Trade surface provided by <c>dlc.market</c> as the <c>market.trade</c> capability.</summary>
+public interface IMarketTrade
+{
+    long QuoteBuy(long cityId, long itemId);
+
+    long QuoteSell(long cityId, long itemId);
+
+    TradeResult Buy(long cityId, long itemId, int quantity);
+
+    TradeResult Sell(long cityId, long itemId, int quantity);
+
+    int StallStock(long cityId, long itemId);
+}
+
+public readonly record struct TradeResult(bool Ok, long UnitPrice, long Total, string Message)
+{
+    public static TradeResult Fail(string message) => new(false, 0, 0, message);
+}
+
+/// <summary>Warehouse surface provided by <c>dlc.market</c> as the <c>market.warehouse</c> capability.</summary>
+public interface IMarketWarehouse
+{
+    long DefaultCapacity { get; }
+
+    long DefaultMonthlyRent { get; }
+
+    WarehouseInfo? Info(long cityId);
+
+    int StockAt(long cityId, long itemId);
+
+    bool Store(long cityId, long itemId, int quantity, out string message);
+
+    bool Take(long cityId, long itemId, int quantity, out string message);
+
+    bool Rent(long cityId, out string message);
+}
+
+public sealed record WarehouseInfo(long CityId, int Capacity, long MonthlyRent, int Used);

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>SimT.Host.Wpf</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SimT.Contracts\SimT.Contracts.csproj" />
+    <ProjectReference Include="..\SimT.Core\SimT.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Same rule as the CLI: modules are build artefacts, not compile-time references. -->
+  <ItemGroup>
+    <ModuleProject Include="..\SimT.Modules.Base.Content\SimT.Modules.Base.Content.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Base.World\SimT.Modules.Base.World.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Base.Player\SimT.Modules.Base.Player.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Dlc.Market\SimT.Modules.Dlc.Market.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="@(ModuleProject)" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
+  <Target Name="CopyModules" AfterTargets="Build">
+    <ItemGroup>
+      <ModuleArtifact Include="@(ModuleProject->'%(RootDir)%(Directory)bin\$(Configuration)\net8.0\%(Filename).dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ModuleArtifact)" DestinationFolder="$(OutDir)Modules" SkipUnchangedFiles="true" />
+  </Target>
+
+  <ItemGroup>
+    <None Include="..\..\assets\**\*" LinkBase="assets" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

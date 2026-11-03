@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>SimT.Contracts</RootNamespace>
+  </PropertyGroup>
+
+  <!-- INVARIANT: Contracts has zero project references and zero package references.
+       It is the only assembly every other project may depend on. -->
+
+</Project>

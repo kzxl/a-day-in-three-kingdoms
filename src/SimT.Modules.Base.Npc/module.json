@@ -1,0 +1,14 @@
+{
+  "id": "base.npc",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "kind": "base",
+  "requires": ["base.world"],
+  "provides": [],
+  "consumes": ["world.map"],
+  "owns": {
+    "tables": ["np_npc"],
+    "migrations": ["migrations"]
+  },
+  "screens": []
+}
