@@ -1,6 +1,6 @@
 {
   "name": "merchant-full",
-  "notes": "Một tháng đầy đủ: chợ, kho, nghề, gia đạo, thương đội sang thành Trường An rồi bán lại.",
+  "notes": "Một vòng đầy đủ: chợ, kho, nghề, gia đạo, thương đội sang Trường An, quan lộ và ruộng.",
   "actions": [
     { "type": "buy", "item": "gao", "qty": 4 },
     { "type": "rent" },
@@ -14,6 +14,13 @@
     { "type": "command", "screen": "caravan.routes", "id": "goto:2" },
     { "type": "sell", "item": "gao", "qty": 2 },
     { "type": "buy", "item": "tra", "qty": 2 },
-    { "type": "advance", "days": 40 }
+    { "type": "command", "screen": "politics.court", "id": "serve" },
+    { "type": "command", "screen": "politics.court", "id": "apply:1" },
+    { "type": "command", "screen": "cultivation.farm", "id": "rent:3" },
+    { "type": "command", "screen": "cultivation.farm", "id": "plant:3" },
+    { "type": "advance", "days": 24 },
+    { "type": "command", "screen": "cultivation.farm", "id": "harvest:3" },
+    { "type": "advance", "days": 40 },
+    { "type": "sell", "item": "gao", "qty": 4 }
   ]
 }

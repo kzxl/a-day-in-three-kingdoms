@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Professions\SimT.Modules.Dlc.Professions.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Lineage\SimT.Modules.Dlc.Lineage.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Cultivation\SimT.Modules.Dlc.Cultivation.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Politics\SimT.Modules.Dlc.Politics.csproj" />
   </ItemGroup>
 
   <ItemGroup>
