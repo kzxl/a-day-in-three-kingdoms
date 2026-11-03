@@ -116,5 +116,6 @@ public sealed class SaveManager
         DatabasePath: Path.Combine(campaignDirectory, "campaign.db"),
         ModulesDirectory: Path.Combine(AppContext.BaseDirectory, "Modules"),
         ProductPath: Path.Combine(AppContext.BaseDirectory, "assets", "products", "merchant-slice.json"),
-        ConstantsPath: Path.Combine(AppContext.BaseDirectory, "assets", "config", "game-constants.json"));
+        ConstantsPath: Path.Combine(AppContext.BaseDirectory, "assets", "config", "game-constants.json"),
+        BackupDirectory: Path.Combine(campaignDirectory, "backups"));
 }

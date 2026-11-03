@@ -43,7 +43,8 @@ public sealed class TestHost : IDisposable
         DatabasePath: DatabasePath,
         ModulesDirectory: AppContext.BaseDirectory,
         ProductPath: _productPath,
-        ConstantsPath: ConstantsPath));
+        ConstantsPath: ConstantsPath,
+        BackupDirectory: Path.Combine(_directory, "backups")));
 
     public void Dispose()
     {

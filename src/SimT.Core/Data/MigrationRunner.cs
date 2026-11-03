@@ -20,17 +20,7 @@ public sealed class MigrationRunner
     public int Apply(Assembly assembly, string moduleId)
     {
         EnsureMigrationTable();
-
-        var applied = new HashSet<string>(
-            _db.Query(
-                "SELECT migration_id FROM core_migration WHERE module_id=@module",
-                row => row.GetString(0),
-                DbArgs.One("@module", moduleId)),
-            StringComparer.Ordinal);
-
-        var pending = ListResources(assembly)
-            .Where(item => !applied.Contains(item.Id))
-            .ToList();
+        var pending = Pending(assembly, moduleId);
 
         foreach (var (resourceName, id) in pending)
         {
@@ -49,6 +39,29 @@ public sealed class MigrationRunner
 
         return pending.Count;
     }
+
+    /// <summary>
+    /// Migrations that have not run yet for this module. Used before applying anything, so the
+    /// kernel knows whether it must take a backup first.
+    /// </summary>
+    public IReadOnlyList<(string ResourceName, string Id)> Pending(Assembly assembly, string moduleId)
+    {
+        var applied = HasMigrationTable()
+            ? new HashSet<string>(
+                _db.Query(
+                    "SELECT migration_id FROM core_migration WHERE module_id=@module",
+                    row => row.GetString(0),
+                    DbArgs.One("@module", moduleId)),
+                StringComparer.Ordinal)
+            : new HashSet<string>(StringComparer.Ordinal);
+
+        return ListResources(assembly)
+            .Where(item => !applied.Contains(item.Id))
+            .ToList();
+    }
+
+    public bool HasMigrationTable() =>
+        _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='core_migration'") > 0;
 
     public static IReadOnlyList<(string ResourceName, string Id)> ListResources(Assembly assembly) =>
         assembly.GetManifestResourceNames()

@@ -67,7 +67,8 @@ internal static class Program
             DatabasePath: Path.Combine(workDir, "campaign.db"),
             ModulesDirectory: Path.Combine(root, "Modules"),
             ProductPath: Path.Combine(root, "assets", "products", "merchant-slice.json"),
-            ConstantsPath: Path.Combine(root, "assets", "config", "game-constants.json"));
+            ConstantsPath: Path.Combine(root, "assets", "config", "game-constants.json"),
+            BackupDirectory: Path.Combine(workDir, "backups"));
 
         using var kernel = SimKernel.Open(options);
 

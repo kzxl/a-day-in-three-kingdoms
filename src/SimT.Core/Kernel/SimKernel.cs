@@ -3,6 +3,7 @@ using SimT.Contracts.Config;
 using SimT.Contracts.Data;
 using SimT.Contracts.Diagnostics;
 using SimT.Contracts.Ledger;
+using SimT.Contracts.Logging;
 using SimT.Contracts.Modules;
 using SimT.Contracts.Products;
 using SimT.Contracts.Time;
@@ -25,7 +26,8 @@ public sealed record KernelOptions(
     string ModulesDirectory,
     string ProductPath,
     string ConstantsPath,
-    Action<string>? LogSink = null);
+    Action<string>? LogSink = null,
+    string? BackupDirectory = null);
 
 /// <summary>
 /// K1–K9 assembled. Opening a campaign applies the core migrations, resolves the enabled
@@ -96,15 +98,23 @@ public sealed class SimKernel : IDisposable
 
     public static SimKernel Open(KernelOptions options)
     {
+        var existedBefore = File.Exists(Path.GetFullPath(options.DatabasePath));
         var db = SqliteSession.Open(options.DatabasePath);
         try
         {
             var runner = new MigrationRunner(db);
-            runner.Apply(typeof(SimKernel).Assembly, "core");
-            EnsureSchemaVersion(db);
+            var log = new TextLog("kernel", options.LogSink);
 
             var constants = GameConstantsLoader.Load(options.ConstantsPath);
             var product = ProductManifestLoader.Load(options.ProductPath);
+            var discovered = ModuleLoader.Discover(options.ModulesDirectory);
+            var ordered = ModuleGraph.Resolve(discovered, product.Modules);
+
+            BackupIfMigrationsPending(runner, ordered, options, db, existedBefore, log);
+
+            runner.Apply(typeof(SimKernel).Assembly, "core");
+            EnsureSchemaVersion(db);
+
             var events = new EventPublisher();
             var clock = new SimClock(db, events);
             var ledger = new SqliteLedger(db);
@@ -117,8 +127,6 @@ public sealed class SimKernel : IDisposable
             var ui = new UiRegistry();
             var kernel = new SimKernel(db, rng, ui, broker, clock, ledger, constants, product);
 
-            var discovered = ModuleLoader.Discover(options.ModulesDirectory);
-            var ordered = ModuleGraph.Resolve(discovered, product.Modules);
             var campaign = new CampaignStart(product.Seed, product.StartLocationCode, product.StartingCash);
 
             foreach (var descriptor in ordered)
@@ -210,6 +218,34 @@ public sealed class SimKernel : IDisposable
 
         Save();
         _db.Dispose();
+    }
+
+    private static void BackupIfMigrationsPending(
+        MigrationRunner runner,
+        IReadOnlyList<ModuleDescriptor> ordered,
+        KernelOptions options,
+        SqliteSession db,
+        bool existedBefore,
+        ILog log)
+    {
+        if (!existedBefore || options.BackupDirectory is null)
+        {
+            return;
+        }
+
+        var pending = runner.Pending(typeof(SimKernel).Assembly, "core").Count
+                      + ordered.Sum(descriptor => runner.Pending(descriptor.Assembly, descriptor.Manifest.Id).Count);
+
+        if (pending == 0)
+        {
+            return;
+        }
+
+        var path = DatabaseBackup.Create(db, options.DatabasePath, options.BackupDirectory);
+        if (path is not null)
+        {
+            log.Info($"backed up save before {pending} pending migration(s): {path}");
+        }
     }
 
     private static void EnsureSchemaVersion(SqliteSession db)
