@@ -121,6 +121,25 @@ public sealed class KernelPrimitiveTests : IDisposable
     }
 
     [Fact]
+    public void Clock_publishes_each_boundary_only_once_even_if_the_date_is_rewound()
+    {
+        var events = new EventPublisher();
+        var closed = 0;
+        events.Subscribe<MonthClosed>(_ => closed++);
+
+        var clock = new SimClock(_db, events);
+        clock.Advance(31);
+        Assert.Equal(1, closed);
+
+        // Simulate a replayed save: the stored date goes back, the period log does not.
+        _db.Execute("UPDATE core_state SET value='0001-01-01' WHERE key='date'");
+        var rewound = new SimClock(_db, events);
+        rewound.Advance(31);
+
+        Assert.Equal(1, closed);
+    }
+
+    [Fact]
     public void Transaction_rolls_back_every_statement_on_failure()
     {
         var ledger = new SqliteLedger(_db);

@@ -1,7 +1,7 @@
-using System.Reflection;
 using SimT.Contracts;
 using SimT.Contracts.Config;
 using SimT.Contracts.Data;
+using SimT.Contracts.Diagnostics;
 using SimT.Contracts.Ledger;
 using SimT.Contracts.Modules;
 using SimT.Contracts.Products;
@@ -9,6 +9,7 @@ using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 using SimT.Core.Config;
 using SimT.Core.Data;
+using SimT.Core.Diagnostics;
 using SimT.Core.Events;
 using SimT.Core.Identity;
 using SimT.Core.Ledger;
@@ -33,13 +34,18 @@ public sealed record KernelOptions(
 /// </summary>
 public sealed class SimKernel : IDisposable
 {
+    /// <summary>Bumped when a kernel-owned table changes shape; a newer save refuses to open.</summary>
+    public const string SchemaVersion = "1";
+
     private readonly SqliteSession _db;
     private readonly SplitMix64Rng _rng;
     private readonly UiRegistry _ui;
     private readonly CapabilityBroker _broker;
     private readonly SimClock _clock;
     private readonly SqliteLedger _ledger;
+    private readonly InvariantRunner _invariants;
     private readonly List<ModuleContext> _contexts = new();
+    private readonly List<ISimModule> _started = new();
     private bool _disposed;
 
     private SimKernel(
@@ -60,6 +66,12 @@ public sealed class SimKernel : IDisposable
         _ledger = ledger;
         Constants = constants;
         Product = product;
+
+        _invariants = new InvariantRunner(new KernelInvariantContext(db, clock, ledger));
+        foreach (var invariant in KernelInvariants.All())
+        {
+            _invariants.Register(invariant);
+        }
     }
 
     public GameConstants Constants { get; }
@@ -78,6 +90,8 @@ public sealed class SimKernel : IDisposable
 
     public IReadOnlyList<ModuleContext> Modules => _contexts;
 
+    public IReadOnlyList<IInvariant> Invariants => _invariants.Invariants;
+
     public GameDate Today => _clock.Today;
 
     public static SimKernel Open(KernelOptions options)
@@ -87,6 +101,7 @@ public sealed class SimKernel : IDisposable
         {
             var runner = new MigrationRunner(db);
             runner.Apply(typeof(SimKernel).Assembly, "core");
+            EnsureSchemaVersion(db);
 
             var constants = GameConstantsLoader.Load(options.ConstantsPath);
             var product = ProductManifestLoader.Load(options.ProductPath);
@@ -127,14 +142,21 @@ public sealed class SimKernel : IDisposable
                 var module = (ISimModule)Activator.CreateInstance(descriptor.EntryPoint)!;
                 module.Start(context);
 
+                foreach (var invariant in context.Invariants)
+                {
+                    kernel._invariants.Register(invariant);
+                }
+
                 db.Execute(
                     "INSERT INTO core_module_state(module_id, version, enabled) VALUES(@id, @version, 1) " +
                     "ON CONFLICT(module_id) DO UPDATE SET version=excluded.version, enabled=1",
                     new DbArgs().Add("@id", descriptor.Manifest.Id).Add("@version", descriptor.Manifest.Version));
 
                 kernel._contexts.Add(context);
+                kernel._started.Add(module);
             }
 
+            kernel.MarkDisabledModules(product.Modules);
             return kernel;
         }
         catch
@@ -153,6 +175,9 @@ public sealed class SimKernel : IDisposable
         _db.Transaction(() => result = _clock.Advance(days));
         return result;
     }
+
+    /// <summary>Runs every registered invariant; an empty list means stored state is coherent.</summary>
+    public IReadOnlyList<InvariantFailure> RunInvariants() => _invariants.Run();
 
     /// <summary>Flushes everything a reload must reproduce: the date and the RNG stream position.</summary>
     public void Save()
@@ -174,7 +199,62 @@ public sealed class SimKernel : IDisposable
         }
 
         _disposed = true;
+
+        for (var index = _started.Count - 1; index >= 0; index--)
+        {
+            if (_started[index] is IStoppableModule stoppable)
+            {
+                stoppable.Stop();
+            }
+        }
+
         Save();
         _db.Dispose();
+    }
+
+    private static void EnsureSchemaVersion(SqliteSession db)
+    {
+        var stored = db.ScalarString("SELECT value FROM core_state WHERE key='schema.version'");
+        if (stored is null)
+        {
+            db.Execute(
+                "INSERT INTO core_state(key, value) VALUES('schema.version', @version)",
+                DbArgs.One("@version", SchemaVersion));
+            return;
+        }
+
+        if (string.CompareOrdinal(stored, SchemaVersion) > 0)
+        {
+            throw new SimException(
+                "save.future_version",
+                $"Save schema {stored} is newer than this build ({SchemaVersion}); update the game instead of downgrading the save.");
+        }
+    }
+
+    /// <summary>
+    /// Keeps the save's module ledger honest: modules present in the save but not enabled by
+    /// this product are marked disabled, and their data is left untouched.
+    /// </summary>
+    private void MarkDisabledModules(IReadOnlyList<string> enabled)
+    {
+        var rows = _db.Query("SELECT module_id FROM core_module_state WHERE enabled = 1", row => row.GetString(0));
+        foreach (var moduleId in rows)
+        {
+            if (enabled.Contains(moduleId, StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            _db.Execute("UPDATE core_module_state SET enabled = 0 WHERE module_id=@id", DbArgs.One("@id", moduleId));
+        }
+    }
+
+    private sealed class KernelInvariantContext(IDbSession db, IGameClock clock, ILedger ledger) : IInvariantContext
+    {
+        public IDbSession Db => db;
+
+        public IGameClock Clock => clock;
+
+        public ILedger Ledger => ledger;
     }
 }

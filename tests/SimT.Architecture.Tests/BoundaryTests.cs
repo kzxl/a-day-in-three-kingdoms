@@ -132,9 +132,16 @@ public sealed class BoundaryTests
     [Fact]
     public void Ledger_has_a_single_writer()
     {
+        // Reads are fine (the invariant runner verifies the ledger); writes are not.
+        string[] writes = ["INSERT INTO core_ledger", "UPDATE core_ledger", "DELETE FROM core_ledger"];
+
         var offenders = RepoLayout.Sources(".cs")
             .Where(path => !path.EndsWith("SqliteLedger.cs", StringComparison.OrdinalIgnoreCase))
-            .Where(path => File.ReadAllText(path).Contains("core_ledger", StringComparison.OrdinalIgnoreCase))
+            .Where(path =>
+            {
+                var text = File.ReadAllText(path);
+                return writes.Any(write => text.Contains(write, StringComparison.OrdinalIgnoreCase));
+            })
             .ToList();
 
         Assert.Empty(offenders);

@@ -31,6 +31,8 @@ public interface ISimModule
 /// <summary>Everything a module is allowed to reach, injected per module.</summary>
 public sealed class ModuleContext
 {
+    private readonly List<Diagnostics.IInvariant> _invariants = new();
+
     public ModuleContext(
         ModuleManifest manifest,
         CampaignStart campaign,
@@ -82,4 +84,17 @@ public sealed class ModuleContext
     public Logging.ILog Log { get; }
 
     public Ui.IUiRegistry Ui { get; }
+
+    public IReadOnlyList<Diagnostics.IInvariant> Invariants => _invariants;
+
+    /// <summary>Registers a consistency rule the kernel runs after each scenario or on demand.</summary>
+    public void AddInvariant(Diagnostics.IInvariant invariant)
+    {
+        if (_invariants.Any(existing => string.Equals(existing.Id, invariant.Id, StringComparison.Ordinal)))
+        {
+            throw new SimException("invariant.duplicate", $"Invariant '{invariant.Id}' is registered twice by '{Manifest.Id}'.");
+        }
+
+        _invariants.Add(invariant);
+    }
 }

@@ -7,7 +7,8 @@ namespace SimT.Core.Time;
 
 /// <summary>
 /// K2 — the only mover of time. Persists the current date in <c>core_state</c> and publishes
-/// exactly one <see cref="MonthClosed"/> per boundary crossed.
+/// exactly one <see cref="MonthClosed"/> per boundary, recorded in <c>core_period_log</c> so a
+/// replayed or retried advance can never charge the same month twice.
 /// </summary>
 public sealed class SimClock : IGameClock
 {
@@ -41,7 +42,7 @@ public sealed class SimClock : IGameClock
             _today = _today.AddDays(1);
             if (_today.Day == 1)
             {
-                _events.Publish(new MonthClosed(_today, previous));
+                PublishOnce(new MonthClosed(_today, previous));
             }
         }
 
@@ -56,13 +57,35 @@ public sealed class SimClock : IGameClock
             new DbArgs().Add("@key", DateKey).Add("@value", _today.ToString()));
     }
 
+    /// <summary>
+    /// Idempotent publication: the period key is written first, and the event only fires when
+    /// that insert actually happened. Two advances across the same boundary emit once.
+    /// </summary>
+    private void PublishOnce(MonthClosed closed)
+    {
+        var inserted = _db.Execute(
+            "INSERT OR IGNORE INTO core_period_log(period_key, published_at) VALUES(@key, @at)",
+            new DbArgs()
+                .Add("@key", "month:" + closed.Date.DayIndex)
+                .Add("@at", DateTime.UtcNow.ToString("O")));
+
+        if (inserted == 0)
+        {
+            return;
+        }
+
+        _events.Publish(closed);
+    }
+
     private static GameDate Parse(string stored)
     {
         var parts = stored.Split('-');
         if (parts.Length != 3
             || !int.TryParse(parts[0], out var year)
             || !int.TryParse(parts[1], out var month)
-            || !int.TryParse(parts[2], out var day))
+            || !int.TryParse(parts[2], out var day)
+            || month is < 1 or > GameDate.MonthsPerYear
+            || day is < 1 or > GameDate.DaysPerMonth)
         {
             throw new SimException("time.corrupt", $"Stored date '{stored}' cannot be parsed.");
         }

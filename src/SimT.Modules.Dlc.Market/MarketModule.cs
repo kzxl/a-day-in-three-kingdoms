@@ -85,6 +85,11 @@ public sealed class MarketModule : ISimModule
 
         context.Events.Subscribe<MonthClosed>(closed => service.ChargeMonthlyRent(closed.Date));
 
+        foreach (var invariant in MarketInvariants.All())
+        {
+            context.AddInvariant(invariant);
+        }
+
         context.Log.Info($"market ready: {items.All.Count} items, {map.Citadels.Count} citadels");
     }
 }
