@@ -72,6 +72,8 @@ Every table has exactly one owner and a prefix:
 | dlc.caravan | `cv_` | freight runs, cargo in transit |
 | dlc.professions | `pf_` | trade definitions, player practice |
 | dlc.lineage | `ln_` | spouse, children and the designated heir |
+| dlc.cultivation | `fm_` | plots, crops and the live-crop guard |
+| dlc.politics | `po_` | offices and the player's court state |
 
 Cash is not duplicated in `pl_player`: the wallet is a read of the kernel ledger.
 

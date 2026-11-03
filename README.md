@@ -70,6 +70,8 @@ any table contradicts another.
 | `dlc.caravan` | DLC | freight between cities, travel in days, arrival on the day it lands | `cv_*` |
 | `dlc.professions` | DLC | 4 day-labour trades, practice tiers that raise yield | `pf_*` |
 | `dlc.lineage` | DLC | marriage, children, one heir, monthly household upkeep | `ln_*` |
+| `dlc.cultivation` | DLC | rented plots, seasonal sowing, harvest, monthly land rent | `fm_*` |
+| `dlc.politics` | DLC | reputation from service, offices with gates, monthly stipend | `po_*` |
 
 Every DLC declares its tables and migrations in its own `module.json`, reaches other modules
 only through capabilities, and registers its own screens. Disabling one in
@@ -84,20 +86,22 @@ only through capabilities, and registers its own screens. Disabling one in
 - Freight: goods leave the current city, arrive in the destination after the road's duration.
 - Day labour: each batch costs its tool fee and days; practice raises the tier and the yield.
 - Household: dowry, children, a single heir enforced by a unique index, monthly upkeep.
+- Land: rent per plot, growth and yield set by season, rent charged every month regardless.
+- Court: service earns reputation, reputation unlocks an office, the office pays a stipend.
 - Every cash movement posted by one ledger writer; spending draws on liquid cash, not the vault.
 - Multiple independent campaigns, each one SQLite file, with duplicate/delete.
-- Six screens contributed by DLCs plus a kernel ledger view, rendered by a generic host.
+- Eight screens contributed by DLCs plus a kernel ledger view, rendered by a generic host.
 
 ## Verification snapshot
 
 | Gate | Count | Command |
 | --- | --- | --- |
-| Architecture rules | 29 | `dotnet test tests/SimT.Architecture.Tests` |
+| Architecture rules | 33 | `dotnet test tests/SimT.Architecture.Tests` |
 | Kernel primitives and hardening | 13 | `dotnet test tests/SimT.Core.Tests` |
 | Market slice + pricing budget | 11 | `dotnet test tests/SimT.Modules.Market.Tests` |
-| DLC behaviour (caravan, professions, lineage) | 25 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| DLC behaviour (6 DLCs) | 43 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
-| Invariants at end of every replay | 16 | printed by `SimT.Cli` |
+| Invariants at end of every replay | 22 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |
 
 ## Documents
