@@ -68,7 +68,8 @@ public static class ModuleLoader
             Provides: Strings(root, "provides", source),
             Consumes: Strings(root, "consumes", source),
             Owns: Ownership(root, source),
-            Screens: Strings(root, "screens", source));
+            Screens: Strings(root, "screens", source),
+            Config: Config(root, source));
     }
 
     private static Type FindEntryPoint(Assembly assembly, string moduleId)
@@ -89,6 +90,40 @@ public static class ModuleLoader
                    && typeof(ISimModule).IsAssignableFrom(type)
                    && type.GetConstructor(Type.EmptyTypes) is not null)
                ?? throw new SimException("module.no_entrypoint", $"Module '{moduleId}' has no public parameterless ISimModule implementation.");
+    }
+
+    /// <summary>
+    /// Config must be a flat object of scalars. Nested shapes are rejected because a module
+    /// reading them would need its own parser, and then the kernel could not validate at boot.
+    /// </summary>
+    private static IReadOnlyDictionary<string, string> Config(JsonElement root, string source)
+    {
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (!root.TryGetProperty("config", out var config) || config.ValueKind == JsonValueKind.Null)
+        {
+            return values;
+        }
+
+        if (config.ValueKind != JsonValueKind.Object)
+        {
+            throw new SimException("module.invalid_manifest", $"{source}: 'config' must be an object of scalars.");
+        }
+
+        foreach (var property in config.EnumerateObject())
+        {
+            values[property.Name] = property.Value.ValueKind switch
+            {
+                JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                JsonValueKind.Number => property.Value.GetRawText(),
+                JsonValueKind.True => "true",
+                JsonValueKind.False => "false",
+                _ => throw new SimException(
+                    "module.invalid_manifest",
+                    $"{source}: config '{property.Name}' must be a string, number or boolean.")
+            };
+        }
+
+        return values;
     }
 
     private static ModuleOwnership Ownership(JsonElement root, string source)

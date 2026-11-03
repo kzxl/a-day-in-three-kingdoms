@@ -15,7 +15,7 @@ namespace SimT.Modules.Dlc.Caravan;
 /// </summary>
 internal sealed class CaravanService : ICaravanGuild
 {
-    public const long FreightPerUnit = 8;
+    public const long DefaultFreightPerUnit = 8;
 
     private readonly IDbSession _db;
     private readonly IGameClock _clock;
@@ -25,6 +25,7 @@ internal sealed class CaravanService : ICaravanGuild
     private readonly IItemCatalog _items;
     private readonly IIdGenerator _ids;
     private readonly ILog _log;
+    private readonly long _freightPerUnit;
 
     public CaravanService(
         IDbSession db,
@@ -34,7 +35,8 @@ internal sealed class CaravanService : ICaravanGuild
         IWorldMap map,
         IItemCatalog items,
         IIdGenerator ids,
-        ILog log)
+        ILog log,
+        long freightPerUnit = DefaultFreightPerUnit)
     {
         _db = db;
         _clock = clock;
@@ -44,9 +46,12 @@ internal sealed class CaravanService : ICaravanGuild
         _items = items;
         _ids = ids;
         _log = log;
+        _freightPerUnit = freightPerUnit > 0
+            ? freightPerUnit
+            : throw new SimException("caravan.config_invalid", $"freightPerUnit must be positive, got {freightPerUnit}.");
     }
 
-    public long FeePerUnit => FreightPerUnit;
+    public long FeePerUnit => _freightPerUnit;
 
     public IReadOnlyList<CaravanRunSummary> Runs =>
         _db.Query(
@@ -87,7 +92,7 @@ internal sealed class CaravanService : ICaravanGuild
         }
 
         var units = rows.Sum(row => row.Quantity);
-        var fee = units * FreightPerUnit;
+        var fee = units * _freightPerUnit;
         if (_wallet.Liquid < fee)
         {
             return CaravanResult.Failure($"Cần {fee} Quan cước, chỉ có {_wallet.Liquid}.");

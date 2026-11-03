@@ -28,7 +28,7 @@ public sealed class CaravanTests : IDisposable
 
         Assert.Contains("lên đường", result);
         Assert.Equal(0, Bag(kernel).Quantity(player.CurrentCityId, 1));
-        Assert.Equal(before - (4 * CaravanService.FreightPerUnit), kernel.Ledger.Balance);
+        Assert.Equal(before - (4 * CaravanService.DefaultFreightPerUnit), kernel.Ledger.Balance);
         Assert.Contains(
             kernel.Ledger.Recent(50),
             line => line.JournalCode == JournalCodes.CaravanFreight);

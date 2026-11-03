@@ -24,7 +24,7 @@ arbitrates file access. Disabling a DLC leaves its tables and rows in `campaign.
 | K5 | `ModuleManifest`, `ICapabilityBroker` | `ModuleLoader`, `ModuleGraph`, `CapabilityBroker` | Deterministic topological order; duplicate ownership is a hard error |
 | K6 | `IEventPublisher` | `EventPublisher` | Explicit subscription through `ModuleContext`, no discovery |
 | K7 | `IUiRegistry` | `UiRegistry` | Screens are read models; the host renders them generically |
-| K8 | `GameConstants` | `GameConstantsLoader` | JSON is the single source of truth, cross-checked by a test |
+| K8 | `GameConstants`, `ModuleConfig` | `GameConstantsLoader`, `ModuleLoader` | JSON is the single source of truth; module settings must be flat scalars and a bad value fails at boot |
 | K9 | `ILog`, `IInvariant` | `TextLog`, `InvariantRunner` | Module-scoped logging; kernel and modules register consistency rules that `RunInvariants()` and every CLI replay execute |
 
 `GameDate` fixes a 30-day month and a 12-month year. `assets/config/game-constants.json` holds
@@ -123,7 +123,24 @@ All of them are integer functions of state that the save already holds. That is 
 golden hash meaningful: two runs of the same script produce the same prices, the same spoil and
 the same ledger.
 
-## 9. Invariants and who enforces them
+## 9. Kernel safety net
+
+The kernel assumes a module can be wrong and puts the last line of defence behind it:
+
+| Risk | Guard | Where |
+| --- | --- | --- |
+| A migration leaves the save unreadable | snapshot before the first pending migration, keep 5 | `DatabaseBackup`, `SimKernel.BackupIfMigrationsPending` |
+| A crash after a committed roll | RNG position written inside the same transaction as the day | `SimKernel.AdvanceDays` |
+| A module spends money it does not have | `ledger.overdraft` refusal at the writer | `SqliteLedger.PostTo` |
+| A driver error reaches the UI | `SqliteException` translated to `SimException("db.sqlite")` | `SqliteSession` |
+| A save from a newer build | `save.future_version` refusal | `SimKernel.EnsureSchemaVersion` |
+| Cash that cannot be attributed | every line carries the owning module | `JournalCodes.ModuleOf` |
+| A DLC hard-coding a number | flat `config` block in `module.json`, typed read, bad value fails at boot | `ModuleConfig` |
+
+Reports read through `ILedger.Query(from, to, journalCode?, moduleId?, limit)`, so "what did the
+market cost me in month two" is one query, not a scan of the whole ledger.
+
+## 10. Invariants and who enforces them
 
 | Invariant | Enforced by |
 | --- | --- |

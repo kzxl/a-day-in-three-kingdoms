@@ -10,5 +10,8 @@
     "tables": ["cv_run", "cv_cargo"],
     "migrations": ["migrations"]
   },
-  "screens": ["caravan.routes"]
+  "screens": ["caravan.routes"],
+  "config": {
+    "freightPerUnit": 8
+  }
 }

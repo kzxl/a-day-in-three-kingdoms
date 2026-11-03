@@ -60,6 +60,23 @@ Rules the loader enforces at boot:
 - a table may be owned by exactly one module.
 - a capability may be provided by exactly one module.
 - the dependency graph must be acyclic.
+- `config` must be a flat object of scalars; nested values are rejected.
+
+## 2a. Settings belong in the manifest, not in code
+
+Anything a balance designer might tune goes in `config`, with the code value as the default:
+
+```json
+"config": { "freightPerUnit": 8 }
+```
+
+```csharp
+var freight = context.Config.GetLong("freightPerUnit", CaravanService.DefaultFreightPerUnit);
+var required = context.Config.RequireLong("someMandatoryValue");   // throws at boot if absent
+```
+
+`RequireLong` fails with `module.config_missing` or `module.config_invalid`, so a typo in a
+manifest is a startup error rather than a silent fallback.
 
 ## 3. Own your tables
 

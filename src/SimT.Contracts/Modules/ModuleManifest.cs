@@ -14,9 +14,13 @@ public sealed record ModuleManifest(
     IReadOnlyList<string> Provides,
     IReadOnlyList<string> Consumes,
     ModuleOwnership Owns,
-    IReadOnlyList<string> Screens)
+    IReadOnlyList<string> Screens,
+    IReadOnlyDictionary<string, string>? Config = null)
 {
     public const string CurrentApiVersion = "1";
+
+    /// <summary>Flat scalar settings from <c>module.json</c>, defaults supplied by the module.</summary>
+    public ModuleConfig Settings { get; } = new(Config, Id);
 }
 
 /// <summary>Tables and migration folders a module is allowed to touch.</summary>
@@ -84,6 +88,9 @@ public sealed class ModuleContext
     public Logging.ILog Log { get; }
 
     public Ui.IUiRegistry Ui { get; }
+
+    /// <summary>Typed settings this module declared in its manifest.</summary>
+    public ModuleConfig Config => Manifest.Settings;
 
     public IReadOnlyList<Diagnostics.IInvariant> Invariants => _invariants;
 
