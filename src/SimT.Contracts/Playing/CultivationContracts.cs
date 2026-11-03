@@ -18,6 +18,7 @@ public sealed record PlotView(
     int AreaMu,
     long MonthlyRent,
     bool Rented,
+    int Soil,
     string? CropStatus,
     int? ReadyDayIndex,
     int? YieldQuantity);

@@ -7,7 +7,7 @@ namespace SimT.Modules.Dlc.Cultivation;
 internal sealed class FarmScreen : IScreenContribution
 {
     private static readonly string[] Columns =
-        ["Khu", "Thành", "Mẫu", "Thuê/tháng", "Trạng thái", "Chín", "Dự thu"];
+        ["Khu", "Thành", "Mẫu", "Đất", "Thuê/tháng", "Trạng thái", "Chín", "Dự thu"];
 
     private readonly FarmService _service;
     private readonly IWorldMap _map;
@@ -46,11 +46,17 @@ internal sealed class FarmScreen : IScreenContribution
                 }
                 else if (plot.CropStatus is null)
                 {
-                    commands.Add(new ScreenCommand($"plant:{plot.Id}", "Gieo"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:gao", "Gieo lúa"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:tra", "Gieo trà"));
                 }
                 else if (plot.CropStatus == "READY")
                 {
                     commands.Add(new ScreenCommand($"harvest:{plot.Id}", "Gặt"));
+                }
+
+                if (plot.Rented && plot.Soil < CropCalendar.SoilCeiling)
+                {
+                    commands.Add(new ScreenCommand($"fertilise:{plot.Id}", "Bón phân"));
                 }
             }
 
@@ -59,6 +65,7 @@ internal sealed class FarmScreen : IScreenContribution
                     plot.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     city?.NameVi ?? plot.CitadelId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     plot.AreaMu.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    $"{plot.Soil}/100",
                     plot.MonthlyRent.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     Describe(plot),
                     plot.ReadyDayIndex is null
@@ -114,18 +121,19 @@ internal sealed class FarmCommandHandler : IScreenCommandHandler
 
     public string? Execute(string commandId)
     {
-        var separator = commandId.IndexOf(':');
-        if (separator <= 0 || !long.TryParse(commandId[(separator + 1)..], out var plotId))
+        var parts = commandId.Split(':');
+        if (parts.Length < 2 || !long.TryParse(parts[1], out var plotId))
         {
             return "Lệnh không hợp lệ.";
         }
 
         var city = _player.CurrentCityId;
-        return commandId[..separator] switch
+        return parts[0] switch
         {
             "rent" => _service.Rent(plotId, city).Message,
-            "plant" => _service.Plant(plotId, city).Message,
+            "plant" => _service.Plant(plotId, city, parts.Length > 2 ? parts[2] : null).Message,
             "harvest" => _service.Harvest(plotId, city).Message,
+            "fertilise" => _service.Fertilise(plotId, city).Message,
             var verb => $"Động từ '{verb}' không thuộc DLC cultivation."
         };
     }

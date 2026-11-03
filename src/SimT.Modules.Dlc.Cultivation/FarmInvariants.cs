@@ -46,10 +46,22 @@ internal static class FarmInvariants
         }
     }
 
+    public sealed class SoilWithinRange : IInvariant
+    {
+        public string Id => "cultivation.plot.soil_within_range";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM fm_plot WHERE soil < 0 OR soil > 100");
+            return bad == 0 ? null : $"{bad} plot(s) have soil outside 0..100";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new CropDatesOrdered();
         yield return new OneLiveCropPerPlot();
         yield return new HarvestedCropsHaveYield();
+        yield return new SoilWithinRange();
     }
 }

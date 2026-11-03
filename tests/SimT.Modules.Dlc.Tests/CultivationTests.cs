@@ -58,9 +58,9 @@ public sealed class CultivationTests : IDisposable
         var growing = Find(kernel, plot.Id);
         Assert.Equal("GROWING", growing.CropStatus);
         Assert.Equal(
-            (int)planted.AddDays(CropCalendar.GrowthDays(planted.Month)).DayIndex,
+            (int)planted.AddDays(CropCalendar.GrowthDays(CropSpec.Rice, planted.Month)).DayIndex,
             growing.ReadyDayIndex!.Value);
-        Assert.Equal(CropCalendar.Yield(plot.AreaMu, planted.Month), growing.YieldQuantity!.Value);
+        Assert.Equal(CropCalendar.Yield(plot.AreaMu, CropSpec.Rice, planted.Month, plot.Soil), growing.YieldQuantity!.Value);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class CultivationTests : IDisposable
         Command(kernel, $"plant:{plot.Id}");
         var expected = Find(kernel, plot.Id).YieldQuantity!.Value;
 
-        kernel.AdvanceDays(CropCalendar.GrowthDays(kernel.Today.Month));
+        kernel.AdvanceDays(CropCalendar.GrowthDays(CropSpec.Rice, kernel.Today.Month));
 
         Assert.Equal("READY", Find(kernel, plot.Id).CropStatus);
         var message = Command(kernel, $"harvest:{plot.Id}");
@@ -103,7 +103,7 @@ public sealed class CultivationTests : IDisposable
         var plot = HomePlot(kernel);
         Command(kernel, $"rent:{plot.Id}");
         Command(kernel, $"plant:{plot.Id}");
-        kernel.AdvanceDays(CropCalendar.GrowthDays(kernel.Today.Month));
+        kernel.AdvanceDays(CropCalendar.GrowthDays(CropSpec.Rice, kernel.Today.Month));
         Command(kernel, $"harvest:{plot.Id}");
 
         var message = Command(kernel, $"plant:{plot.Id}");
@@ -142,8 +142,8 @@ public sealed class CultivationTests : IDisposable
     [Fact]
     public void Winter_yields_less_than_summer_for_the_same_land()
     {
-        var summer = CropCalendar.Yield(2, 5);
-        var winter = CropCalendar.Yield(2, 11);
+        var summer = CropCalendar.Yield(2, CropSpec.Rice, 5, 100);
+        var winter = CropCalendar.Yield(2, CropSpec.Rice, 11, 100);
 
         Assert.True(winter < summer, $"winter {winter} should be below summer {summer}");
     }
@@ -155,7 +155,7 @@ public sealed class CultivationTests : IDisposable
         var plot = HomePlot(kernel);
         Command(kernel, $"rent:{plot.Id}");
         Command(kernel, $"plant:{plot.Id}");
-        kernel.AdvanceDays(CropCalendar.GrowthDays(kernel.Today.Month));
+        kernel.AdvanceDays(CropCalendar.GrowthDays(CropSpec.Rice, kernel.Today.Month));
         Command(kernel, $"harvest:{plot.Id}");
         Command(kernel, $"plant:{plot.Id}");
         kernel.AdvanceDays(40);

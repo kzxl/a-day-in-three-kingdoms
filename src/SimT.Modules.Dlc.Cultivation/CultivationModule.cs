@@ -16,6 +16,7 @@ public sealed class CultivationModule : ISimModule
         var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
 
         var service = new FarmService(context.Db, context.Clock, wallet, bag, items, context.Ids, context.Log);
+        service.ValidateCrops();
         service.EnsurePlots(map);
 
         context.Capabilities.Provide(CapabilityIds.CultivationEstate, service);
@@ -24,6 +25,7 @@ public sealed class CultivationModule : ISimModule
 
         context.Events.Subscribe<DayAdvanced>(day => service.OnDay(day.Date));
         context.Events.Subscribe<MonthClosed>(closed => service.ChargeMonthlyRent(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed => service.RecoverSoil(closed.Date));
 
         foreach (var invariant in FarmInvariants.All())
         {
