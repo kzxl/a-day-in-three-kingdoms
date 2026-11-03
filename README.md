@@ -81,12 +81,19 @@ only through capabilities, and registers its own screens. Disabling one in
 
 - 30-day months, 12-month years; day advance with `DayAdvanced` per day and one idempotent
   `MonthClosed` per boundary.
-- Trade goods, regional and seasonal pricing, 60% buy-back.
-- Warehouses with capacity and a real monthly rent cashflow.
-- Freight: goods leave the current city, arrive in the destination after the road's duration.
+- Trade goods, regional and seasonal pricing, 60% buy-back, and a price that reacts to supply:
+  a drained shelf costs up to 40% more, a glut is up to 30% cheaper, and stalls restock 60% of
+  their gap every month with a hard buy-back ceiling.
+- Warehouses with capacity, a real monthly rent cashflow, and spoilage: perishables decay daily
+  (one unit per shelf-life day) and are gone once their age reaches the shelf life; durables
+  never spoil.
+- Freight: goods leave the current city, arrive after the road's duration, and lose part of
+  their load on the road in proportion to transit time.
 - Day labour: each batch costs its tool fee and days; practice raises the tier and the yield.
 - Household: dowry, children, a single heir enforced by a unique index, monthly upkeep.
-- Land: rent per plot, growth and yield set by season, rent charged every month regardless.
+- Land: rent per plot, growth and yield set by season, soil that drops 25 per harvest and
+  recovers 5 per month, fertiliser at 30 Quan, rice or tea per plot, and rent charged every
+  month regardless.
 - Court: service earns reputation, reputation unlocks an office, the office pays a stipend.
 - Every cash movement posted by one ledger writer; spending draws on liquid cash, not the vault.
 - Multiple independent campaigns, each one SQLite file, with duplicate/delete.
@@ -98,10 +105,10 @@ only through capabilities, and registers its own screens. Disabling one in
 | --- | --- | --- |
 | Architecture rules | 33 | `dotnet test tests/SimT.Architecture.Tests` |
 | Kernel primitives and hardening | 13 | `dotnet test tests/SimT.Core.Tests` |
-| Market slice + pricing budget | 11 | `dotnet test tests/SimT.Modules.Market.Tests` |
-| DLC behaviour (6 DLCs) | 43 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| Market slice + pricing budget | 26 | `dotnet test tests/SimT.Modules.Market.Tests` |
+| DLC behaviour (6 DLCs) | 53 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
-| Invariants at end of every replay | 22 | printed by `SimT.Cli` |
+| Invariants at end of every replay | 26 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |
 
 ## Documents

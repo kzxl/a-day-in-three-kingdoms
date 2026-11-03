@@ -106,7 +106,24 @@ The host renders sections as tables and commands as buttons. Command ids are opa
 - The kernel rejects non-positive ledger amounts and direction values other than ±1 at both the
   contract and the SQLite trigger level.
 
-## 8. Invariants and who enforces them
+## 8. Economy depth
+
+The economy is not a set of fixed prices. Four curves decide what a trade is worth and what it
+costs to hold goods:
+
+| Curve | Rule | Where |
+| --- | --- | --- |
+| Supply | price multiplier 700–1400 permille as stock moves from 2× baseline to empty | `MarketPricing.ScarcityPermille` |
+| Restock | 60% of the gap back to baseline each month; buy-back capped at 2× baseline | `MarketService.RestockMonthly` |
+| Spoilage | 1/shelf-life of the quantity per day, sub-unit carried forward, whole row gone at shelf life | `MarketService.SpoilOneDay` |
+| Transit loss | `quantity × transitDays / shelfLife`, rounded down, at least one unit survives | `CaravanService.Spoilage` |
+| Soil | yield × (600 + soil×4)/1000, −25 per harvest, +5 per month, +30 for 30 Quan | `CropCalendar` |
+
+All of them are integer functions of state that the save already holds. That is what keeps the
+golden hash meaningful: two runs of the same script produce the same prices, the same spoil and
+the same ledger.
+
+## 9. Invariants and who enforces them
 
 | Invariant | Enforced by |
 | --- | --- |
