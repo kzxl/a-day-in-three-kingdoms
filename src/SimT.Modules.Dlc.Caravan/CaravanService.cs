@@ -22,16 +22,26 @@ internal sealed class CaravanService : ICaravanGuild
     private readonly IWallet _wallet;
     private readonly IBag _bag;
     private readonly IWorldMap _map;
+    private readonly IItemCatalog _items;
     private readonly IIdGenerator _ids;
     private readonly ILog _log;
 
-    public CaravanService(IDbSession db, IGameClock clock, IWallet wallet, IBag bag, IWorldMap map, IIdGenerator ids, ILog log)
+    public CaravanService(
+        IDbSession db,
+        IGameClock clock,
+        IWallet wallet,
+        IBag bag,
+        IWorldMap map,
+        IItemCatalog items,
+        IIdGenerator ids,
+        ILog log)
     {
         _db = db;
         _clock = clock;
         _wallet = wallet;
         _bag = bag;
         _map = map;
+        _items = items;
         _ids = ids;
         _log = log;
     }
@@ -42,7 +52,8 @@ internal sealed class CaravanService : ICaravanGuild
         _db.Query(
             """
             SELECT r.id, r.from_city, r.to_city, r.depart_day, r.arrive_day, r.status,
-                   COALESCE((SELECT SUM(quantity) FROM cv_cargo c WHERE c.run_id = r.id), 0)
+                   COALESCE((SELECT SUM(quantity) FROM cv_cargo c WHERE c.run_id = r.id), 0),
+                   COALESCE((SELECT SUM(lost) FROM cv_cargo c WHERE c.run_id = r.id), 0)
             FROM cv_run r
             ORDER BY r.id DESC
             LIMIT 20
@@ -54,7 +65,8 @@ internal sealed class CaravanService : ICaravanGuild
                 row.GetInt32(3),
                 row.GetInt32(4),
                 row.GetString(5),
-                row.GetInt32(6)));
+                row.GetInt32(6),
+                row.GetInt32(7)));
 
     public int UnitsInTransit =>
         (int)_db.ScalarLong(
@@ -143,12 +155,14 @@ internal sealed class CaravanService : ICaravanGuild
     public void OnDay(GameDate date)
     {
         var due = _db.Query(
-            "SELECT id, to_city FROM cv_run WHERE status = 'RUNNING' AND arrive_day <= @day ORDER BY id",
-            row => (Id: row.GetInt64(0), ToCity: row.GetInt64(1)),
+            "SELECT id, to_city, depart_day, arrive_day FROM cv_run WHERE status = 'RUNNING' AND arrive_day <= @day ORDER BY id",
+            row => (Id: row.GetInt64(0), ToCity: row.GetInt64(1), Depart: row.GetInt32(2), Arrive: row.GetInt32(3)),
             DbArgs.One("@day", date.DayIndex));
 
         foreach (var run in due)
         {
+            var transitDays = Math.Max(1, run.Arrive - run.Depart);
+
             _db.Transaction(() =>
             {
                 var moved = _db.Execute(
@@ -167,12 +181,41 @@ internal sealed class CaravanService : ICaravanGuild
 
                 foreach (var line in cargo)
                 {
-                    _bag.Add(run.ToCity, line.ItemId, line.Quantity);
+                    var lost = Spoilage(line.ItemId, line.Quantity, transitDays);
+                    if (lost > 0)
+                    {
+                        _db.Execute(
+                            "UPDATE cv_cargo SET lost=@lost WHERE run_id=@run AND item_id=@item",
+                            new DbArgs().Add("@run", run.Id).Add("@item", line.ItemId).Add("@lost", lost));
+                    }
+
+                    var delivered = line.Quantity - lost;
+                    if (delivered > 0)
+                    {
+                        _bag.Add(run.ToCity, line.ItemId, delivered);
+                    }
                 }
             });
 
             _log.Info($"caravan {run.Id} arrived at citadel {run.ToCity} on {date}");
         }
+    }
+
+    /// <summary>
+    /// Freight loss: perishables lose transitDays / shelfLife of their quantity on the road,
+    /// rounded down, and always keep at least one unit so a short hop never empties a crate.
+    /// Durable goods (shelf life 0) arrive whole.
+    /// </summary>
+    private int Spoilage(long itemId, int quantity, int transitDays)
+    {
+        var item = _items.Find(itemId);
+        if (item is null || item.ShelfLifeDays <= 0 || quantity <= 0)
+        {
+            return 0;
+        }
+
+        var lost = (int)((long)quantity * transitDays / item.ShelfLifeDays);
+        return Math.Min(lost, quantity - 1);
     }
 }
 

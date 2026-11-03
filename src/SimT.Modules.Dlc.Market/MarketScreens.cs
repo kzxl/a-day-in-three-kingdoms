@@ -114,7 +114,7 @@ internal sealed class StallScreen : IScreenContribution
 /// </summary>
 internal sealed class WarehouseScreen : IScreenContribution
 {
-    private static readonly string[] Columns = ["Vật phẩm", "Trong kho", "Trong túi"];
+    private static readonly string[] Columns = ["Vật phẩm", "Trong kho", "Hạn (ngày)", "Trong túi"];
 
     private readonly IMarketWarehouse _warehouse;
     private readonly IItemCatalog _items;
@@ -167,7 +167,12 @@ internal sealed class WarehouseScreen : IScreenContribution
             }
 
             rows.Add(new ScreenRow(
-                [item.NameVi, Fmt(stored), Fmt(held)],
+                [
+                    item.NameVi,
+                    Fmt(stored),
+                    item.ShelfLifeDays <= 0 ? "bền" : Fmt(item.ShelfLifeDays),
+                    Fmt(held)
+                ],
                 [
                     new ScreenCommand($"store:{item.Id}", "Gửi 1"),
                     new ScreenCommand($"take:{item.Id}", "Lấy 1")

@@ -42,10 +42,22 @@ internal static class CaravanInvariants
         }
     }
 
+    public sealed class LostWithinQuantity : IInvariant
+    {
+        public string Id => "caravan.cargo.lost_within_quantity";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM cv_cargo WHERE lost < 0 OR lost >= quantity");
+            return bad == 0 ? null : $"{bad} cargo line(s) lost an impossible amount";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new DatesOrdered();
         yield return new CargoHasRun();
         yield return new StatusIsKnown();
+        yield return new LostWithinQuantity();
     }
 }

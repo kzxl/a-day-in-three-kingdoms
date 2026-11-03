@@ -124,6 +124,38 @@ public sealed class CaravanTests : IDisposable
     }
 
     [Fact]
+    public void Perishable_cargo_loses_part_of_its_load_on_the_road()
+    {
+        using var kernel = _host.Boot();
+        var destination = Neighbour(kernel);
+        var days = Map(kernel).TravelDays(Player(kernel).CurrentCityId, destination);
+        Seed(kernel, 20);
+
+        Command(kernel, $"send:{destination}");
+        kernel.AdvanceDays(days);
+
+        // grain: shelf life 60 days, transit 3 → 20 * 3 / 60 = 1 lost
+        Assert.Equal(19, Bag(kernel).Quantity(destination, 1));
+        Assert.Equal(1, Guild(kernel).Runs.Single().Lost);
+    }
+
+    [Fact]
+    public void Durable_cargo_arrives_whole()
+    {
+        using var kernel = _host.Boot();
+        var destination = Neighbour(kernel);
+        var days = Map(kernel).TravelDays(Player(kernel).CurrentCityId, destination);
+        var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
+        trade.Buy(Player(kernel).CurrentCityId, 4, 2);
+
+        Command(kernel, $"send:{destination}");
+        kernel.AdvanceDays(days);
+
+        Assert.Equal(2, Bag(kernel).Quantity(destination, 4));
+        Assert.Equal(0, Guild(kernel).Runs.Single().Lost);
+    }
+
+    [Fact]
     public void Invariants_stay_clean_through_a_full_freight_cycle()
     {
         using var kernel = _host.Boot();

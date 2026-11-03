@@ -85,6 +85,7 @@ public sealed class MarketModule : ISimModule
 
         context.Events.Subscribe<MonthClosed>(closed => service.ChargeMonthlyRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => service.RestockMonthly(closed.Date));
+        context.Events.Subscribe<DayAdvanced>(day => service.SpoilOneDay(day.Date));
 
         foreach (var invariant in MarketInvariants.All())
         {

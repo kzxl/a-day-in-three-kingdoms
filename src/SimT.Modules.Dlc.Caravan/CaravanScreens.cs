@@ -8,7 +8,7 @@ namespace SimT.Modules.Dlc.Caravan;
 internal sealed class CaravanScreen : IScreenContribution
 {
     private static readonly string[] RouteColumns = ["Đích", "Ngày đi", "Cước/đơn vị", "Trong túi"];
-    private static readonly string[] RunColumns = ["Mã", "Đến", "Khởi hành", "Tới nơi", "Hàng", "Trạng thái"];
+    private static readonly string[] RunColumns = ["Mã", "Đến", "Khởi hành", "Tới nơi", "Hàng", "Hao", "Trạng thái"];
 
     private readonly CaravanService _service;
     private readonly IWorldMap _map;
@@ -73,6 +73,7 @@ internal sealed class CaravanScreen : IScreenContribution
                 GameDate.FromDayIndex(run.DepartDayIndex).ToString(),
                 GameDate.FromDayIndex(run.ArriveDayIndex).ToString(),
                 run.Units.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                run.Lost > 0 ? $"-{run.Lost}" : "—",
                 run.Status == "RUNNING" ? "đang đi" : "đã tới"
             ]));
         }

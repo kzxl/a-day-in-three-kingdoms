@@ -248,12 +248,19 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
 
         _db.Transaction(() =>
         {
-            _db.Execute(
-                "UPDATE mk_warehouse_stock SET quantity = quantity - @quantity WHERE citadel_id=@city AND item_id=@item",
-                new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@quantity", quantity));
-            _db.Execute(
-                "DELETE FROM mk_warehouse_stock WHERE citadel_id=@city AND item_id=@item AND quantity <= 0",
-                new DbArgs().Add("@city", cityId).Add("@item", itemId));
+            if (inStock == quantity)
+            {
+                _db.Execute(
+                    "DELETE FROM mk_warehouse_stock WHERE citadel_id=@city AND item_id=@item",
+                    new DbArgs().Add("@city", cityId).Add("@item", itemId));
+            }
+            else
+            {
+                _db.Execute(
+                    "UPDATE mk_warehouse_stock SET quantity = quantity - @quantity WHERE citadel_id=@city AND item_id=@item",
+                    new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@quantity", quantity));
+            }
+
             _bag.Add(cityId, itemId, quantity);
         });
 
@@ -303,6 +310,64 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
             }
 
             _wallet.Charge(warehouse.Rent, JournalCodes.WarehouseRent, $"Tiền kho tháng {date.Month:00}/{date.Year}");
+        }
+    }
+
+    /// <summary>
+    /// Daily decay of perishables in the warehouse. One unit of an item with a 60-day shelf life
+    /// loses 1/60 of itself per day; the carry column preserves the remainder so slow decay is
+    /// not rounded away. Items with a shelf life of 0 never spoil.
+    /// </summary>
+    public void SpoilOneDay(GameDate date)
+    {
+        var rows = _db.Query(
+            "SELECT citadel_id, item_id, quantity, spoilage_carry, age_days FROM mk_warehouse_stock",
+            row => (City: row.GetInt64(0), Item: row.GetInt64(1), Quantity: row.GetInt32(2),
+                    Carry: row.GetInt32(3), Age: row.GetInt32(4)));
+
+        foreach (var row in rows)
+        {
+            var item = _items.Find(row.Item);
+            if (item is null || item.ShelfLifeDays <= 0)
+            {
+                continue;
+            }
+
+            var age = row.Age + 1;
+            if (age >= item.ShelfLifeDays)
+            {
+                _db.Execute(
+                    "DELETE FROM mk_warehouse_stock WHERE citadel_id=@city AND item_id=@item",
+                    new DbArgs().Add("@city", row.City).Add("@item", row.Item));
+                _log.Info($"spoiled all {row.Quantity} x {item.Code} in warehouse {row.City} on {date}");
+                continue;
+            }
+
+            var rate = Math.Max(1, 1000 / item.ShelfLifeDays);
+            var raw = (row.Quantity * rate) + row.Carry;
+            var lost = raw / 1000;
+            var carry = raw % 1000;
+            var remaining = row.Quantity - lost;
+
+            if (remaining <= 0)
+            {
+                _db.Execute(
+                    "DELETE FROM mk_warehouse_stock WHERE citadel_id=@city AND item_id=@item",
+                    new DbArgs().Add("@city", row.City).Add("@item", row.Item));
+                _log.Info($"spoiled {row.Quantity} x {item.Code} in warehouse {row.City} on {date}");
+                continue;
+            }
+
+            _db.Execute(
+                "UPDATE mk_warehouse_stock SET quantity=@quantity, spoilage_carry=@carry, age_days=@age " +
+                "WHERE citadel_id=@city AND item_id=@item",
+                new DbArgs().Add("@city", row.City).Add("@item", row.Item)
+                    .Add("@quantity", remaining).Add("@carry", carry).Add("@age", age));
+
+            if (lost > 0)
+            {
+                _log.Info($"spoiled {lost} x {item.Code} in warehouse {row.City} on {date}");
+            }
         }
     }
 

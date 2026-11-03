@@ -17,4 +17,5 @@ public sealed record CaravanRunSummary(
     int DepartDayIndex,
     int ArriveDayIndex,
     string Status,
-    int Units);
+    int Units,
+    int Lost);
