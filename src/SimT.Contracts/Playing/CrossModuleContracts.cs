@@ -18,6 +18,8 @@ public static class CapabilityIds
     public const string CaravanGuild = "caravan.guild";
     public const string ProfessionGuild = "professions.guild";
     public const string LineageHouse = "lineage.house";
+    public const string CultivationEstate = "cultivation.estate";
+    public const string CourtOffice = "politics.court";
     public const string NpcRegistry = "npc.registry";
 }
 

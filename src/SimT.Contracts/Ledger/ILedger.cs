@@ -66,4 +66,7 @@ public static class JournalCodes
     public const string ToolFee = "PF.TOOL_FEE";
     public const string Dowry = "LN.DOWRY";
     public const string FamilyUpkeep = "LN.UPKEEP";
+    public const string FarmRent = "FM.RENT";
+    public const string FarmSeed = "FM.SEED";
+    public const string CourtStipend = "PO.STIPEND";
 }

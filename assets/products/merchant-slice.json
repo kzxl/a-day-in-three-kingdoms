@@ -9,7 +9,8 @@
     "dlc.market",
     "dlc.caravan",
     "dlc.professions",
-    "dlc.lineage"
+    "dlc.lineage",
+    "dlc.cultivation"
   ],
   "seed": 1840502,
   "startLocation": "lac_duong",
