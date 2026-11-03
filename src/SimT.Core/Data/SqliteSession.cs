@@ -48,42 +48,77 @@ public sealed class SqliteSession : IDbSession, IDisposable
 
     public int Execute(string sql, DbArgs? args = null)
     {
-        using var command = CreateCommand(sql, args);
-        return command.ExecuteNonQuery();
+        try
+        {
+            using var command = CreateCommand(sql, args);
+            return command.ExecuteNonQuery();
+        }
+        catch (SqliteException error)
+        {
+            throw Translate(error, "execute");
+        }
     }
 
     public long ScalarLong(string sql, DbArgs? args = null)
     {
-        using var command = CreateCommand(sql, args);
-        var value = command.ExecuteScalar();
-        return value is null or DBNull ? 0L : Convert.ToInt64(value, System.Globalization.CultureInfo.InvariantCulture);
+        try
+        {
+            using var command = CreateCommand(sql, args);
+            var value = command.ExecuteScalar();
+            return value is null or DBNull ? 0L : Convert.ToInt64(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch (SqliteException error)
+        {
+            throw Translate(error, "scalar");
+        }
     }
 
     public double ScalarDouble(string sql, DbArgs? args = null)
     {
-        using var command = CreateCommand(sql, args);
-        var value = command.ExecuteScalar();
-        return value is null or DBNull ? 0d : Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
+        try
+        {
+            using var command = CreateCommand(sql, args);
+            var value = command.ExecuteScalar();
+            return value is null or DBNull ? 0d : Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch (SqliteException error)
+        {
+            throw Translate(error, "scalar");
+        }
     }
 
     public string? ScalarString(string sql, DbArgs? args = null)
     {
-        using var command = CreateCommand(sql, args);
-        var value = command.ExecuteScalar();
-        return value is null or DBNull ? null : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
+        try
+        {
+            using var command = CreateCommand(sql, args);
+            var value = command.ExecuteScalar();
+            return value is null or DBNull ? null : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch (SqliteException error)
+        {
+            throw Translate(error, "scalar");
+        }
     }
 
     public List<T> Query<T>(string sql, Func<DbRecord, T> map, DbArgs? args = null)
     {
-        using var command = CreateCommand(sql, args);
-        using var reader = command.ExecuteReader();
-        var rows = new List<T>();
-        while (reader.Read())
+        try
         {
-            rows.Add(map(new DbRecord(reader)));
-        }
+            using var command = CreateCommand(sql, args);
+            using var reader = command.ExecuteReader();
+            var rows = new List<T>();
+            while (reader.Read())
+            {
+                rows.Add(map(new DbRecord(reader)));
+            }
 
-        return rows;
+            return rows;
+        }
+        catch (SqliteException error)
+        {
+            throw Translate(error, "query");
+        }
     }
 
     public T? QueryOne<T>(string sql, Func<DbRecord, T> map, DbArgs? args = null)
@@ -133,6 +168,13 @@ public sealed class SqliteSession : IDbSession, IDisposable
         _disposed = true;
         _connection.Dispose();
     }
+
+    /// <summary>
+    /// Turns a driver error into a contract error so callers (and the desktop host) can show a
+    /// message instead of crashing on a raw SqliteException.
+    /// </summary>
+    private static SimException Translate(SqliteException error, string operation) =>
+        new("db.sqlite", $"{operation} failed: {error.Message}", error);
 
     private SqliteCommand CreateCommand(string sql, DbArgs? args)
     {

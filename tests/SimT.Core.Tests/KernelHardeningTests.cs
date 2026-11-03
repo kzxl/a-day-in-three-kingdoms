@@ -92,6 +92,17 @@ public sealed class KernelHardeningTests : IDisposable
     }
 
     [Fact]
+    public void Advancing_a_day_persists_the_rng_position_without_an_explicit_save()
+    {
+        using var kernel = Boot();
+
+        kernel.AdvanceDay();
+
+        var stored = kernel.Db.ScalarString("SELECT value FROM core_state WHERE key='rng.state'");
+        Assert.False(string.IsNullOrEmpty(stored));
+    }
+
+    [Fact]
     public void Module_states_are_recorded_for_every_started_module()
     {
         using var kernel = Boot();

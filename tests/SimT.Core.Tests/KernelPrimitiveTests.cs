@@ -140,6 +140,46 @@ public sealed class KernelPrimitiveTests : IDisposable
     }
 
     [Fact]
+    public void Ledger_refuses_to_overdraw_the_cash_account()
+    {
+        var ledger = new SqliteLedger(_db);
+        ledger.Post(GameDate.Start, new LedgerEntry(JournalCodes.StartingCash, LedgerDirection.In, 100, "start"));
+
+        var error = Assert.Throws<SimException>(() =>
+            ledger.Post(GameDate.Start, new LedgerEntry(JournalCodes.MarketBuy, LedgerDirection.Out, 101, "too much")));
+
+        Assert.Equal("ledger.overdraft", error.Code);
+        Assert.Equal(100, ledger.Balance);
+    }
+
+    [Fact]
+    public void An_overdraft_inside_a_transaction_rolls_the_whole_thing_back()
+    {
+        var ledger = new SqliteLedger(_db);
+        ledger.Post(GameDate.Start, new LedgerEntry(JournalCodes.StartingCash, LedgerDirection.In, 50, "start"));
+
+        Assert.Throws<SimException>(() => _db.Transaction(() =>
+        {
+            ledger.Post(GameDate.Start, new LedgerEntry(JournalCodes.MarketSell, LedgerDirection.In, 10, "in"));
+            ledger.Post(GameDate.Start, new LedgerEntry(JournalCodes.MarketBuy, LedgerDirection.Out, 999, "overdraw"));
+        }));
+
+        Assert.Equal(50, ledger.Balance);
+    }
+
+    [Fact]
+    public void Driver_errors_surface_as_contract_errors()
+    {
+        _db.Execute("INSERT INTO core_state(key, value) VALUES('dup', 1)");
+
+        var error = Assert.Throws<SimException>(() =>
+            _db.Execute("INSERT INTO core_state(key, value) VALUES('dup', 2)"));
+
+        Assert.Equal("db.sqlite", error.Code);
+        Assert.IsType<Microsoft.Data.Sqlite.SqliteException>(error.InnerException);
+    }
+
+    [Fact]
     public void Transaction_rolls_back_every_statement_on_failure()
     {
         var ledger = new SqliteLedger(_db);

@@ -73,6 +73,19 @@ public sealed class SqliteLedger : ILedger
             throw new SimException("ledger.invalid_amount", $"Journal '{entry.JournalCode}' posts amount {entry.Amount}; amounts must be positive.");
         }
 
+        // Last line of defence: a module that forgets to check its own funds still cannot push
+        // the ledger into a negative balance.
+        if (entry.Direction == LedgerDirection.Out)
+        {
+            var available = account == Vault ? Safe : Liquid;
+            if (available < entry.Amount)
+            {
+                throw new SimException(
+                    "ledger.overdraft",
+                    $"Journal '{entry.JournalCode}' would spend {entry.Amount} from {account} but only {available} is available.");
+            }
+        }
+
         var balanceAfter = LastBalance() + entry.Signed;
 
         _db.Execute(

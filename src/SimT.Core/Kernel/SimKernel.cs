@@ -180,7 +180,12 @@ public sealed class SimKernel : IDisposable
     public GameDate AdvanceDays(int days)
     {
         var result = _clock.Today;
-        _db.Transaction(() => result = _clock.Advance(days));
+        _db.Transaction(() =>
+        {
+            result = _clock.Advance(days);
+            PersistRng();
+        });
+
         return result;
     }
 
@@ -191,10 +196,17 @@ public sealed class SimKernel : IDisposable
     public void Save()
     {
         _clock.Persist();
+        PersistRng();
+    }
+
+    /// <summary>
+    /// Writes the RNG position inside the caller's transaction. A crash after a committed roll
+    /// must not leave the save with fresh data and a stale stream, or every later replay diverges.
+    /// </summary>
+    private void PersistRng() =>
         _db.Execute(
             "INSERT INTO core_state(key, value) VALUES('rng.state', @value) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             DbArgs.One("@value", _rng.State.ToString(System.Globalization.CultureInfo.InvariantCulture)));
-    }
 
     public bool TryGetCommandHandler(string screenId, out IScreenCommandHandler? handler) =>
         _ui.TryGetCommandHandler(screenId, out handler);
