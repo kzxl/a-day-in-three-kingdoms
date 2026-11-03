@@ -26,7 +26,8 @@ internal static class RepoLayout
         typeof(SimT.Modules.Base.World.WorldModule).Assembly,
         typeof(SimT.Modules.Base.Player.PlayerModule).Assembly,
         typeof(SimT.Modules.Base.Npc.NpcModule).Assembly,
-        typeof(SimT.Modules.Dlc.Market.MarketModule).Assembly
+        typeof(SimT.Modules.Dlc.Market.MarketModule).Assembly,
+        typeof(SimT.Modules.Dlc.Caravan.CaravanModule).Assembly
     ];
 
     private static string FindRoot()

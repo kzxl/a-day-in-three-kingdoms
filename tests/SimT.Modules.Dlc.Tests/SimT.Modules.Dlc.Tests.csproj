@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+  <!-- Tests may reference modules: they boot the real kernel with the real artefacts. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SimT.Contracts\SimT.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Core\SimT.Core.csproj" />
+    <ProjectReference Include="..\SimT.Testing\SimT.Testing.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Base.Content\SimT.Modules.Base.Content.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Base.World\SimT.Modules.Base.World.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Base.Player\SimT.Modules.Base.Player.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Market\SimT.Modules.Dlc.Market.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Caravan\SimT.Modules.Dlc.Caravan.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

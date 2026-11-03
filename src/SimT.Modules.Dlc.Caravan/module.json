@@ -1,0 +1,14 @@
+{
+  "id": "dlc.caravan",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "kind": "dlc",
+  "requires": ["base.content", "base.world", "base.player"],
+  "provides": ["caravan.guild"],
+  "consumes": ["content.items", "world.map", "player.wallet", "player.bag", "player.state"],
+  "owns": {
+    "tables": ["cv_run", "cv_cargo"],
+    "migrations": ["migrations"]
+  },
+  "screens": ["caravan.routes"]
+}

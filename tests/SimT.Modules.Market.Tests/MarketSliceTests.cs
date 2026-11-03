@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
+using SimT.Testing;
 
 namespace SimT.Modules.Market.Tests;
 
@@ -11,30 +12,17 @@ namespace SimT.Modules.Market.Tests;
 /// </summary>
 public sealed class MarketSliceTests : IDisposable
 {
-    private readonly string _root;
-    private readonly string _dbPath;
 
-    public MarketSliceTests()
-    {
-        _root = FindRoot();
-        _dbPath = Path.Combine(Path.GetTempPath(), "simt-market-tests", Guid.NewGuid().ToString("N"), "campaign.db");
-    }
+    private readonly TestHost _host = new("simt-market");
 
-    public void Dispose()
-    {
-        var directory = Path.GetDirectoryName(_dbPath);
-        if (directory is not null && Directory.Exists(directory))
-        {
-            Directory.Delete(directory, recursive: true);
-        }
-    }
+    public void Dispose() => _host.Dispose();
 
     [Fact]
     public void Kernel_boots_with_the_product_composition()
     {
         using var kernel = Boot();
 
-        Assert.Equal(5, kernel.Modules.Count);
+        Assert.Equal(kernel.Product.Modules.Count, kernel.Modules.Count);
         Assert.Contains(kernel.Modules, module => module.Manifest.Id == "base.content");
         Assert.Contains(kernel.Modules, module => module.Manifest.Id == "dlc.market");
         Assert.True(kernel.Capabilities.IsProvided(CapabilityIds.MarketTrade));
@@ -138,15 +126,15 @@ public sealed class MarketSliceTests : IDisposable
     [Fact]
     public void Same_seed_and_same_actions_produce_the_same_ledger()
     {
-        var first = RunScript();
-        var second = RunScript();
+        using var first = new TestHost("simt-market-a");
+        using var second = new TestHost("simt-market-b");
 
-        Assert.Equal(first, second);
+        Assert.Equal(RunScript(first), RunScript(second));
     }
 
-    private string RunScript()
+    private static string RunScript(TestHost host)
     {
-        using var kernel = Boot();
+        using var kernel = host.Boot();
         var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
         var warehouse = kernel.Capabilities.Get<IMarketWarehouse>(CapabilityIds.MarketWarehouse);
         var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
@@ -172,25 +160,5 @@ public sealed class MarketSliceTests : IDisposable
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString())));
     }
 
-    private SimKernel Boot() => SimKernel.Open(new KernelOptions(
-        DatabasePath: _dbPath + Guid.NewGuid().ToString("N"),
-        ModulesDirectory: AppContext.BaseDirectory,
-        ProductPath: Path.Combine(_root, "assets", "products", "merchant-slice.json"),
-        ConstantsPath: Path.Combine(_root, "assets", "config", "game-constants.json")));
-
-    private static string FindRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "SimT.sln")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException("SimT.sln not found above the test output directory.");
-    }
+    private SimKernel Boot() => _host.Boot();
 }

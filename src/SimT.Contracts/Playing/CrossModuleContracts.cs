@@ -15,6 +15,7 @@ public static class CapabilityIds
     public const string WorldMap = "world.map";
     public const string MarketTrade = "market.trade";
     public const string MarketWarehouse = "market.warehouse";
+    public const string CaravanGuild = "caravan.guild";
     public const string NpcRegistry = "npc.registry";
 }
 
@@ -70,6 +71,9 @@ public interface IWorldMap
     CitadelDef? Find(long citadelId);
 
     IReadOnlyList<long> RouteNeighbours(long citadelId);
+
+    /// <summary>Travel time in days, or 0 when there is no road between the two settlements.</summary>
+    int TravelDays(long fromCitadelId, long toCitadelId);
 }
 
 /// <summary>Per-city inventory owned by <c>base.player</c>.</summary>

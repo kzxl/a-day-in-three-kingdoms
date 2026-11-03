@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\SimT.Contracts\SimT.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Core\SimT.Core.csproj" />
+  </ItemGroup>
+
+</Project>

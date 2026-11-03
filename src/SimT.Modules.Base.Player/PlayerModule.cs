@@ -74,9 +74,9 @@ public sealed class PlayerModule : ISimModule
 
         public void Charge(long amount, string journalCode, string description)
         {
-            if (Balance < amount)
+            if (Liquid < amount)
             {
-                throw new SimException("wallet.insufficient", $"Cần {amount} nhưng chỉ có {Balance}.");
+                throw new SimException("wallet.insufficient", $"Cần {amount} tiền mặt nhưng chỉ có {Liquid}.");
             }
 
             _context.Ledger.Post(_context.Clock.Today, new LedgerEntry(journalCode, LedgerDirection.Out, amount, description));

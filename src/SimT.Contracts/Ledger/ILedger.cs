@@ -62,4 +62,5 @@ public static class JournalCodes
     public const string MarketBuy = "MKT.BUY";
     public const string MarketSell = "MKT.SELL";
     public const string WarehouseRent = "MKT.WH_LEASE";
+    public const string CaravanFreight = "CV.FREIGHT";
 }

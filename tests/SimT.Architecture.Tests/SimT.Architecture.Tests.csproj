@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Player\SimT.Modules.Base.Player.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Market\SimT.Modules.Dlc.Market.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Caravan\SimT.Modules.Dlc.Caravan.csproj" />
   </ItemGroup>
 
   <ItemGroup>

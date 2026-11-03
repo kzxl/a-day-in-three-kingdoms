@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SimT.Contracts\SimT.Contracts.csproj" />
     <ProjectReference Include="..\..\src\SimT.Core\SimT.Core.csproj" />
+    <ProjectReference Include="..\SimT.Testing\SimT.Testing.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Content\SimT.Modules.Base.Content.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Base.World\SimT.Modules.Base.World.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Player\SimT.Modules.Base.Player.csproj" />

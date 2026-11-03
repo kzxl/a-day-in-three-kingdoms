@@ -74,9 +74,9 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
 
         var unit = MarketPricing.Quote(item, citadel, _clock.Today.Month);
         var total = MarketPricing.Total(unit, quantity);
-        if (_wallet.Balance < total)
+        if (_wallet.Liquid < total)
         {
-            return TradeResult.Fail($"Không đủ tiền: cần {total}, có {_wallet.Balance}.");
+            return TradeResult.Fail($"Không đủ tiền mặt: cần {total}, có {_wallet.Liquid}.");
         }
 
         _db.Transaction(() =>
@@ -249,7 +249,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
             return false;
         }
 
-        if (_wallet.Balance < DefaultMonthlyRent)
+        if (_wallet.Liquid < DefaultMonthlyRent)
         {
             message = $"Cần {DefaultMonthlyRent} Quan để thuê kho.";
             return false;
@@ -276,7 +276,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
 
         foreach (var warehouse in warehouses)
         {
-            if (_wallet.Balance < warehouse.Rent)
+            if (_wallet.Liquid < warehouse.Rent)
             {
                 _log.Warn($"Chưa trả được tiền kho {warehouse.Rent} Quan tại thành {warehouse.CityId} ngày {date}.");
                 continue;

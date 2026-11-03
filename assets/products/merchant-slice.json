@@ -6,7 +6,8 @@
     "base.world",
     "base.player",
     "base.npc",
-    "dlc.market"
+    "dlc.market",
+    "dlc.caravan"
   ],
   "seed": 1840502,
   "startLocation": "lac_duong",

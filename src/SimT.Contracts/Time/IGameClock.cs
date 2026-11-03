@@ -17,3 +17,9 @@ public interface IGameClock
 
 /// <summary>Raised once per month boundary, in calendar order.</summary>
 public readonly record struct MonthClosed(GameDate Date, GameDate PreviousDate);
+
+/// <summary>
+/// Raised for every single day, before any boundary event. Time-driven modules (caravans in
+/// transit, crops, construction) listen here instead of polling the clock.
+/// </summary>
+public readonly record struct DayAdvanced(GameDate Date);

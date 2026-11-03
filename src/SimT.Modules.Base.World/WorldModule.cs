@@ -18,7 +18,7 @@ public sealed class WorldModule : ISimModule
     {
         private readonly CitadelDef[] _citadels;
         private readonly Dictionary<long, CitadelDef> _byId;
-        private readonly Dictionary<long, long[]> _routes;
+        private readonly Dictionary<long, RouteStep[]> _routes;
 
         public WorldMap(IDbSession db)
         {
@@ -39,18 +39,18 @@ public sealed class WorldModule : ISimModule
                 _byId[citadel.Id] = citadel;
             }
 
-            var routes = new Dictionary<long, List<long>>();
-            foreach (var (from, to) in db.Query(
-                         "SELECT citadel_id, other_id FROM wd_route ORDER BY citadel_id, other_id",
-                         row => (From: row.GetInt64(0), To: row.GetInt64(1))))
+            var routes = new Dictionary<long, List<RouteStep>>();
+            foreach (var step in db.Query(
+                         "SELECT citadel_id, other_id, travel_days FROM wd_route ORDER BY citadel_id, other_id",
+                         row => (From: row.GetInt64(0), To: row.GetInt64(1), Days: row.GetInt32(2))))
             {
-                if (!routes.TryGetValue(from, out var list))
+                if (!routes.TryGetValue(step.From, out var list))
                 {
-                    list = new List<long>();
-                    routes[from] = list;
+                    list = new List<RouteStep>();
+                    routes[step.From] = list;
                 }
 
-                list.Add(to);
+                list.Add(new RouteStep(step.To, step.Days));
             }
 
             _routes = routes.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
@@ -61,6 +61,28 @@ public sealed class WorldModule : ISimModule
         public CitadelDef? Find(long citadelId) => _byId.GetValueOrDefault(citadelId);
 
         public IReadOnlyList<long> RouteNeighbours(long citadelId) =>
-            _routes.TryGetValue(citadelId, out var neighbours) ? neighbours : Array.Empty<long>();
+            _routes.TryGetValue(citadelId, out var steps)
+                ? steps.Select(step => step.To).ToArray()
+                : Array.Empty<long>();
+
+        public int TravelDays(long fromCitadelId, long toCitadelId)
+        {
+            if (!_routes.TryGetValue(fromCitadelId, out var steps))
+            {
+                return 0;
+            }
+
+            foreach (var step in steps)
+            {
+                if (step.To == toCitadelId)
+                {
+                    return step.Days;
+                }
+            }
+
+            return 0;
+        }
+
+        private readonly record struct RouteStep(long To, int Days);
     }
 }

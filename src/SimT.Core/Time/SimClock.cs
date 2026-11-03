@@ -40,6 +40,8 @@ public sealed class SimClock : IGameClock
         {
             var previous = _today;
             _today = _today.AddDays(1);
+            _events.Publish(new DayAdvanced(_today));
+
             if (_today.Day == 1)
             {
                 PublishOnce(new MonthClosed(_today, previous));
