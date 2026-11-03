@@ -22,7 +22,7 @@ public readonly record struct LedgerEntry(
     public long Signed => (long)Direction * Amount;
 }
 
-/// <summary>A persisted ledger line, including the running balance.</summary>
+/// <summary>A persisted ledger line, including the running balance and the posting module.</summary>
 public sealed record LedgerLine(
     long Id,
     GameDate Date,
@@ -30,7 +30,8 @@ public sealed record LedgerLine(
     LedgerDirection Direction,
     long Amount,
     long BalanceAfter,
-    string Description);
+    string Description,
+    string ModuleId);
 
 /// <summary>
 /// The single writer for cash. Modules must never <c>INSERT</c> into the ledger table;
@@ -50,6 +51,17 @@ public interface ILedger
     long Move(GameDate date, long amount, bool toSafe, string journalCode, string description);
 
     IReadOnlyList<LedgerLine> Recent(int limit = 50);
+
+    /// <summary>
+    /// Ledger lines in a date range, optionally narrowed to one journal code or one module.
+    /// This is the read side reports and the ledger screen use; writing stays in <see cref="Post"/>.
+    /// </summary>
+    IReadOnlyList<LedgerLine> Query(
+        GameDate from,
+        GameDate to,
+        string? journalCode = null,
+        string? moduleId = null,
+        int limit = 500);
 }
 
 /// <summary>Journal codes owned by the kernel and the base modules.</summary>
@@ -66,7 +78,37 @@ public static class JournalCodes
     public const string ToolFee = "PF.TOOL_FEE";
     public const string Dowry = "LN.DOWRY";
     public const string FamilyUpkeep = "LN.UPKEEP";
+    public const string CourtService = "PO.SERVICE";
     public const string FarmRent = "FM.RENT";
     public const string FarmSeed = "FM.SEED";
     public const string CourtStipend = "PO.STIPEND";
+
+    /// <summary>
+    /// Which module a journal code belongs to. Attribution is by ownership of the code rather
+    /// than by the caller, because every module pays through the same wallet — the useful
+    /// question is "what did this feature cost", not "which object held the pen".
+    /// </summary>
+    public static string ModuleOf(string journalCode)
+    {
+        if (journalCode.StartsWith("CORE.START", StringComparison.Ordinal))
+        {
+            return "base.player";
+        }
+
+        if (journalCode.StartsWith("CORE.", StringComparison.Ordinal))
+        {
+            return "core";
+        }
+
+        return journalCode switch
+        {
+            var code when code.StartsWith("MKT.", StringComparison.Ordinal) => "dlc.market",
+            var code when code.StartsWith("CV.", StringComparison.Ordinal) => "dlc.caravan",
+            var code when code.StartsWith("PF.", StringComparison.Ordinal) => "dlc.professions",
+            var code when code.StartsWith("LN.", StringComparison.Ordinal) => "dlc.lineage",
+            var code when code.StartsWith("FM.", StringComparison.Ordinal) => "dlc.cultivation",
+            var code when code.StartsWith("PO.", StringComparison.Ordinal) => "dlc.politics",
+            _ => "core"
+        };
+    }
 }

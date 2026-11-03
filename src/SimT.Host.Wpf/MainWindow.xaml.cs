@@ -168,19 +168,20 @@ public partial class MainWindow : Window
                     line.Direction == SimT.Contracts.Ledger.LedgerDirection.In ? "thu" : "chi",
                     line.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     line.BalanceAfter.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    line.ModuleId,
                     line.Description
                 ],
                 Array.Empty<ScreenCommand>())))
             .ToList();
 
         var grid = new DataGrid { ItemsSource = rows, Margin = new Thickness(4, 10, 4, 4) };
-        foreach (var (header, index) in new[] { ("Ngày", 0), ("Bút toán", 1), ("Loại", 2), ("Số tiền", 3), ("Số dư", 4), ("Diễn giải", 5) })
+        foreach (var (header, index) in new[] { ("Ngày", 0), ("Bút toán", 1), ("Loại", 2), ("Số tiền", 3), ("Số dư", 4), ("Nguồn", 5), ("Diễn giải", 6) })
         {
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = header,
                 Binding = new Binding($"Cells[{index}]"),
-                Width = index == 5 ? new DataGridLength(1, DataGridLengthUnitType.Star) : DataGridLength.Auto
+                Width = index == 6 ? new DataGridLength(1, DataGridLengthUnitType.Star) : DataGridLength.Auto
             });
         }
 

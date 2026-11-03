@@ -47,27 +47,63 @@ public sealed class SqliteLedger : ILedger
     {
         var rows = _db.Query(
             """
-            SELECT id, game_date, journal_code, direction, amount, balance_after, description
+            SELECT id, game_date, journal_code, direction, amount, balance_after, description, module_id
             FROM core_ledger
             ORDER BY id DESC
             LIMIT @limit
             """,
-            row => new LedgerLine(
-                row.GetInt64(0),
-                ParseDate(row.GetString(1)),
-                row.GetString(2),
-                row.GetInt64(3) > 0 ? LedgerDirection.In : LedgerDirection.Out,
-                row.GetInt64(4),
-                row.GetInt64(5),
-                row.GetString(6)),
+            Map,
             DbArgs.One("@limit", Math.Max(1, limit)));
 
         rows.Reverse();
         return rows;
     }
 
+    public IReadOnlyList<LedgerLine> Query(
+        GameDate from,
+        GameDate to,
+        string? journalCode = null,
+        string? moduleId = null,
+        int limit = 500)
+    {
+        var sql = new System.Text.StringBuilder(
+            """
+            SELECT id, game_date, journal_code, direction, amount, balance_after, description, module_id
+            FROM core_ledger
+            WHERE day_index BETWEEN @from AND @to
+            """);
+
+        var args = new DbArgs().Add("@from", from.DayIndex).Add("@to", to.DayIndex).Add("@limit", Math.Max(1, limit));
+
+        if (journalCode is not null)
+        {
+            sql.Append(" AND journal_code = @journal");
+            args.Add("@journal", journalCode);
+        }
+
+        if (moduleId is not null)
+        {
+            sql.Append(" AND module_id = @module");
+            args.Add("@module", moduleId);
+        }
+
+        sql.Append(" ORDER BY id ASC LIMIT @limit");
+        return _db.Query(sql.ToString(), Map, args);
+    }
+
+    private static readonly Func<DbRecord, LedgerLine> Map = row => new LedgerLine(
+        row.GetInt64(0),
+        ParseDate(row.GetString(1)),
+        row.GetString(2),
+        row.GetInt64(3) > 0 ? LedgerDirection.In : LedgerDirection.Out,
+        row.GetInt64(4),
+        row.GetInt64(5),
+        row.GetString(6),
+        row.GetString(7));
+
     private long PostTo(GameDate date, LedgerEntry entry, string account)
     {
+        var moduleId = JournalCodes.ModuleOf(entry.JournalCode);
         if (entry.Amount <= 0)
         {
             throw new SimException("ledger.invalid_amount", $"Journal '{entry.JournalCode}' posts amount {entry.Amount}; amounts must be positive.");
@@ -90,8 +126,8 @@ public sealed class SqliteLedger : ILedger
 
         _db.Execute(
             """
-            INSERT INTO core_ledger(day_index, game_date, account, journal_code, direction, amount, balance_after, description)
-            VALUES(@day, @date, @account, @journal, @direction, @amount, @balance, @description)
+            INSERT INTO core_ledger(day_index, game_date, account, journal_code, direction, amount, balance_after, description, module_id)
+            VALUES(@day, @date, @account, @journal, @direction, @amount, @balance, @description, @module)
             """,
             new DbArgs()
                 .Add("@day", date.DayIndex)
@@ -101,7 +137,8 @@ public sealed class SqliteLedger : ILedger
                 .Add("@direction", (int)entry.Direction)
                 .Add("@amount", entry.Amount)
                 .Add("@balance", balanceAfter)
-                .Add("@description", entry.Description));
+                .Add("@description", entry.Description)
+                .Add("@module", moduleId));
 
         return balanceAfter;
     }

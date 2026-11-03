@@ -64,7 +64,7 @@ internal sealed class CourtService : IPoliticalCourt
 
         _db.Transaction(() =>
         {
-            _wallet.Charge(ServiceCost, JournalCodes.ToolFee, "Lễ nhậm cung sự");
+            _wallet.Charge(ServiceCost, JournalCodes.CourtService, "Lễ nhậm cung sự");
             _clock.Advance(ServiceDays);
             SetState("reputation", Reputation + ServiceReputation);
         });
