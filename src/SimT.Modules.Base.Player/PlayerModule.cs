@@ -57,7 +57,7 @@ public sealed class PlayerModule : ISimModule
 
         var reputation = new PlayerReputationService(context.Db, player.Id, context.Capabilities, context.Clock, context.Log);
 
-        var attributes = new PlayerAttributesStore(context.Db, player.Id, reputation, context.Capabilities);
+        var attributes = new PlayerAttributesStore(context.Db, player.Id, reputation, context.Capabilities, context.Clock);
 
         var destiny = new PlayerDestinyService(context.Db, player.Id, context.Capabilities, context.Clock, context.Log);
 
@@ -344,17 +344,20 @@ public sealed class PlayerModule : ISimModule
         private readonly long _playerId;
         private readonly IPlayerReputation? _reputation;
         private readonly ICapabilityBroker? _capabilities;
+        private readonly IGameClock? _clock;
 
         public PlayerAttributesStore(
             IDbSession db,
             long playerId,
             IPlayerReputation? reputation = null,
-            ICapabilityBroker? capabilities = null)
+            ICapabilityBroker? capabilities = null,
+            IGameClock? clock = null)
         {
             _db = db;
             _playerId = playerId;
             _reputation = reputation;
             _capabilities = capabilities;
+            _clock = clock;
         }
 
         public CharacterAttributes Attributes
@@ -793,17 +796,96 @@ public sealed class PlayerModule : ISimModule
             return leveledUp;
         }
 
+        private static (string Primary, string Secondary) GetSkillMatchingAttributes(string skillCode) => skillCode switch
+        {
+            "dieu_ngu" => ("WIL", "PRC"),    // Kiên nhẫn, tinh mắt
+            "tam_duoc" => ("PRC", "INT"),    // Tinh mắt nhận dạng, y lý
+            "thu_liep" => ("WAR", "PRC"),    // Võ lực, ngắm bắn
+            "am_thuc" => ("CRA", "INT"),     // Khéo tay nêm nếm, phối vị
+            "che_tac" => ("CRA", "WAR"),     // Khéo tay rèn đúc, sức mạnh quai búa
+            "khai_khoang" => ("CON", "PRC"), // Thể lực cuốc đá, nhìn mạch quặng
+            "det_may" => ("CRA", "INT"),     // Khéo tay dệt lụa, thẩm mỹ
+            "u_men" => ("CRA", "INT"),       // Canh lửa ủ men, hiểu rượu
+            "nong_canh" => ("CON", "WIL"),   // Thể chất chịu sương gió, kiên trì vụ mùa
+            "sinh_ton" => ("CON", "WIL"),    // Thể chất dẻo dai, ý chí sinh tồn
+            "ngu_ma" => ("WAR", "CON"),      // Võ lực kềm cương, thể chất yên ngựa
+            _ => ("WAR", "INT")
+        };
+
+        public int GetAwakeningChancePermille(string skillCode)
+        {
+            if (HasSkill(skillCode)) return 1000;
+
+            var (primaryCode, secondaryCode) = GetSkillMatchingAttributes(skillCode);
+            var attrs = Attributes;
+            var primaryVal = attrs.GetAttr(primaryCode);
+            var secondaryVal = attrs.GetAttr(secondaryCode);
+            var lckVal = attrs.Lck;
+
+            var attempts = _db.Query(
+                "SELECT attempts FROM pl_skill_attempt WHERE player_id = @id AND skill_code = @code",
+                row => row.GetInt32(0),
+                new DbArgs().Add("@id", _playerId).Add("@code", skillCode)).FirstOrDefault();
+
+            var baseChance = 250; // 25% base
+            var primaryBonus = (primaryVal - 50) * 12; // +1.2% per point above 50
+            var secondaryBonus = (secondaryVal - 50) * 8; // +0.8% per point above 50
+            var lckBonus = (lckVal - 50) * 5; // +0.5% per point above 50
+            var attemptBonus = attempts * 150; // +15% per accumulated attempt
+
+            return Math.Clamp(baseChance + primaryBonus + secondaryBonus + lckBonus + attemptBonus, 50, 950);
+        }
+
         public (bool Awakened, bool LeveledUp, int Level) PracticeSkill(string skillCode, int expGain)
         {
-            var awakened = false;
             if (!HasSkill(skillCode))
             {
-                awakened = LearnSkill(skillCode);
+                var chance = GetAwakeningChancePermille(skillCode);
+                var attempts = _db.Query(
+                    "SELECT attempts FROM pl_skill_attempt WHERE player_id = @id AND skill_code = @code",
+                    row => row.GetInt32(0),
+                    new DbArgs().Add("@id", _playerId).Add("@code", skillCode)).FirstOrDefault();
+
+                var day = _clock?.Today.DayIndex ?? 1;
+                var seed = HashCode.Combine(_playerId, skillCode, attempts, day);
+                var rng = new Random(seed);
+                var roll = rng.Next(1, 1001);
+
+                if (roll <= chance)
+                {
+                    // Awakening succeeded!
+                    LearnSkill(skillCode);
+                    _db.Execute(
+                        "DELETE FROM pl_skill_attempt WHERE player_id = @id AND skill_code = @code",
+                        new DbArgs().Add("@id", _playerId).Add("@code", skillCode));
+
+                    var leveledUp = TrainSkill(skillCode, expGain);
+                    var progress = GetSkillProgress(skillCode);
+                    return (Awakened: true, LeveledUp: leveledUp, Level: progress?.Level ?? 1);
+                }
+                else
+                {
+                    // Awakening failed this time, record practice attempt
+                    _db.Execute(
+                        """
+                        INSERT INTO pl_skill_attempt (player_id, skill_code, attempts)
+                        VALUES (@id, @code, 1)
+                        ON CONFLICT(player_id, skill_code) DO UPDATE SET attempts = attempts + 1
+                        """,
+                        new DbArgs().Add("@id", _playerId).Add("@code", skillCode));
+
+                    // Slight attribute exp as a consolation for practice
+                    var (pCode, sCode) = GetSkillMatchingAttributes(skillCode);
+                    AddExp(pCode, 5);
+                    AddExp(sCode, 3);
+
+                    return (Awakened: false, LeveledUp: false, Level: 0);
+                }
             }
 
-            var leveledUp = TrainSkill(skillCode, expGain);
-            var progress = GetSkillProgress(skillCode);
-            return (awakened, leveledUp, progress?.Level ?? 1);
+            var lvlUp = TrainSkill(skillCode, expGain);
+            var prog = GetSkillProgress(skillCode);
+            return (Awakened: false, LeveledUp: lvlUp, Level: prog?.Level ?? 1);
         }
 
         public string EquipSkill(string skillCode, int slot, int tier)

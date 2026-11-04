@@ -1104,8 +1104,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _clock.Advance(1);
         _attributes?.ApplyFatigue(10);
 
-        var practice = _attributes?.PracticeSkill("dieu_ngu", 25) ?? (false, false, 1);
-        var skillLevel = practice.Level > 0 ? practice.Level : (_attributes?.GetSkillProgress("dieu_ngu")?.Level ?? 1);
+        var practice = _attributes?.PracticeSkill("dieu_ngu", 25) ?? (false, false, 0);
+        var skillLevel = practice.Level;
         var attrs = _attributes?.Attributes;
         var wil = attrs?.Wil ?? 50;
         var prc = attrs?.Prc ?? 50;
@@ -1114,7 +1114,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         var region = _map?.Find(citadelId)?.Region ?? "trung_tho";
         var isWaterRegion = region is "giang_dong" or "duong_chau" or "kinh_chau";
 
-        var catchCount = 2 + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0);
+        var catchCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0);
         if (wil >= 60 || prc >= 60) catchCount += 1;
         if (isWaterRegion) catchCount += 1;
 
@@ -1147,14 +1147,14 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _clock.Advance(1);
         _attributes?.ApplyFatigue(15);
 
-        var practice = _attributes?.PracticeSkill("tam_duoc", 25) ?? (false, false, 1);
-        var skillLevel = practice.Level > 0 ? practice.Level : (_attributes?.GetSkillProgress("tam_duoc")?.Level ?? 1);
+        var practice = _attributes?.PracticeSkill("tam_duoc", 25) ?? (false, false, 0);
+        var skillLevel = practice.Level;
         var attrs = _attributes?.Attributes;
         var prc = attrs?.Prc ?? 50;
         var @int = attrs?.Int ?? 50;
 
         var region = _map?.Find(citadelId)?.Region ?? "trung_tho";
-        var herbCount = 2 + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0);
+        var herbCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0);
         if (prc >= 60) herbCount += 1;
         _bag.Add(citadelId, 7, herbCount); // 7: thuoc
 
@@ -1187,8 +1187,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     {
         _clock.Advance(1);
 
-        var practice = _attributes?.PracticeSkill("thu_liep", 25) ?? (false, false, 1);
-        var skillLevel = practice.Level > 0 ? practice.Level : (_attributes?.GetSkillProgress("thu_liep")?.Level ?? 1);
+        var practice = _attributes?.PracticeSkill("thu_liep", 25) ?? (false, false, 0);
+        var skillLevel = practice.Level;
         var attrs = _attributes?.Attributes;
         var war = attrs?.War ?? 50;
         var prc = attrs?.Prc ?? 50;
@@ -1206,7 +1206,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
 
         _attributes?.ApplyFatigue(20);
 
-        var meatCount = 2 + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0) + (war >= 60 ? 1 : 0);
+        var meatCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0) + (war >= 60 ? 1 : 0);
         _bag.Add(citadelId, 8, meatCount); // 8: ca_kho (lương thực thịt cá)
 
         var extraMsg = string.Empty;
@@ -1335,9 +1335,11 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     private static string FormatSkillProgressMessage(string skillNameVi, (bool Awakened, bool LeveledUp, int Level) progress)
     {
         if (progress.Awakened)
-            return $" [LĨNH HỘI: Tự ngộ kỹ năng {skillNameVi} - Cấp 1 {SkillRankTitles.ForLevel(1)}!]";
+            return $" [LĨNH HỘI: Linh quang lóe sáng! Tự ngộ kỹ năng {skillNameVi} - Cấp 1 {SkillRankTitles.ForLevel(1)}!]";
         if (progress.LeveledUp)
             return $" [THĂNG CẤP: Kỹ năng {skillNameVi} đột phá Cấp {progress.Level} - {SkillRankTitles.ForLevel(progress.Level)}!]";
+        if (progress.Level == 0)
+            return $" (Thao tác sơ khởi còn vụng về, chưa thể lĩnh hội áo nghĩa {skillNameVi}. Hãy kiên trì rèn luyện!).";
         return string.Empty;
     }
 

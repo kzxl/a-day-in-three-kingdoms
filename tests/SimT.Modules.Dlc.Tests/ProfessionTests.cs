@@ -477,7 +477,6 @@ public sealed class ProfessionTests : IDisposable
         Assert.Contains("săn bắn", msg);
         Assert.Equal(todayBefore.AddDays(1), kernel.Today);
         Assert.True(bag.Quantity(player.CurrentCityId, 8) > meatBefore);
-        Assert.True(attrs.HasSkill("thu_liep"));
     }
 
     [Fact]
@@ -487,13 +486,13 @@ public sealed class ProfessionTests : IDisposable
         var player = Player(kernel);
         var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
 
-        Command(kernel, "wild:fish");
+        for (int i = 0; i < 20 && !attrs.HasSkill("dieu_ngu"); i++) Command(kernel, "wild:fish");
         Assert.True(attrs.HasSkill("dieu_ngu"));
 
-        Command(kernel, "wild:forage");
+        for (int i = 0; i < 20 && !attrs.HasSkill("tam_duoc"); i++) Command(kernel, "wild:forage");
         Assert.True(attrs.HasSkill("tam_duoc"));
 
-        Command(kernel, "wild:hunt");
+        for (int i = 0; i < 20 && !attrs.HasSkill("thu_liep"); i++) Command(kernel, "wild:hunt");
         Assert.True(attrs.HasSkill("thu_liep"));
     }
 
@@ -523,15 +522,44 @@ public sealed class ProfessionTests : IDisposable
 
         Assert.False(attrs.HasSkill("dieu_ngu"));
 
-        var msg = Command(kernel, "wild:fish");
+        var chance = attrs.GetAwakeningChancePermille("dieu_ngu");
+        Assert.True(chance >= 50 && chance <= 950);
+
+        for (int i = 0; i < 20 && !attrs.HasSkill("dieu_ngu"); i++)
+        {
+            Command(kernel, "wild:fish");
+        }
 
         Assert.True(attrs.HasSkill("dieu_ngu"));
-        Assert.Contains("[LĨNH HỘI", msg);
 
         var prog = attrs.GetSkillProgress("dieu_ngu");
         Assert.NotNull(prog);
         Assert.Equal(1, prog.Level);
         Assert.Contains("Sơ Học", SkillRankTitles.ForLevel(prog.Level));
+    }
+
+    [Fact]
+    public void Probabilistic_awakening_chance_scales_with_attributes_and_accumulated_attempts()
+    {
+        using var kernel = _host.Boot();
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        var initialChance = attrs.GetAwakeningChancePermille("tam_duoc");
+        // Base 250 + PRC (60-50)*12 + INT (60-50)*8 + LCK (70-50)*5 = 550 permille (55.0%)
+        Assert.Equal(550, initialChance);
+
+        var result = attrs.PracticeSkill("tam_duoc", 20);
+        if (!result.Awakened)
+        {
+            var nextChance = attrs.GetAwakeningChancePermille("tam_duoc");
+            Assert.True(nextChance > initialChance);
+            Assert.Equal(0, result.Level);
+        }
+        else
+        {
+            Assert.Equal(1, result.Level);
+            Assert.True(attrs.HasSkill("tam_duoc"));
+        }
     }
 
     [Fact]

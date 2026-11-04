@@ -128,7 +128,25 @@ public sealed record CharacterAttributes(
     int Con,
     int Wil,
     int Prc,
-    int Lck);
+    int Lck)
+{
+    public int GetAttr(string code) => code.ToUpperInvariant() switch
+    {
+        "WAR" => War,
+        "LDR" => Ldr,
+        "INT" => Int,
+        "POL" => Pol,
+        "DIP" => Dip,
+        "COM" => Com,
+        "LOG" => Log,
+        "CRA" => Cra,
+        "CON" => Con,
+        "WIL" => Wil,
+        "PRC" => Prc,
+        "LCK" => Lck,
+        _ => 50
+    };
+}
 
 /// <summary>Experience points (0-99) towards the next point for the canonical 12 RPG attributes.</summary>
 public sealed record CharacterAttributeExps(
@@ -364,10 +382,14 @@ public interface IPlayerAttributes
     bool TrainSkill(string skillCode, int expGain);
 
     /// <summary>
-    /// Practices a skill: automatically awakens (learns) the skill if unlearned,
-    /// trains proficiency exp, and returns awakening and level-up milestones.
+    /// Practices a skill: if unlearned, rolls probabilistic awakening based on matching attributes
+    /// and accumulated attempts; if learned, trains proficiency exp.
+    /// Returns (Awakened, LeveledUp, Level: 0 if still unawakened).
     /// </summary>
     (bool Awakened, bool LeveledUp, int Level) PracticeSkill(string skillCode, int expGain);
+
+    /// <summary>Calculates the awakening probability in permille (50-950) for an unlearned skill.</summary>
+    int GetAwakeningChancePermille(string skillCode);
 
     string EquipSkill(string skillCode, int slot, int tier);
 
