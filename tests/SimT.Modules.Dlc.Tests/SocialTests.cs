@@ -236,4 +236,39 @@ public sealed class SocialTests : IDisposable
 
         Assert.Empty(kernel.RunInvariants());
     }
+
+    [Fact]
+    public void HasMet_returns_false_for_stranger_and_true_after_chat()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        var npc = registry.All.First(n => n.CitadelId == 1);
+        Assert.False(social.HasMet(npc.Id));
+
+        social.ChatWithNpc(npc.Id);
+        Assert.True(social.HasMet(npc.Id));
+    }
+
+    [Fact]
+    public void Chatting_or_gifting_distant_npc_is_rejected_due_to_non_godview()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var items = kernel.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
+
+        // NPC at citadel 4 (different city than player starting at citadel 1)
+        var distantNpc = registry.All.First(n => n.CitadelId != 1);
+
+        var chatMsg = social.ChatWithNpc(distantNpc.Id);
+        Assert.Contains("không có mặt tại cùng thành trì", chatMsg);
+
+        var teaItem = items.All.First();
+        bag.Add(1, teaItem.Id, 2);
+        var ex = Assert.Throws<SimException>(() => social.GiftNpc(distantNpc.Id, teaItem.Id));
+        Assert.Equal("social.not_in_same_city", ex.Code);
+    }
 }

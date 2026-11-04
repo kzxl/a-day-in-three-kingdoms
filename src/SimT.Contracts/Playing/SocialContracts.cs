@@ -63,6 +63,9 @@ public interface ISocialNetwork
     /// <summary>Gets the list of active sworn brothers.</summary>
     IReadOnlyList<SwornBrotherDef> GetSwornBrothers();
 
+    /// <summary>Checks whether the player has met, interacted with, or established relations with an NPC.</summary>
+    bool HasMet(long npcId);
+
     /// <summary>Engages in dialogue with an NPC in the same settlement.</summary>
     string ChatWithNpc(long npcId);
 

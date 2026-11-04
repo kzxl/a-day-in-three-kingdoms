@@ -223,9 +223,11 @@ public partial class MainWindow
 
         RelationshipDef? relationship = null;
         RetainerDef? retainer = null;
+        bool hasMet = false;
         if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
         {
-            relationship = social.GetRelationship(npcId);
+            hasMet = social.HasMet(npcId);
+            relationship = hasMet ? social.GetRelationship(npcId) : null;
             retainer = social.GetRetainer(npcId);
         }
 
@@ -239,8 +241,55 @@ public partial class MainWindow
             }
         }
 
-        NpcDetailWindow.ShowNpc(this, npc, citadelName, deltas, activity, relationship, retainer, id => TryOpenDuelModal(id));
+        var playerCityId = 1L;
+        var playerFatigue = 0;
+        var playerStamina = 100;
+        if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) && playerState is not null)
+        {
+            playerCityId = playerState.CurrentCityId;
+        }
+        if (_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var playerAttrs) && playerAttrs is not null)
+        {
+            playerFatigue = playerAttrs.Vitals.Fatigue;
+            playerStamina = playerAttrs.Vitals.CurrentStamina;
+        }
+
+        NpcDetailWindow.ShowNpc(
+            this,
+            npc,
+            citadelName,
+            currentCitId,
+            playerCityId,
+            hasMet,
+            deltas,
+            activity,
+            relationship,
+            retainer,
+            playerFatigue,
+            playerStamina,
+            id => TryOpenDuelModal(id),
+            id => MeetNpcFromModal(id));
+
         StatusText.Text = $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role}).";
+    }
+
+    private void MeetNpcFromModal(long npcId)
+    {
+        if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+        {
+            try
+            {
+                var res = social.ChatWithNpc(npcId);
+                StatusText.Text = res;
+                _kernel.Save();
+                UpdateHeader();
+                RenderSelected();
+            }
+            catch (Exception ex)
+            {
+                StatusText.Text = ex.Message;
+            }
+        }
     }
 
     private void TryOpenDuelModal(long npcId)
@@ -263,6 +312,45 @@ public partial class MainWindow
             return;
         }
 
+        // 1. Same Citadel Check
+        var currentCitId = npc.CitadelId;
+        if (_kernel.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society) && society is not null)
+        {
+            var act = society.GetNpcActivity(npcId);
+            if (act is not null)
+            {
+                currentCitId = act.CurrentCitadelId;
+            }
+        }
+
+        if (currentCitId != playerState.CurrentCityId)
+        {
+            var targetCit = worldMap.Find(currentCitId);
+            var targetCitName = targetCit?.NameVi ?? "châu quận khác";
+            StatusText.Text = $"Không thể so tài: {npc.NameVi} hiện đang ở {targetCitName}, không ở cùng thành trì với bạn.";
+            return;
+        }
+
+        // 2. Acquaintance Check (hasMet)
+        bool hasMet = false;
+        if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+        {
+            hasMet = social.HasMet(npcId);
+        }
+        if (!hasMet)
+        {
+            StatusText.Text = $"Bạn chưa từng diện kiến {npc.NameVi}. Hãy đến gặp gỡ, đàm đạo trước khi hẹn ngày so tài võ nghệ.";
+            return;
+        }
+
+        // 3. Martial Capability Check
+        if (npc.Attributes.War < 30)
+        {
+            StatusText.Text = $"{npc.NameVi} là văn nhân/danh sĩ không theo nghiệp đao kiếm (Võ lực < 30), từ chối thượng đài.";
+            return;
+        }
+
+        // 4. Vitals Check
         if (attributes.Vitals.CurrentStamina < 10 || attributes.Vitals.Fatigue >= 95)
         {
             StatusText.Text = $"Thể lực đã cạn kiệt (mệt mỏi {attributes.Vitals.Fatigue}/100). Hãy nghỉ ngơi trước khi lên đài!";

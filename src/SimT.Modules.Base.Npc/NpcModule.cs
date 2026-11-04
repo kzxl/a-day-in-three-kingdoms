@@ -17,7 +17,7 @@ public sealed class NpcModule : ISimModule
 
         var map = context.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
         var playerState = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
-        context.Ui.AddScreen(new NpcDirectoryScreen(registry, map, playerState));
+        context.Ui.AddScreen(new NpcDirectoryScreen(registry, map, playerState, context.Capabilities));
         context.Ui.AddCommandHandler(new NpcCommandHandler(registry));
     }
 

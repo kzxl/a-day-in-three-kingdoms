@@ -75,6 +75,13 @@ internal sealed class SocialService : ISocialNetwork
                 GameDateCodec.Parse(record.GetString(5))));
     }
 
+    public bool HasMet(long npcId)
+    {
+        return _db.ScalarLong(
+            "SELECT COUNT(*) FROM kz_relationship WHERE npc_id = @id",
+            DbArgs.One("@id", npcId)) > 0;
+    }
+
     public IReadOnlyList<MemoryEntry> GetMemories(long npcId, int limit = 20)
     {
         return _db.Query(
@@ -124,6 +131,13 @@ internal sealed class SocialService : ISocialNetwork
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        if (npc.CitadelId != _player.CurrentCityId && GetRetainer(npcId) is null)
+        {
+            var cit = _map.Find(npc.CitadelId);
+            var citName = cit?.NameVi ?? "châu quận khác";
+            return $"{npc.NameVi} hiện đang ngụ cư tại {citName}, không có mặt tại cùng thành trì với bạn để đàm đạo.";
+        }
 
         if (_attributes.Vitals.CurrentStamina < 5 || _attributes.Vitals.Fatigue >= 95)
         {
@@ -215,6 +229,13 @@ internal sealed class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
+        if (npc.CitadelId != _player.CurrentCityId && GetRetainer(npcId) is null)
+        {
+            var cit = _map.Find(npc.CitadelId);
+            var citName = cit?.NameVi ?? "châu quận khác";
+            throw new SimException("social.not_in_same_city", $"{npc.NameVi} hiện đang ở {citName}, không có mặt tại đây để nhận lễ vật.");
+        }
+
         var item = _items.Find(itemId)
                    ?? throw new SimException("social.item_not_found", $"Vật phẩm mã {itemId} không tồn tại.");
 
@@ -281,6 +302,13 @@ internal sealed class SocialService : ISocialNetwork
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        if (npc.CitadelId != _player.CurrentCityId)
+        {
+            var cit = _map.Find(npc.CitadelId);
+            var citName = cit?.NameVi ?? "châu quận khác";
+            throw new SimException("social.not_in_same_city", $"{npc.NameVi} hiện đang ở {citName}, cần diện kiến trực tiếp tại cùng một thành trì để chiêu mộ.");
+        }
 
         var rel = GetRelationship(npcId);
         if (rel.Affinity < 35)
@@ -366,6 +394,13 @@ internal sealed class SocialService : ISocialNetwork
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        if (npc.CitadelId != _player.CurrentCityId && GetRetainer(npcId) is null)
+        {
+            var cit = _map.Find(npc.CitadelId);
+            var citName = cit?.NameVi ?? "châu quận khác";
+            return $"{npc.NameVi} hiện đang ở {citName}, không thể trực tiếp truyền dạy đặc kỹ.";
+        }
 
         var skill = npc.Skills.FirstOrDefault(s => s.Code.Equals(skillCode, StringComparison.OrdinalIgnoreCase))
                     ?? throw new SimException("social.skill_not_found", $"Nhân sĩ {npc.NameVi} không sở hữu tuyệt kỹ '{skillCode}'.");

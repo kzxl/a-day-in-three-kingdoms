@@ -102,4 +102,31 @@ public sealed class NpcRegistryTests : IDisposable
         Assert.NotNull(result);
         Assert.Contains("Đang xem hồ sơ:", result);
     }
+
+    [Fact]
+    public void NpcDirectoryScreen_applies_non_godview_veiling_and_lifts_when_met()
+    {
+        using var kernel = _host.Boot();
+        var screen = kernel.Ui.Screens.FirstOrDefault(s => s.ScreenId == "npc.directory");
+        Assert.NotNull(screen);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+
+        var localNpc = registry.All.First(n => n.CitadelId == 1);
+
+        // Before meeting: Fog of war applied on local unmet NPC
+        var initialModel = screen.Render();
+        var localSection = initialModel.Sections.First(s => s.Heading.Contains("đồng thành"));
+        var npcRowBefore = localSection.Rows.First(r => r.Cells[0] == localNpc.NameVi);
+        Assert.Contains(npcRowBefore.Details, d => d.Value.Contains("Cơ mật bản thể"));
+
+        // Meet NPC via chat
+        social.ChatWithNpc(localNpc.Id);
+
+        // After meeting: Fog of war lifted, verified stats revealed
+        var updatedModel = screen.Render();
+        var updatedLocalSection = updatedModel.Sections.First(s => s.Heading.Contains("đồng thành"));
+        var npcRowAfter = updatedLocalSection.Rows.First(r => r.Cells[0] == localNpc.NameVi);
+        Assert.Contains(npcRowAfter.Details, d => d.Label == "Căn Cốt (CON)" && d.Value == localNpc.Attributes.Con.ToString());
+    }
 }
