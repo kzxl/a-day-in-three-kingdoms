@@ -13,17 +13,40 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        var saves = new SaveManager();
-
         if (e.Args.Contains("--smoke"))
         {
-            Shutdown(RunSmoke(saves));
+            Shutdown(RunSmokeIsolated());
             return;
         }
 
+        var saves = new SaveManager();
         var title = new TitleWindow(saves);
         MainWindow = title;
         title.Show();
+    }
+
+    /// <summary>
+    /// Smoke runs use a throwaway saves root so a release or gate run never leaves junk
+    /// campaigns in the player's profile. An explicit SIMT_SAVES still wins.
+    /// </summary>
+    private static int RunSmokeIsolated()
+    {
+        var ownsDirectory = Environment.GetEnvironmentVariable("SIMT_SAVES") is null;
+        var root = Path.Combine(Path.GetTempPath(), "simt-smoke-saves-" + Guid.NewGuid().ToString("N"));
+
+        if (ownsDirectory)
+        {
+            Environment.SetEnvironmentVariable("SIMT_SAVES", root);
+        }
+
+        var code = RunSmoke(new SaveManager());
+
+        if (ownsDirectory && Directory.Exists(root))
+        {
+            Directory.Delete(root, recursive: true);
+        }
+
+        return code;
     }
 
     /// <summary>
