@@ -101,6 +101,31 @@ public partial class MainWindow : Window
         GoodsText.Text = $"hàng hóa {goods.ToString("N0", Vietnamese)} quan";
         NetWorthText.Text = $"tổng {(_kernel.Ledger.Balance + goods).ToString("N0", Vietnamese)} quan";
 
+        if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) && playerState is not null)
+        {
+            PlayerNameText.Text = playerState.Name;
+
+            var citadelName = "Lạc Dương";
+            if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
+            {
+                var cit = map.Find(playerState.CurrentCityId);
+                if (cit is not null)
+                {
+                    citadelName = $"{cit.NameVi} ({cit.Region})";
+                }
+            }
+            PlayerLocationText.Text = $"📍 {citadelName}";
+
+            if (_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)
+            {
+                var v = attrs.Vitals;
+                StaminaText.Text = $"{v.CurrentStamina}/{v.MaxStamina}";
+                var ratio = v.MaxStamina > 0 ? Math.Clamp((double)v.CurrentStamina / v.MaxStamina, 0.05, 1.0) : 1.0;
+                StaminaBar.Width = Math.Max(4, ratio * 200);
+                HealthText.Text = $"HP {v.Health}/{v.MaxHp} · Mệt {v.Fatigue}%";
+            }
+        }
+
         RenderCalendar(today);
     }
 
@@ -1069,6 +1094,50 @@ public partial class MainWindow : Window
     /// Turns any failure into a line the player can read: a coded simulation error keeps its
     /// code, anything else is reported as an internal fault instead of a crash.
     /// </summary>
+    private void PlayerCard_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        OpenPlayerProfileModal();
+    }
+
+    private void OpenPlayerProfileModal()
+    {
+        if (!_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null ||
+            !_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attributes) || attributes is null)
+        {
+            StatusText.Text = "Hồ sơ nhân vật chưa sẵn sàng.";
+            return;
+        }
+
+        var citadelName = "Lạc Dương";
+        if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
+        {
+            var cit = map.Find(playerState.CurrentCityId);
+            if (cit is not null)
+            {
+                citadelName = $"{cit.NameVi} ({cit.Region})";
+            }
+        }
+
+        var v = attributes.Vitals;
+        var s = attributes.Social;
+        var protagonistDef = new NpcDef(
+            0,
+            "protagonist",
+            playerState.Name,
+            "主角",
+            "Vô Danh",
+            "Thương Nhân",
+            playerState.CurrentCityId,
+            attributes.Attributes,
+            "Chí tại bốn phương, cơ biến mẫn tiệp, khéo xoay sở thương trường.",
+            $"Khởi nghiệp thời loạn thế Tam Quốc. Hiện ngụ cư tại {citadelName}. " +
+            $"Thể lực hiện tại: {v.CurrentStamina}/{v.MaxStamina} (Mệt mỏi: {v.Fatigue}%, Áp lực: {v.Stress}%). " +
+            $"Danh vọng thiên hạ: {s.Fame} điểm, Đức độ: {s.Virtue} điểm, Tín nghĩa: {s.Credibility} điểm.");
+
+        NpcDetailWindow.ShowNpc(this, protagonistDef, citadelName);
+        StatusText.Text = $"Đã mở hồ sơ nhân vật chính: {playerState.Name}.";
+    }
+
     private void TryOpenNpcModal(long npcId)
     {
         if (!_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var registry) || registry is null)

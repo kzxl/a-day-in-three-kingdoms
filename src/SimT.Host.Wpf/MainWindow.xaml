@@ -59,6 +59,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -88,7 +89,39 @@
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Row="2" Margin="0,8,0,0" Padding="11,10"
+                <Border Grid.Row="2" Margin="0,8,0,0" Padding="11,9"
+                        Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                        BorderThickness="1" CornerRadius="8"
+                        Cursor="Hand" MouseLeftButtonDown="PlayerCard_Click"
+                        ToolTip="Bấm để xem toàn bộ hồ sơ 12 thuộc tính nhân vật chính (Modal)">
+                    <StackPanel>
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="Hồ Sơ 👤" Style="{StaticResource Caption}"
+                                       Foreground="{StaticResource Accent}" VerticalAlignment="Center" />
+                            <TextBlock Style="{StaticResource Overline}" Text="NHÂN VẬT" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <TextBlock x:Name="PlayerNameText" Style="{StaticResource H1}" FontSize="15" Margin="0,2,0,0" />
+                        <TextBlock x:Name="PlayerLocationText" Style="{StaticResource Caption}"
+                                   Foreground="{StaticResource Accent}" Margin="0,1,0,0" />
+                        <DockPanel Margin="0,6,0,0">
+                            <TextBlock DockPanel.Dock="Right" x:Name="StaminaText" Style="{StaticResource Caption}"
+                                       FontSize="10.5" Foreground="{StaticResource Gain}" />
+                            <TextBlock Text="Thể lực" Style="{StaticResource Caption}" FontSize="10.5"
+                                       Foreground="{StaticResource Faint}" />
+                        </DockPanel>
+                        <Border Height="4" Background="{StaticResource SurfaceAlt}" CornerRadius="2" Margin="0,2,0,0">
+                            <Border x:Name="StaminaBar" HorizontalAlignment="Left" Background="{StaticResource Gain}" CornerRadius="2" Width="120" />
+                        </Border>
+                        <DockPanel Margin="0,4,0,0">
+                            <TextBlock DockPanel.Dock="Right" x:Name="HealthText" Style="{StaticResource Caption}"
+                                       FontSize="10.5" Foreground="{StaticResource Text}" />
+                            <TextBlock Text="Sinh lực" Style="{StaticResource Caption}" FontSize="10.5"
+                                       Foreground="{StaticResource Faint}" />
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="3" Margin="0,8,0,0" Padding="11,10"
                         Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
                         BorderThickness="1" CornerRadius="8">
                     <StackPanel>
@@ -101,7 +134,7 @@
                     </StackPanel>
                 </Border>
 
-                <ListBox x:Name="NavList" Grid.Row="3" Margin="0,10,0,0"
+                <ListBox x:Name="NavList" Grid.Row="4" Margin="0,10,0,0"
                          ItemContainerStyle="{StaticResource NavItem}"
                          SelectionChanged="Nav_SelectionChanged">
                     <ListBox.ItemTemplate>
@@ -125,7 +158,7 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <StackPanel Grid.Row="4" Margin="0,10,0,0">
+                <StackPanel Grid.Row="5" Margin="0,10,0,0">
                     <Button Content="Ngày tiếp  ▸" Click="Advance_Click"
                             Style="{StaticResource PrimaryButton}" HorizontalContentAlignment="Center" />
                     <Button Content="Tuần +7" Click="AdvanceWeek_Click" Margin="0,6,0,0"
