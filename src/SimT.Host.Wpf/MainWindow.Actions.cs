@@ -188,6 +188,57 @@ public partial class MainWindow
             $"Danh vọng thiên hạ: {s.Fame} điểm, Đức độ: {s.Virtue} điểm, Tín nghĩa: {s.Credibility} điểm.",
             learnedSkills);
 
+        long liquidGold = 0;
+        if (_kernel.Capabilities.TryGet<IWallet>(CapabilityIds.PlayerWallet, out var wallet) && wallet is not null)
+        {
+            liquidGold = wallet.Liquid;
+        }
+
+        long portfolioVal = 0;
+        if (_kernel.Capabilities.TryGet<IMarketPortfolio>(CapabilityIds.MarketPortfolio, out var portfolio) && portfolio is not null)
+        {
+            portfolioVal = portfolio.InventoryValue();
+        }
+
+        IReadOnlyList<RetainerDef> retainers = Array.Empty<RetainerDef>();
+        IReadOnlyList<SwornBrotherDef> swornBrothers = Array.Empty<SwornBrotherDef>();
+        if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+        {
+            retainers = social.GetRetainers();
+            swornBrothers = social.GetSwornBrothers();
+        }
+
+        bool isMarried = false;
+        string? spouseName = null;
+        int childCount = 0;
+        if (_kernel.Capabilities.TryGet<ILineageHouse>(CapabilityIds.LineageHouse, out var lineage) && lineage is not null)
+        {
+            isMarried = lineage.IsMarried;
+            spouseName = lineage.SpouseName;
+            childCount = lineage.ChildCount;
+        }
+
+        Func<long, string?> npcNameLookup = id =>
+        {
+            if (_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var nr) && nr is not null)
+            {
+                return nr.Find(id)?.NameVi;
+            }
+            return null;
+        };
+
+        var extraData = new ProtagonistExtraData(
+            v,
+            s,
+            liquidGold,
+            portfolioVal,
+            retainers,
+            swornBrothers,
+            isMarried,
+            spouseName,
+            childCount,
+            npcNameLookup);
+
         NpcDetailWindow.ShowNpc(
             this,
             protagonistDef,
@@ -203,7 +254,8 @@ public partial class MainWindow
             playerStamina: v.CurrentStamina,
             onChallengeDuel: null,
             onMeetNpc: null,
-            exps: attributes.Exps);
+            exps: attributes.Exps,
+            protagonistExtra: extraData);
         StatusText.Text = $"Đã mở hồ sơ nhân vật chính: {playerState.Name}.";
     }
 
@@ -238,12 +290,17 @@ public partial class MainWindow
 
         RelationshipDef? relationship = null;
         RetainerDef? retainer = null;
+        IReadOnlyList<MemoryEntry>? memories = null;
         bool hasMet = false;
         if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
         {
             hasMet = social.HasMet(npcId);
             relationship = hasMet ? social.GetRelationship(npcId) : null;
             retainer = social.GetRetainer(npcId);
+            if (hasMet)
+            {
+                memories = social.GetMemories(npcId, 10);
+            }
         }
 
         var citadelName = "Ẩn sĩ";
@@ -283,7 +340,8 @@ public partial class MainWindow
             playerFatigue,
             playerStamina,
             id => TryOpenDuelModal(id),
-            id => MeetNpcFromModal(id));
+            id => MeetNpcFromModal(id),
+            memories: memories);
 
         StatusText.Text = $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role}).";
     }

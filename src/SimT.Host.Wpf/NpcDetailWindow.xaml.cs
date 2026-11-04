@@ -6,22 +6,38 @@ using SimT.Contracts.Playing;
 
 namespace SimT.Host.Wpf;
 
+public sealed record ProtagonistExtraData(
+    CharacterVitals Vitals,
+    CharacterSocial Social,
+    long LiquidGold,
+    long PortfolioValue,
+    IReadOnlyList<RetainerDef> Retainers,
+    IReadOnlyList<SwornBrotherDef> SwornBrothers,
+    bool IsMarried,
+    string? SpouseName,
+    int ChildCount,
+    Func<long, string?>? NpcNameLookup = null);
+
 public partial class NpcDetailWindow : Window
 {
-    private long _npcId;
-    private NpcDef _npc = null!;
-    private string _citadelName = "Ẩn sĩ";
-    private long _npcCitadelId;
-    private long _playerCityId;
+    private readonly long _npcId;
+    private readonly NpcDef _npc;
+    private readonly string _citadelName;
+    private readonly long _npcCitadelId;
+    private readonly long _playerCityId;
     private bool _hasMet;
-    private NpcStatDelta? _deltas;
-    private NpcActivityDef? _activity;
-    private RelationshipDef? _relationship;
-    private RetainerDef? _retainer;
-    private int _playerFatigue;
-    private int _playerStamina = 100;
-    private bool _isProtagonist;
+    private readonly NpcStatDelta? _deltas;
+    private readonly NpcActivityDef? _activity;
+    private readonly RelationshipDef? _relationship;
+    private readonly RetainerDef? _retainer;
+    private readonly int _playerFatigue;
+    private readonly int _playerStamina;
+    private readonly bool _isProtagonist;
     private readonly CharacterAttributeExps? _exps;
+    private readonly ProtagonistExtraData? _protagonistExtra;
+    private readonly IReadOnlyList<MemoryEntry>? _memories;
+
+    private string _selectedSkillCategory = "all";
 
     public Action<long>? OnChallengeDuel { get; set; }
     public Action<long>? OnMeetNpc { get; set; }
@@ -38,7 +54,9 @@ public partial class NpcDetailWindow : Window
         RetainerDef? retainer = null,
         int playerFatigue = 0,
         int playerStamina = 100,
-        CharacterAttributeExps? exps = null)
+        CharacterAttributeExps? exps = null,
+        ProtagonistExtraData? protagonistExtra = null,
+        IReadOnlyList<MemoryEntry>? memories = null)
     {
         InitializeComponent();
         DarkTitleBar.Apply(this);
@@ -57,6 +75,8 @@ public partial class NpcDetailWindow : Window
         _playerStamina = playerStamina;
         _isProtagonist = (npc.Id == 0 || npc.Code == "protagonist" || npc.Role == "Lữ Khách");
         _exps = exps;
+        _protagonistExtra = protagonistExtra;
+        _memories = memories;
 
         Populate();
     }
@@ -76,7 +96,9 @@ public partial class NpcDetailWindow : Window
         int playerStamina = 100,
         Action<long>? onChallengeDuel = null,
         Action<long>? onMeetNpc = null,
-        CharacterAttributeExps? exps = null)
+        CharacterAttributeExps? exps = null,
+        ProtagonistExtraData? protagonistExtra = null,
+        IReadOnlyList<MemoryEntry>? memories = null)
     {
         var window = new NpcDetailWindow(
             npc,
@@ -90,7 +112,9 @@ public partial class NpcDetailWindow : Window
             retainer,
             playerFatigue,
             playerStamina,
-            exps)
+            exps,
+            protagonistExtra,
+            memories)
         {
             Owner = owner,
             OnChallengeDuel = onChallengeDuel,
@@ -110,7 +134,9 @@ public partial class NpcDetailWindow : Window
         RelationshipDef? relationship = null,
         RetainerDef? retainer = null,
         Action<long>? onChallengeDuel = null,
-        CharacterAttributeExps? exps = null)
+        CharacterAttributeExps? exps = null,
+        ProtagonistExtraData? protagonistExtra = null,
+        IReadOnlyList<MemoryEntry>? memories = null)
     {
         ShowNpc(
             owner,
@@ -127,7 +153,9 @@ public partial class NpcDetailWindow : Window
             playerStamina: 100,
             onChallengeDuel,
             onMeetNpc: null,
-            exps: exps);
+            exps: exps,
+            protagonistExtra: protagonistExtra,
+            memories: memories);
     }
 
     private void Populate()
@@ -156,10 +184,32 @@ public partial class NpcDetailWindow : Window
             ? "Khí chất bình ổn, phong thái điềm đạm."
             : $"Khí chất: {_npc.Personality}";
 
-        // Calculate total stats
+        // Calculate total stats and combat power
         var a = _npc.Attributes;
         var bonusTotal = _deltas?.TotalBonus ?? 0;
         var total = a.War + a.Ldr + a.Int + a.Pol + a.Dip + a.Com + a.Log + a.Cra + a.Con + a.Wil + a.Prc + a.Lck + bonusTotal;
+
+        var (cp, cpTier) = CalculateCombatPower(a);
+        CombatPowerText.Text = cp.ToString("N0");
+        CombatTierText.Text = cpTier;
+
+        if (_isProtagonist)
+        {
+            HeaderQuickVitalsPanel.Visibility = Visibility.Visible;
+            if (_protagonistExtra is not null)
+            {
+                var v = _protagonistExtra.Vitals;
+                var s = _protagonistExtra.Social;
+                HeaderHpText.Text = $"❤️ HP {v.Health}/{v.MaxHp}";
+                HeaderStaminaText.Text = $"⚡ Thể Lực {v.CurrentStamina}/{v.MaxStamina}";
+                HeaderFameText.Text = $"★ Uy Danh {s.Fame}";
+                HeaderAlignmentText.Text = $"⚖️ Đức {s.Virtue} · Tín {s.Credibility}";
+            }
+        }
+        else
+        {
+            HeaderQuickVitalsPanel.Visibility = Visibility.Collapsed;
+        }
 
         if (_hasMet || _isProtagonist)
         {
@@ -175,9 +225,14 @@ public partial class NpcDetailWindow : Window
             TotalStatsMaxText.Text = "danh tiếng";
         }
 
-        // TAB 1: Radar Chart & Core Stats
+        // TAB 1: Radar Chart, 4-Branch Summary & Core Stats
         StatRadarChart.SetCoreStats(a, _deltas);
         ArchetypeTagText.Text = StatRadarChart.ArchetypeTitle;
+
+        BranchMartialText.Text = $"{a.War + a.Ldr}";
+        BranchStrategyText.Text = $"{a.Int + a.Pol}";
+        BranchCommerceText.Text = $"{a.Com + a.Log}";
+        BranchCraftText.Text = $"{a.Dip + a.Cra}";
 
         if (!_hasMet && !_isProtagonist)
         {
@@ -189,39 +244,20 @@ public partial class NpcDetailWindow : Window
         }
 
         CoreStatsGrid.Children.Clear();
-        AddStatItem(CoreStatsGrid, "WAR · Võ Lực", a.War, _deltas?.WarDelta ?? 0, "Khả năng chiến đấu, trảm tướng phá trận", _hasMet || _isProtagonist, _exps?.War);
-        AddStatItem(CoreStatsGrid, "LDR · Thống Soái", a.Ldr, _deltas?.LdrDelta ?? 0, "Khả năng chỉ huy quân đội, giữ vững đội hình", _hasMet || _isProtagonist, _exps?.Ldr);
-        AddStatItem(CoreStatsGrid, "INT · Trí Tuệ", a.Int, _deltas?.IntDelta ?? 0, "Mưu lược quân sự, bày binh bố trận", _hasMet || _isProtagonist, _exps?.Int);
-        AddStatItem(CoreStatsGrid, "POL · Chính Trị", a.Pol, _deltas?.PolDelta ?? 0, "Quản lý kinh bang tế thế, phát triển thành thị", _hasMet || _isProtagonist, _exps?.Pol);
-        AddStatItem(CoreStatsGrid, "DIP · Ngoại Giao", a.Dip, _deltas?.DipDelta ?? 0, "Du thuyết liên minh, thu phục lòng người", _hasMet || _isProtagonist, _exps?.Dip);
-        AddStatItem(CoreStatsGrid, "COM · Thương Mại", a.Com, _deltas?.ComDelta ?? 0, "Đàm phán giá cả, kinh doanh sinh lời", _hasMet || _isProtagonist, _exps?.Com);
-        AddStatItem(CoreStatsGrid, "LOG · Hậu Cần", a.Log, _deltas?.LogDelta ?? 0, "Vận tải lương thảo, quản lý kho tàng", _hasMet || _isProtagonist, _exps?.Log);
-        AddStatItem(CoreStatsGrid, "CRA · Kỹ Nghệ", a.Cra, _deltas?.CraDelta ?? 0, "Chế tạo khí giới, xây đắp công trình", _hasMet || _isProtagonist, _exps?.Cra);
+        AddStatItem(CoreStatsGrid, "⚔️ WAR · Võ Lực", a.War, _deltas?.WarDelta ?? 0, "Sát thương chiến trận, trảm tướng lôi đài & bạo kích võ công", _hasMet || _isProtagonist, _exps?.War);
+        AddStatItem(CoreStatsGrid, "🛡️ LDR · Thống Soái", a.Ldr, _deltas?.LdrDelta ?? 0, "Khả năng chỉ huy quân đoàn, giữ vững đội hình & sĩ khí", _hasMet || _isProtagonist, _exps?.Ldr);
+        AddStatItem(CoreStatsGrid, "🧠 INT · Trí Tuệ", a.Int, _deltas?.IntDelta ?? 0, "Binh pháp mưu lược, thi triển & hóa giải kế sách quân sự", _hasMet || _isProtagonist, _exps?.Int);
+        AddStatItem(CoreStatsGrid, "📜 POL · Chính Trị", a.Pol, _deltas?.PolDelta ?? 0, "Kinh bang tế thế, khai hoang, thu thuế & tuần tra trị an", _hasMet || _isProtagonist, _exps?.Pol);
+        AddStatItem(CoreStatsGrid, "🗣️ DIP · Ngoại Giao", a.Dip, _deltas?.DipDelta ?? 0, "Du thuyết liên minh, thu phục lòng người & chiêu mộ hiền tài", _hasMet || _isProtagonist, _exps?.Dip);
+        AddStatItem(CoreStatsGrid, "💰 COM · Thương Mại", a.Com, _deltas?.ComDelta ?? 0, "Mặc cả giá buôn, mở rộng thương đoàn & sinh lời giao thương", _hasMet || _isProtagonist, _exps?.Com);
+        AddStatItem(CoreStatsGrid, "📦 LOG · Hậu Cần", a.Log, _deltas?.LogDelta ?? 0, "Vận tải lương thảo, quản lý kho tàng & hành quân viễn chinh", _hasMet || _isProtagonist, _exps?.Log);
+        AddStatItem(CoreStatsGrid, "🔨 CRA · Kỹ Nghệ", a.Cra, _deltas?.CraDelta ?? 0, "Rèn đúc thần binh khí giới, xây dựng thành lũy & công trình", _hasMet || _isProtagonist, _exps?.Cra);
 
         // TAB 2: Innate Vitals & Lifestyle
         PopulateInnateStats();
 
         // TAB 3: Skills & Feats
-        SkillsListPanel.Children.Clear();
-        SkillCountText.Text = _npc.Skills.Count > 0 ? $"{_npc.Skills.Count} tuyệt kỹ" : "Chưa khai mở";
-
-        if (_npc.Skills.Count == 0)
-        {
-            SkillsListPanel.Children.Add(new TextBlock
-            {
-                Text = "Nhân sĩ này chưa bộc lộ đặc kỹ danh tướng riêng biệt.",
-                Style = (Style)FindResource("Caption"),
-                Foreground = (Brush)FindResource("Muted"),
-                Margin = new Thickness(4, 2, 4, 4)
-            });
-        }
-        else
-        {
-            foreach (var skill in _npc.Skills)
-            {
-                SkillsListPanel.Children.Add(BuildSkillCard(skill));
-            }
-        }
+        PopulateSkills();
 
         // TAB 4: Relationship & Biography
         PopulateRelationship();
@@ -233,6 +269,20 @@ public partial class NpcDetailWindow : Window
 
     private void UpdatePills(bool sameCity)
     {
+        if (_isProtagonist)
+        {
+            LocationPillText.Text = "ĐỒNG THÀNH";
+            LocationPillText.Foreground = (Brush)FindResource("Gain");
+            LocationPillBorder.BorderBrush = (Brush)FindResource("Gain");
+            LocationPillBorder.ToolTip = "Đang ở thành trì hiện tại.";
+
+            AcquaintancePillText.Text = "BẢN THÂN";
+            AcquaintancePillText.Foreground = (Brush)FindResource("Accent");
+            AcquaintancePillBorder.BorderBrush = (Brush)FindResource("Accent");
+            AcquaintancePillBorder.ToolTip = "Hồ sơ chính nhân vật của bạn.";
+            return;
+        }
+
         // Location Pill
         if (sameCity)
         {
@@ -250,13 +300,7 @@ public partial class NpcDetailWindow : Window
         }
 
         // Acquaintance Pill
-        if (_isProtagonist)
-        {
-            AcquaintancePillText.Text = "BẢN THÂN";
-            AcquaintancePillText.Foreground = (Brush)FindResource("Accent");
-            AcquaintancePillBorder.BorderBrush = (Brush)FindResource("Accent");
-        }
-        else if (_hasMet)
+        if (_hasMet)
         {
             AcquaintancePillText.Text = "ĐÃ DIỆN KIẾN";
             AcquaintancePillText.Foreground = (Brush)FindResource("Accent");
@@ -280,47 +324,294 @@ public partial class NpcDetailWindow : Window
         if (!_hasMet && !_isProtagonist)
         {
             UnmetInnateNotice.Visibility = Visibility.Visible;
-            AddMaskedStatItem(InnateStatsGrid, "CON · Căn Cốt", "Cơ mật bản thể (Cần diện kiến)");
-            AddMaskedStatItem(InnateStatsGrid, "WIL · Định Lực", "Ý chí chưa từng bộc lộ");
-            AddMaskedStatItem(InnateStatsGrid, "PRC · Tuệ Nhãn", "Cơ biến chưa thể kiểm chứng");
-            AddMaskedStatItem(InnateStatsGrid, "LCK · Khí Vận", "Phúc duyên trời ban bí mật");
+            AddMaskedStatItem(InnateStatsGrid, "🩸 CON · Căn Cốt", "Cơ mật bản thể (Cần diện kiến)");
+            AddMaskedStatItem(InnateStatsGrid, "🧘 WIL · Định Lực", "Ý chí chưa từng bộc lộ");
+            AddMaskedStatItem(InnateStatsGrid, "👁️ PRC · Tuệ Nhãn", "Cơ biến chưa thể kiểm chứng");
+            AddMaskedStatItem(InnateStatsGrid, "✨ LCK · Khí Vận", "Phúc duyên trời ban bí mật");
 
+            ProtagonistVitalsPanel.Visibility = Visibility.Collapsed;
+            NpcLifestylePanel.Visibility = Visibility.Visible;
             LifestyleWealthText.Text = "Kín đáo (Chưa rõ)";
             LifestyleReputationText.Text = _activity is not null ? $"★ Uy danh {_activity.Reputation}" : "Danh sĩ Tam Quốc";
             LifestyleActionText.Text = "Hành tung bất định ở phương xa";
+            PersonalityDetailText.Text = "Khí chất bình ổn, chưa bộc lộ dã tâm hay khuynh hướng đặc biệt.";
+            return;
+        }
+
+        UnmetInnateNotice.Visibility = Visibility.Collapsed;
+        AddStatItem(InnateStatsGrid, "🩸 CON · Căn Cốt", a.Con, 0, "Thể phách sinh mệnh, quyết định HP & Thể lực tối đa", true, _exps?.Con);
+        AddStatItem(InnateStatsGrid, "🧘 WIL · Định Lực", a.Wil, 0, "Ý chí kiên định, chống hoảng loạn, giảm stress & phục hồi thể lực", true, _exps?.Wil);
+        AddStatItem(InnateStatsGrid, "👁️ PRC · Tuệ Nhãn", a.Prc, 0, "Cơ biến mẫn tiệp, phát giác phục kích & giám định thương phẩm", true, _exps?.Prc);
+        AddStatItem(InnateStatsGrid, "✨ LCK · Khí Vận", a.Lck, 0, "Phúc duyên trời ban, bạo kích kỳ ngộ thương trường & bảo mệnh", true, _exps?.Lck);
+
+        if (_isProtagonist)
+        {
+            ProtagonistVitalsPanel.Visibility = Visibility.Visible;
+            NpcLifestylePanel.Visibility = Visibility.Collapsed;
+
+            if (_protagonistExtra is not null)
+            {
+                var v = _protagonistExtra.Vitals;
+                var s = _protagonistExtra.Social;
+
+                // HP
+                ProtagonistHpValText.Text = $"{v.Health}/{v.MaxHp}";
+                var hpRatio = v.MaxHp > 0 ? (double)v.Health / v.MaxHp : 1.0;
+                var hpBrush = (Brush)(hpRatio > 0.4 ? FindResource("Gain") : FindResource("Loss"));
+                RenderGauge(ProtagonistHpBarGrid, hpRatio, hpBrush);
+
+                // Stamina
+                ProtagonistStaminaValText.Text = $"{v.CurrentStamina}/{v.MaxStamina}";
+                var stRatio = v.MaxStamina > 0 ? (double)v.CurrentStamina / v.MaxStamina : 1.0;
+                RenderGauge(ProtagonistStaminaBarGrid, stRatio, new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xE2)));
+
+                // Fatigue
+                ProtagonistFatigueValText.Text = $"{v.Fatigue}%";
+                var fatRatio = v.Fatigue / 100.0;
+                var fatBrush = (Brush)(v.Fatigue >= 70 ? FindResource("Loss") : FindResource("Accent"));
+                RenderGauge(ProtagonistFatigueBarGrid, fatRatio, fatBrush);
+
+                // Stress
+                ProtagonistStressValText.Text = $"{v.Stress}%";
+                var stValRatio = v.Stress / 100.0;
+                var stressBrush = (Brush)(v.Stress >= 70 ? FindResource("Loss") : FindResource("Muted"));
+                RenderGauge(ProtagonistStressBarGrid, stValRatio, stressBrush);
+
+                // Holdings & Economics
+                ProtagonistLiquidGoldText.Text = $"{_protagonistExtra.LiquidGold:N0} Quan";
+                ProtagonistPortfolioText.Text = $"{_protagonistExtra.PortfolioValue:N0} Quan";
+
+                var fame = s.Fame;
+                var fameTitle = fame switch
+                {
+                    >= 1000 => "Thiên Hạ Vô Song",
+                    >= 500 => "Danh Chấn Hoa Hạ",
+                    >= 250 => "Châu Huyện Chi Danh",
+                    >= 100 => "Hào Kiệt Mới Nổi",
+                    _ => "Vô Danh Tiểu Tốt"
+                };
+                ProtagonistFameBadgeText.Text = $"★ {fame} ({fameTitle})";
+            }
         }
         else
         {
-            UnmetInnateNotice.Visibility = Visibility.Collapsed;
-            AddStatItem(InnateStatsGrid, "CON · Căn Cốt", a.Con, 0, "Thể phách, quyết định sinh lực & thể lực tối đa", true, _exps?.Con);
-            AddStatItem(InnateStatsGrid, "WIL · Định Lực", a.Wil, 0, "Ý chí kiên định, chống hoảng loạn & giảm stress", true, _exps?.Wil);
-            AddStatItem(InnateStatsGrid, "PRC · Tuệ Nhãn", a.Prc, 0, "Cơ biến, giám định hàng hóa & phát giác phục kích", true, _exps?.Prc);
-            AddStatItem(InnateStatsGrid, "LCK · Khí Vận", a.Lck, 0, "Phúc duyên trời ban, bạo kích kỳ ngộ thương trường", true, _exps?.Lck);
+            ProtagonistVitalsPanel.Visibility = Visibility.Collapsed;
+            NpcLifestylePanel.Visibility = Visibility.Visible;
 
             LifestyleWealthText.Text = _activity is not null ? $"💰 {_activity.CurrentWealth:N0} Quan" : "Gia cảnh bình ổn";
             LifestyleReputationText.Text = _activity is not null ? $"★ Uy danh {_activity.Reputation}" : "★ Uy danh 50";
             LifestyleActionText.Text = _activity is not null ? $"⚡ {_activity.CurrentAction}" : "Tu tâm dưỡng tính";
+            PersonalityDetailText.Text = string.IsNullOrWhiteSpace(_npc.Personality)
+                ? "Khí chất bình ổn, chưa bộc lộ dã tâm hay khuynh hướng đặc biệt."
+                : _npc.Personality;
+        }
+    }
+
+    private void PopulateSkills()
+    {
+        SkillsListPanel.Children.Clear();
+
+        var skills = _npc.Skills;
+        var filtered = _selectedSkillCategory == "all"
+            ? skills
+            : skills.Where(s => s.Category.Equals(_selectedSkillCategory, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        SkillCountText.Text = $"{filtered.Count}/{skills.Count} tuyệt kỹ";
+
+        ProtagonistMentorshipTip.Visibility = _isProtagonist ? Visibility.Visible : Visibility.Collapsed;
+
+        if (filtered.Count == 0)
+        {
+            var msg = _selectedSkillCategory == "all"
+                ? "Nhân sĩ này chưa bộc lộ đặc kỹ danh tướng riêng biệt."
+                : "Chưa có tuyệt kỹ nào thuộc phân loại này.";
+
+            SkillsListPanel.Children.Add(new TextBlock
+            {
+                Text = msg,
+                Style = (Style)FindResource("Caption"),
+                Foreground = (Brush)FindResource("Muted"),
+                Margin = new Thickness(4, 6, 4, 6)
+            });
+            return;
         }
 
-        PersonalityDetailText.Text = string.IsNullOrWhiteSpace(_npc.Personality)
-            ? "Khí chất bình ổn, chưa bộc lộ dã tâm hay khuynh hướng đặc biệt."
-            : _npc.Personality;
+        foreach (var skill in filtered)
+        {
+            SkillsListPanel.Children.Add(BuildSkillCard(skill));
+        }
+    }
+
+    private void SkillFilter_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string cat)
+        {
+            _selectedSkillCategory = cat;
+
+            // Highlight buttons
+            SkillFilterAll.BorderBrush = (Brush)FindResource(cat == "all" ? "Accent" : "Line");
+            SkillFilterMartial.BorderBrush = (Brush)FindResource(cat == "martial" ? "Accent" : "Line");
+            SkillFilterStrategist.BorderBrush = (Brush)FindResource(cat == "strategist" ? "Accent" : "Line");
+            SkillFilterGovernance.BorderBrush = (Brush)FindResource(cat == "governance" ? "Accent" : "Line");
+            SkillFilterCommerce.BorderBrush = (Brush)FindResource(cat == "commerce" ? "Accent" : "Line");
+            SkillFilterSpecial.BorderBrush = (Brush)FindResource(cat == "special" ? "Accent" : "Line");
+
+            PopulateSkills();
+        }
     }
 
     private void PopulateRelationship()
     {
         if (_isProtagonist)
         {
-            KizunaAffinityDetail.Text = "Lữ khách khởi nghiệp";
-            KizunaRetainerDetail.Text = "Chúa công";
-            KizunaMemoryText.Text = "Nhân vật chính dấn thân thời loạn thế Tam Quốc, gầy dựng sự nghiệp.";
+            ProtagonistSocialPanel.Visibility = Visibility.Visible;
+            NpcSocialPanel.Visibility = Visibility.Collapsed;
+
+            // Sworn Brothers
+            SwornBrotherListPanel.Children.Clear();
+            var brothers = _protagonistExtra?.SwornBrothers ?? Array.Empty<SwornBrotherDef>();
+            SwornBrotherCountText.Text = brothers.Count > 0 ? $"{brothers.Count} Huynh đệ" : "Chưa kết nghĩa";
+
+            if (brothers.Count == 0)
+            {
+                SwornBrotherListPanel.Children.Add(new TextBlock
+                {
+                    Text = "Chưa kết nghĩa đào viên cùng ai. Hãy đàm đạo, tặng quà với nhân sĩ có chí hướng để thề ước kim lan vào sinh ra tử!",
+                    Style = (Style)FindResource("Caption"),
+                    Foreground = (Brush)FindResource("Muted"),
+                    Margin = new Thickness(4, 4, 4, 4)
+                });
+            }
+            else
+            {
+                foreach (var b in brothers)
+                {
+                    var name = _protagonistExtra?.NpcNameLookup?.Invoke(b.NpcId) ?? $"Huynh đệ #{b.NpcId}";
+                    var card = new Border
+                    {
+                        Background = (Brush)FindResource("SurfaceAlt"),
+                        BorderBrush = (Brush)FindResource("Line"),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(10, 6, 10, 6),
+                        Margin = new Thickness(0, 0, 0, 6)
+                    };
+                    var dock = new DockPanel();
+                    var right = new TextBlock
+                    {
+                        Text = $"⚔️ Trợ chiến: {b.AssistCount} trận",
+                        Style = (Style)FindResource("Caption"),
+                        Foreground = (Brush)FindResource("Accent"),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    DockPanel.SetDock(right, Dock.Right);
+                    dock.Children.Add(right);
+
+                    var info = new StackPanel();
+                    info.Children.Add(new TextBlock
+                    {
+                        Text = $"🍑 {name} ({b.BondTitle})",
+                        FontWeight = FontWeights.Bold,
+                        Foreground = (Brush)FindResource("Text")
+                    });
+                    info.Children.Add(new TextBlock
+                    {
+                        Text = $"Thề ước: {b.OathDate}",
+                        Style = (Style)FindResource("Caption"),
+                        Foreground = (Brush)FindResource("Faint")
+                    });
+                    dock.Children.Add(info);
+                    card.Child = dock;
+                    SwornBrotherListPanel.Children.Add(card);
+                }
+            }
+
+            // Retainers
+            RetainerListPanel.Children.Clear();
+            var retainers = _protagonistExtra?.Retainers ?? Array.Empty<RetainerDef>();
+            RetainerCountText.Text = retainers.Count > 0 ? $"{retainers.Count} Môn hạ" : "Chưa có môn hạ";
+
+            if (retainers.Count == 0)
+            {
+                RetainerListPanel.Children.Add(new TextBlock
+                {
+                    Text = "Chưa có gia thần phục vụ. Hãy nâng hảo cảm với nhân sĩ lên mức thâm giao (>= 35) để chiêu mộ về trướng hạ!",
+                    Style = (Style)FindResource("Caption"),
+                    Foreground = (Brush)FindResource("Muted"),
+                    Margin = new Thickness(4, 4, 4, 4)
+                });
+            }
+            else
+            {
+                foreach (var r in retainers)
+                {
+                    var name = _protagonistExtra?.NpcNameLookup?.Invoke(r.NpcId) ?? $"Môn hạ #{r.NpcId}";
+                    var card = new Border
+                    {
+                        Background = (Brush)FindResource("SurfaceAlt"),
+                        BorderBrush = (Brush)FindResource("Line"),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(10, 6, 10, 6),
+                        Margin = new Thickness(0, 0, 0, 6)
+                    };
+                    var dock = new DockPanel();
+                    var right = new TextBlock
+                    {
+                        Text = $"Trung thành: {r.Loyalty}/100",
+                        Style = (Style)FindResource("Caption"),
+                        Foreground = (Brush)FindResource(r.Loyalty >= 80 ? "Gain" : "Accent"),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    DockPanel.SetDock(right, Dock.Right);
+                    dock.Children.Add(right);
+
+                    var info = new StackPanel();
+                    info.Children.Add(new TextBlock
+                    {
+                        Text = $"🛡️ {name} · {r.RoleAssigned}",
+                        FontWeight = FontWeights.Bold,
+                        Foreground = (Brush)FindResource("Text")
+                    });
+                    info.Children.Add(new TextBlock
+                    {
+                        Text = $"Bổng lộc: {r.MonthlyStipend:N0} Quan/tháng · Gia nhập: {r.RecruitedDate}",
+                        Style = (Style)FindResource("Caption"),
+                        Foreground = (Brush)FindResource("Faint")
+                    });
+                    dock.Children.Add(info);
+                    card.Child = dock;
+                    RetainerListPanel.Children.Add(card);
+                }
+            }
+
+            // Family
+            if (_protagonistExtra is not null && _protagonistExtra.IsMarried)
+            {
+                LineageFamilyStatusText.Text = $"💍 Đã kết tóc se duyên cùng phu thê [{_protagonistExtra.SpouseName ?? "Hiền thê"}]. Con cháu thừa tự: {_protagonistExtra.ChildCount} người.";
+            }
+            else
+            {
+                LineageFamilyStatusText.Text = "Chưa lập gia thất. Lữ khách độc hành bốn bể, một lòng bôn ba gây dựng sự nghiệp.";
+            }
+
             return;
         }
 
+        // NPC View
+        ProtagonistSocialPanel.Visibility = Visibility.Collapsed;
+        NpcSocialPanel.Visibility = Visibility.Visible;
+
         if (_hasMet)
         {
-            var affSign = (_relationship?.Affinity ?? 0) >= 0 ? "+" : "";
-            KizunaAffinityDetail.Text = $"♥ {affSign}{_relationship?.Affinity ?? 0}/100 ({_relationship?.Impression ?? "Sơ giao"})";
+            var aff = _relationship?.Affinity ?? 0;
+            var affSign = aff >= 0 ? "+" : "";
+            KizunaAffinityDetail.Text = $"♥ {affSign}{aff}/100 ({_relationship?.Impression ?? "Sơ giao"})";
+
+            AffinityBarText.Text = $"Hảo cảm {affSign}{aff} · Tin cậy {_relationship?.Trust ?? 50}/100";
+            var affRatio = Math.Clamp((aff + 100) / 200.0, 0.05, 1.0);
+            var affBrush = new SolidColorBrush(aff >= 0 ? Color.FromRgb(0xFF, 0x6B, 0x8B) : Color.FromRgb(0x8A, 0x97, 0xA8));
+            RenderGauge(AffinityBarGrid, affRatio, affBrush);
 
             if (_retainer is not null)
             {
@@ -328,19 +619,73 @@ public partial class NpcDetailWindow : Window
             }
             else
             {
-                KizunaRetainerDetail.Text = (_relationship?.Affinity ?? 0) >= 35 ? "🤝 Có thể chiêu mộ" : "Chưa chiêu mộ";
+                KizunaRetainerDetail.Text = aff >= 35 ? "🤝 Có thể chiêu mộ" : "Chưa chiêu mộ";
             }
 
             var gifts = _relationship?.GiftCount ?? 0;
             KizunaMemoryText.Text = gifts > 0
                 ? $"Đã kết giao tương thức. Đã biếu tặng {gifts} món quà phẩm."
                 : "Đã kết giao tương thức qua đàm đạo.";
+
+            // Memories Log
+            MemoriesListPanel.Children.Clear();
+            if (_memories is not null && _memories.Count > 0)
+            {
+                MemoriesLogBorder.Visibility = Visibility.Visible;
+                foreach (var m in _memories)
+                {
+                    var memBorder = new Border
+                    {
+                        Background = (Brush)FindResource("SurfaceAlt"),
+                        BorderBrush = (Brush)FindResource("Line"),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Padding = new Thickness(8, 4, 8, 4),
+                        Margin = new Thickness(0, 0, 0, 4)
+                    };
+                    var dock = new DockPanel();
+                    var deltaText = new TextBlock
+                    {
+                        Text = m.AffinityDelta != 0 ? $"{(m.AffinityDelta > 0 ? "+" : "")}{m.AffinityDelta} ♥" : "",
+                        Style = (Style)FindResource("Caption"),
+                        Foreground = (Brush)FindResource(m.AffinityDelta >= 0 ? "Gain" : "Loss"),
+                        FontWeight = FontWeights.Bold,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    DockPanel.SetDock(deltaText, Dock.Right);
+                    dock.Children.Add(deltaText);
+
+                    var topicIcon = m.Topic switch
+                    {
+                        "chat" => "💬 Đàm đạo",
+                        "gift" => "🎁 Tặng quà",
+                        "recruit" => "🤝 Chiêu mộ",
+                        _ => "⚡ Tương tác"
+                    };
+                    var desc = new TextBlock
+                    {
+                        Text = $"[{m.Date}] {topicIcon}: {m.SummaryVi}",
+                        Style = (Style)FindResource("Caption"),
+                        Foreground = (Brush)FindResource("Text")
+                    };
+                    dock.Children.Add(desc);
+                    memBorder.Child = dock;
+                    MemoriesListPanel.Children.Add(memBorder);
+                }
+            }
+            else
+            {
+                MemoriesLogBorder.Visibility = Visibility.Collapsed;
+            }
         }
         else
         {
             KizunaAffinityDetail.Text = "Chưa từng diện kiến (0/100 Hảo cảm)";
             KizunaRetainerDetail.Text = "Chưa thể chiêu mộ";
+            AffinityBarText.Text = "Chưa có dữ liệu";
+            RenderGauge(AffinityBarGrid, 0.5, (Brush)FindResource("Line"));
             KizunaMemoryText.Text = "Chưa từng gặp gỡ hay trò chuyện. Hãy bấm 'Bái Phỏng' để bắt đầu kết giao!";
+            MemoriesLogBorder.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -476,14 +821,15 @@ public partial class NpcDetailWindow : Window
             Margin = new Thickness(0, 0, 8, 0)
         });
 
-        var catName = skill.Category switch
+        var (catName, catBrush) = skill.Category switch
         {
-            "martial" => "Võ Đạo",
-            "strategist" => "Mưu Lược",
-            "governance" => "Trị Quốc",
-            "commerce" => "Thương Mại",
-            _ => "Kỳ Tài"
+            "martial" => ("Võ Đạo", (Brush)new SolidColorBrush(Color.FromRgb(0xE0, 0x6C, 0x75))),
+            "strategist" => ("Mưu Lược", (Brush)new SolidColorBrush(Color.FromRgb(0x4D, 0x96, 0xFF))),
+            "governance" => ("Trị Quốc", (Brush)new SolidColorBrush(Color.FromRgb(0x5A, 0xC0, 0x8A))),
+            "commerce" => ("Thương Mại", (Brush)FindResource("Accent")),
+            _ => ("Kỳ Tài", (Brush)new SolidColorBrush(Color.FromRgb(0xBD, 0x93, 0xF9)))
         };
+
         var catBorder = new Border
         {
             Background = (Brush)FindResource("Surface"),
@@ -497,7 +843,7 @@ public partial class NpcDetailWindow : Window
             Text = catName,
             FontSize = 10,
             FontWeight = FontWeights.Bold,
-            Foreground = (Brush)FindResource("Accent")
+            Foreground = catBrush
         };
         badgeStack.Children.Add(catBorder);
 
@@ -835,6 +1181,45 @@ public partial class NpcDetailWindow : Window
 
         card.Child = stack;
         container.Children.Add(card);
+    }
+
+    private static void RenderGauge(Grid grid, double ratio, Brush brush)
+    {
+        grid.Children.Clear();
+        grid.ColumnDefinitions.Clear();
+
+        var clamped = Math.Clamp(ratio, 0.0, 1.0);
+        if (clamped < 0.005)
+        {
+            return;
+        }
+
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(clamped, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0 - clamped, GridUnitType.Star) });
+
+        var bar = new Border
+        {
+            Background = brush,
+            CornerRadius = new CornerRadius(1)
+        };
+        Grid.SetColumn(bar, 0);
+        grid.Children.Add(bar);
+    }
+
+    private static (int cp, string tier) CalculateCombatPower(CharacterAttributes a)
+    {
+        // Combat Power formula: WAR*30 + LDR*22 + INT*18 + CON*20 + WIL*15 + PRC*12 + CRA*8 + LCK*10
+        var cp = (a.War * 30) + (a.Ldr * 22) + (a.Int * 18) + (a.Con * 20) + (a.Wil * 15) + (a.Prc * 12) + (a.Cra * 8) + (a.Lck * 10);
+        var tier = cp switch
+        {
+            >= 10000 => "Thiên Hạ Vô Song 👑",
+            >= 8500 => "Danh Tướng Tuyệt Luân ⭐",
+            >= 7000 => "Nhất Phương Hào Kiệt ⚔️",
+            >= 5500 => "Dũng Khí Đáng Khen 🛡️",
+            >= 4000 => "Tầm Thường Sĩ Tốt 🏹",
+            _ => "Sơ Xuất Mao Lư 🌿"
+        };
+        return (cp, tier);
     }
 
     private static string DetermineRoleTag(string role)
