@@ -339,7 +339,16 @@ internal sealed class ProfessionScreen : IScreenContribution
                     "2~3 Thảo dược (Cơ duyên hái Nhân sâm)",
                     "Mở mang nhận thức, +PRC/INT"
                 ],
-                [new ScreenCommand("wild:forage", "Lên núi hái thuốc")])
+                [new ScreenCommand("wild:forage", "Lên núi hái thuốc")]),
+            new(
+                [
+                    "Săn Bắn Rừng Sâu",
+                    "Thảo nguyên / Rừng già",
+                    "1 ngày · 20 Mệt mỏi",
+                    "2~3 Thịt thú (Cơ duyên da lông/Mật gấu)",
+                    "Tăng cường thể phách, +WAR/PRC/CON"
+                ],
+                [new ScreenCommand("wild:hunt", "Giương cung săn bắn")])
         };
 
         var totalPractice = _service.Trades.Sum(trade => _service.PracticeCount(trade.Id));
@@ -354,7 +363,7 @@ internal sealed class ProfessionScreen : IScreenContribution
                 new ScreenSection("Xưởng Chế Tác Tại Thành", ["Tên Xưởng", "Chuyên Môn", "Lò Luyện", "Thợ Phụ", "Tiền Thuê", "Trạng Thái"], workshopRows),
                 new ScreenSection("Ủy Thác & Đơn Đặt Hàng Phường Hội", OrderColumns, orderRows),
                 new ScreenSection("Bếp Nấu Ẩm Thực (Mỹ Vị Tam Quốc)", ["Món Ăn", "Nguyên Liệu", "Chi Phí", "Hiệu Quả Sinh Mệnh", "Có Sẵn"], dishRows),
-                new ScreenSection("Dã Ngoại Sinh Hoạt (Câu Cá & Hái Thuốc)", ["Hoạt Động", "Địa Điểm", "Tiêu Hao", "Thu Hoạch Dự Kiến", "Lợi Ích Thần Trí"], wildRows),
+                new ScreenSection("Dã Ngoại Sinh Hoạt (Câu Cá, Hái Thuốc & Săn Bắn)", ["Hoạt Động", "Địa Điểm", "Tiêu Hao", "Thu Hoạch Dự Kiến", "Lợi Ích Thần Trí"], wildRows),
                 new ScreenSection("Bí Kỹ Nghề Nghiệp & Giác Ngộ", PerkColumns, perkRows),
                 new ScreenSection("Khí Cụ Trong Thành", EquipmentColumns, equipRows),
                 new ScreenSection("Bản Vẽ Chế Tác Khí Cụ", RecipeColumns, recipeRows),
@@ -473,6 +482,8 @@ internal sealed class ProfessionCommandHandler : IScreenCommandHandler
                         return _service.Fish(cityId).Message;
                     if (parts[1] == "forage")
                         return _service.Forage(cityId).Message;
+                    if (parts[1] == "hunt")
+                        return _service.Hunt(cityId).Message;
                 }
                 break;
 

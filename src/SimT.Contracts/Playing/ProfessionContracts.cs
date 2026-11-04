@@ -119,6 +119,8 @@ public interface IProfessionGuild
 
     WorkResult Forage(long citadelId);
 
+    WorkResult Hunt(long citadelId);
+
     WorkResult Temper(long citadelId, long equipmentId);
 }
 

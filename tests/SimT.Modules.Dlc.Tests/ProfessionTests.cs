@@ -394,7 +394,7 @@ public sealed class ProfessionTests : IDisposable
 
         var msg = Command(kernel, "wild:fish");
 
-        Assert.Contains("buông cần bên bến sông", msg);
+        Assert.Contains("buông cần tại", msg);
         Assert.Equal(todayBefore.AddDays(1), kernel.Today);
         Assert.True(bag.Quantity(player.CurrentCityId, 8) > fishBefore);
     }
@@ -459,6 +459,60 @@ public sealed class ProfessionTests : IDisposable
         Assert.Equal(1, eq.TemperLevel);
         Assert.Equal(4, eq.BonusValue); // 3 + 1 = 4
         Assert.Equal(115, eq.MaxDurability); // 100 + 15 = 115
+    }
+
+    [Fact]
+    public void Hunting_activity_yields_meat_advances_day_and_learns_skill()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        var todayBefore = kernel.Today;
+        var meatBefore = bag.Quantity(player.CurrentCityId, 8); // 8: ca_kho (meat/provisions)
+
+        var msg = Command(kernel, "wild:hunt");
+
+        Assert.Contains("săn bắn", msg);
+        Assert.Equal(todayBefore.AddDays(1), kernel.Today);
+        Assert.True(bag.Quantity(player.CurrentCityId, 8) > meatBefore);
+        Assert.True(attrs.HasSkill("thu_liep"));
+    }
+
+    [Fact]
+    public void Wilderness_activities_train_life_skills_in_player_attributes()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        Command(kernel, "wild:fish");
+        Assert.True(attrs.HasSkill("dieu_ngu"));
+
+        Command(kernel, "wild:forage");
+        Assert.True(attrs.HasSkill("tam_duoc"));
+
+        Command(kernel, "wild:hunt");
+        Assert.True(attrs.HasSkill("thu_liep"));
+    }
+
+    [Fact]
+    public void Regional_foraging_in_u_chau_yields_ginseng()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+
+        // Move to Trác Huyện (citadel 4, region: u_chau)
+        player.MoveTo(4, kernel.Today);
+        Assert.Equal(4, player.CurrentCityId);
+
+        var samBefore = bag.Quantity(4, 13); // 13: sam (Nhân sâm Liêu Đông)
+        var msg = Command(kernel, "wild:forage");
+
+        Assert.Contains("Nhân Sâm Liêu Đông", msg);
+        Assert.True(bag.Quantity(4, 13) > samBefore);
     }
 
     private static string Command(SimKernel kernel, string commandId)

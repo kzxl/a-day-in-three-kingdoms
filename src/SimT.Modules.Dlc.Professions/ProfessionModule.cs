@@ -14,8 +14,9 @@ public sealed class ProfessionModule : ISimModule
         var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
         var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
         var attributes = context.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attr) ? attr : null;
+        var map = context.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var wm) ? wm : null;
 
-        var service = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes);
+        var service = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes, map);
         service.ValidateCatalog();
 
         context.Capabilities.Provide(CapabilityIds.ProfessionGuild, service);
