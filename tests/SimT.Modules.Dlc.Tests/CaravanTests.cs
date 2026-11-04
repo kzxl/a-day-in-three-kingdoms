@@ -186,6 +186,89 @@ public sealed class CaravanTests : IDisposable
         Assert.Equal(2, db.ScalarLong("SELECT SUM(quantity) FROM cv_cargo"));
     }
 
+    [Fact]
+    public void Accepting_and_delivering_freight_contract_pays_reward_on_time()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var player = Player(kernel);
+
+        // Contract 1 is from Citadel 1 (Lạc Dương) to Citadel 2 (Trường An), item 2 (Trà), quantity 8, reward 450
+        var contract1 = guild.Contracts.First(c => c.Id == 1);
+        Assert.Equal("AVAILABLE", contract1.Status);
+        Assert.Equal(player.CurrentCityId, contract1.FromCityId);
+
+        var balanceBefore = kernel.Ledger.Balance;
+        var acceptMsg = Command(kernel, "accept:1");
+        Assert.Contains("Đã nhận ủy thác", acceptMsg);
+
+        // Goods added to bag at starting citadel
+        Assert.Equal(8, Bag(kernel).Quantity(player.CurrentCityId, 2));
+
+        // Travel to destination city (Citadel 2)
+        var travelMsg = Command(kernel, $"goto:{contract1.ToCityId}");
+        Assert.Contains("tới nơi", travelMsg);
+        Assert.Equal(contract1.ToCityId, player.CurrentCityId);
+
+        // Deliver contract
+        var deliverMsg = Command(kernel, "deliver:1");
+        Assert.Contains("Giao tiêu thành công", deliverMsg);
+        Assert.Contains("450 Quan", deliverMsg);
+
+        // Check wallet and ledger
+        Assert.Equal(balanceBefore + 450, kernel.Ledger.Balance);
+        var updatedContract = guild.Contracts.First(c => c.Id == 1);
+        Assert.Equal("DELIVERED", updatedContract.Status);
+        Assert.Equal(0, Bag(kernel).Quantity(player.CurrentCityId, 2));
+    }
+
+    [Fact]
+    public void Delivering_freight_contract_late_imposes_fifty_percent_penalty()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var player = Player(kernel);
+
+        var contract = guild.Contracts.First(c => c.Id == 1);
+        Command(kernel, $"accept:{contract.Id}");
+
+        // Travel to destination first with goods
+        Command(kernel, $"goto:{contract.ToCityId}");
+
+        // Advance beyond the deadline (e.g. 30 days later)
+        kernel.AdvanceDays(30);
+
+        var deliverMsg = Command(kernel, $"deliver:{contract.Id}");
+
+        Assert.Contains("trễ hạn", deliverMsg);
+        Assert.Contains($"{contract.RewardCopper / 2} Quan", deliverMsg);
+    }
+
+    [Fact]
+    public void Accepting_freight_contract_from_wrong_city_is_refused()
+    {
+        using var kernel = _host.Boot();
+        // Contract 4 is from Citadel 8 (Tương Dương), but player starts at Citadel 1 (Lạc Dương)
+        var acceptMsg = Command(kernel, "accept:4");
+        Assert.Contains("yêu cầu tiếp nhận tại", acceptMsg);
+    }
+
+    [Fact]
+    public void Delivering_freight_contract_without_sufficient_goods_is_refused()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        Command(kernel, "accept:1");
+
+        // Discard or remove some contract goods from bag before delivering
+        Bag(kernel).Remove(player.CurrentCityId, 2, 5); // remove 5 of 8
+
+        Command(kernel, "goto:2");
+        var deliverMsg = Command(kernel, "deliver:1");
+
+        Assert.Contains("Không đủ số lượng", deliverMsg);
+    }
+
     private static void Seed(SimKernel kernel, int quantity)
     {
         var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);

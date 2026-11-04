@@ -9,9 +9,9 @@ using SimT.Contracts;
 namespace SimT.Modules.Dlc.Caravan;
 
 /// <summary>
-/// Freight and travel. Goods leave the current city's bag, travel for the road's duration and
-/// land in the destination city's bag; the player must walk there to sell them. Every unit of
-/// freight is paid for, so shipping is never a free teleport.
+/// Freight, trade routes, retainers escort, and logistics contracts.
+/// Goods leave the current city's bag, travel for the road's duration and land in the destination city's bag.
+/// Every unit of freight is paid for, so shipping is never a free teleport.
 /// </summary>
 internal sealed class CaravanService : ICaravanGuild
 {
@@ -23,6 +23,7 @@ internal sealed class CaravanService : ICaravanGuild
     private readonly IBag _bag;
     private readonly IWorldMap _map;
     private readonly IItemCatalog _items;
+    private readonly IPlayerState _player;
     private readonly IIdGenerator _ids;
     private readonly ILog _log;
     private readonly IActionTime _actionTime;
@@ -35,6 +36,7 @@ internal sealed class CaravanService : ICaravanGuild
         IBag bag,
         IWorldMap map,
         IItemCatalog items,
+        IPlayerState player,
         IIdGenerator ids,
         ILog log,
         IActionTime actionTime,
@@ -46,6 +48,7 @@ internal sealed class CaravanService : ICaravanGuild
         _bag = bag;
         _map = map;
         _items = items;
+        _player = player;
         _ids = ids;
         _log = log;
         _actionTime = actionTime;
@@ -61,7 +64,9 @@ internal sealed class CaravanService : ICaravanGuild
             """
             SELECT r.id, r.from_city, r.to_city, r.depart_day, r.arrive_day, r.status,
                    COALESCE((SELECT SUM(quantity) FROM cv_cargo c WHERE c.run_id = r.id), 0),
-                   COALESCE((SELECT SUM(lost) FROM cv_cargo c WHERE c.run_id = r.id), 0)
+                   COALESCE((SELECT SUM(lost) FROM cv_cargo c WHERE c.run_id = r.id), 0),
+                   r.escort_npc_id,
+                   r.ambush_loss
             FROM cv_run r
             ORDER BY r.id DESC
             LIMIT 20
@@ -74,13 +79,38 @@ internal sealed class CaravanService : ICaravanGuild
                 row.GetInt32(4),
                 row.GetString(5),
                 row.GetInt32(6),
-                row.GetInt32(7)));
+                row.GetInt32(7),
+                row.IsDbNull(8) ? null : row.GetInt64(8),
+                row.GetInt32(9)));
+
+    public IReadOnlyList<FreightContractDef> Contracts =>
+        _db.Query(
+            """
+            SELECT id, guild_name, from_city, to_city, item_id, quantity, reward_copper, deadline_day, status, accepted_day, completed_day
+            FROM cv_contract
+            ORDER BY id ASC
+            """,
+            row => new FreightContractDef(
+                row.GetInt64(0),
+                row.GetString(1),
+                row.GetInt64(2),
+                row.GetInt64(3),
+                row.GetInt64(4),
+                row.GetInt32(5),
+                row.GetInt32(6),
+                row.GetInt32(7),
+                row.GetString(8),
+                row.IsDbNull(9) ? null : row.GetInt32(9),
+                row.IsDbNull(10) ? null : row.GetInt32(10)));
 
     public int UnitsInTransit =>
         (int)_db.ScalarLong(
             "SELECT COALESCE(SUM(c.quantity), 0) FROM cv_cargo c JOIN cv_run r ON r.id = c.run_id WHERE r.status = 'RUNNING'");
 
-    public CaravanResult Send(long fromCity, long toCity)
+    public CaravanResult Send(long fromCity, long toCity) =>
+        SendWithEscort(fromCity, toCity, null);
+
+    public CaravanResult SendWithEscort(long fromCity, long toCity, long? escortNpcId)
     {
         var days = _map.TravelDays(fromCity, toCity);
         if (days <= 0)
@@ -120,8 +150,8 @@ internal sealed class CaravanService : ICaravanGuild
             var runId = _ids.Next("caravan.run");
             _db.Execute(
                 """
-                INSERT INTO cv_run(id, from_city, to_city, depart_day, arrive_day, fee_paid, status)
-                VALUES(@id, @from, @to, @depart, @arrive, @fee, 'RUNNING')
+                INSERT INTO cv_run(id, from_city, to_city, depart_day, arrive_day, fee_paid, status, escort_npc_id, ambush_loss)
+                VALUES(@id, @from, @to, @depart, @arrive, @fee, 'RUNNING', @escort, 0)
                 """,
                 new DbArgs()
                     .Add("@id", runId)
@@ -129,7 +159,8 @@ internal sealed class CaravanService : ICaravanGuild
                     .Add("@to", toCity)
                     .Add("@depart", departDay)
                     .Add("@arrive", arriveDay)
-                    .Add("@fee", fee));
+                    .Add("@fee", fee)
+                    .Add("@escort", (object?)escortNpcId ?? DBNull.Value));
 
             foreach (var row in rows)
             {
@@ -139,8 +170,9 @@ internal sealed class CaravanService : ICaravanGuild
             }
         });
 
+        var escortText = escortNpcId.HasValue ? " (có tiêu đầu hộ vệ)" : string.Empty;
         return CaravanResult.Success(
-            $"Đoàn {units} đơn vị lên đường, tới sau {days} ngày (ngày {GameDate.FromDayIndex(arriveDay)}), cước {fee} Quan.");
+            $"Đoàn {units} đơn vị lên đường{escortText}, tới sau {days} ngày (ngày {GameDate.FromDayIndex(arriveDay)}), cước {fee} Quan.");
     }
 
     public CaravanResult Travel(long fromCity, long toCity, IPlayerState player)
@@ -155,17 +187,152 @@ internal sealed class CaravanService : ICaravanGuild
         {
             _clock.Advance(days);
             player.MoveTo(toCity, _clock.Today);
+
+            // Escort active freight contracts cargo from starting city to destination city
+            var activeContracts = _db.Query(
+                "SELECT id, item_id, quantity FROM cv_contract WHERE status = 'IN_TRANSIT' AND from_city = @from AND to_city = @to",
+                row => (Id: row.GetInt64(0), ItemId: row.GetInt64(1), Quantity: row.GetInt32(2)),
+                new DbArgs().Add("@from", fromCity).Add("@to", toCity));
+
+            foreach (var c in activeContracts)
+            {
+                if (_bag.Quantity(fromCity, c.ItemId) >= c.Quantity)
+                {
+                    _bag.Remove(fromCity, c.ItemId, c.Quantity);
+                    _bag.Add(toCity, c.ItemId, c.Quantity);
+                }
+            }
         });
 
         return CaravanResult.Success($"Đi {days} ngày, tới nơi ngày {_clock.Today}.");
+    }
+
+    public CaravanResult AcceptContract(long contractId)
+    {
+        var contract = _db.QueryOne(
+            "SELECT id, guild_name, from_city, to_city, item_id, quantity, reward_copper, deadline_day, status, accepted_day, completed_day FROM cv_contract WHERE id = @id",
+            row => new FreightContractDef(
+                row.GetInt64(0),
+                row.GetString(1),
+                row.GetInt64(2),
+                row.GetInt64(3),
+                row.GetInt64(4),
+                row.GetInt32(5),
+                row.GetInt32(6),
+                row.GetInt32(7),
+                row.GetString(8),
+                row.IsDbNull(9) ? null : row.GetInt32(9),
+                row.IsDbNull(10) ? null : row.GetInt32(10)
+            ),
+            DbArgs.One("@id", contractId));
+
+        if (contract is null)
+        {
+            return CaravanResult.Failure("Hợp đồng không tồn tại.");
+        }
+
+        if (contract.Status != "AVAILABLE")
+        {
+            return CaravanResult.Failure("Hợp đồng này không còn khả dụng hoặc đã được tiếp nhận.");
+        }
+
+        if (_player.CurrentCityId != contract.FromCityId)
+        {
+            var fromName = _map.Find(contract.FromCityId)?.NameVi ?? contract.FromCityId.ToString();
+            return CaravanResult.Failure($"Hợp đồng này yêu cầu tiếp nhận tại {fromName}.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "UPDATE cv_contract SET status = 'IN_TRANSIT', accepted_day = @day WHERE id = @id",
+                new DbArgs().Add("@id", contract.Id).Add("@day", _clock.Today.DayIndex));
+
+            _bag.Add(contract.FromCityId, contract.ItemId, contract.Quantity);
+        });
+
+        var destName = _map.Find(contract.ToCityId)?.NameVi ?? contract.ToCityId.ToString();
+        var itemName = _items.Find(contract.ItemId)?.NameVi ?? $"Vật phẩm #{contract.ItemId}";
+        return CaravanResult.Success(
+            $"Đã nhận ủy thác từ {contract.GuildName}. Vận chuyển {contract.Quantity} {itemName} tới thành {destName} trước ngày {GameDate.FromDayIndex(contract.DeadlineDayIndex)} (thù lao {contract.RewardCopper} Quan).");
+    }
+
+    public CaravanResult DeliverContract(long contractId)
+    {
+        var contract = _db.QueryOne(
+            "SELECT id, guild_name, from_city, to_city, item_id, quantity, reward_copper, deadline_day, status, accepted_day, completed_day FROM cv_contract WHERE id = @id",
+            row => new FreightContractDef(
+                row.GetInt64(0),
+                row.GetString(1),
+                row.GetInt64(2),
+                row.GetInt64(3),
+                row.GetInt64(4),
+                row.GetInt32(5),
+                row.GetInt32(6),
+                row.GetInt32(7),
+                row.GetString(8),
+                row.IsDbNull(9) ? null : row.GetInt32(9),
+                row.IsDbNull(10) ? null : row.GetInt32(10)
+            ),
+            DbArgs.One("@id", contractId));
+
+        if (contract is null)
+        {
+            return CaravanResult.Failure("Hợp đồng không tồn tại.");
+        }
+
+        if (contract.Status != "IN_TRANSIT")
+        {
+            return CaravanResult.Failure("Hợp đồng này chưa được nhận hoặc đã hoàn tất.");
+        }
+
+        if (_player.CurrentCityId != contract.ToCityId)
+        {
+            var destName = _map.Find(contract.ToCityId)?.NameVi ?? contract.ToCityId.ToString();
+            return CaravanResult.Failure($"Chưa tới đích để giao hàng. Điểm bàn giao là {destName}.");
+        }
+
+        var availableInBag = _bag.Quantity(contract.ToCityId, contract.ItemId);
+        if (availableInBag < contract.Quantity)
+        {
+            var itemName = _items.Find(contract.ItemId)?.NameVi ?? "hàng hóa";
+            return CaravanResult.Failure($"Không đủ số lượng {itemName} trong túi để bàn giao (cần {contract.Quantity}, hiện có {availableInBag}).");
+        }
+
+        var onTime = _clock.Today.DayIndex <= contract.DeadlineDayIndex;
+        var payout = onTime ? contract.RewardCopper : Math.Max(10, contract.RewardCopper / 2);
+
+        _db.Transaction(() =>
+        {
+            if (!_bag.Remove(contract.ToCityId, contract.ItemId, contract.Quantity))
+            {
+                throw new SimException("caravan.deliver_bag", "Failed to remove contract goods from bag.");
+            }
+
+            _wallet.Pay(payout, JournalCodes.CaravanReward, $"Thù lao vận tiêu hợp đồng {contract.Id} ({contract.GuildName})");
+
+            _db.Execute(
+                "UPDATE cv_contract SET status = 'DELIVERED', completed_day = @day WHERE id = @id",
+                new DbArgs().Add("@id", contract.Id).Add("@day", _clock.Today.DayIndex));
+        });
+
+        return onTime
+            ? CaravanResult.Success($"Giao tiêu thành công cho {contract.GuildName}! Nhận đủ {payout} Quan thù lao đúng hạn.")
+            : CaravanResult.Success($"Giao tiêu trễ hạn cho {contract.GuildName}! Bị trừ 50% tiền cước, nhận {payout} Quan.");
     }
 
     /// <summary>Arrival hook: runs on every day, marks a run arrived exactly once.</summary>
     public void OnDay(GameDate date)
     {
         var due = _db.Query(
-            "SELECT id, to_city, depart_day, arrive_day FROM cv_run WHERE status = 'RUNNING' AND arrive_day <= @day ORDER BY id",
-            row => (Id: row.GetInt64(0), ToCity: row.GetInt64(1), Depart: row.GetInt32(2), Arrive: row.GetInt32(3)),
+            "SELECT id, to_city, depart_day, arrive_day, escort_npc_id FROM cv_run WHERE status = 'RUNNING' AND arrive_day <= @day ORDER BY id",
+            row => (
+                Id: row.GetInt64(0),
+                ToCity: row.GetInt64(1),
+                Depart: row.GetInt32(2),
+                Arrive: row.GetInt32(3),
+                EscortNpcId: row.IsDbNull(4) ? (long?)null : row.GetInt64(4)
+            ),
             DbArgs.One("@day", date.DayIndex));
 
         foreach (var run in due)
@@ -226,11 +393,4 @@ internal sealed class CaravanService : ICaravanGuild
         var lost = (int)((long)quantity * transitDays / item.ShelfLifeDays);
         return Math.Min(lost, quantity - 1);
     }
-}
-
-public readonly record struct CaravanResult(bool Ok, string Message)
-{
-    public static CaravanResult Success(string message) => new(true, message);
-
-    public static CaravanResult Failure(string message) => new(false, message);
 }
