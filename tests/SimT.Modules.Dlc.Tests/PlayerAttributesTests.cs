@@ -110,6 +110,29 @@ public sealed class PlayerAttributesTests : IDisposable
     }
 
     [Fact]
+    public void Protagonist_exposes_attribute_exp_progress_correctly()
+    {
+        using var kernel = _host.Boot();
+        var attrs = PlayerAttrs(kernel);
+
+        // Initially 0 exp across all attributes
+        Assert.Equal(0, attrs.Exps.War);
+        Assert.Equal(0, attrs.Exps.Com);
+        Assert.Equal(0, attrs.Exps.Prc);
+
+        // Add 45 PRC exp -> 45
+        attrs.AddExp("prc", 45);
+        Assert.Equal(45, attrs.Exps.Prc);
+        Assert.Equal(45, attrs.Exps.GetExp("PRC"));
+
+        // Add 70 more PRC exp -> 115 total -> +1 PRC stat point, residual 15 exp
+        var prcBefore = attrs.Attributes.Prc;
+        attrs.AddExp("prc", 70);
+        Assert.Equal(prcBefore + 1, attrs.Attributes.Prc);
+        Assert.Equal(15, attrs.Exps.Prc);
+    }
+
+    [Fact]
     public void Protagonist_starts_with_honorable_social_standing()
     {
         using var kernel = _host.Boot();

@@ -88,6 +88,41 @@ public sealed record CharacterAttributes(
     int Prc,
     int Lck);
 
+/// <summary>Experience points (0-99) towards the next point for the canonical 12 RPG attributes.</summary>
+public sealed record CharacterAttributeExps(
+    int War,
+    int Ldr,
+    int Int,
+    int Pol,
+    int Dip,
+    int Com,
+    int Log,
+    int Cra,
+    int Con,
+    int Wil,
+    int Prc,
+    int Lck)
+{
+    public static readonly CharacterAttributeExps Zero = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+    public int GetExp(string code) => code.ToUpperInvariant() switch
+    {
+        "WAR" => War,
+        "LDR" => Ldr,
+        "INT" => Int,
+        "POL" => Pol,
+        "DIP" => Dip,
+        "COM" => Com,
+        "LOG" => Log,
+        "CRA" => Cra,
+        "CON" => Con,
+        "WIL" => Wil,
+        "PRC" => Prc,
+        "LCK" => Lck,
+        _ => 0
+    };
+}
+
 /// <summary>Dynamic vitals profile: health, fatigue, morale, stress, stamina.</summary>
 public sealed record CharacterVitals(
     int Health,
@@ -199,6 +234,8 @@ public interface IPlayerState
 public interface IPlayerAttributes
 {
     CharacterAttributes Attributes { get; }
+
+    CharacterAttributeExps Exps { get; }
 
     CharacterVitals Vitals { get; }
 

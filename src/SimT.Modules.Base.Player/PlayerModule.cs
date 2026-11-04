@@ -369,6 +369,32 @@ public sealed class PlayerModule : ISimModule
 
         }
 
+        public CharacterAttributeExps Exps
+        {
+            get
+            {
+                return _db.QueryOne<CharacterAttributeExps>(
+                    @"SELECT war_exp, ldr_exp, int_exp, pol_exp, dip_exp, com_exp, log_exp, cra_exp,
+                             con_exp, wil_exp, prc_exp, lck_exp
+                      FROM pl_attribute WHERE player_id = @id",
+                    row => new CharacterAttributeExps(
+                        row.GetInt32(0),
+                        row.GetInt32(1),
+                        row.GetInt32(2),
+                        row.GetInt32(3),
+                        row.GetInt32(4),
+                        row.GetInt32(5),
+                        row.GetInt32(6),
+                        row.GetInt32(7),
+                        row.GetInt32(8),
+                        row.GetInt32(9),
+                        row.GetInt32(10),
+                        row.GetInt32(11)),
+                    DbArgs.One("@id", _playerId))
+                    ?? CharacterAttributeExps.Zero;
+            }
+        }
+
         public CharacterVitals Vitals
 
         {

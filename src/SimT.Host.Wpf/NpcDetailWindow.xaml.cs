@@ -21,6 +21,7 @@ public partial class NpcDetailWindow : Window
     private int _playerFatigue;
     private int _playerStamina = 100;
     private bool _isProtagonist;
+    private readonly CharacterAttributeExps? _exps;
 
     public Action<long>? OnChallengeDuel { get; set; }
     public Action<long>? OnMeetNpc { get; set; }
@@ -36,7 +37,8 @@ public partial class NpcDetailWindow : Window
         RelationshipDef? relationship = null,
         RetainerDef? retainer = null,
         int playerFatigue = 0,
-        int playerStamina = 100)
+        int playerStamina = 100,
+        CharacterAttributeExps? exps = null)
     {
         InitializeComponent();
         DarkTitleBar.Apply(this);
@@ -54,6 +56,7 @@ public partial class NpcDetailWindow : Window
         _playerFatigue = playerFatigue;
         _playerStamina = playerStamina;
         _isProtagonist = (npc.Id == 0 || npc.Code == "protagonist" || npc.Role == "Lữ Khách");
+        _exps = exps;
 
         Populate();
     }
@@ -72,7 +75,8 @@ public partial class NpcDetailWindow : Window
         int playerFatigue = 0,
         int playerStamina = 100,
         Action<long>? onChallengeDuel = null,
-        Action<long>? onMeetNpc = null)
+        Action<long>? onMeetNpc = null,
+        CharacterAttributeExps? exps = null)
     {
         var window = new NpcDetailWindow(
             npc,
@@ -85,7 +89,8 @@ public partial class NpcDetailWindow : Window
             relationship,
             retainer,
             playerFatigue,
-            playerStamina)
+            playerStamina,
+            exps)
         {
             Owner = owner,
             OnChallengeDuel = onChallengeDuel,
@@ -104,7 +109,8 @@ public partial class NpcDetailWindow : Window
         NpcActivityDef? activity = null,
         RelationshipDef? relationship = null,
         RetainerDef? retainer = null,
-        Action<long>? onChallengeDuel = null)
+        Action<long>? onChallengeDuel = null,
+        CharacterAttributeExps? exps = null)
     {
         ShowNpc(
             owner,
@@ -120,7 +126,8 @@ public partial class NpcDetailWindow : Window
             playerFatigue: 0,
             playerStamina: 100,
             onChallengeDuel,
-            onMeetNpc: null);
+            onMeetNpc: null,
+            exps: exps);
     }
 
     private void Populate()
@@ -182,14 +189,14 @@ public partial class NpcDetailWindow : Window
         }
 
         CoreStatsGrid.Children.Clear();
-        AddStatItem(CoreStatsGrid, "WAR · Võ Lực", a.War, _deltas?.WarDelta ?? 0, "Khả năng chiến đấu, trảm tướng phá trận", _hasMet || _isProtagonist);
-        AddStatItem(CoreStatsGrid, "LDR · Thống Soái", a.Ldr, _deltas?.LdrDelta ?? 0, "Khả năng chỉ huy quân đội, giữ vững đội hình", _hasMet || _isProtagonist);
-        AddStatItem(CoreStatsGrid, "INT · Trí Tuệ", a.Int, _deltas?.IntDelta ?? 0, "Mưu lược quân sự, bày binh bố trận", _hasMet || _isProtagonist);
-        AddStatItem(CoreStatsGrid, "POL · Chính Trị", a.Pol, _deltas?.PolDelta ?? 0, "Quản lý kinh bang tế thế, phát triển thành thị", _hasMet || _isProtagonist);
-        AddStatItem(CoreStatsGrid, "DIP · Ngoại Giao", a.Dip, _deltas?.DipDelta ?? 0, "Du thuyết liên minh, thu phục lòng người", _hasMet || _isProtagonist);
-        AddStatItem(CoreStatsGrid, "COM · Thương Mại", a.Com, _deltas?.ComDelta ?? 0, "Đàm phán giá cả, kinh doanh sinh lời", _hasMet || _isProtagonist);
-        AddStatItem(CoreStatsGrid, "LOG · Hậu Cần", a.Log, _deltas?.LogDelta ?? 0, "Vận tải lương thảo, quản lý kho tàng", _hasMet || _isProtagonist);
-        AddStatItem(CoreStatsGrid, "CRA · Kỹ Nghệ", a.Cra, _deltas?.CraDelta ?? 0, "Chế tạo khí giới, xây đắp công trình", _hasMet || _isProtagonist);
+        AddStatItem(CoreStatsGrid, "WAR · Võ Lực", a.War, _deltas?.WarDelta ?? 0, "Khả năng chiến đấu, trảm tướng phá trận", _hasMet || _isProtagonist, _exps?.War);
+        AddStatItem(CoreStatsGrid, "LDR · Thống Soái", a.Ldr, _deltas?.LdrDelta ?? 0, "Khả năng chỉ huy quân đội, giữ vững đội hình", _hasMet || _isProtagonist, _exps?.Ldr);
+        AddStatItem(CoreStatsGrid, "INT · Trí Tuệ", a.Int, _deltas?.IntDelta ?? 0, "Mưu lược quân sự, bày binh bố trận", _hasMet || _isProtagonist, _exps?.Int);
+        AddStatItem(CoreStatsGrid, "POL · Chính Trị", a.Pol, _deltas?.PolDelta ?? 0, "Quản lý kinh bang tế thế, phát triển thành thị", _hasMet || _isProtagonist, _exps?.Pol);
+        AddStatItem(CoreStatsGrid, "DIP · Ngoại Giao", a.Dip, _deltas?.DipDelta ?? 0, "Du thuyết liên minh, thu phục lòng người", _hasMet || _isProtagonist, _exps?.Dip);
+        AddStatItem(CoreStatsGrid, "COM · Thương Mại", a.Com, _deltas?.ComDelta ?? 0, "Đàm phán giá cả, kinh doanh sinh lời", _hasMet || _isProtagonist, _exps?.Com);
+        AddStatItem(CoreStatsGrid, "LOG · Hậu Cần", a.Log, _deltas?.LogDelta ?? 0, "Vận tải lương thảo, quản lý kho tàng", _hasMet || _isProtagonist, _exps?.Log);
+        AddStatItem(CoreStatsGrid, "CRA · Kỹ Nghệ", a.Cra, _deltas?.CraDelta ?? 0, "Chế tạo khí giới, xây đắp công trình", _hasMet || _isProtagonist, _exps?.Cra);
 
         // TAB 2: Innate Vitals & Lifestyle
         PopulateInnateStats();
@@ -285,10 +292,10 @@ public partial class NpcDetailWindow : Window
         else
         {
             UnmetInnateNotice.Visibility = Visibility.Collapsed;
-            AddStatItem(InnateStatsGrid, "CON · Căn Cốt", a.Con, 0, "Thể phách, quyết định sinh lực & thể lực tối đa", true);
-            AddStatItem(InnateStatsGrid, "WIL · Định Lực", a.Wil, 0, "Ý chí kiên định, chống hoảng loạn & giảm stress", true);
-            AddStatItem(InnateStatsGrid, "PRC · Tuệ Nhãn", a.Prc, 0, "Cơ biến, giám định hàng hóa & phát giác phục kích", true);
-            AddStatItem(InnateStatsGrid, "LCK · Khí Vận", a.Lck, 0, "Phúc duyên trời ban, bạo kích kỳ ngộ thương trường", true);
+            AddStatItem(InnateStatsGrid, "CON · Căn Cốt", a.Con, 0, "Thể phách, quyết định sinh lực & thể lực tối đa", true, _exps?.Con);
+            AddStatItem(InnateStatsGrid, "WIL · Định Lực", a.Wil, 0, "Ý chí kiên định, chống hoảng loạn & giảm stress", true, _exps?.Wil);
+            AddStatItem(InnateStatsGrid, "PRC · Tuệ Nhãn", a.Prc, 0, "Cơ biến, giám định hàng hóa & phát giác phục kích", true, _exps?.Prc);
+            AddStatItem(InnateStatsGrid, "LCK · Khí Vận", a.Lck, 0, "Phúc duyên trời ban, bạo kích kỳ ngộ thương trường", true, _exps?.Lck);
 
             LifestyleWealthText.Text = _activity is not null ? $"💰 {_activity.CurrentWealth:N0} Quan" : "Gia cảnh bình ổn";
             LifestyleReputationText.Text = _activity is not null ? $"★ Uy danh {_activity.Reputation}" : "★ Uy danh 50";
@@ -536,7 +543,14 @@ public partial class NpcDetailWindow : Window
         return card;
     }
 
-    private void AddStatItem(Panel container, string label, int baseValue, int bonus, string tip, bool verified)
+    private void AddStatItem(
+        Panel container,
+        string label,
+        int baseValue,
+        int bonus,
+        string tip,
+        bool verified,
+        int? exp = null)
     {
         var effective = baseValue + bonus;
         var rank = effective switch
@@ -557,6 +571,30 @@ public partial class NpcDetailWindow : Window
                     ? new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xE2))
                     : FindResource("Muted"));
 
+        var expBrush = (Brush)FindResource("Accent");
+
+        // Rich dark-themed ToolTip description
+        var tooltipBuilder = new System.Text.StringBuilder();
+        tooltipBuilder.AppendLine(label);
+        tooltipBuilder.AppendLine(tip);
+        if (verified)
+        {
+            tooltipBuilder.AppendLine();
+            tooltipBuilder.Append($"📊 Chỉ số: {effective} điểm (Bậc {rank})");
+            if (bonus > 0)
+            {
+                tooltipBuilder.Append($" [Cơ bản: {baseValue}, Ngoại vật/Khí vận: +{bonus}]");
+            }
+            tooltipBuilder.AppendLine();
+        }
+        if (exp.HasValue)
+        {
+            var curExp = Math.Clamp(exp.Value, 0, 99);
+            var needed = 100 - curExp;
+            tooltipBuilder.AppendLine($"⭐ Kinh nghiệm chỉ số: {curExp}/100 EXP");
+            tooltipBuilder.Append($"⚡ Tích lũy thêm {needed} EXP để thăng cấp lên {effective + 1}.");
+        }
+
         var card = new Border
         {
             Background = (Brush)FindResource("SurfaceAlt"),
@@ -565,7 +603,7 @@ public partial class NpcDetailWindow : Window
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10, 8, 10, 8),
             Margin = new Thickness(4, 4, 4, 4),
-            ToolTip = tip
+            ToolTip = tooltipBuilder.ToString().TrimEnd()
         };
 
         var stack = new StackPanel();
@@ -636,32 +674,92 @@ public partial class NpcDetailWindow : Window
         line.Children.Add(labelText);
         stack.Children.Add(line);
 
-        // Progress Track & Fill
-        var track = new Border
+        if (exp.HasValue)
         {
-            Background = (Brush)FindResource("Surface"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(2),
-            Height = 6,
-            Margin = new Thickness(0, 6, 0, 0)
-        };
+            // EXP Sub-header: "EXP CHỈ SỐ" & "xx/100"
+            var curExp = Math.Clamp(exp.Value, 0, 99);
+            var expLine = new DockPanel { Margin = new Thickness(0, 5, 0, 2) };
 
-        var fillGrid = new Grid();
-        var ratio = Math.Clamp(effective / 120.0, 0.05, 1.0);
-        fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ratio, GridUnitType.Star) });
-        fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0 - ratio, GridUnitType.Star) });
+            var expValText = new TextBlock
+            {
+                Text = $"{curExp}/100",
+                Style = (Style)FindResource("Number"),
+                FontSize = 10.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = expBrush
+            };
+            DockPanel.SetDock(expValText, Dock.Right);
+            expLine.Children.Add(expValText);
 
-        var bar = new Border
+            var expLabelText = new TextBlock
+            {
+                Text = "EXP CHỈ SỐ",
+                Style = (Style)FindResource("Overline"),
+                FontSize = 9.5,
+                Foreground = (Brush)FindResource("Faint"),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            expLine.Children.Add(expLabelText);
+            stack.Children.Add(expLine);
+
+            // EXP Progress Track & Fill
+            var track = new Border
+            {
+                Background = (Brush)FindResource("Surface"),
+                BorderBrush = (Brush)FindResource("Line"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2),
+                Height = 6,
+                Margin = new Thickness(0, 1, 0, 0)
+            };
+
+            var fillGrid = new Grid();
+            var expRatio = Math.Clamp(curExp / 100.0, 0.0, 1.0);
+            if (expRatio > 0.001)
+            {
+                fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(expRatio, GridUnitType.Star) });
+                fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0 - expRatio, GridUnitType.Star) });
+
+                var bar = new Border
+                {
+                    Background = expBrush,
+                    CornerRadius = new CornerRadius(1)
+                };
+                Grid.SetColumn(bar, 0);
+                fillGrid.Children.Add(bar);
+            }
+            track.Child = fillGrid;
+            stack.Children.Add(track);
+        }
+        else
         {
-            Background = barBrush,
-            CornerRadius = new CornerRadius(1)
-        };
-        Grid.SetColumn(bar, 0);
-        fillGrid.Children.Add(bar);
+            // NPC Stat Capacity Track & Fill
+            var track = new Border
+            {
+                Background = (Brush)FindResource("Surface"),
+                BorderBrush = (Brush)FindResource("Line"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2),
+                Height = 6,
+                Margin = new Thickness(0, 6, 0, 0)
+            };
 
-        track.Child = fillGrid;
-        stack.Children.Add(track);
+            var fillGrid = new Grid();
+            var ratio = Math.Clamp(effective / 120.0, 0.05, 1.0);
+            fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ratio, GridUnitType.Star) });
+            fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0 - ratio, GridUnitType.Star) });
+
+            var bar = new Border
+            {
+                Background = barBrush,
+                CornerRadius = new CornerRadius(1)
+            };
+            Grid.SetColumn(bar, 0);
+            fillGrid.Children.Add(bar);
+
+            track.Child = fillGrid;
+            stack.Children.Add(track);
+        }
 
         card.Child = stack;
         container.Children.Add(card);

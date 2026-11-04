@@ -188,7 +188,22 @@ public partial class MainWindow
             $"Danh vọng thiên hạ: {s.Fame} điểm, Đức độ: {s.Virtue} điểm, Tín nghĩa: {s.Credibility} điểm.",
             learnedSkills);
 
-        NpcDetailWindow.ShowNpc(this, protagonistDef, citadelName);
+        NpcDetailWindow.ShowNpc(
+            this,
+            protagonistDef,
+            citadelName,
+            npcCitadelId: playerState.CurrentCityId,
+            playerCityId: playerState.CurrentCityId,
+            hasMet: true,
+            deltas: null,
+            activity: null,
+            relationship: null,
+            retainer: null,
+            playerFatigue: v.Fatigue,
+            playerStamina: v.CurrentStamina,
+            onChallengeDuel: null,
+            onMeetNpc: null,
+            exps: attributes.Exps);
         StatusText.Text = $"Đã mở hồ sơ nhân vật chính: {playerState.Name}.";
     }
 
