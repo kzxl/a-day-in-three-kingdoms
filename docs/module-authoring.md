@@ -142,8 +142,25 @@ public sealed class LineageModule : ISimModule
 }
 ```
 
-All cash goes through `context.Ledger` (or an `IWallet` capability). All time comes from
-`context.Clock`. All ids come from `context.Ids`. Randomness comes from `context.Rng`.
+All cash goes through `context.Ledger` (or an `IWallet` capability). All ids come from
+`context.Ids`. Randomness comes from `context.Rng`.
+
+Time is not free: charge the action's days through the kernel and pass the same quote to the
+button so the player sees it.
+
+```csharp
+_db.Transaction(() =>
+{
+    context.ActionTime.Charge(ActionCodes.LineageMarry);   // days come from action-costs.json
+    _wallet.Charge(cost, JournalCodes.Dowry, "…");
+    // …the rest of the action
+});
+
+new ScreenCommand("marry", "Cầu hôn", Cost: context.ActionTime.Quote(ActionCodes.LineageMarry).ToString())
+```
+
+Add a row to `assets/config/action-costs.json` for a new code; anything unlisted costs the
+policy default (one day).
 
 ## 6. Register screens
 

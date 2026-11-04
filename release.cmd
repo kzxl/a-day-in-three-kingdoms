@@ -4,7 +4,7 @@ rem Prerequisite: .NET 8 SDK. The artifact needs the .NET 8 Desktop Runtime on t
 setlocal
 cd /d "%~dp0"
 
-set VERSION=0.2.2
+set VERSION=0.3.0
 set OUT=publish\lite
 set DIST=dist
 set ZIP=%DIST%\SimT-%VERSION%-win-x64.zip

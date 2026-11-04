@@ -11,7 +11,7 @@ namespace SimT.Modules.Dlc.Market;
 /// Trade + warehouse rules for <c>dlc.market</c>. Everything it touches is reached through a
 /// capability, never through another module's assembly.
 /// </summary>
-internal sealed class MarketService : IMarketTrade, IMarketWarehouse
+internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPortfolio
 {
     public const int DefaultCapacity = 200;
     public const long DefaultMonthlyRent = 150;
@@ -243,6 +243,41 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
             DbArgs.One("@city", cityId));
 
         return warehouse with { Used = used };
+    }
+
+    public long BagValue(long cityId)
+    {
+        var city = _map.Find(cityId);
+        if (city is null)
+        {
+            return 0;
+        }
+
+        var values = _bag.Rows(cityId);
+        var total = 0L;
+        foreach (var row in values)
+        {
+            var item = _items.Find(row.ItemId);
+            if (item is null)
+            {
+                continue;
+            }
+
+            total += MarketPricing.SellQuote(MarketPricing.Quote(item, city, _clock.Today.Month, 1, 1)) * row.Quantity;
+        }
+
+        return total;
+    }
+
+    public long InventoryValue()
+    {
+        var total = 0L;
+        foreach (var city in _map.Citadels)
+        {
+            total += BagValue(city.Id);
+        }
+
+        return total;
     }
 
     public IReadOnlyList<WarehouseStockView> Stock(long cityId) =>

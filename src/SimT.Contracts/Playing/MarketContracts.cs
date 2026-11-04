@@ -48,4 +48,12 @@ public interface IMarketWarehouse
 
 public sealed record WarehouseInfo(long CityId, int Capacity, long MonthlyRent, int Used);
 
+/// <summary>What the player's goods are worth at sell prices — the number the old deck showed.</summary>
+public interface IMarketPortfolio
+{
+    long BagValue(long cityId);
+
+    long InventoryValue();
+}
+
 public sealed record WarehouseStockView(long ItemId, int Quantity, int AgeDays);

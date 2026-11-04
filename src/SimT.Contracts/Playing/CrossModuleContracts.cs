@@ -15,6 +15,7 @@ public static class CapabilityIds
     public const string WorldMap = "world.map";
     public const string MarketTrade = "market.trade";
     public const string MarketWarehouse = "market.warehouse";
+    public const string MarketPortfolio = "market.portfolio";
     public const string CaravanGuild = "caravan.guild";
     public const string ProfessionGuild = "professions.guild";
     public const string LineageHouse = "lineage.house";

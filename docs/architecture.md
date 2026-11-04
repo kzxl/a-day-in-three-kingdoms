@@ -21,7 +21,7 @@ half-way through a turn. Disabling a DLC leaves its tables and rows in `campaign
 | # | Contract | Implementation | Rule |
 | --- | --- | --- | --- |
 | K1 | `IDbSession` | `SqliteSession` | Modules never open a connection; transaction boundaries stay visible |
-| K2 | `IGameClock`, `GameDate` | `SimClock` | No wall clock in domain code; `DayAdvanced` per day, one `MonthClosed` per boundary recorded in `core_period_log` |
+| K2 | `IGameClock`, `GameDate`, `IActionTime` | `SimClock`, `ActionTime`, `ActionCostPolicy` | No wall clock in domain code; every action spends days through the cost table; `DayAdvanced` per day and one `MonthClosed` per boundary recorded in `core_period_log` |
 | K3 | `ILedger` | `SqliteLedger` | Single writer; balance = liquid + vault; amounts are positive integers |
 | K4 | `IIdGenerator`, `IRng` | `SequenceIdGenerator`, `SplitMix64Rng` | Deterministic ids and rolls; RNG state is persisted in the save |
 | K5 | `ModuleManifest`, `ICapabilityBroker` | `ModuleLoader`, `ModuleGraph`, `CapabilityBroker` | Deterministic topological order; duplicate ownership is a hard error |
@@ -113,6 +113,21 @@ strings (`buy:3`, `buy:3:10`, `rent`), dispatched to the owning module's handler
 - `DataGrid` virtualization is enabled; table models are rebuilt per refresh, not per cell.
 - The kernel rejects non-positive ledger amounts and direction values other than ±1 at both the
   contract and the SQLite trigger level.
+
+## 7a. Time is the currency of actions
+
+Every meaningful action costs whole days, looked up in `assets/config/action-costs.json`
+(`trade.buy` 2, `caravan.send` 1, `farm.harvest` 2, …), with a default of one day for any code the
+table does not list. A module calls `context.ActionTime.Charge(ActionCodes.X)` **inside its own
+transaction**:
+
+- the charge moves the calendar, so spoilage, arrivals and month close happen as a consequence;
+- if the action then fails, the transaction rolls the days back — a failed action costs nothing;
+- the charge publishes `ActionTimeCharged`, which is what the post-advance report reads.
+
+Screens show `ScreenCommand.Cost` ("2 ngày") so the player sees the price before committing. Time
+is not spent on bookkeeping actions (`market.warehouse_move`, `caravan.travel`, `lineage.beget`,
+`politics.serve`) because their own duration already covers it.
 
 ## 8. Economy depth
 

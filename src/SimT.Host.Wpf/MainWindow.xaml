@@ -50,7 +50,7 @@
         <!-- ===== Rail: who you are, when it is, what you own, where you can go ===== -->
         <Border Grid.Column="0" Background="{StaticResource Rail}"
                 BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
-            <Grid Margin="18,20,16,16">
+            <Grid Margin="16,16,14,14">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -66,7 +66,7 @@
                                TextTrimming="CharacterEllipsis" />
                 </StackPanel>
 
-                <Border Grid.Row="1" Margin="0,16,0,0" Padding="12,12"
+                <Border Grid.Row="1" Margin="0,12,0,0" Padding="11,10"
                         Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
                         BorderThickness="1" CornerRadius="8">
                     <StackPanel>
@@ -79,20 +79,25 @@
                         <TextBlock x:Name="SeasonText" Style="{StaticResource Caption}" />
                         <TextBlock x:Name="DateText" Style="{StaticResource Caption}"
                                    Foreground="{StaticResource Faint}" Margin="0,1,0,0" />
+                        <TextBlock x:Name="TurnText" Style="{StaticResource Caption}"
+                                   Foreground="{StaticResource Faint}" Margin="0,1,0,0" />
                     </StackPanel>
                 </Border>
 
-                <Border Grid.Row="2" Margin="0,10,0,0" Padding="12,12"
+                <Border Grid.Row="2" Margin="0,8,0,0" Padding="11,10"
                         Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
                         BorderThickness="1" CornerRadius="8">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource Overline}" Text="TIỀN MẶT" />
+                        <TextBlock Style="{StaticResource Overline}" Text="TÀI SẢN" />
                         <TextBlock x:Name="CashText" Style="{StaticResource NumberLarge}" Margin="0,2,0,0" />
                         <TextBlock x:Name="CashHintText" Style="{StaticResource Caption}" Margin="0,2,0,0" />
+                        <TextBlock x:Name="GoodsText" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                        <TextBlock x:Name="NetWorthText" Style="{StaticResource Caption}"
+                                   Foreground="{StaticResource Muted}" Margin="0,1,0,0" />
                     </StackPanel>
                 </Border>
 
-                <ListBox x:Name="NavList" Grid.Row="3" Margin="0,16,0,0"
+                <ListBox x:Name="NavList" Grid.Row="3" Margin="0,10,0,0"
                          ItemContainerStyle="{StaticResource NavItem}"
                          SelectionChanged="Nav_SelectionChanged">
                     <ListBox.ItemTemplate>
@@ -116,7 +121,7 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <StackPanel Grid.Row="4" Margin="0,14,0,0">
+                <StackPanel Grid.Row="4" Margin="0,10,0,0">
                     <Button Content="Ngày tiếp  ▸" Click="Advance_Click"
                             Style="{StaticResource PrimaryButton}" HorizontalContentAlignment="Center" />
                     <Button Content="Tuần +7" Click="AdvanceWeek_Click" Margin="0,6,0,0"

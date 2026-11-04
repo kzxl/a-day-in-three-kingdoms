@@ -88,13 +88,31 @@ public partial class MainWindow : Window
         SeasonText.Text = $"{GameDateCodec.SeasonVi(today.Month)} · Tháng {GameDateCodec.MonthNameVi(today.Month)}";
         DateText.Text = $"Ngày {today.Day}/{GameDate.DaysPerMonth} · {GameDateCodec.Format(today)}";
 
+        TurnText.Text = $"Lượt {Turn(today)} · {_kernel.Product.StartDate.Year} khởi nghiệp";
+
         var liquid = _kernel.Ledger.Liquid;
         var safe = _kernel.Ledger.Safe;
+        var goods = GoodsValue();
         CashText.Text = liquid.ToString("N0", Vietnamese);
         CashHintText.Text = safe > 0 ? $"quan · trong két {safe.ToString("N0", Vietnamese)}" : "quan";
+        GoodsText.Text = $"hàng hóa {goods.ToString("N0", Vietnamese)} quan";
+        NetWorthText.Text = $"tổng {(_kernel.Ledger.Balance + goods).ToString("N0", Vietnamese)} quan";
 
         RenderCalendar(today);
     }
+
+    /// <summary>Month index since the campaign start, the way the old game counted turns.</summary>
+    private int Turn(GameDate today)
+    {
+        var start = _kernel.Product.StartDate;
+        return ((today.Year - start.Year) * GameDate.MonthsPerYear) + (today.Month - start.Month) + 1;
+    }
+
+    /// <summary>Goods at sell prices; zero when the market module is disabled.</summary>
+    private long GoodsValue() =>
+        _kernel.Capabilities.TryGet<IMarketPortfolio>(CapabilityIds.MarketPortfolio, out var portfolio) && portfolio is not null
+            ? portfolio.InventoryValue()
+            : 0;
 
     /// <summary>
     /// The month as thirty cells: past days fade, today is solid, day 30 is the close marker.
@@ -173,6 +191,9 @@ public partial class MainWindow : Window
         ShowInspector(_firstSection, _firstSection.Rows[0]);
         return true;
     }
+
+    /// <summary>Runs one day through the real button path; used by the demo launcher.</summary>
+    public void AdvanceOneDayForDemo() => Advance(1);
 
     public int RenderAllScreens()
     {
@@ -851,16 +872,65 @@ public partial class MainWindow : Window
     {
         try
         {
+            var from = _kernel.Today;
             _kernel.AdvanceDays(days);
             _kernel.Save();
             UpdateHeader();
             RenderSelected();
+            ShowReport(from, _kernel.Today);
             StatusText.Text = $"Đã sang {GameDateCodec.DescribeVi(_kernel.Today)}.";
         }
         catch (Exception error)
         {
             StatusText.Text = Describe(error);
         }
+    }
+
+    /// <summary>
+    /// What the days just spent actually did: money in, money out, and the charges the month
+    /// close took. The old turn report in one card.
+    /// </summary>
+    private void ShowReport(GameDate from, GameDate to)
+    {
+        var lines = _kernel.Ledger.Query(from, to, limit: 500);
+        var income = lines.Where(line => line.Direction == SimT.Contracts.Ledger.LedgerDirection.In).Sum(line => line.Amount);
+        var spend = lines.Where(line => line.Direction == SimT.Contracts.Ledger.LedgerDirection.Out).Sum(line => line.Amount);
+        var charges = lines
+            .Where(line => line.Direction == SimT.Contracts.Ledger.LedgerDirection.Out)
+            .GroupBy(line => line.JournalCode)
+            .OrderByDescending(group => group.Sum(line => line.Amount))
+            .Take(3)
+            .Select(group => $"{group.Key} {group.Sum(line => line.Amount).ToString("N0", Vietnamese)}");
+
+        var days = (int)(to.DayIndex - from.DayIndex);
+        var heading = $"BÁO CÁO · {GameDateCodec.Format(from)} → {GameDateCodec.Format(to)} ({days} ngày)";
+        var summary = $"thu {income.ToString("N0", Vietnamese)} · chi {spend.ToString("N0", Vietnamese)} · "
+                      + $"ròng {(income - spend).ToString("N0", Vietnamese)} quan";
+
+        var card = new StackPanel();
+        card.Children.Add(new TextBlock { Text = heading, Style = (Style)FindResource("Overline") });
+        card.Children.Add(new TextBlock { Text = summary, Margin = new Thickness(0, 4, 0, 0) });
+        if (charges.Any())
+        {
+            card.Children.Add(new TextBlock
+            {
+                Text = "khoản lớn nhất: " + string.Join(" · ", charges),
+                Style = (Style)FindResource("Caption"),
+                Foreground = (Brush)FindResource("Faint"),
+                Margin = new Thickness(0, 3, 0, 0)
+            });
+        }
+
+        ContentPanel.Children.Insert(0, new Border
+        {
+            Background = (Brush)FindResource("SurfaceAlt"),
+            BorderBrush = (Brush)FindResource("Line"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 10, 14, 10),
+            Margin = new Thickness(0, 0, 0, 14),
+            Child = card
+        });
     }
 
     private void RowCommand_Click(object sender, RoutedEventArgs e)

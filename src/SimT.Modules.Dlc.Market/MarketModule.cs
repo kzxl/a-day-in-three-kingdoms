@@ -79,6 +79,7 @@ public sealed class MarketModule : ISimModule
         service.EnsureListings(items, map);
 
         context.Capabilities.Provide(CapabilityIds.MarketTrade, service);
+        context.Capabilities.Provide(CapabilityIds.MarketPortfolio, service);
         context.Capabilities.Provide(CapabilityIds.MarketWarehouse, service);
 
         context.Ui.AddScreen(new StallScreen(service, items, map, bag, player, context.Clock, wallet, context.ActionTime));

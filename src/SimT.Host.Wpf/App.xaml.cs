@@ -36,7 +36,8 @@ public partial class App : Application
                 var screenIndex = Array.FindIndex(e.Args, arg => arg == "--screen");
                 ShowDemo(
                     screenIndex >= 0 && screenIndex + 1 < e.Args.Length ? e.Args[screenIndex + 1] : null,
-                    e.Args.Contains("--row"));
+                    e.Args.Contains("--row"),
+                    e.Args.Contains("--advance"));
             }
             catch (Exception error)
             {
@@ -130,7 +131,7 @@ public partial class App : Application
     /// activity on it, so the shell can be inspected (or screenshotted) without clicking
     /// through the title screen. Data lives in the temp folder and is replaced each time.
     /// </summary>
-    private void ShowDemo(string? screenId, bool selectRow)
+    private void ShowDemo(string? screenId, bool selectRow, bool advance)
     {
         var root = Path.Combine(Path.GetTempPath(), DemoSaves);
         if (Directory.Exists(root))
@@ -158,6 +159,11 @@ public partial class App : Application
         if (selectRow)
         {
             window.SelectFirstRow();
+        }
+
+        if (advance)
+        {
+            window.AdvanceOneDayForDemo();
         }
 
 
