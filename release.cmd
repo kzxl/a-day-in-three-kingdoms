@@ -4,7 +4,7 @@ rem Prerequisite: .NET 8 SDK. The artifact needs the .NET 8 Desktop Runtime on t
 setlocal
 cd /d "%~dp0"
 
-set VERSION=0.3.1
+set VERSION=0.4.0
 set OUT=publish\lite
 set DIST=dist
 set ZIP=%DIST%\SimT-%VERSION%-win-x64.zip
@@ -40,7 +40,7 @@ copy /y QUICKSTART.txt "%OUT%\QUICKSTART.txt" >nul || exit /b 1
 echo == package
 if not exist "%DIST%" mkdir "%DIST%"
 if exist "%ZIP%" del "%ZIP%"
-powershell -NoProfile -Command "Compress-Archive -Path '%OUT%\*' -DestinationPath '%ZIP%' -Force" || exit /b 1
+powershell -NoProfile -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory((Convert-Path '%OUT%'), (Join-Path (Get-Location) '%ZIP%'))" || exit /b 1
 
 echo == size and checksum
 powershell -NoProfile -Command ^
