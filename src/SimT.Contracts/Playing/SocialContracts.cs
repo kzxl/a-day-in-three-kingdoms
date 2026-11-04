@@ -70,6 +70,25 @@ public sealed record RecruitRequirementDef(
     string StatusSummary);
 
 /// <summary>
+/// A letter/missive sent by a friendly or allied NPC to the player.
+/// </summary>
+public sealed record LetterDef(
+    long Id,
+    GameDate SentDate,
+    long SenderNpcId,
+    string SenderNameVi,
+    long SenderCitadelId,
+    string TitleVi,
+    string ContentVi,
+    long? GiftItemId,
+    string? GiftItemCode,
+    string? GiftItemNameVi,
+    int GiftItemQuantity,
+    int GiftCopper,
+    bool IsRead,
+    bool IsClaimed);
+
+/// <summary>
 /// Social network, relationship matrix, and retainer management surface owned by <c>dlc.social</c>.
 /// </summary>
 public interface ISocialNetwork
@@ -116,4 +135,19 @@ public interface ISocialNetwork
 
     /// <summary>Hosts a grand banquet in the player's current city, inviting local figures.</summary>
     string HostBanquet();
+
+    /// <summary>Retrieves letters received by the player, optionally filtering for unread only.</summary>
+    IReadOnlyList<LetterDef> GetLetters(bool unreadOnly = false, int limit = 30);
+
+    /// <summary>Gets a specific letter by ID.</summary>
+    LetterDef? GetLetter(long letterId);
+
+    /// <summary>Reads a letter, marking it as read and returning its full narrative presentation.</summary>
+    string ReadLetter(long letterId);
+
+    /// <summary>Claims the gift (copper and/or goods) attached to a letter.</summary>
+    string ClaimLetterGift(long letterId);
+
+    /// <summary>Count of unread letters in the player's inbox.</summary>
+    int UnreadLetterCount();
 }

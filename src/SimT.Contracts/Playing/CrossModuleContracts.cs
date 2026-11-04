@@ -194,7 +194,7 @@ public interface IWorldMap
     IReadOnlyList<SublocationDef> Sublocations(long citadelId);
 }
 
-/// <summary>Read-only NPC registry owned by <c>base.npc</c>.</summary>
+/// <summary>NPC registry owned by <c>base.npc</c>.</summary>
 public interface INpcRegistry
 {
     IReadOnlyList<NpcDef> All { get; }
@@ -204,6 +204,9 @@ public interface INpcRegistry
     NpcDef? FindByCode(string code);
 
     IReadOnlyList<NpcDef> FindByCitadel(long citadelId);
+
+    /// <summary>Updates an NPC's current citadel location in registry and storage.</summary>
+    void UpdateCitadel(long npcId, long newCitadelId);
 }
 
 /// <summary>Per-city inventory owned by <c>base.player</c>.</summary>

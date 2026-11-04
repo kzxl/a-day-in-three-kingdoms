@@ -725,6 +725,11 @@ internal sealed class SocialService : ISocialNetwork
         _attributes.AddExp("DIP", 25);
         _attributes.GainFame(15, $"Chiêu mộ hiền tài phẩm {rank}: {npc.NameVi}");
 
+        if (assignedRole is "bodyguard" or "advisor")
+        {
+            _registry.UpdateCitadel(npcId, _player.CurrentCityId);
+        }
+
         _log.Info($"Recruited NPC {npc.NameVi} ({rank}) as {assignedRole} with stipend {finalStipend} and fee {recruitmentFee}.");
         return $"Đã chiêu mộ thành công {npc.NameVi} (Phẩm {rank}) làm {RoleTitleVi(assignedRole)}! (Sính lễ: {recruitmentFee:N0} Quan, Bổng lộc: {finalStipend} Quan/tháng, Lòng trung thành: {initialLoyalty}/100).";
     }
@@ -846,6 +851,12 @@ internal sealed class SocialService : ISocialNetwork
 
     public void OnMonthClosed(GameDate date)
     {
+        ProcessRetainerStipends(date);
+        ProcessMonthlyLetters(date);
+    }
+
+    private void ProcessRetainerStipends(GameDate date)
+    {
         var retainers = GetRetainers();
         if (retainers.Count == 0)
         {
@@ -880,6 +891,416 @@ internal sealed class SocialService : ISocialNetwork
                 }
             }
         });
+    }
+
+    public void ProcessMonthlyLetters(GameDate date)
+    {
+        var hasLetterTable = _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'kz_letter'") > 0;
+        if (!hasLetterTable)
+        {
+            return;
+        }
+
+        var formattedDate = GameDateCodec.Format(date);
+        var tick = date.DayIndex;
+
+        // Candidate NPCs: affinity >= 50, sworn brothers, or retainers
+        var relationships = _db.Query(
+            "SELECT npc_id, affinity, impression FROM kz_relationship WHERE affinity >= 50",
+            r => (NpcId: r.GetInt64(0), Affinity: r.GetInt32(1), Impression: r.GetString(2)));
+
+        var candidateMap = new Dictionary<long, (int Affinity, string Impression)>();
+        foreach (var r in relationships)
+        {
+            candidateMap[r.NpcId] = (r.Affinity, r.Impression);
+        }
+
+        foreach (var sw in GetSwornBrothers())
+        {
+            if (!candidateMap.ContainsKey(sw.NpcId))
+            {
+                var rel = GetRelationship(sw.NpcId);
+                candidateMap[sw.NpcId] = (Math.Max(rel.Affinity, 80), "Huynh đệ kim lan");
+            }
+        }
+
+        foreach (var ret in GetRetainers())
+        {
+            if (!candidateMap.ContainsKey(ret.NpcId))
+            {
+                var rel = GetRelationship(ret.NpcId);
+                candidateMap[ret.NpcId] = (Math.Max(rel.Affinity, 50), "Gia thần tâm phúc");
+            }
+        }
+
+        if (candidateMap.Count == 0)
+        {
+            return;
+        }
+
+        var swornIds = GetSwornBrothers().Select(s => s.NpcId).ToHashSet();
+        var retainerIds = GetRetainers().Select(r => r.NpcId).ToHashSet();
+
+        _db.Transaction(() =>
+        {
+            foreach (var (npcId, (affinity, impression)) in candidateMap)
+            {
+                // Max 1 letter per NPC per month
+                var alreadySent = _db.ScalarLong(
+                    "SELECT COUNT(*) FROM kz_letter WHERE sender_npc_id = @npcId AND sent_date = @date",
+                    new DbArgs().Add("@npcId", npcId).Add("@date", formattedDate)) > 0;
+                if (alreadySent)
+                {
+                    continue;
+                }
+
+                var isSworn = swornIds.Contains(npcId);
+                var isRetainer = retainerIds.Contains(npcId);
+
+                // Chance calculation: sworn brothers stay in close touch, close friends write regularly
+                var chance = isSworn ? 70 : (affinity >= 85 ? 50 : (affinity >= 70 ? 35 : 20));
+                var rng = new SimpleRng((uint)(tick * 433 ^ (int)npcId));
+
+                if (rng.Next(100) >= chance)
+                {
+                    continue;
+                }
+
+                var npc = _registry.Find(npcId);
+                if (npc is null)
+                {
+                    continue;
+                }
+
+                var cit = _map.Find(npc.CitadelId);
+                var citName = cit?.NameVi ?? "Phương xa";
+
+                var (title, content, giftItemCode, giftCopper) = GenerateLetterContent(npc, citName, isSworn, isRetainer, affinity, rng);
+
+                long? gItemId = null;
+                string? gItemCode = null;
+                string? gItemName = null;
+                int gItemQty = 0;
+
+                if (!string.IsNullOrEmpty(giftItemCode))
+                {
+                    var item = _items.FindByCode(giftItemCode);
+                    if (item is not null)
+                    {
+                        gItemId = item.Id;
+                        gItemCode = item.Code;
+                        gItemName = item.NameVi;
+                        gItemQty = 1;
+                    }
+                }
+
+                _db.Execute(
+                    "INSERT INTO kz_letter (sent_date, sender_npc_id, sender_name_vi, sender_citadel_id, title_vi, content_vi, " +
+                    "gift_item_id, gift_item_code, gift_item_name_vi, gift_item_quantity, gift_copper, is_read, is_claimed, created_tick) " +
+                    "VALUES (@date, @npcId, @name, @citId, @title, @content, @gId, @gCode, @gName, @gQty, @copper, 0, 0, @tick)",
+                    new DbArgs()
+                        .Add("@date", formattedDate)
+                        .Add("@npcId", npc.Id)
+                        .Add("@name", npc.NameVi)
+                        .Add("@citId", npc.CitadelId)
+                        .Add("@title", title)
+                        .Add("@content", content)
+                        .Add("@gId", gItemId)
+                        .Add("@gCode", gItemCode)
+                        .Add("@gName", gItemName)
+                        .Add("@gQty", gItemQty)
+                        .Add("@copper", giftCopper)
+                        .Add("@tick", tick));
+
+                // Bonus affinity (+2) for correspondence
+                _db.Execute(
+                    "UPDATE kz_relationship SET affinity = MIN(100, affinity + 2), last_interaction_date = @date WHERE npc_id = @id",
+                    new DbArgs().Add("@date", formattedDate).Add("@id", npc.Id));
+
+                _db.Execute(
+                    "INSERT INTO kz_memory (npc_id, date, topic, sentiment, affinity_delta, summary_vi) " +
+                    "VALUES (@npcId, @date, 'letter', 'positive', 2, @summary)",
+                    new DbArgs()
+                        .Add("@npcId", npc.Id)
+                        .Add("@date", formattedDate)
+                        .Add("@summary", $"{npc.NameVi} gửi phong thư vấn an từ {citName}."));
+            }
+        });
+    }
+
+    private static (string Title, string Content, string? GiftItemCode, int GiftCopper) GenerateLetterContent(
+        NpcDef npc,
+        string citName,
+        bool isSworn,
+        bool isRetainer,
+        int affinity,
+        SimpleRng rng)
+    {
+        var a = npc.Attributes;
+
+        if (isSworn)
+        {
+            var roll = rng.Next(2);
+            if (roll == 0)
+            {
+                return (
+                    "🌸 Tâm Thư Kim Lan: Vấn An Hiền Đệ / Huynh",
+                    $"Bái biệt đã lâu, nơi chiến địa gió lạnh thấu xương, ta vẫn luôn nhớ tới chén rượu ăn thề dưới bóng đào viên thuở trước. " +
+                    $"Dạo này lưu lại {citName}, quân mã tề chỉnh, việc lớn từng bước tiến hành. " +
+                    $"Ta đặc biệt nhờ trạm dịch gửi tặng chút ngân lượng và rượu thơm hảo hạng, mong hiền đệ bảo trọng thân thể, sớm ngày tái ngộ cùng nâng chén!",
+                    "ruou",
+                    150);
+            }
+
+            return (
+                "🤝 Đào Viên Huyết Thệ: Phong Vân Thiên Hạ",
+                $"Thời cuộc thiên hạ biến ảo khôn lường, chư hầu khắp nơi rục rịch binh mã. " +
+                $"Ta tọa trấn tại {citName}, trong lòng vẫn luôn khắc cốt ghi tâm chí lớn của huynh đệ chúng ta. " +
+                $"Nay gửi chút quân tư tiếp tế, chúc hiền huynh vạn sự hanh thông, danh vang bốn bể!",
+                null,
+                200);
+        }
+
+        if (isRetainer)
+        {
+            var roll = rng.Next(2);
+            if (roll == 0)
+            {
+                return (
+                    "🛡️ Bẩm Báo Gia Thần: Bổn Phận & Vấn An Minh Chủ",
+                    $"Thuộc hạ phụng mệnh minh chủ, ngày đêm không dám lơ là chức trách tại {citName}. " +
+                    $"Gần đây võ nghệ tinh tiến, việc tuần phòng và thu chi đều thuận lợi, xin kính báo để minh chủ an lòng. " +
+                    $"Thuộc hạ gom góp được chút ngân lượng dâng lên minh chủ làm lộ phí hành tẩu!",
+                    null,
+                    80);
+            }
+
+            return (
+                "📜 Thư Bẩm Báo: Tình Hình Trị An & Dược Liệu Tiếp Tế",
+                $"Thuộc hạ tại {citName} quan sát thấy khách buôn qua lại tấp nập, thương lộ bình yên. " +
+                $"Thuộc hạ may mắn thu thập được vị thuốc bổ dưỡng khí huyết, xin sai người hỏa tốc chuyển gửi dâng lên minh chủ bồi bổ thân thể!",
+                "thuoc",
+                0);
+        }
+
+        // Archetype based on attributes
+        if (a.War >= 75)
+        {
+            var roll = rng.Next(2);
+            if (roll == 0)
+            {
+                return (
+                    "⚔️ Luận Kiếm Chi Thư: Hào Khí Ngút Trời",
+                    $"Từ dạo cùng các hạ đàm đạo võ học, ta vẫn luôn khắc ghi nhã ý. " +
+                    $"Gần đây tại {citName} ta thường mài kiếm dưới trăng, ngẫm lại lời bàn năm xưa của các hạ thật thấu đáo. " +
+                    $"Nay gửi tặng vò rượu nếp ủ kỹ, mong ngày tương phùng cùng cạn chén luận anh hùng!",
+                    "ruou",
+                    100);
+            }
+
+            return (
+                "🏹 Phong Thư Quân Trại: Tiễu Phỉ An Dân",
+                $"Ta vừa dẫn binh tuần phòng tiễu trừ thảo khấu quanh vùng {citName}, thu được một số dược liệu và quân nhu phòng thân. " +
+                $"Nhớ tới bằng hữu bôn ba giang hồ gió bụi, xin gửi tặng để hộ thân khi hữu sự.",
+                "thuoc",
+                0);
+        }
+
+        if (a.Com >= 70)
+        {
+            var roll = rng.Next(2);
+            if (roll == 0)
+            {
+                return (
+                    "💰 Phi Thư Thương Gia: Hồi Báo Lợi Nhuận Buôn Bán",
+                    $"Thương đoàn của ta vừa hoàn tất chuyến buôn đường dài về {citName}, buôn may bán đắt, thu lời không nhỏ. " +
+                    $"Nhớ đến ân tình và sự tương trợ của các hạ thuở trước, ta trích phần hoa hồng này xin gửi biếu để tỏ chút lòng thành!",
+                    null,
+                    180);
+            }
+
+            return (
+                "📦 Tơ Lụa & Danh Trà: Quà Tặng Tri Kỷ Thương Mại",
+                $"Tại chợ phiên {citName} vừa nhập về một lô tơ lụa và trà mạn cực phẩm. " +
+                $"Ta lập tức chọn lấy phẩm vị tinh xảo nhất gửi ngựa trạm chuyển giao đến tay các hạ, kính chúc buôn may bán đắt, tài lộc dồi dào!",
+                "tra",
+                50);
+        }
+
+        if (a.Int >= 75)
+        {
+            var roll = rng.Next(2);
+            if (roll == 0)
+            {
+                return (
+                    "📜 Thư Đàm Đạo Thời Cuộc: Luận Bàn Đại Thế Chư Hầu",
+                    $"Phương bắc phong vân khởi sắc, thiên hạ biến loạn khó lường. " +
+                    $"Ta tọa quan thiên văn và thời cuộc tại {citName}, thường nhớ tới những lời đàm luận sáng suốt của các hạ. " +
+                    $"Nay gửi phong thư này kèm chút danh trà để các hạ thưởng thức lúc rảnh rỗi nghiền ngẫm việc lớn.",
+                    "tra",
+                    50);
+            }
+
+            return (
+                "🌿 Trầm Tư Tu Dưỡng: Dược Liệu Dưỡng Sinh",
+                $"Hành tẩu thiên hạ vất vả nhọc nhằn, cần phải bảo trọng khí huyết và tinh thần. " +
+                $"Ta tình cờ có được vị danh dược quý ngàn năm, đặc biệt sai người mang tới chúc các hạ thân thể tráng kiện, tâm trí minh mẫn.",
+                "sam",
+                0);
+        }
+
+        return (
+            "✉️ Thư Vấn An Bằng Hữu Phương Xa",
+            $"Biệt ly mấy độ trăng tròn, ngụ tại {citName} vẫn luôn hướng về cố nhân. " +
+            $"Gửi chút lộ phí phong bao, chúc các hạ hành trình bình an, sớm ngày hội ngộ đàm đạo bên bếp lửa hồng.",
+            null,
+            80);
+    }
+
+    public IReadOnlyList<LetterDef> GetLetters(bool unreadOnly = false, int limit = 30)
+    {
+        var hasTable = _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'kz_letter'") > 0;
+        if (!hasTable)
+        {
+            return Array.Empty<LetterDef>();
+        }
+
+        var sql = "SELECT id, sent_date, sender_npc_id, sender_name_vi, sender_citadel_id, title_vi, content_vi, " +
+                  "gift_item_id, gift_item_code, gift_item_name_vi, gift_item_quantity, gift_copper, is_read, is_claimed " +
+                  "FROM kz_letter ";
+
+        if (unreadOnly)
+        {
+            sql += "WHERE is_read = 0 ";
+        }
+
+        sql += "ORDER BY id DESC LIMIT " + Math.Clamp(limit, 1, 100);
+
+        return _db.Query(sql, r => new LetterDef(
+            r.GetInt64(0),
+            GameDateCodec.Parse(r.GetString(1)),
+            r.GetInt64(2),
+            r.GetString(3),
+            r.GetInt64(4),
+            r.GetString(5),
+            r.GetString(6),
+            r.IsDbNull(7) ? (long?)null : r.GetInt64(7),
+            r.GetStringOrNull(8),
+            r.GetStringOrNull(9),
+            r.GetInt32(10),
+            r.GetInt32(11),
+            r.GetInt32(12) != 0,
+            r.GetInt32(13) != 0));
+    }
+
+    public LetterDef? GetLetter(long letterId)
+    {
+        var hasTable = _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'kz_letter'") > 0;
+        if (!hasTable)
+        {
+            return null;
+        }
+
+        return _db.QueryOne(
+            "SELECT id, sent_date, sender_npc_id, sender_name_vi, sender_citadel_id, title_vi, content_vi, " +
+            "gift_item_id, gift_item_code, gift_item_name_vi, gift_item_quantity, gift_copper, is_read, is_claimed " +
+            "FROM kz_letter WHERE id = @id",
+            r => new LetterDef(
+                r.GetInt64(0),
+                GameDateCodec.Parse(r.GetString(1)),
+                r.GetInt64(2),
+                r.GetString(3),
+                r.GetInt64(4),
+                r.GetString(5),
+                r.GetString(6),
+                r.IsDbNull(7) ? (long?)null : r.GetInt64(7),
+                r.GetStringOrNull(8),
+                r.GetStringOrNull(9),
+                r.GetInt32(10),
+                r.GetInt32(11),
+                r.GetInt32(12) != 0,
+                r.GetInt32(13) != 0),
+            DbArgs.One("@id", letterId));
+    }
+
+    public string ReadLetter(long letterId)
+    {
+        var letter = GetLetter(letterId);
+        if (letter is null)
+        {
+            return "Không tìm thấy phong thư này.";
+        }
+
+        _db.Execute("UPDATE kz_letter SET is_read = 1 WHERE id = @id", DbArgs.One("@id", letterId));
+
+        var giftText = letter.GiftCopper > 0 && letter.GiftItemQuantity > 0
+            ? $"{letter.GiftCopper} Quan tiền & {letter.GiftItemQuantity} {letter.GiftItemNameVi}"
+            : letter.GiftCopper > 0
+                ? $"{letter.GiftCopper} Quan tiền"
+                : letter.GiftItemQuantity > 0
+                    ? $"{letter.GiftItemQuantity} {letter.GiftItemNameVi}"
+                    : "Không có lễ vật đính kèm";
+
+        var claimStatus = (letter.GiftCopper > 0 || letter.GiftItemQuantity > 0)
+            ? (letter.IsClaimed ? "[Đã nhận quà]" : "[Chưa nhận quà - Nhấn nút 'Nhận Quà 🎁']")
+            : "";
+
+        var cit = _map.Find(letter.SenderCitadelId);
+        var citName = cit?.NameVi ?? "Phương xa";
+
+        return $"══════════════════════════════════════════════════\n" +
+               $"📜 {letter.TitleVi}\n" +
+               $"Người gửi: {letter.SenderNameVi} (Đang ở {citName})\n" +
+               $"Ngày gửi: {GameDateCodec.Format(letter.SentDate)}\n" +
+               $"──────────────────────────────────────────────────\n" +
+               $"{letter.ContentVi}\n" +
+               $"──────────────────────────────────────────────────\n" +
+               $"🎁 Lễ vật: {giftText} {claimStatus}\n" +
+               $"══════════════════════════════════════════════════";
+    }
+
+    public string ClaimLetterGift(long letterId)
+    {
+        var letter = GetLetter(letterId);
+        if (letter is null)
+        {
+            return "Không tìm thấy phong thư này.";
+        }
+
+        if (letter.IsClaimed)
+        {
+            return "Lễ vật đính kèm trong thư này đã được nhận trước đó rồi.";
+        }
+
+        if (letter.GiftCopper <= 0 && letter.GiftItemQuantity <= 0)
+        {
+            return "Bức thư này không có lễ vật đính kèm.";
+        }
+
+        var details = new List<string>();
+
+        if (letter.GiftCopper > 0)
+        {
+            _wallet.Pay(letter.GiftCopper, "social.letter_gift", $"Lễ vật đính kèm từ thư của {letter.SenderNameVi}");
+            details.Add($"+{letter.GiftCopper} Quan tiền");
+        }
+
+        if (letter.GiftItemId.HasValue && letter.GiftItemQuantity > 0)
+        {
+            _bag.Add(_player.CurrentCityId, letter.GiftItemId.Value, letter.GiftItemQuantity);
+            details.Add($"+{letter.GiftItemQuantity} {letter.GiftItemNameVi}");
+        }
+
+        _db.Execute("UPDATE kz_letter SET is_claimed = 1, is_read = 1 WHERE id = @id", DbArgs.One("@id", letterId));
+
+        var currentCit = _map.Find(_player.CurrentCityId);
+        return $"🎁 Đã nhận lễ vật từ {letter.SenderNameVi}: {string.Join(", ", details)} (đã chuyển vào hành trang tại {currentCit?.NameVi ?? "thành này"}).";
+    }
+
+    public int UnreadLetterCount()
+    {
+        var hasTable = _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'kz_letter'") > 0;
+        return hasTable ? (int)_db.ScalarLong("SELECT COUNT(*) FROM kz_letter WHERE is_read = 0") : 0;
     }
 
     private static string CalculateImpression(int affinity) => affinity switch
@@ -978,6 +1399,8 @@ internal sealed class SocialService : ISocialNetwork
                     .Add("@summary", $"Cùng {npc.NameVi} cắt máu ăn thề, kết nghĩa huynh đệ kim lan tại Đào Viên, nguyện đồng tâm hiệp lực, hoạn nạn có nhau, sinh tử không rời!"));
         });
 
+        _registry.UpdateCitadel(npcId, _player.CurrentCityId);
+
         return $"Trời đất chứng giám! Bạn cùng {npc.NameVi} đã chính thức kết nghĩa huynh đệ kim lan ({bondTitle})! Tình nghĩa keo sơn, hoạn nạn có nhau.";
     }
 
@@ -1075,4 +1498,24 @@ internal sealed class SocialService : ISocialNetwork
         "accountant" => "Kế Toán Sổ Sách (Quản lý kho quỹ)",
         _ => "Gia Thần"
     };
+
+    private sealed class SimpleRng
+    {
+        private uint _state;
+
+        public SimpleRng(uint seed)
+        {
+            _state = seed == 0 ? 0x12345678 : seed;
+        }
+
+        public int Next(int max)
+        {
+            if (max <= 1) return 0;
+            // Xorshift32
+            _state ^= _state << 13;
+            _state ^= _state >> 17;
+            _state ^= _state << 5;
+            return (int)(_state % (uint)max);
+        }
+    }
 }

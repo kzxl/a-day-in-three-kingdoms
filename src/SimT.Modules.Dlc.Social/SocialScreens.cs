@@ -52,7 +52,71 @@ internal sealed class SocialScreen : IScreenContribution
 
         var sections = new List<ScreenSection>();
 
-        // 1. Sworn Brothers Section
+        // 1. Letters / Missives Section
+        var letters = _social.GetLetters(limit: 15);
+        var unreadLetters = _social.UnreadLetterCount();
+        if (letters.Count > 0)
+        {
+            var letterColumns = new[] { "Ngày Gửi", "Người Gửi", "Địa Điểm", "Tiêu Đề", "Lễ Vật Đính Kèm", "Trạng Thái" };
+            var letterRows = letters.Select(ltr =>
+            {
+                var senderCit = _map.Find(ltr.SenderCitadelId);
+                var citName = senderCit?.NameVi ?? "Phương xa";
+                var giftDisplay = ltr.GiftCopper > 0 && ltr.GiftItemQuantity > 0
+                    ? $"🎁 {ltr.GiftCopper}Q + {ltr.GiftItemQuantity} {ltr.GiftItemNameVi}"
+                    : ltr.GiftCopper > 0
+                        ? $"🎁 {ltr.GiftCopper} Quan"
+                        : ltr.GiftItemQuantity > 0
+                            ? $"🎁 {ltr.GiftItemQuantity} {ltr.GiftItemNameVi}"
+                            : "—";
+
+                var statusDisplay = !ltr.IsRead
+                    ? "🔴 Chưa đọc"
+                    : ltr.IsClaimed
+                        ? "✓ Đã nhận"
+                        : (ltr.GiftCopper > 0 || ltr.GiftItemQuantity > 0)
+                            ? "🟡 Chưa nhận quà"
+                            : "Đã xem";
+
+                var cmds = new List<ScreenCommand>
+                {
+                    new($"letter:read:{ltr.Id}", "Đọc Thư 📜", CommandKind.Primary)
+                };
+
+                if (!ltr.IsClaimed && (ltr.GiftCopper > 0 || ltr.GiftItemQuantity > 0))
+                {
+                    cmds.Add(new($"letter:claim:{ltr.Id}", "Nhận Quà 🎁", CommandKind.Primary));
+                }
+
+                cmds.Add(new($"npc:modal:{ltr.SenderNpcId}", "Hồ Sơ 🔍", CommandKind.Secondary));
+
+                return new ScreenRow(
+                    [
+                        GameDateCodec.Format(ltr.SentDate),
+                        ltr.SenderNameVi,
+                        citName,
+                        ltr.TitleVi,
+                        giftDisplay,
+                        statusDisplay
+                    ],
+                    cmds,
+                    Title: $"{ltr.TitleVi} — {ltr.SenderNameVi}",
+                    Details:
+                    [
+                        new ScreenDetail("Người Gửi", $"{ltr.SenderNameVi} (Tại {citName})"),
+                        new ScreenDetail("Ngày Gửi", GameDateCodec.Format(ltr.SentDate)),
+                        new ScreenDetail("Tiêu Đề", ltr.TitleVi),
+                        new ScreenDetail("Lễ Vật", giftDisplay),
+                        new ScreenDetail("Trạng Thái", statusDisplay),
+                        new ScreenDetail("Nội Dung Thư", ltr.ContentVi)
+                    ]);
+            }).ToList();
+
+            var unreadTag = unreadLetters > 0 ? $" ({unreadLetters} thư mới 🔴)" : "";
+            sections.Add(new ScreenSection($"✉️ Hòm Thư Tri Kỷ & Bằng Hữu{unreadTag}", letterColumns, letterRows));
+        }
+
+        // 2. Sworn Brothers Section
         var swornBrothers = _social.GetSwornBrothers();
         if (swornBrothers.Count > 0)
         {
@@ -203,6 +267,7 @@ internal sealed class SocialScreen : IScreenContribution
 
         var metrics = new List<ScreenMetric>
         {
+            new("Thư tín tri kỷ", $"{unreadLetters} thư mới", $"Tổng {letters.Count} thư trong hòm", unreadLetters > 0 ? MetricTone.Positive : MetricTone.Neutral),
             new("Nghĩa huynh đệ", $"{swornBrothers.Count}/2 vị", "Đào Viên thề ước", MetricTone.Positive),
             new("Gia thần dưới trướng", $"{retainers.Count} vị", "Lĩnh bổng hàng tháng", MetricTone.Positive),
             new("Hảo hữu tâm giao", $"{allRelationships.Count(r => r.Affinity >= 20)} người", "Hảo cảm ≥ 20", MetricTone.Neutral),
@@ -318,6 +383,20 @@ internal sealed class SocialCommandHandler : IScreenCommandHandler
         else if (commandId == "host_banquet")
         {
             return _social.HostBanquet();
+        }
+        else if (commandId.StartsWith("letter:read:"))
+        {
+            if (long.TryParse(commandId["letter:read:".Length..], out var letterId))
+            {
+                return _social.ReadLetter(letterId);
+            }
+        }
+        else if (commandId.StartsWith("letter:claim:"))
+        {
+            if (long.TryParse(commandId["letter:claim:".Length..], out var letterId))
+            {
+                return _social.ClaimLetterGift(letterId);
+            }
         }
 
         return null;

@@ -1,4 +1,5 @@
 using SimT.Contracts;
+using SimT.Contracts.Data;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
 
@@ -387,5 +388,139 @@ public sealed class SocialTests : IDisposable
         // 1. Without affinity, throws affinity_insufficient
         var ex1 = Assert.Throws<SimException>(() => social.RecruitRetainer(guanYu.Id, "auto", 150));
         Assert.Equal("social.affinity_insufficient", ex1.Code);
+    }
+
+    [Fact]
+    public void Advancing_month_generates_letters_from_high_affinity_friends_with_attached_gifts()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var db = kernel.Db;
+
+        var npc = registry.FindByCode("npc_0003")!; // Quan Vũ
+
+        // Set affinity to 95 (sworn/high tier friend)
+        db.Execute(
+            "INSERT INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date) " +
+            "VALUES (@npcId, 95, 90, 'Thâm giao tri kỷ', 5, '184-05-01')",
+            DbArgs.One("@npcId", npc.Id));
+
+        Assert.Equal(0, social.UnreadLetterCount());
+
+        // Advance 30 days to close month
+        kernel.AdvanceDays(30);
+
+        var letters = social.GetLetters();
+        Assert.NotEmpty(letters);
+        Assert.True(social.UnreadLetterCount() > 0);
+
+        var letter = letters.First(l => l.SenderNpcId == npc.Id);
+        Assert.NotNull(letter);
+        Assert.False(letter.IsRead);
+        Assert.False(letter.IsClaimed);
+        Assert.Contains("Quan Vũ", letter.SenderNameVi);
+        Assert.False(string.IsNullOrWhiteSpace(letter.TitleVi));
+        Assert.False(string.IsNullOrWhiteSpace(letter.ContentVi));
+    }
+
+    [Fact]
+    public void Reading_letter_marks_read_and_claiming_gift_transfers_copper_and_items()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var items = kernel.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
+        var db = kernel.Db;
+
+        var npc = registry.FindByCode("npc_0005")!; // Trương Thế Bình (merchant)
+        var initialWallet = wallet.Liquid;
+        var initialUnread = social.UnreadLetterCount();
+
+        // High affinity with merchant
+        db.Execute(
+            "INSERT INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date) " +
+            "VALUES (@npcId, 90, 85, 'Hảo hữu thân thiết', 4, '184-05-01')",
+            DbArgs.One("@npcId", npc.Id));
+
+        // Advance 30 days to generate monthly letter
+        kernel.AdvanceDays(30);
+
+        var letters = social.GetLetters();
+        var letter = letters.FirstOrDefault(l => l.SenderNpcId == npc.Id);
+        Assert.NotNull(letter);
+
+        // Read letter
+        var readPresentation = social.ReadLetter(letter.Id);
+        Assert.Contains(letter.TitleVi, readPresentation);
+        Assert.Contains(letter.SenderNameVi, readPresentation);
+
+        // Now letter is marked read
+        var readLetter = social.GetLetter(letter.Id)!;
+        Assert.True(readLetter.IsRead);
+
+        // Claim gift
+        if (readLetter.GiftCopper > 0 || readLetter.GiftItemQuantity > 0)
+        {
+            var claimResult = social.ClaimLetterGift(letter.Id);
+            Assert.Contains("Đã nhận lễ vật", claimResult);
+
+            if (readLetter.GiftCopper > 0)
+            {
+                Assert.True(wallet.Liquid >= initialWallet + readLetter.GiftCopper);
+            }
+
+            if (readLetter.GiftItemId.HasValue)
+            {
+                Assert.True(bag.Quantity(player.CurrentCityId, readLetter.GiftItemId.Value) >= readLetter.GiftItemQuantity);
+            }
+
+            // Claimed letter status
+            var claimedLetter = social.GetLetter(letter.Id)!;
+            Assert.True(claimedLetter.IsClaimed);
+
+            // Re-claiming returns already claimed notice
+            var reClaimResult = social.ClaimLetterGift(letter.Id);
+            Assert.Contains("trước đó", reClaimResult);
+        }
+    }
+
+    [Fact]
+    public void Bodyguard_retainer_and_sworn_brother_follow_protagonist_to_new_citadel()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var db = kernel.Db;
+
+        var npc = registry.FindByCode("npc_0002")!; // Trương Phi
+        player.MoveTo(npc.CitadelId, kernel.Clock.Today);
+
+        // Swear brotherhood with Trương Phi
+        db.Execute(
+            "INSERT INTO kz_sworn_brother (npc_id, oath_date, bond_title, assist_count) VALUES (@id, '184-05-01', 'Nghĩa Đệ', 0)",
+            DbArgs.One("@id", npc.Id));
+        db.Execute(
+            "INSERT INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date) " +
+            "VALUES (@id, 100, 100, 'Kết Nghĩa Huynh Đệ', 0, '184-05-01') " +
+            "ON CONFLICT(npc_id) DO UPDATE SET affinity = 100, trust = 100",
+            DbArgs.One("@id", npc.Id));
+
+        // Move protagonist to Lạc Dương (city 1)
+        player.MoveTo(1, kernel.Clock.Today);
+
+        // Advance 30 days to simulate society monthly turn
+        kernel.AdvanceDays(30);
+
+        // Trương Phi accompanied protagonist to city 1!
+        var currentZf = registry.Find(npc.Id)!;
+        Assert.Equal(1, currentZf.CitadelId);
+
+        var npcsInCity1 = registry.FindByCitadel(1);
+        Assert.Contains(npcsInCity1, n => n.Id == npc.Id);
     }
 }

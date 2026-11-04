@@ -151,6 +151,12 @@ public partial class MainWindow
             return;
         }
 
+        if (commandId.StartsWith("letter:read:") && long.TryParse(commandId["letter:read:".Length..], out var letterId))
+        {
+            TryOpenLetterModal(letterId);
+            return;
+        }
+
         var screenId = ScreenForCommand();
         if (!_kernel.TryGetCommandHandler(screenId, out var handler) || handler is null)
         {
@@ -519,5 +525,47 @@ public partial class MainWindow
         UpdateHeader();
         RenderSelected();
         StatusText.Text = $"Trận tỷ võ với {npc.NameVi} đã hoàn tất.";
+    }
+
+    private void TryOpenLetterModal(long letterId)
+    {
+        if (!_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) || social is null)
+        {
+            StatusText.Text = "Hệ thống nhân duyên chưa sẵn sàng.";
+            return;
+        }
+
+        var letter = social.GetLetter(letterId);
+        if (letter is null)
+        {
+            StatusText.Text = $"Không tìm thấy phong thư mã {letterId}.";
+            return;
+        }
+
+        var citadelName = "Phương xa";
+        if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
+        {
+            var cit = map.Find(letter.SenderCitadelId);
+            if (cit is not null)
+            {
+                citadelName = cit.NameVi;
+            }
+        }
+
+        var win = new LetterDetailWindow(letter, citadelName, social, onStateChanged: () =>
+        {
+            _kernel.Save();
+            UpdateHeader();
+            RenderSelected();
+        })
+        {
+            Owner = this
+        };
+
+        win.ShowDialog();
+
+        _kernel.Save();
+        UpdateHeader();
+        RenderSelected();
     }
 }

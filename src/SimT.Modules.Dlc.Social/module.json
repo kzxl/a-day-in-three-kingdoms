@@ -12,7 +12,8 @@
       "kz_memory",
       "kz_retainer",
       "kz_sworn_brother",
-      "kz_banquet"
+      "kz_banquet",
+      "kz_letter"
     ],
     "migrations": ["migrations"]
   },

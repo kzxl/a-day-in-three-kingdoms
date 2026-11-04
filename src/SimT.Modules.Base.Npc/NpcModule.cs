@@ -23,13 +23,16 @@ public sealed class NpcModule : ISimModule
 
     private sealed class NpcRegistry : INpcRegistry
     {
+        private readonly IDbSession _db;
         private readonly NpcDef[] _all;
         private readonly Dictionary<long, NpcDef> _byId;
         private readonly Dictionary<string, NpcDef> _byCode;
-        private readonly Dictionary<long, NpcDef[]> _byCitadel;
+        private readonly Dictionary<long, List<NpcDef>> _byCitadel;
 
         public NpcRegistry(IDbSession db)
         {
+            _db = db;
+
             var skillRows = db.Query(
                 @"SELECT npc_id, code, name_vi, category, tier, description, effect_summary
                   FROM np_skill
@@ -93,22 +96,20 @@ public sealed class NpcModule : ISimModule
 
             _byId = new Dictionary<long, NpcDef>(_all.Length);
             _byCode = new Dictionary<string, NpcDef>(_all.Length, StringComparer.OrdinalIgnoreCase);
-            var byCitadel = new Dictionary<long, List<NpcDef>>();
+            _byCitadel = new Dictionary<long, List<NpcDef>>();
 
             foreach (var npc in _all)
             {
                 _byId[npc.Id] = npc;
                 _byCode[npc.Code] = npc;
 
-                if (!byCitadel.TryGetValue(npc.CitadelId, out var list))
+                if (!_byCitadel.TryGetValue(npc.CitadelId, out var list))
                 {
                     list = new List<NpcDef>();
-                    byCitadel[npc.CitadelId] = list;
+                    _byCitadel[npc.CitadelId] = list;
                 }
                 list.Add(npc);
             }
-
-            _byCitadel = byCitadel.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
         }
 
         public IReadOnlyList<NpcDef> All => _all;
@@ -121,5 +122,49 @@ public sealed class NpcModule : ISimModule
             _byCitadel.TryGetValue(citadelId, out var list)
                 ? list
                 : Array.Empty<NpcDef>();
+
+        public void UpdateCitadel(long npcId, long newCitadelId)
+        {
+            if (!_byId.TryGetValue(npcId, out var existing))
+            {
+                return;
+            }
+
+            if (existing.CitadelId == newCitadelId)
+            {
+                return;
+            }
+
+            var oldCitadelId = existing.CitadelId;
+            var updated = existing with { CitadelId = newCitadelId };
+
+            _byId[npcId] = updated;
+            _byCode[updated.Code] = updated;
+
+            for (var i = 0; i < _all.Length; i++)
+            {
+                if (_all[i].Id == npcId)
+                {
+                    _all[i] = updated;
+                    break;
+                }
+            }
+
+            _db.Execute(
+                "UPDATE np_npc SET citadel_id = @citId WHERE id = @id",
+                new DbArgs().Add("@citId", newCitadelId).Add("@id", npcId));
+
+            if (_byCitadel.TryGetValue(oldCitadelId, out var oldList))
+            {
+                oldList.RemoveAll(n => n.Id == npcId);
+            }
+
+            if (!_byCitadel.TryGetValue(newCitadelId, out var newList))
+            {
+                newList = new List<NpcDef>();
+                _byCitadel[newCitadelId] = newList;
+            }
+            newList.Add(updated);
+        }
     }
 }

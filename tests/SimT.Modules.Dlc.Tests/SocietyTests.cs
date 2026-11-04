@@ -1,3 +1,4 @@
+using SimT.Contracts.Data;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
 
@@ -113,5 +114,34 @@ public sealed class SocietyTests : IDisposable
 
         var filteredModel = screen.Render();
         Assert.NotNull(filteredModel);
+    }
+
+    [Fact]
+    public void NPC_registry_UpdateCitadel_moves_npc_between_citadels_and_persists()
+    {
+        using var kernel = _host.Boot();
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var db = kernel.Db;
+
+        var npc = registry.FindByCode("npc_0001")!; // Lưu Bị
+        var originalCit = npc.CitadelId;
+        const long targetCit = 7; // Hứa Xương
+
+        Assert.Contains(registry.FindByCitadel(originalCit), n => n.Id == npc.Id);
+        Assert.DoesNotContain(registry.FindByCitadel(targetCit), n => n.Id == npc.Id);
+
+        // Move to target
+        registry.UpdateCitadel(npc.Id, targetCit);
+
+        // Verify in-memory lookup
+        var updated = registry.Find(npc.Id)!;
+        Assert.Equal(targetCit, updated.CitadelId);
+
+        Assert.DoesNotContain(registry.FindByCitadel(originalCit), n => n.Id == npc.Id);
+        Assert.Contains(registry.FindByCitadel(targetCit), n => n.Id == npc.Id);
+
+        // Verify DB persistence in np_npc
+        var dbCit = db.ScalarLong("SELECT citadel_id FROM np_npc WHERE id = @id", DbArgs.One("@id", npc.Id));
+        Assert.Equal(targetCit, dbCit);
     }
 }

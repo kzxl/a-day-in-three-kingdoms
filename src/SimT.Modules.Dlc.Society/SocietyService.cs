@@ -1,5 +1,6 @@
 using SimT.Contracts.Data;
 using SimT.Contracts.Logging;
+using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
@@ -11,20 +12,26 @@ internal sealed class SocietyService : ISocietyChronicle
     private readonly IGameClock _clock;
     private readonly INpcRegistry _registry;
     private readonly IWorldMap _map;
+    private readonly IPlayerState _player;
     private readonly ILog _log;
+    private readonly ICapabilityBroker? _broker;
 
     public SocietyService(
         IDbSession db,
         IGameClock clock,
         INpcRegistry registry,
         IWorldMap map,
-        ILog log)
+        IPlayerState player,
+        ILog log,
+        ICapabilityBroker? broker = null)
     {
         _db = db;
         _clock = clock;
         _registry = registry;
         _map = map;
+        _player = player;
         _log = log;
+        _broker = broker;
 
         EnsureInitialized();
     }
@@ -114,6 +121,40 @@ internal sealed class SocietyService : ISocietyChronicle
                     continue;
                 }
 
+                // Check if NPC is bound to player retinue (sworn brother or personal companion retainer)
+                var isCompanion = false;
+                var isSworn = false;
+                if (_broker is not null && _broker.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+                {
+                    isSworn = social.GetSwornBrothers().Any(s => s.NpcId == npc.Id);
+                    var ret = social.GetRetainer(npc.Id);
+                    var isRetainerCompanion = ret is not null && ret.RoleAssigned is "bodyguard" or "advisor";
+                    isCompanion = isSworn || isRetainerCompanion;
+                }
+
+                if (isCompanion)
+                {
+                    // Companions accompany protagonist to their current location
+                    var playerCityId = _player.CurrentCityId;
+                    if (act.CurrentCitadelId != playerCityId)
+                    {
+                        var playerCit = _map.Find(playerCityId);
+                        var targetName = playerCit?.NameVi ?? "Bên cạnh minh chủ";
+                        var actionText = isSworn ? $"Đang hộ vệ nghĩa huynh đệ tại {targetName}" : $"Túc trực bên cạnh minh chủ tại {targetName}";
+
+                        _db.Execute(
+                            "UPDATE so_npc_activity SET current_citadel_id = @newCit, current_action = @action, updated_date = @date WHERE npc_id = @id",
+                            new DbArgs()
+                                .Add("@newCit", playerCityId)
+                                .Add("@action", actionText)
+                                .Add("@date", formattedDate)
+                                .Add("@id", npc.Id));
+
+                        _registry.UpdateCitadel(npc.Id, playerCityId);
+                    }
+                    continue;
+                }
+
                 // Deterministic pseudo-random seed per turn per NPC
                 var seed = (uint)(date.DayIndex * 397 ^ (int)npc.Id);
                 var rng = new SimpleRng(seed);
@@ -127,8 +168,24 @@ internal sealed class SocietyService : ISocietyChronicle
                 var cit = _map.Find(act.CurrentCitadelId);
                 var citName = cit?.NameVi ?? "Châu quận";
 
-                // 15% chance to travel to a connected neighbour citadel
-                if (rng.Next(100) < 15)
+                // Faction rulers and regional governors stay to manage their state; others travel according to lifestyle
+                var isGovernorOrRuler = act.FocusPath == "governor"
+                    || npc.Role.Contains("Hoàng Đế")
+                    || npc.Role.Contains("Quân Chủ")
+                    || npc.Role.Contains("Thái Thú")
+                    || npc.Role.Contains("Thái Sư")
+                    || npc.Role.Contains("Giáo Tổ");
+
+                var travelChance = isGovernorOrRuler ? 2 : (act.FocusPath switch
+                {
+                    "merchant" => 25,
+                    "wanderer" => 20,
+                    "martial" => 15,
+                    "strategist" => 10,
+                    _ => 15
+                });
+
+                if (rng.Next(100) < travelChance)
                 {
                     var neighbours = _map.RouteNeighbours(act.CurrentCitadelId);
                     if (neighbours.Count > 0)
@@ -157,6 +214,8 @@ internal sealed class SocietyService : ISocietyChronicle
                                 .Add("@action", actionText)
                                 .Add("@date", formattedDate)
                                 .Add("@id", npc.Id));
+
+                        _registry.UpdateCitadel(npc.Id, targetCitId);
 
                         _db.Execute(
                             "INSERT INTO so_journey_log (date, npc_id, npc_name_vi, citadel_id, citadel_name_vi, event_kind, headline_vi, detail_vi, stat_impact, created_tick) " +

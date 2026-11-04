@@ -70,6 +70,17 @@ internal static class SocialInvariants
         }
     }
 
+    public sealed class LetterGiftsNonNegative : IInvariant
+    {
+        public string Id => "social.letter.gifts_non_negative";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM kz_letter WHERE gift_copper < 0 OR gift_item_quantity < 0");
+            return bad == 0 ? null : $"{bad} letter record(s) have negative copper or item quantity";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new AffinityBounded();
@@ -78,5 +89,6 @@ internal static class SocialInvariants
         yield return new LoyaltyBounded();
         yield return new MemorySummariesPresent();
         yield return new SwornBrotherMaxTwo();
+        yield return new LetterGiftsNonNegative();
     }
 }

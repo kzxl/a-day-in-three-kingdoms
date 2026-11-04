@@ -22,7 +22,9 @@ public sealed class SocietyModule : ISimModule
             context.Clock,
             registry,
             map,
-            context.Log);
+            player,
+            context.Log,
+            context.Capabilities);
 
         context.Capabilities.Provide(CapabilityIds.SocietyChronicle, service);
 
