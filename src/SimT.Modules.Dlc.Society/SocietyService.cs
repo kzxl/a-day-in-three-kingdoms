@@ -112,6 +112,12 @@ internal sealed class SocietyService : ISocietyChronicle
         var activities = AllActivities();
         var npcsById = _registry.All.ToDictionary(n => n.Id);
 
+        Dictionary<long, CityGovernanceView>? govByCitadel = null;
+        if (_broker is not null && _broker.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice, out var court) && court is not null)
+        {
+            govByCitadel = court.Governances.ToDictionary(g => g.CitadelId);
+        }
+
         _db.Transaction(() =>
         {
             foreach (var act in activities)
@@ -176,6 +182,10 @@ internal sealed class SocietyService : ISocietyChronicle
                     || npc.Role.Contains("Thái Sư")
                     || npc.Role.Contains("Giáo Tổ");
 
+                var currentUnrest = govByCitadel != null && govByCitadel.TryGetValue(act.CurrentCitadelId, out var gView)
+                    ? gView.UnrestLevel
+                    : 10;
+
                 var travelChance = isGovernorOrRuler ? 2 : (act.FocusPath switch
                 {
                     "merchant" => 25,
@@ -185,27 +195,82 @@ internal sealed class SocietyService : ISocietyChronicle
                     _ => 15
                 });
 
+                // Migration pressure: high unrest in origin pushes commoners, merchants and scholars to flee
+                var isUnrestMigration = false;
+                if (!isGovernorOrRuler && currentUnrest >= 25)
+                {
+                    travelChance += (currentUnrest - 20) * 2;
+                    isUnrestMigration = true;
+                }
+
                 if (rng.Next(100) < travelChance)
                 {
                     var neighbours = _map.RouteNeighbours(act.CurrentCitadelId);
                     if (neighbours.Count > 0)
                     {
-                        var targetCitId = neighbours[rng.Next(neighbours.Count)];
+                        long targetCitId;
+                        if (isUnrestMigration && govByCitadel != null)
+                        {
+                            // Flee towards neighbouring citadel with lowest unrest and strongest defense
+                            targetCitId = neighbours
+                                .OrderBy(nid => govByCitadel.TryGetValue(nid, out var ng) ? ng.UnrestLevel : 20)
+                                .ThenByDescending(nid => govByCitadel.TryGetValue(nid, out var ng) ? ng.DefenseStrength : 50)
+                                .First();
+                        }
+                        else if (act.FocusPath == "merchant")
+                        {
+                            // Merchants gravitate towards flourishing trade hubs
+                            targetCitId = neighbours
+                                .OrderByDescending(nid => _map.Find(nid)?.PriceFactorPermille ?? 1000)
+                                .First();
+                        }
+                        else
+                        {
+                            targetCitId = neighbours[rng.Next(neighbours.Count)];
+                        }
+
                         var targetCit = _map.Find(targetCitId);
                         var targetName = targetCit?.NameVi ?? "Phương xa";
 
-                        var travelPurpose = act.FocusPath switch
-                        {
-                            "martial" => "chiêu tập dũng sĩ và tìm đối thủ luận kiếm",
-                            "merchant" => "áp tải hàng hóa và mở rộng chiếm lĩnh thương trường",
-                            "strategist" => "thị sát địa hình và hội kiến hiền tài",
-                            "governor" => "kinh lý châu huyện và tuần sát dân tình",
-                            _ => "du ngoạn danh sơn và hái thuốc cứu người"
-                        };
+                        string headline, detail, statImpact, actionText;
 
-                        var headline = $"{npc.NameVi} rời {citName} sang {targetName}";
-                        var detail = $"{npc.NameVi} thu xếp hành trang rời {citName}, vượt dặm trường sang {targetName} nhằm {travelPurpose}.";
-                        var actionText = $"Đang lưu trú tại {targetName}";
+                        if (isUnrestMigration)
+                        {
+                            headline = $"{npc.NameVi} di cư lánh loạn từ {citName} sang {targetName}";
+                            detail = $"{npc.NameVi} thu xếp gia quyến rời khỏi {citName} do trị an bất ổn và hiểm họa chiến tranh, tìm đến vùng đất thái bình {targetName} để an cư lập nghiệp.";
+                            actionText = $"Di cư lánh loạn tại {targetName}";
+                            statImpact = "Di cư lánh loạn";
+                        }
+                        else if (act.FocusPath == "merchant" && targetCit != null && cit != null && targetCit.PriceFactorPermille > cit.PriceFactorPermille)
+                        {
+                            headline = $"{npc.NameVi} chuyển dịch thương đoàn từ {citName} đến {targetName}";
+                            detail = $"{npc.NameVi} mở rộng mạng lưới giao thương, dời điểm kinh doanh chủ lực sang {targetName} nhằm nắm bắt cơ hội thương nghiệp phồn hoa.";
+                            actionText = $"Lập thương hội tại {targetName}";
+                            statImpact = "Chuyển dịch thương hội";
+                        }
+                        else if (act.FocusPath == "strategist")
+                        {
+                            headline = $"{npc.NameVi} du học du thuyết từ {citName} sang {targetName}";
+                            detail = $"{npc.NameVi} bái biệt các bằng hữu tại {citName}, cất bước sang {targetName} để hội kiến các bậc danh sĩ và tìm minh chủ phụng sự.";
+                            actionText = $"Du thuyết tại {targetName}";
+                            statImpact = "Du thuyết danh thành";
+                        }
+                        else
+                        {
+                            var travelPurpose = act.FocusPath switch
+                            {
+                                "martial" => "chiêu tập dũng sĩ và tìm đối thủ luận kiếm",
+                                "merchant" => "áp tải hàng hóa và mở rộng chiếm lĩnh thương trường",
+                                "strategist" => "thị sát địa hình và hội kiến hiền tài",
+                                "governor" => "kinh lý châu huyện và tuần sát dân tình",
+                                _ => "du ngoạn danh sơn và hái thuốc cứu người"
+                            };
+
+                            headline = $"{npc.NameVi} rời {citName} sang {targetName}";
+                            detail = $"{npc.NameVi} thu xếp hành trang rời {citName}, vượt dặm trường sang {targetName} nhằm {travelPurpose}.";
+                            actionText = $"Đang lưu trú tại {targetName}";
+                            statImpact = "Ngao du thiên hạ";
+                        }
 
                         _db.Execute(
                             "UPDATE so_npc_activity SET current_citadel_id = @newCit, current_action = @action, updated_date = @date WHERE npc_id = @id",
@@ -219,7 +284,7 @@ internal sealed class SocietyService : ISocietyChronicle
 
                         _db.Execute(
                             "INSERT INTO so_journey_log (date, npc_id, npc_name_vi, citadel_id, citadel_name_vi, event_kind, headline_vi, detail_vi, stat_impact, created_tick) " +
-                            "VALUES (@date, @npcId, @name, @citId, @citName, 'travel', @headline, @detail, 'Di chuyển', @tick)",
+                            "VALUES (@date, @npcId, @name, @citId, @citName, 'travel', @headline, @detail, @statImpact, @tick)",
                             new DbArgs()
                                 .Add("@date", formattedDate)
                                 .Add("@npcId", npc.Id)
@@ -228,6 +293,7 @@ internal sealed class SocietyService : ISocietyChronicle
                                 .Add("@citName", targetName)
                                 .Add("@headline", headline)
                                 .Add("@detail", detail)
+                                .Add("@statImpact", statImpact)
                                 .Add("@tick", tick));
 
                         continue;
@@ -253,6 +319,12 @@ internal sealed class SocietyService : ISocietyChronicle
                         ExecuteWandererAction(npc, act, citName, formattedDate, tick, rng);
                         break;
                 }
+            }
+
+            // Periodic replenishment: quarterly (month % 3 == 0) or whenever a citadel drops below 18 NPCs
+            if (date.Month % 3 == 0 || AnyCitadelUnderpopulated())
+            {
+                ReplenishNpcsCore(date, formattedDate, tick, count: 1);
             }
         });
 
@@ -695,6 +767,211 @@ internal sealed class SocietyService : ISocietyChronicle
         _ => "Ngao du sơn thủy kết giao danh sĩ"
     };
 
+    public IReadOnlyList<NpcDef> ReplenishNpcs(GameDate date, int count = 1)
+    {
+        var formattedDate = GameDateCodec.Format(date);
+        var tick = date.DayIndex;
+        IReadOnlyList<NpcDef> result = Array.Empty<NpcDef>();
+        _db.Transaction(() =>
+        {
+            result = ReplenishNpcsCore(date, formattedDate, tick, count);
+        });
+        return result;
+    }
+
+    private IReadOnlyList<NpcDef> ReplenishNpcsCore(GameDate date, string formattedDate, long tick, int count)
+    {
+        if (count <= 0) return Array.Empty<NpcDef>();
+
+        // Cap dynamic population to prevent unbounded memory/database inflation (R_PERF)
+        if (_registry.All.Count >= 400)
+        {
+            return Array.Empty<NpcDef>();
+        }
+
+        var spawned = new List<NpcDef>();
+        var citadels = _map.Citadels;
+        if (citadels.Count == 0) return Array.Empty<NpcDef>();
+
+        var existingNames = new HashSet<string>(_registry.All.Select(n => n.NameVi), StringComparer.OrdinalIgnoreCase);
+
+        var surnames = new[]
+        {
+            "Triệu", "Lý", "Chu", "Ngô", "Trịnh", "Vương", "Phùng", "Trần", "Chử", "Vệ",
+            "Tưởng", "Thẩm", "Hàn", "Dương", "Tần", "Hứa", "Hà", "Lữ", "Khổng", "Tào",
+            "Nghiêm", "Kim", "Ngụy", "Đào", "Khương", "Tạ", "Lôi", "Hạ", "Đoàn", "Liêu"
+        };
+
+        var middleGivenNames = new[]
+        {
+            "Văn Huy", "Bá Đạt", "Tử Kính", "Trọng Viễn", "Thúc Minh", "Quý Hòa", "Đức Nhuận",
+            "Cảnh Sơn", "Phụng Tiên", "Huyền Thông", "Nguyên Phương", "Tử Hào", "Hoài Viễn",
+            "An Bang", "Trấn Quốc", "Tông Diệu", "Trọng Hằng", "Sĩ Trưng", "Dực Sơn", "Kiến Lâm",
+            "Minh Lương", "Quốc Bảo", "Đạo Vinh", "Diên Khánh", "Khắc Minh", "Bá Xuyên"
+        };
+
+        var archetypes = new[]
+        {
+            (Focus: "merchant", Role: "Lữ Hành Thương Nhân", SkillName: "Thương Tài", SkillCode: "thuong_tai_dyn",
+                SkillEffect: "Giảm 5% giá mua tại sạp chợ", SkillDesc: "Nhạy bén giá cả thương trường, đàm phán mua rẻ bán đắt."),
+            (Focus: "martial", Role: "Du Hiệp Kiếm Khách", SkillName: "Kỵ Xạ", SkillCode: "ky_xa_dyn",
+                SkillEffect: "+10% sát thương bạo kích cung tiễn", SkillDesc: "Kỹ năng cung tiễn điêu luyện trên lưng ngựa."),
+            (Focus: "strategist", Role: "Ẩn Danh Mưu Sĩ", SkillName: "Biện Thuyết", SkillCode: "bien_thuyet_dyn",
+                SkillEffect: "+15% hiệu quả đàm phán ngoại giao", SkillDesc: "Hùng biện sắc sảo, nhìn thấu tâm lý đối phương."),
+            (Focus: "governor", Role: "Châu Huyện Hiền Sĩ", SkillName: "Khuyến Nông", SkillCode: "khuyen_nong_dyn",
+                SkillEffect: "+10% sản lượng nông trang địa phương", SkillDesc: "Khuyến khích khai hoang mở đất, tích cốc phòng đói."),
+            (Focus: "wanderer", Role: "Phương Ngoại Kỳ Sĩ", SkillName: "Dược Lý", SkillCode: "duoc_ly_dyn",
+                SkillEffect: "Tăng tốc độ hồi phục thể lực", SkillDesc: "Am hiểu y lý thảo dược cứu độ thế gian.")
+        };
+
+        for (var i = 0; i < count; i++)
+        {
+            var seed = (uint)(tick * 7919 + i * 101 + _registry.All.Count);
+            var rng = new SimpleRng(seed);
+
+            // Rebalance population: pick citadel with fewest NPCs
+            var targetCit = citadels
+                .OrderBy(c => _registry.FindByCitadel(c.Id).Count)
+                .ThenBy(c => c.Id)
+                .First();
+
+            var arch = archetypes[rng.Next(archetypes.Length)];
+
+            string nameVi = string.Empty;
+            for (var attempt = 0; attempt < 50; attempt++)
+            {
+                var s = surnames[rng.Next(surnames.Length)];
+                var mg = middleGivenNames[rng.Next(middleGivenNames.Length)];
+                var candidate = $"{s} {mg}";
+                if (!existingNames.Contains(candidate))
+                {
+                    nameVi = candidate;
+                    break;
+                }
+            }
+            if (string.IsNullOrEmpty(nameVi))
+            {
+                nameVi = $"Sĩ Nhân {tick % 1000}_{i + 1}";
+            }
+            existingNames.Add(nameVi);
+
+            CharacterAttributes attrs = arch.Focus switch
+            {
+                "merchant" => new CharacterAttributes(
+                    War: 40 + rng.Next(15), Ldr: 45 + rng.Next(15), Int: 62 + rng.Next(16),
+                    Pol: 58 + rng.Next(15), Dip: 65 + rng.Next(16), Com: 72 + rng.Next(15),
+                    Log: 65 + rng.Next(15), Cra: 50 + rng.Next(15), Con: 55 + rng.Next(15),
+                    Wil: 60 + rng.Next(15), Prc: 64 + rng.Next(15), Lck: 60 + rng.Next(20)),
+                "martial" => new CharacterAttributes(
+                    War: 75 + rng.Next(15), Ldr: 66 + rng.Next(15), Int: 45 + rng.Next(15),
+                    Pol: 40 + rng.Next(15), Dip: 42 + rng.Next(15), Com: 40 + rng.Next(15),
+                    Log: 52 + rng.Next(15), Cra: 50 + rng.Next(15), Con: 70 + rng.Next(18),
+                    Wil: 72 + rng.Next(16), Prc: 68 + rng.Next(15), Lck: 55 + rng.Next(15)),
+                "strategist" => new CharacterAttributes(
+                    War: 38 + rng.Next(15), Ldr: 50 + rng.Next(15), Int: 76 + rng.Next(15),
+                    Pol: 68 + rng.Next(15), Dip: 70 + rng.Next(15), Com: 52 + rng.Next(15),
+                    Log: 60 + rng.Next(15), Cra: 48 + rng.Next(15), Con: 50 + rng.Next(15),
+                    Wil: 65 + rng.Next(15), Prc: 68 + rng.Next(15), Lck: 58 + rng.Next(15)),
+                "governor" => new CharacterAttributes(
+                    War: 45 + rng.Next(15), Ldr: 65 + rng.Next(15), Int: 68 + rng.Next(15),
+                    Pol: 74 + rng.Next(15), Dip: 66 + rng.Next(15), Com: 58 + rng.Next(15),
+                    Log: 64 + rng.Next(15), Cra: 52 + rng.Next(15), Con: 56 + rng.Next(15),
+                    Wil: 62 + rng.Next(15), Prc: 60 + rng.Next(15), Lck: 56 + rng.Next(15)),
+                _ => new CharacterAttributes(
+                    War: 55 + rng.Next(15), Ldr: 50 + rng.Next(15), Int: 60 + rng.Next(15),
+                    Pol: 50 + rng.Next(15), Dip: 55 + rng.Next(15), Com: 52 + rng.Next(15),
+                    Log: 55 + rng.Next(15), Cra: 72 + rng.Next(16), Con: 64 + rng.Next(15),
+                    Wil: 70 + rng.Next(15), Prc: 68 + rng.Next(15), Lck: 60 + rng.Next(15))
+            };
+
+            var code = $"npc_dyn_{tick}_{rng.Next(1000, 9999)}";
+            var skills = new[]
+            {
+                new NpcSkillDef(arch.SkillCode, arch.SkillName, arch.Focus switch {
+                    "martial" => "martial",
+                    "merchant" => "commerce",
+                    "governor" => "governance",
+                    "strategist" => "strategist",
+                    _ => "special"
+                }, 3, arch.SkillDesc, arch.SkillEffect)
+            };
+
+            var newNpc = _registry.RegisterDynamicNpc(
+                code,
+                nameVi,
+                arch.Role,
+                targetCit.Id,
+                attrs,
+                personality: "Cần cù nhẫn nại",
+                bioVi: $"Nhân sĩ mới nổi tại {targetCit.NameVi}, từng bước xây dựng sự nghiệp thời loạn thế.",
+                skills);
+
+            var focus = arch.Focus;
+            var wealth = InitialWealth(focus);
+            var initialAction = InitialAction(focus);
+
+            _db.Execute(
+                "INSERT INTO so_npc_activity (npc_id, current_citadel_id, current_wealth, focus_path, current_action, stamina, reputation, updated_date) " +
+                "VALUES (@npcId, @citadelId, @wealth, @focus, @action, 100, 50, @date)",
+                new DbArgs()
+                    .Add("@npcId", newNpc.Id)
+                    .Add("@citadelId", targetCit.Id)
+                    .Add("@wealth", wealth)
+                    .Add("@focus", focus)
+                    .Add("@action", initialAction)
+                    .Add("@date", formattedDate));
+
+            _db.Execute(
+                "INSERT INTO so_npc_stat_delta (npc_id, war_delta, ldr_delta, int_delta, pol_delta, dip_delta, com_delta, log_delta, cra_delta, updated_date) " +
+                "VALUES (@npcId, 0, 0, 0, 0, 0, 0, 0, 0, @date)",
+                new DbArgs()
+                    .Add("@npcId", newNpc.Id)
+                    .Add("@date", formattedDate));
+
+            var eventKind = arch.Focus switch
+            {
+                "martial" => "martial",
+                "merchant" => "commerce",
+                "governor" => "governance",
+                _ => "scholarly"
+            };
+
+            var headline = $"Nhân tài mới xuất thế: {newNpc.NameVi} tại {targetCit.NameVi}";
+            var detail = $"{newNpc.NameVi} ({newNpc.Role}) vừa xuất đầu lộ diện tại {targetCit.NameVi}, chí hướng rộng lớn, bắt đầu tạo dựng thanh danh thời loạn thế.";
+
+            _db.Execute(
+                "INSERT INTO so_journey_log (date, npc_id, npc_name_vi, citadel_id, citadel_name_vi, event_kind, headline_vi, detail_vi, stat_impact, created_tick) " +
+                "VALUES (@date, @npcId, @name, @citId, @citName, @kind, @headline, @detail, 'Xuất thế', @tick)",
+                new DbArgs()
+                    .Add("@date", formattedDate)
+                    .Add("@npcId", newNpc.Id)
+                    .Add("@name", newNpc.NameVi)
+                    .Add("@citId", targetCit.Id)
+                    .Add("@citName", targetCit.NameVi)
+                    .Add("@kind", eventKind)
+                    .Add("@headline", headline)
+                    .Add("@detail", detail)
+                    .Add("@tick", tick));
+
+            spawned.Add(newNpc);
+            _log.Info($"Society replenishment: spawned {newNpc.NameVi} ({newNpc.Role}) in {targetCit.NameVi}.");
+        }
+
+        return spawned;
+    }
+
+    private bool AnyCitadelUnderpopulated()
+    {
+        foreach (var c in _map.Citadels)
+        {
+            if (_registry.FindByCitadel(c.Id).Count < 18)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private sealed class SimpleRng
     {
         private uint _state;
@@ -712,6 +989,12 @@ internal sealed class SocietyService : ISocietyChronicle
             _state ^= _state >> 17;
             _state ^= _state << 5;
             return (int)(_state % (uint)max);
+        }
+
+        public int Next(int min, int max)
+        {
+            if (max <= min) return min;
+            return min + Next(max - min);
         }
     }
 }

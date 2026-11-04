@@ -70,4 +70,7 @@ public interface ISocietyChronicle
 
     /// <summary>Manually steps the autonomous simulation for a new month.</summary>
     void SimulateTurn(GameDate date);
+
+    /// <summary>Replenishes or spawns procedural NPCs into underpopulated or thriving citadels.</summary>
+    IReadOnlyList<NpcDef> ReplenishNpcs(GameDate date, int count = 1);
 }

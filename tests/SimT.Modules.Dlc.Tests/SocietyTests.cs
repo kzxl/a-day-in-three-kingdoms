@@ -11,7 +11,7 @@ public sealed class SocietyTests : IDisposable
     public void Dispose() => _host.Dispose();
 
     [Fact]
-    public void Society_initializes_all_127_npcs_with_activities_and_zero_deltas()
+    public void Society_initializes_all_300_npcs_with_activities_and_zero_deltas()
     {
         using var kernel = _host.Boot();
         var society = kernel.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle);
@@ -19,7 +19,7 @@ public sealed class SocietyTests : IDisposable
 
         var activities = society.AllActivities();
         Assert.Equal(registry.All.Count, activities.Count);
-        Assert.Equal(127, activities.Count);
+        Assert.Equal(300, activities.Count);
 
         // Check Quan Vũ (historical martial general)
         var guanYu = registry.All.First(n => n.NameVi.Contains("Quan Vũ"));
@@ -143,5 +143,71 @@ public sealed class SocietyTests : IDisposable
         // Verify DB persistence in np_npc
         var dbCit = db.ScalarLong("SELECT citadel_id FROM np_npc WHERE id = @id", DbArgs.One("@id", npc.Id));
         Assert.Equal(targetCit, dbCit);
+    }
+
+    [Fact]
+    public void Society_migration_moves_npcs_and_records_chronicle_events()
+    {
+        using var kernel = _host.Boot();
+        var society = kernel.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        // Advance 60 days (2 months) to allow migrations
+        kernel.AdvanceDays(60);
+
+        var travelEvents = society.RecentEvents(limit: 200, category: "travel");
+        Assert.NotEmpty(travelEvents);
+
+        // Verify that journey log contains migration/travel entries
+        Assert.Contains(travelEvents, e => e.EventKind == "travel");
+
+        // Verify activity location matches registry location
+        foreach (var evt in travelEvents)
+        {
+            var act = society.GetNpcActivity(evt.NpcId);
+            var npc = registry.Find(evt.NpcId);
+            Assert.NotNull(act);
+            Assert.NotNull(npc);
+            Assert.Equal(npc.CitadelId, act.CurrentCitadelId);
+        }
+    }
+
+    [Fact]
+    public void Society_replenish_spawns_procedural_npcs_with_valid_attributes_and_skills()
+    {
+        using var kernel = _host.Boot();
+        var society = kernel.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        var baselineCount = registry.All.Count;
+        Assert.Equal(300, baselineCount);
+
+        // Explicit procedural replenishment
+        var spawned = society.ReplenishNpcs(kernel.Today, count: 2);
+        Assert.Equal(2, spawned.Count);
+        Assert.Equal(baselineCount + 2, registry.All.Count);
+
+        foreach (var npc in spawned)
+        {
+            Assert.NotNull(npc);
+            Assert.True(npc.Id > 300);
+            Assert.NotEmpty(npc.NameVi);
+            Assert.NotEmpty(npc.Role);
+            Assert.True(npc.CitadelId >= 1 && npc.CitadelId <= 15);
+            Assert.True(npc.Attributes.War > 0);
+            Assert.NotEmpty(npc.Skills);
+
+            var act = society.GetNpcActivity(npc.Id);
+            Assert.NotNull(act);
+            Assert.Equal(npc.CitadelId, act.CurrentCitadelId);
+            Assert.True(act.CurrentWealth >= 500);
+
+            var deltas = society.GetStatDeltas(npc.Id);
+            Assert.NotNull(deltas);
+        }
+
+        // Check that chronicle logged the debut of procedural NPCs
+        var debutLogs = society.RecentEvents(limit: 50);
+        Assert.Contains(debutLogs, log => log.HeadlineVi.Contains("Nhân tài mới xuất thế"));
     }
 }

@@ -24,10 +24,11 @@ public sealed class NpcModule : ISimModule
     private sealed class NpcRegistry : INpcRegistry
     {
         private readonly IDbSession _db;
-        private readonly NpcDef[] _all;
+        private readonly List<NpcDef> _all;
         private readonly Dictionary<long, NpcDef> _byId;
         private readonly Dictionary<string, NpcDef> _byCode;
         private readonly Dictionary<long, List<NpcDef>> _byCitadel;
+        private readonly object _gate = new();
 
         public NpcRegistry(IDbSession db)
         {
@@ -92,10 +93,10 @@ public sealed class NpcModule : ISimModule
                     row.GetStringOrNull(19),
                     row.GetStringOrNull(20),
                     skillsByNpc.TryGetValue(row.GetInt64(0), out var sList) ? sList : Array.Empty<NpcSkillDef>()))
-                .ToArray();
+                .ToList();
 
-            _byId = new Dictionary<long, NpcDef>(_all.Length);
-            _byCode = new Dictionary<string, NpcDef>(_all.Length, StringComparer.OrdinalIgnoreCase);
+            _byId = new Dictionary<long, NpcDef>(_all.Count);
+            _byCode = new Dictionary<string, NpcDef>(_all.Count, StringComparer.OrdinalIgnoreCase);
             _byCitadel = new Dictionary<long, List<NpcDef>>();
 
             foreach (var npc in _all)
@@ -112,59 +113,175 @@ public sealed class NpcModule : ISimModule
             }
         }
 
-        public IReadOnlyList<NpcDef> All => _all;
+        public IReadOnlyList<NpcDef> All
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _all.ToArray();
+                }
+            }
+        }
 
-        public NpcDef? Find(long npcId) => _byId.GetValueOrDefault(npcId);
+        public NpcDef? Find(long npcId)
+        {
+            lock (_gate)
+            {
+                return _byId.GetValueOrDefault(npcId);
+            }
+        }
 
-        public NpcDef? FindByCode(string code) => _byCode.GetValueOrDefault(code);
+        public NpcDef? FindByCode(string code)
+        {
+            lock (_gate)
+            {
+                return _byCode.GetValueOrDefault(code);
+            }
+        }
 
-        public IReadOnlyList<NpcDef> FindByCitadel(long citadelId) =>
-            _byCitadel.TryGetValue(citadelId, out var list)
-                ? list
-                : Array.Empty<NpcDef>();
+        public IReadOnlyList<NpcDef> FindByCitadel(long citadelId)
+        {
+            lock (_gate)
+            {
+                return _byCitadel.TryGetValue(citadelId, out var list)
+                    ? list.ToArray()
+                    : Array.Empty<NpcDef>();
+            }
+        }
 
         public void UpdateCitadel(long npcId, long newCitadelId)
         {
-            if (!_byId.TryGetValue(npcId, out var existing))
+            lock (_gate)
             {
-                return;
-            }
-
-            if (existing.CitadelId == newCitadelId)
-            {
-                return;
-            }
-
-            var oldCitadelId = existing.CitadelId;
-            var updated = existing with { CitadelId = newCitadelId };
-
-            _byId[npcId] = updated;
-            _byCode[updated.Code] = updated;
-
-            for (var i = 0; i < _all.Length; i++)
-            {
-                if (_all[i].Id == npcId)
+                if (!_byId.TryGetValue(npcId, out var existing))
                 {
-                    _all[i] = updated;
-                    break;
+                    return;
                 }
+
+                if (existing.CitadelId == newCitadelId)
+                {
+                    return;
+                }
+
+                var oldCitadelId = existing.CitadelId;
+                var updated = existing with { CitadelId = newCitadelId };
+
+                _byId[npcId] = updated;
+                _byCode[updated.Code] = updated;
+
+                for (var i = 0; i < _all.Count; i++)
+                {
+                    if (_all[i].Id == npcId)
+                    {
+                        _all[i] = updated;
+                        break;
+                    }
+                }
+
+                _db.Execute(
+                    "UPDATE np_npc SET citadel_id = @citId WHERE id = @id",
+                    new DbArgs().Add("@citId", newCitadelId).Add("@id", npcId));
+
+                if (_byCitadel.TryGetValue(oldCitadelId, out var oldList))
+                {
+                    oldList.RemoveAll(n => n.Id == npcId);
+                }
+
+                if (!_byCitadel.TryGetValue(newCitadelId, out var newList))
+                {
+                    newList = new List<NpcDef>();
+                    _byCitadel[newCitadelId] = newList;
+                }
+                newList.Add(updated);
             }
+        }
 
-            _db.Execute(
-                "UPDATE np_npc SET citadel_id = @citId WHERE id = @id",
-                new DbArgs().Add("@citId", newCitadelId).Add("@id", npcId));
-
-            if (_byCitadel.TryGetValue(oldCitadelId, out var oldList))
+        public NpcDef RegisterDynamicNpc(
+            string code,
+            string nameVi,
+            string role,
+            long citadelId,
+            CharacterAttributes attributes,
+            string? personality = null,
+            string? bioVi = null,
+            IReadOnlyList<NpcSkillDef>? skills = null)
+        {
+            lock (_gate)
             {
-                oldList.RemoveAll(n => n.Id == npcId);
-            }
+                var newId = _db.ScalarLong("SELECT COALESCE(MAX(id), 0) + 1 FROM np_npc");
+                var skillList = skills ?? Array.Empty<NpcSkillDef>();
 
-            if (!_byCitadel.TryGetValue(newCitadelId, out var newList))
-            {
-                newList = new List<NpcDef>();
-                _byCitadel[newCitadelId] = newList;
+                _db.Execute(
+                    "INSERT INTO np_npc (id, code, name_vi, role, citadel_id) VALUES (@id, @code, @name, @role, @citId)",
+                    new DbArgs()
+                        .Add("@id", newId)
+                        .Add("@code", code)
+                        .Add("@name", nameVi)
+                        .Add("@role", role)
+                        .Add("@citId", citadelId));
+
+                _db.Execute(
+                    @"INSERT INTO np_attribute (npc_id, war_attr, ldr_attr, int_attr, pol_attr, dip_attr, com_attr, log_attr, cra_attr, con_attr, wil_attr, prc_attr, lck_attr, personality, bio_vi)
+                      VALUES (@id, @war, @ldr, @int, @pol, @dip, @com, @log, @cra, @con, @wil, @prc, @lck, @personality, @bio)",
+                    new DbArgs()
+                        .Add("@id", newId)
+                        .Add("@war", attributes.War)
+                        .Add("@ldr", attributes.Ldr)
+                        .Add("@int", attributes.Int)
+                        .Add("@pol", attributes.Pol)
+                        .Add("@dip", attributes.Dip)
+                        .Add("@com", attributes.Com)
+                        .Add("@log", attributes.Log)
+                        .Add("@cra", attributes.Cra)
+                        .Add("@con", attributes.Con)
+                        .Add("@wil", attributes.Wil)
+                        .Add("@prc", attributes.Prc)
+                        .Add("@lck", attributes.Lck)
+                        .Add("@personality", personality)
+                        .Add("@bio", bioVi));
+
+                foreach (var sk in skillList)
+                {
+                    _db.Execute(
+                        @"INSERT OR IGNORE INTO np_skill (npc_id, code, name_vi, category, tier, description, effect_summary)
+                          VALUES (@npcId, @code, @name, @category, @tier, @desc, @effect)",
+                        new DbArgs()
+                            .Add("@npcId", newId)
+                            .Add("@code", sk.Code)
+                            .Add("@name", sk.NameVi)
+                            .Add("@category", sk.Category)
+                            .Add("@tier", sk.Tier)
+                            .Add("@desc", sk.Description)
+                            .Add("@effect", sk.EffectSummary));
+                }
+
+                var npc = new NpcDef(
+                    newId,
+                    code,
+                    nameVi,
+                    null,
+                    null,
+                    role,
+                    citadelId,
+                    attributes,
+                    personality,
+                    bioVi,
+                    skillList);
+
+                _all.Add(npc);
+                _byId[newId] = npc;
+                _byCode[code] = npc;
+
+                if (!_byCitadel.TryGetValue(citadelId, out var citList))
+                {
+                    citList = new List<NpcDef>();
+                    _byCitadel[citadelId] = citList;
+                }
+                citList.Add(npc);
+
+                return npc;
             }
-            newList.Add(updated);
         }
     }
 }

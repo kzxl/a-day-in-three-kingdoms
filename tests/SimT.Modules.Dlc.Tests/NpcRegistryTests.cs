@@ -14,12 +14,19 @@ public sealed class NpcRegistryTests : IDisposable
         kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
 
     [Fact]
-    public void NpcRegistry_contains_all_127_characters()
+    public void NpcRegistry_contains_all_300_characters()
     {
         using var kernel = _host.Boot();
         var registry = Registry(kernel);
 
-        Assert.Equal(127, registry.All.Count);
+        Assert.Equal(300, registry.All.Count);
+
+        // All 15 citadels have exactly 20 baseline NPCs
+        for (long cid = 1; cid <= 15; cid++)
+        {
+            var citNpcs = registry.FindByCitadel(cid);
+            Assert.Equal(20, citNpcs.Count);
+        }
 
         // 2 baseline stub characters preserved
         var stubMerchant = registry.Find(1);
@@ -39,6 +46,50 @@ public sealed class NpcRegistryTests : IDisposable
         Assert.Equal(86, liuBei.Attributes.Con);
         Assert.Equal(98, liuBei.Attributes.Wil);
         Assert.Equal(90, liuBei.Attributes.Lck);
+
+        // Expanded cast characters (IDs 128 to 300)
+        var caoZhi = registry.FindByCode("npc_0221");
+        Assert.NotNull(caoZhi);
+        Assert.Equal("Tào Thực (Tử Kiến)", caoZhi.NameVi);
+        Assert.Equal(1, caoZhi.CitadelId);
+
+        var maDeng = registry.FindByCode("npc_0231");
+        Assert.NotNull(maDeng);
+        Assert.Equal("Mã Đằng (Thọ Thành)", maDeng.NameVi);
+        Assert.Equal(2, maDeng.CitadelId);
+    }
+
+    [Fact]
+    public void NpcRegistry_registers_dynamic_npcs_at_runtime()
+    {
+        using var kernel = _host.Boot();
+        var registry = Registry(kernel);
+
+        var initialCount = registry.All.Count;
+        Assert.Equal(300, initialCount);
+
+        var newNpc = registry.RegisterDynamicNpc(
+            "npc_custom_test",
+            "Võ Sĩ Ẩn Danh",
+            "Du Hiệp",
+            1,
+            new CharacterAttributes(70, 60, 50, 40, 50, 50, 50, 50, 60, 60, 50, 50),
+            "Khảng khái",
+            "Một hiệp khách giang hồ.");
+
+        Assert.NotNull(newNpc);
+        Assert.Equal(301, registry.All.Count);
+        Assert.Equal("Võ Sĩ Ẩn Danh", newNpc.NameVi);
+        Assert.Equal("npc_custom_test", newNpc.Code);
+        Assert.Equal(301, newNpc.Id);
+
+        var retrieved = registry.Find(newNpc.Id);
+        Assert.NotNull(retrieved);
+        Assert.Equal("Võ Sĩ Ẩn Danh", retrieved.NameVi);
+
+        var cit1Npcs = registry.FindByCitadel(1);
+        Assert.Equal(21, cit1Npcs.Count);
+        Assert.Contains(cit1Npcs, n => n.Id == newNpc.Id);
     }
 
     [Fact]

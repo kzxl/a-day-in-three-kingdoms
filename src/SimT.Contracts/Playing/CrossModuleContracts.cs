@@ -207,6 +207,17 @@ public interface INpcRegistry
 
     /// <summary>Updates an NPC's current citadel location in registry and storage.</summary>
     void UpdateCitadel(long npcId, long newCitadelId);
+
+    /// <summary>Registers a dynamically generated or procedural NPC into the registry and persistent storage.</summary>
+    NpcDef RegisterDynamicNpc(
+        string code,
+        string nameVi,
+        string role,
+        long citadelId,
+        CharacterAttributes attributes,
+        string? personality = null,
+        string? bioVi = null,
+        IReadOnlyList<NpcSkillDef>? skills = null);
 }
 
 /// <summary>Per-city inventory owned by <c>base.player</c>.</summary>
