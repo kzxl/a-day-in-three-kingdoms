@@ -15,7 +15,7 @@
             <Grid Margin="2,1">
                 <!-- Case 1: Progress / Gauge Meter (Durability or Level) -->
                 <Grid Visibility="{Binding ProgressVisibility}" Width="110" HorizontalAlignment="Left">
-                    <ProgressBar Height="14" Minimum="0" Maximum="{Binding ProgressMax}" Value="{Binding ProgressValue}"
+                    <ProgressBar Height="14" Minimum="0" Maximum="{Binding ProgressMax, Mode=OneWay}" Value="{Binding ProgressValue, Mode=OneWay}"
                                  Foreground="{Binding ProgressBrush}" Background="#1C2430"
                                  BorderBrush="#26303D" BorderThickness="1" />
                     <TextBlock Text="{Binding Text}" FontSize="10" FontWeight="SemiBold"

@@ -83,9 +83,9 @@ public sealed class CellVm : IComparable
 
     public bool HasProgress { get; }
 
-    public double ProgressValue { get; }
+    public double ProgressValue { get; set; }
 
-    public double ProgressMax { get; }
+    public double ProgressMax { get; set; }
 
     public Brush? ProgressBrush { get; }
 
