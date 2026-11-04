@@ -118,7 +118,8 @@ public sealed class NpcRegistryTests : IDisposable
         var initialModel = screen.Render();
         var localSection = initialModel.Sections.First(s => s.Heading.Contains("đồng thành"));
         var npcRowBefore = localSection.Rows.First(r => r.Cells[0] == localNpc.NameVi);
-        Assert.Contains(npcRowBefore.Details, d => d.Value.Contains("Cơ mật bản thể"));
+        Assert.NotNull(npcRowBefore.Details);
+        Assert.Contains(npcRowBefore.Details!, d => d.Value.Contains("Cơ mật bản thể"));
 
         // Meet NPC via chat
         social.ChatWithNpc(localNpc.Id);
@@ -127,6 +128,7 @@ public sealed class NpcRegistryTests : IDisposable
         var updatedModel = screen.Render();
         var updatedLocalSection = updatedModel.Sections.First(s => s.Heading.Contains("đồng thành"));
         var npcRowAfter = updatedLocalSection.Rows.First(r => r.Cells[0] == localNpc.NameVi);
-        Assert.Contains(npcRowAfter.Details, d => d.Label == "Căn Cốt (CON)" && d.Value == localNpc.Attributes.Con.ToString());
+        Assert.NotNull(npcRowAfter.Details);
+        Assert.Contains(npcRowAfter.Details!, d => d.Label == "Căn Cốt (CON)" && d.Value == localNpc.Attributes.Con.ToString());
     }
 }

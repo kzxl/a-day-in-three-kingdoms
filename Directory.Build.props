@@ -13,10 +13,10 @@
 
   <!-- Version single source of truth (R_VER). Bump all three together. -->
   <PropertyGroup>
-    <Version>0.4.0</Version>
-    <AssemblyVersion>0.4.0.0</AssemblyVersion>
-    <FileVersion>0.4.0.0</FileVersion>
-    <InformationalVersion>0.4.0</InformationalVersion>
+    <Version>0.4.1</Version>
+    <AssemblyVersion>0.4.1.0</AssemblyVersion>
+    <FileVersion>0.4.1.0</FileVersion>
+    <InformationalVersion>0.4.1</InformationalVersion>
     <Product>SimT</Product>
     <Company>SimT</Company>
   </PropertyGroup>
