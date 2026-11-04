@@ -53,11 +53,15 @@
                    VerticalAlignment="Center" Visibility="Collapsed"
                    Text="Chưa có ván nào. Gõ tên rồi bấm Tạo ván." />
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Vào ván" Click="Load_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
-            <Button Content="Nhân bản" Click="Duplicate_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,0" />
-            <Button Content="Xóa" Click="Delete_Click" Style="{StaticResource GhostButton}" />
-        </StackPanel>
+        <DockPanel Grid.Row="3" Margin="0,16,0,0">
+            <Button Content="⚙ Quản Lý DLC" Click="DlcManager_Click" Style="{StaticResource GhostButton}"
+                    DockPanel.Dock="Left" ToolTip="Xem danh sách 9 DLC Tam Quốc &amp; kiểm tra toàn vẹn ván chơi" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Vào ván" Click="Load_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
+                <Button Content="Nhân bản" Click="Duplicate_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,0" />
+                <Button Content="Xóa" Click="Delete_Click" Style="{StaticResource GhostButton}" />
+            </StackPanel>
+        </DockPanel>
 
         <TextBlock Grid.Row="4" x:Name="VersionText" Style="{StaticResource Caption}"
                    Foreground="{StaticResource Faint}" Margin="0,14,0,0" FontSize="10.5" />

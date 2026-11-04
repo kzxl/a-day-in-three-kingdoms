@@ -83,4 +83,28 @@ public static class GameDateCodec
     /// <summary>"Xuân · Tháng Hai · năm 184" — the header line of the shell.</summary>
     public static string DescribeSeason(GameDate date) =>
         $"{SeasonVi(date.Month)} · Tháng {MonthNameVi(date.Month)} · năm {date.Year}";
+
+    /// <summary>Historical Han / Three Kingdoms reign era title.</summary>
+    public static string EraVi(int year) => year switch
+    {
+        <= 183 => "Đông Hán · Quang Hòa",
+        184 => "Đông Hán · Trung Bình Nguyên Niên",
+        <= 189 => $"Đông Hán · Trung Bình Năm {year - 183}",
+        190 => "Đông Hán · Sơ Bình Nguyên Niên",
+        <= 193 => $"Đông Hán · Sơ Bình Năm {year - 189}",
+        194 => "Đông Hán · Hưng Bình Nguyên Niên",
+        195 => "Đông Hán · Hưng Bình Năm 2",
+        196 => "Đông Hán · Kiến An Nguyên Niên",
+        <= 220 => $"Đông Hán · Kiến An Năm {year - 195}",
+        _ => $"Tam Quốc · Năm {year}"
+    };
+
+    /// <summary>Seasonal visual icon glyph.</summary>
+    public static string SeasonGlyph(int month) => month switch
+    {
+        <= 3 => "🌸",
+        <= 6 => "☀️",
+        <= 9 => "🍂",
+        _ => "❄️"
+    };
 }

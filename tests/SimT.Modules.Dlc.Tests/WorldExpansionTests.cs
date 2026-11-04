@@ -78,4 +78,46 @@ public sealed class WorldExpansionTests : IDisposable
         Assert.NotEmpty(luoyangSubs);
         Assert.Contains(luoyangSubs, s => s.NameVi.Contains("Kim Loan Điện"));
     }
+
+    [Fact]
+    public void WorldMap_screen_is_registered_and_renders_15_citadels()
+    {
+        using var kernel = _host.Boot();
+        var screen = kernel.Ui.Screens.FirstOrDefault(s => s.ScreenId == "world.map");
+        Assert.NotNull(screen);
+        Assert.Equal("Bản Đồ", screen.Title);
+        Assert.Equal(15, screen.Order);
+
+        var model = screen.Render();
+        Assert.Equal("world.map", model.ScreenId);
+        Assert.NotEmpty(model.Sections);
+
+        var totalRows = model.Sections.Sum(sec => sec.Rows.Count);
+        Assert.Equal(15, totalRows);
+        Assert.Contains(model.Headline, m => m.Label == "Thành Đang Trú");
+    }
+
+    [Fact]
+    public void WorldMap_command_handler_travels_between_adjacent_citadels()
+    {
+        using var kernel = _host.Boot();
+        var hasHandler = kernel.Ui.TryGetCommandHandler("world.map", out var handler);
+        Assert.True(hasHandler);
+        Assert.NotNull(handler);
+
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        Assert.Equal(1, player.CurrentCityId); // Start in Lạc Dương (1)
+        var startDate = kernel.Today;
+
+        // Travel to Hứa Xương (7): direct distance is 2 days
+        var result = handler.Execute("travel:7");
+        Assert.NotNull(result);
+        Assert.Contains("Hứa Xương", result);
+        Assert.Equal(7, player.CurrentCityId);
+        Assert.Equal(startDate.Day + 2, kernel.Today.Day);
+
+        // Attempting to travel to same city returns failure message
+        var duplicateResult = handler.Execute("travel:7");
+        Assert.Contains("đã đang ở", duplicateResult);
+    }
 }

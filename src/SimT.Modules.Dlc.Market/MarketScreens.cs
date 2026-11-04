@@ -50,7 +50,7 @@ internal sealed class StallScreen : IScreenContribution
 
     public string ScreenId => "market.stall";
 
-    public string Title => "Sạp Chợ";
+    public string Title => "Chợ Đầu Mối";
 
     public int Order => 20;
 
@@ -520,7 +520,7 @@ internal sealed class PlayerStallScreen : IScreenContribution
 
     public string ScreenId => "market.player_stall";
 
-    public string Title => "Tiệm Buôn";
+    public string Title => "Tiệm Của Bạn";
 
     public int Order => 21;
 

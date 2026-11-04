@@ -9,6 +9,7 @@ using SimT.Contracts.Playing;
 using SimT.Contracts.Products;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
+using SimT.Host.Wpf.Controls;
 using SimT.Core.Kernel;
 
 namespace SimT.Host.Wpf;
@@ -45,6 +46,7 @@ public partial class MainWindow : Window
         VersionText.Text = ShortVersion();
         VersionText.TextTrimming = TextTrimming.CharacterEllipsis;
         DarkTitleBar.Apply(this);
+        PlayerHudCard.ProfileClicked += OpenPlayerProfileModal;
 
         BuildRail();
         UpdateHeader();
@@ -68,6 +70,7 @@ public partial class MainWindow : Window
 
     private static string GlyphFor(string screenId) => screenId switch
     {
+        "world.map" => "🗺️",
         "market.stall" => "◈",
         "market.player_stall" => "🎪",
         "market.warehouse" => "▤",
@@ -86,25 +89,16 @@ public partial class MainWindow : Window
     private void UpdateHeader()
     {
         var today = _kernel.Today;
-        YearText.Text = today.Year.ToString(Vietnamese);
-        YearSuffixText.Text = "SCN";
-        SeasonText.Text = $"{GameDateCodec.SeasonVi(today.Month)} · Tháng {GameDateCodec.MonthNameVi(today.Month)}";
-        DateText.Text = $"Ngày {today.Day}/{GameDate.DaysPerMonth} · {GameDateCodec.ShortVi(today)}";
-
-        TurnText.Text = $"Lượt {_kernel.Turn} · {GameDateCodec.ShortVi(_kernel.Product.StartDate)} khởi nghiệp";
+        ChronoCard.Configure(today, _kernel.Turn, _kernel.Product.StartDate);
 
         var liquid = _kernel.Ledger.Liquid;
         var safe = _kernel.Ledger.Safe;
         var goods = GoodsValue();
-        CashText.Text = liquid.ToString("N0", Vietnamese);
-        CashHintText.Text = safe > 0 ? $"quan · trong két {safe.ToString("N0", Vietnamese)}" : "quan";
-        GoodsText.Text = $"hàng hóa {goods.ToString("N0", Vietnamese)} quan";
-        NetWorthText.Text = $"tổng {(_kernel.Ledger.Balance + goods).ToString("N0", Vietnamese)} quan";
+        var netWorth = _kernel.Ledger.Balance + goods;
+        TreasuryCard.Configure(liquid, safe, goods, netWorth);
 
         if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) && playerState is not null)
         {
-            PlayerNameText.Text = playerState.Name;
-
             var citadelName = "Lạc Dương";
             if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
             {
@@ -114,16 +108,14 @@ public partial class MainWindow : Window
                     citadelName = $"{cit.NameVi} ({cit.Region})";
                 }
             }
-            PlayerLocationText.Text = $"📍 {citadelName}";
 
+            CharacterVitals? vitals = null;
             if (_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)
             {
-                var v = attrs.Vitals;
-                StaminaText.Text = $"{v.CurrentStamina}/{v.MaxStamina}";
-                var ratio = v.MaxStamina > 0 ? Math.Clamp((double)v.CurrentStamina / v.MaxStamina, 0.05, 1.0) : 1.0;
-                StaminaBar.Width = Math.Max(4, ratio * 200);
-                HealthText.Text = $"HP {v.Health}/{v.MaxHp} · Mệt {v.Fatigue}%";
+                vitals = attrs.Vitals;
             }
+
+            PlayerHudCard.Configure(playerState.Name, $"📍 {citadelName}", vitals);
         }
 
         RenderCalendar(today);

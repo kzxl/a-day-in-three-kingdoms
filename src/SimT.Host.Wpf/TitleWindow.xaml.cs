@@ -101,6 +101,27 @@ public partial class TitleWindow : Window
         Reload();
     }
 
+    private void DlcManager_Click(object sender, RoutedEventArgs e)
+    {
+        if (SaveList.SelectedItem is SaveItem selected)
+        {
+            try
+            {
+                using var kernel = _saves.Open(selected.Meta);
+                var dlcWin = new DlcSettingsWindow(kernel) { Owner = this };
+                dlcWin.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Không thể nạp thông tin DLC: {ex.Message}", "Quản Lý DLC", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        else
+        {
+            MessageBox.Show("Vui lòng chọn một ván chơi trong danh sách để quản lý và kiểm tra DLC của ván đó.", "Quản Lý DLC", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
     private void Enter(CampaignMeta meta)
     {
         try

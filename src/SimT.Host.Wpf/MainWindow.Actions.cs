@@ -133,6 +133,12 @@ public partial class MainWindow
     private string ScreenForCommand() =>
         NavList.SelectedItem is NavEntry entry ? entry.ScreenId : _screenId;
 
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        var settingsWindow = new DlcSettingsWindow(_kernel) { Owner = this };
+        settingsWindow.ShowDialog();
+    }
+
     private void PlayerCard_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         OpenPlayerProfileModal();

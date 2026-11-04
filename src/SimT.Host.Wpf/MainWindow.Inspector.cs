@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using SimT.Contracts.Ui;
+using SimT.Contracts.Playing;
 
 namespace SimT.Host.Wpf;
 
@@ -46,6 +47,47 @@ public partial class MainWindow
                 Foreground = (Brush)FindResource("Faint")
             });
             InspectorBody.Children.Add(line);
+        }
+
+        // Price Trend Chart Integration: If item has trade price history, render GamePriceChart
+        if (_kernel.Capabilities.TryGet<SimT.Contracts.Playing.IMarketTrade>(CapabilityIds.MarketTrade, out var trade) && trade is not null
+            && _kernel.Capabilities.TryGet<SimT.Contracts.Playing.IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
+        {
+            long? tradeItemId = null;
+            foreach (var cmd in row.Commands)
+            {
+                if (cmd.Id.StartsWith("buy:") && long.TryParse(cmd.Id["buy:".Length..], out var bId))
+                {
+                    tradeItemId = bId;
+                    break;
+                }
+                if (cmd.Id.StartsWith("sell:") && long.TryParse(cmd.Id["sell:".Length..], out var sId))
+                {
+                    tradeItemId = sId;
+                    break;
+                }
+            }
+
+            if (!tradeItemId.HasValue && _kernel.Capabilities.TryGet<SimT.Contracts.Playing.IItemCatalog>(CapabilityIds.ItemCatalog, out var catalog) && catalog is not null)
+            {
+                var candidate = catalog.All.FirstOrDefault(i => string.Equals(i.NameVi, title, StringComparison.OrdinalIgnoreCase) || (row.Cells.Count > 0 && string.Equals(i.NameVi, row.Cells[0], StringComparison.OrdinalIgnoreCase)));
+                if (candidate is not null)
+                {
+                    tradeItemId = candidate.Id;
+                }
+            }
+
+            if (tradeItemId.HasValue)
+            {
+                var history = trade.PriceHistory(player.CurrentCityId, tradeItemId.Value, 15);
+                if (history.Count > 0)
+                {
+                    var chart = new Controls.GamePriceChart();
+                    chart.SetData(title, history);
+                    chart.Margin = new Thickness(0, 10, 0, 10);
+                    InspectorBody.Children.Add(chart);
+                }
+            }
         }
 
         if (row.Commands.Count > 0)

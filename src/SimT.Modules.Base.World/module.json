@@ -10,5 +10,5 @@
     "tables": ["wd_citadel", "wd_route"],
     "migrations": ["migrations"]
   },
-  "screens": []
+  "screens": ["world.map"]
 }
