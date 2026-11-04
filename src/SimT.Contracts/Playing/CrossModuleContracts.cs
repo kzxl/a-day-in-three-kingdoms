@@ -27,6 +27,7 @@ public static class CapabilityIds
     public const string NpcMarket = "market.npc_stalls";
     public const string SocietyChronicle = "society.chronicle";
     public const string SocialNetwork = "social.network";
+    public const string MilitaryCommand = "military.command";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>

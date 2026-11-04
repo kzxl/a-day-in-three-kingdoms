@@ -1,0 +1,269 @@
+using SimT.Contracts;
+using SimT.Contracts.Data;
+using SimT.Contracts.Logging;
+using SimT.Contracts.Playing;
+using SimT.Contracts.Time;
+
+namespace SimT.Modules.Dlc.Military;
+
+internal sealed class MilitaryService : IMilitaryCommand
+{
+    private readonly IDbSession _db;
+    private readonly IGameClock _clock;
+    private readonly IWallet _wallet;
+    private readonly IBag _bag;
+    private readonly INpcRegistry _registry;
+    private readonly IWorldMap _map;
+    private readonly IPlayerState _player;
+    private readonly IPlayerAttributes _attributes;
+    private readonly IItemCatalog _items;
+    private readonly ILog _log;
+
+    public MilitaryService(
+        IDbSession db,
+        IGameClock clock,
+        IWallet wallet,
+        IBag bag,
+        INpcRegistry registry,
+        IWorldMap map,
+        IPlayerState player,
+        IPlayerAttributes attributes,
+        IItemCatalog items,
+        ILog log)
+    {
+        _db = db;
+        _clock = clock;
+        _wallet = wallet;
+        _bag = bag;
+        _registry = registry;
+        _map = map;
+        _player = player;
+        _attributes = attributes;
+        _items = items;
+        _log = log;
+    }
+
+    public IReadOnlyList<StrongholdDef> StrongholdsAt(long citadelId)
+    {
+        return _db.Query(
+            "SELECT id, citadel_id, name_vi, bandit_faction, danger_level, loot_gold, item_reward_code, cleared_count, last_cleared_date " +
+            "FROM ml_stronghold WHERE citadel_id = @citId ORDER BY danger_level ASC",
+            record => new StrongholdDef(
+                record.GetInt64(0),
+                record.GetInt64(1),
+                record.GetString(2),
+                record.GetString(3),
+                record.GetInt32(4),
+                record.GetInt32(5),
+                record.GetString(6),
+                record.GetInt32(7),
+                record.IsDbNull(8) ? null : GameDateCodec.Parse(record.GetString(8))),
+            DbArgs.One("@citId", citadelId));
+    }
+
+    public IReadOnlyList<StrongholdDef> AllStrongholds()
+    {
+        return _db.Query(
+            "SELECT id, citadel_id, name_vi, bandit_faction, danger_level, loot_gold, item_reward_code, cleared_count, last_cleared_date " +
+            "FROM ml_stronghold ORDER BY citadel_id ASC, danger_level ASC",
+            record => new StrongholdDef(
+                record.GetInt64(0),
+                record.GetInt64(1),
+                record.GetString(2),
+                record.GetString(3),
+                record.GetInt32(4),
+                record.GetInt32(5),
+                record.GetString(6),
+                record.GetInt32(7),
+                record.IsDbNull(8) ? null : GameDateCodec.Parse(record.GetString(8))));
+    }
+
+    public IReadOnlyList<SupplyRequisitionDef> ActiveRequisitions(long citadelId)
+    {
+        return _db.Query(
+            "SELECT id, citadel_id, target_item_code, target_item_name, quantity_needed, reward_per_unit, deadline_date, fulfilled " +
+            "FROM ml_supply_requisition WHERE citadel_id = @citId AND fulfilled = 0 ORDER BY id ASC",
+            record => new SupplyRequisitionDef(
+                record.GetInt64(0),
+                record.GetInt64(1),
+                record.GetString(2),
+                record.GetString(3),
+                record.GetInt32(4),
+                record.GetInt32(5),
+                GameDateCodec.Parse(record.GetString(6)),
+                record.GetInt32(7) == 1),
+            DbArgs.One("@citId", citadelId));
+    }
+
+    public DuelResult ChallengeArena(long npcId)
+    {
+        var npc = _registry.Find(npcId)
+                  ?? throw new SimException("military.npc_not_found", $"Không tìm thấy võ sĩ mã {npcId}.");
+
+        var today = _clock.Today;
+        var formattedDate = GameDateCodec.Format(today);
+
+        _attributes.ApplyFatigue(10);
+
+        var pAttr = _attributes.Attributes;
+        var nAttr = npc.Attributes;
+
+        // Combat power rating
+        var pPower = (pAttr.War * 0.7) + (pAttr.Con * 0.2) + (pAttr.Wil * 0.1);
+        var nPower = (nAttr.War * 0.7) + (nAttr.Con * 0.2) + (nAttr.Wil * 0.1);
+
+        var won = pPower >= nPower;
+        var rounds = won ? 3 : 4;
+        var prize = won ? Math.Max(60, (int)(nAttr.War * 2.2)) : 0;
+
+        var summary = won
+            ? $"Trải qua {rounds} hiệp giao tranh kịch liệt, quyền pháp biến ảo vô lường, bạn đã xuất sắc đả bại {npc.NameVi}!"
+            : $"Võ công của {npc.NameVi} quá xuất chúng ({nAttr.War} Võ Lực), sau {rounds} hiệp bạn đã bại trận trong gang tấc.";
+
+        _db.Transaction(() =>
+        {
+            if (won && prize > 0)
+            {
+                _wallet.Pay(prize, "military.arena", $"Thưởng quán quân lôi đài đả bại {npc.NameVi}", $"duel:{npcId}:{formattedDate}");
+                _attributes.AddExp("WAR", 25);
+                _attributes.AddExp("LDR", 10);
+            }
+            else
+            {
+                _attributes.AddExp("WAR", 12);
+            }
+
+            _db.Execute(
+                "INSERT INTO ml_duel_log (date, challenger_name, opponent_npc_id, opponent_name, citadel_id, winner, rounds, log_details, reward_gold) " +
+                "VALUES (@date, 'Lữ Khách', @npcId, @npcName, @citId, @winner, @rounds, @details, @prize)",
+                new DbArgs()
+                    .Add("@date", formattedDate)
+                    .Add("@npcId", npcId)
+                    .Add("@npcName", npc.NameVi)
+                    .Add("@citId", _player.CurrentCityId)
+                    .Add("@winner", won ? "player" : "npc")
+                    .Add("@rounds", rounds)
+                    .Add("@details", summary)
+                    .Add("@prize", prize));
+        });
+
+        _log.Info($"Arena duel against {npc.NameVi}: won={won}, prize={prize}.");
+        return new DuelResult(won, rounds, prize, npc.NameVi, summary);
+    }
+
+    public string AssaultStronghold(long strongholdId)
+    {
+        var stronghold = _db.QueryOne(
+            "SELECT id, citadel_id, name_vi, bandit_faction, danger_level, loot_gold, item_reward_code, cleared_count, last_cleared_date " +
+            "FROM ml_stronghold WHERE id = @id",
+            record => new StrongholdDef(
+                record.GetInt64(0),
+                record.GetInt64(1),
+                record.GetString(2),
+                record.GetString(3),
+                record.GetInt32(4),
+                record.GetInt32(5),
+                record.GetString(6),
+                record.GetInt32(7),
+                record.IsDbNull(8) ? null : GameDateCodec.Parse(record.GetString(8))),
+            DbArgs.One("@id", strongholdId))
+            ?? throw new SimException("military.stronghold_not_found", $"Không tìm thấy sào huyệt mã {strongholdId}.");
+
+        var today = _clock.Today;
+        var formattedDate = GameDateCodec.Format(today);
+
+        _attributes.ApplyFatigue(15);
+
+        var pAttr = _attributes.Attributes;
+        var playerPower = pAttr.War + (pAttr.Con / 3) + (pAttr.Ldr / 3);
+        var requiredPower = stronghold.DangerLevel * 14;
+
+        var won = playerPower >= requiredPower;
+        if (!won)
+        {
+            _attributes.ApplyFatigue(10);
+            return $"Thất bại! Thế lực {stronghold.NameVi} quá đông đảo (Độ nguy hiểm cấp {stronghold.DangerLevel}). Quân ta lực bất tòng tâm đành phải tạm lui binh.";
+        }
+
+        var item = _items.FindByCode(stronghold.ItemRewardCode);
+        var currentCity = _player.CurrentCityId;
+
+        _db.Transaction(() =>
+        {
+            _wallet.Pay(stronghold.LootGold, "military.loot", $"Chiến lợi phẩm tiễu phạt {stronghold.NameVi}", $"assault:{strongholdId}:{formattedDate}");
+
+            if (item is not null)
+            {
+                _bag.Add(currentCity, item.Id, 2);
+            }
+
+            _db.Execute(
+                "UPDATE ml_stronghold SET cleared_count = cleared_count + 1, last_cleared_date = @date WHERE id = @id",
+                new DbArgs().Add("@date", formattedDate).Add("@id", strongholdId));
+
+            _attributes.AddExp("WAR", 30);
+            _attributes.AddExp("LDR", 20);
+        });
+
+        var itemName = item?.NameVi ?? "Quân lương";
+        _log.Info($"Assaulted stronghold {stronghold.NameVi}: victory, loot={stronghold.LootGold}, item={itemName}.");
+        return $"Đại Thắng! Tiễu trừ {stronghold.NameVi}, thu hồi {stronghold.LootGold} Quan và 2 {itemName} nạp vào hành trang.";
+    }
+
+    public string FulfillRequisition(long requisitionId)
+    {
+        var req = _db.QueryOne(
+            "SELECT id, citadel_id, target_item_code, target_item_name, quantity_needed, reward_per_unit, deadline_date, fulfilled " +
+            "FROM ml_supply_requisition WHERE id = @id",
+            record => new SupplyRequisitionDef(
+                record.GetInt64(0),
+                record.GetInt64(1),
+                record.GetString(2),
+                record.GetString(3),
+                record.GetInt32(4),
+                record.GetInt32(5),
+                GameDateCodec.Parse(record.GetString(6)),
+                record.GetInt32(7) == 1),
+            DbArgs.One("@id", requisitionId))
+            ?? throw new SimException("military.requisition_not_found", $"Không tìm thấy lệnh điều động quân cơ mã {requisitionId}.");
+
+        if (req.Fulfilled)
+        {
+            return "Lệnh quân cơ này đã được hoàn tất trước đó.";
+        }
+
+        var item = _items.FindByCode(req.TargetItemCode)
+                   ?? throw new SimException("military.item_missing", $"Vật phẩm quân lương {req.TargetItemCode} không tồn tại.");
+
+        var currentCity = _player.CurrentCityId;
+        if (_bag.Quantity(currentCity, item.Id) < req.QuantityNeeded)
+        {
+            throw new SimException("military.insufficient_goods",
+                $"Trong kho hành trang không đủ {req.QuantityNeeded} {req.TargetItemName} (hiện có {_bag.Quantity(currentCity, item.Id)}).");
+        }
+
+        var today = _clock.Today;
+        var formattedDate = GameDateCodec.Format(today);
+        var totalReward = req.QuantityNeeded * req.RewardPerUnit;
+
+        _db.Transaction(() =>
+        {
+            if (!_bag.Remove(currentCity, item.Id, req.QuantityNeeded))
+            {
+                throw new SimException("military.deduct_failed", "Lỗi khấu trừ vật phẩm từ hành trang.");
+            }
+
+            _wallet.Pay(totalReward, "military.supply", $"Thù lao cung ứng quân nhu: {req.TargetItemName}", $"supply:{requisitionId}:{formattedDate}");
+
+            _db.Execute(
+                "UPDATE ml_supply_requisition SET fulfilled = 1 WHERE id = @id",
+                DbArgs.One("@id", requisitionId));
+
+            _attributes.AddExp("LOG", 20);
+            _attributes.AddExp("DIP", 15);
+        });
+
+        _log.Info($"Fulfilled supply requisition {req.TargetItemName} x{req.QuantityNeeded} for {totalReward} Quan.");
+        return $"Đã giao nộp {req.QuantityNeeded} {req.TargetItemName} cho quân cơ doanh, nhận thưởng hậu hĩ {totalReward} Quan!";
+    }
+}

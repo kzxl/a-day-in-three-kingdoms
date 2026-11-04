@@ -82,6 +82,7 @@ public partial class MainWindow : Window
         "npc.directory" => "👤",
         "society.chronicle" => "📜",
         "social.network" => "🤝",
+        "military.arena" => "⚔",
         _ => "•"
     };
 

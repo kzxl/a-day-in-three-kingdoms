@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>SimT.Modules.Dlc.Military</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SimT.Contracts\SimT.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="module.json">
+      <LogicalName>module.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="migrations\*.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SimT.Modules.Dlc.Tests" />
+  </ItemGroup>
+
+</Project>

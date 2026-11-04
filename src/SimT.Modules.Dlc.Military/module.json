@@ -1,0 +1,18 @@
+{
+  "id": "dlc.military",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "kind": "dlc",
+  "requires": ["base.world", "base.npc", "base.player", "base.content"],
+  "provides": ["military.command"],
+  "consumes": ["world.map", "npc.registry", "player.wallet", "player.bag", "player.state", "player.attributes", "content.items"],
+  "owns": {
+    "tables": [
+      "ml_stronghold",
+      "ml_duel_log",
+      "ml_supply_requisition"
+    ],
+    "migrations": ["migrations"]
+  },
+  "screens": ["military.arena"]
+}
