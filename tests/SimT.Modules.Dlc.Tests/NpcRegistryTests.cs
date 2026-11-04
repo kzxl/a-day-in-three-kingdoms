@@ -219,4 +219,61 @@ public sealed class NpcRegistryTests : IDisposable
         Assert.NotNull(npcRowAfter.Details);
         Assert.Contains(npcRowAfter.Details!, d => d.Label == "Căn Cốt (CON)" && d.Value == localNpc.Attributes.Con.ToString());
     }
+
+    [Fact]
+    public void NpcDirectoryScreen_tue_nhan_perception_reveals_stats_at_thresholds()
+    {
+        using var kernel = _host.Boot();
+        var screen = kernel.Ui.Screens.FirstOrDefault(s => s.ScreenId == "npc.directory");
+        Assert.NotNull(screen);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var playerAttrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+
+        var localNpc = registry.All.First(n => n.CitadelId == 1);
+
+        // Tier 1 (Default PRC = 60): Narrow estimation (Mẫn Tiệp), innate stats hidden
+        Assert.Equal(60, playerAttrs.Attributes.Prc);
+        var modelPrc60 = screen.Render();
+        Assert.NotNull(modelPrc60.Metrics);
+        Assert.Contains(modelPrc60.Metrics!, m => m.Label == "Tuệ Nhãn" && m.Value == "60 điểm");
+        var localSec60 = modelPrc60.Sections.First(s => s.Heading.Contains("đồng thành"));
+        var row60 = localSec60.Rows.First(r => r.Cells[0] == localNpc.NameVi);
+        Assert.StartsWith("~", row60.Cells[4]); // WAR estimation
+        Assert.Contains(row60.Details!, d => d.Value.Contains("Cơ mật bản thể"));
+
+        // Chat grants PRC experience
+        var initialPrcExp = playerAttrs.Exps.Prc;
+        social.ChatWithNpc(localNpc.Id);
+        Assert.True(playerAttrs.Exps.Prc > initialPrcExp || playerAttrs.Attributes.Prc > 60);
+
+        // Tier 2 (PRC = 70): Behavioral stats exact, innate stats veiled (< 85)
+        // Find another unmet local NPC
+        var unmetLocalNpc = registry.All.First(n => n.CitadelId == 1 && n.Id != localNpc.Id);
+        playerAttrs.AddExp("PRC", 1000); // 60 -> 70
+        Assert.True(playerAttrs.Attributes.Prc >= 70);
+
+        var modelPrc70 = screen.Render();
+        Assert.NotNull(modelPrc70.Metrics);
+        Assert.Contains(modelPrc70.Metrics!, m => m.Label == "Tuệ Nhãn" && (m.Hint?.Contains("Thông Tuệ") ?? false));
+        var localSec70 = modelPrc70.Sections.First(s => s.Heading.Contains("đồng thành"));
+        var row70 = localSec70.Rows.First(r => r.Cells[0] == unmetLocalNpc.NameVi);
+        Assert.Equal(unmetLocalNpc.Attributes.War.ToString(), row70.Cells[4]); // Exact WAR!
+        Assert.Equal(unmetLocalNpc.Attributes.Int.ToString(), row70.Cells[6]); // Exact INT!
+        Assert.Contains(row70.Details!, d => d.Label == "Võ Lực (WAR)" && d.Value == unmetLocalNpc.Attributes.War.ToString());
+        Assert.Contains(row70.Details!, d => d.Value.Contains("PRC 85+")); // Innate CON still veiled
+
+        // Tier 3 (PRC = 85): 100% full reveal on all local NPCs without meeting
+        playerAttrs.AddExp("PRC", 1500); // 70 -> 85
+        Assert.True(playerAttrs.Attributes.Prc >= 85);
+
+        var modelPrc85 = screen.Render();
+        Assert.NotNull(modelPrc85.Metrics);
+        Assert.Contains(modelPrc85.Metrics!, m => m.Label == "Tuệ Nhãn" && (m.Hint?.Contains("Như Đuốc") ?? false));
+        var localSec85 = modelPrc85.Sections.First(s => s.Heading.Contains("đồng thành"));
+        var row85 = localSec85.Rows.First(r => r.Cells[0] == unmetLocalNpc.NameVi);
+        Assert.Equal(unmetLocalNpc.Attributes.War.ToString(), row85.Cells[4]);
+        Assert.Contains(row85.Details!, d => d.Label == "Căn Cốt (CON)" && d.Value == unmetLocalNpc.Attributes.Con.ToString());
+        Assert.DoesNotContain(row85.Details!, d => d.Value.Contains("Cơ mật bản thể"));
+    }
 }

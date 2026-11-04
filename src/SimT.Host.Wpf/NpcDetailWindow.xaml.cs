@@ -37,6 +37,7 @@ public partial class NpcDetailWindow : Window
     private readonly CharacterAttributeExps? _exps;
     private readonly ProtagonistExtraData? _protagonistExtra;
     private readonly IReadOnlyList<MemoryEntry>? _memories;
+    private readonly int _playerPrc;
 
     private string _selectedSkillCategory = "all";
 
@@ -57,7 +58,8 @@ public partial class NpcDetailWindow : Window
         int playerStamina = 100,
         CharacterAttributeExps? exps = null,
         ProtagonistExtraData? protagonistExtra = null,
-        IReadOnlyList<MemoryEntry>? memories = null)
+        IReadOnlyList<MemoryEntry>? memories = null,
+        int playerPrc = 50)
     {
         InitializeComponent();
         DarkTitleBar.Apply(this);
@@ -78,6 +80,7 @@ public partial class NpcDetailWindow : Window
         _exps = exps;
         _protagonistExtra = protagonistExtra;
         _memories = memories;
+        _playerPrc = playerPrc;
 
         Populate();
     }
@@ -99,7 +102,8 @@ public partial class NpcDetailWindow : Window
         Action<long>? onMeetNpc = null,
         CharacterAttributeExps? exps = null,
         ProtagonistExtraData? protagonistExtra = null,
-        IReadOnlyList<MemoryEntry>? memories = null)
+        IReadOnlyList<MemoryEntry>? memories = null,
+        int playerPrc = 50)
     {
         var window = new NpcDetailWindow(
             npc,
@@ -115,7 +119,8 @@ public partial class NpcDetailWindow : Window
             playerStamina,
             exps,
             protagonistExtra,
-            memories)
+            memories,
+            playerPrc)
         {
             Owner = owner,
             OnChallengeDuel = onChallengeDuel,
@@ -212,14 +217,45 @@ public partial class NpcDetailWindow : Window
             HeaderQuickVitalsPanel.Visibility = Visibility.Collapsed;
         }
 
-        var canInspect = _hasMet || _isProtagonist || sameCity;
+        var isFullyRevealed = _hasMet || _isProtagonist || (sameCity && _playerPrc >= 85);
+        var isBehaviorRevealed = isFullyRevealed || (sameCity && _playerPrc >= 70);
 
-        if (canInspect)
+        if (_isProtagonist || _hasMet)
+        {
+            UnmetStatsNotice.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            UnmetStatsNotice.Visibility = Visibility.Visible;
+            if (_playerPrc >= 85)
+            {
+                UnmetStatsNoticeText.Text = $"👁️ TUỆ NHÃN NHƯ ĐUỐC (PRC {_playerPrc}): Tuệ nhãn tuyệt đỉnh thấu triệt chân tướng! Toàn bộ 12 chỉ số của {_npc.NameVi} đã được giải mã chính xác 100%.";
+            }
+            else if (_playerPrc >= 70)
+            {
+                UnmetStatsNoticeText.Text = $"👁️ TUỆ NHÃN THÔNG TUỆ (PRC {_playerPrc}): Tuệ nhãn thức anh hùng! 8 chỉ số hành vi cốt lõi đã được nhìn thấu tường tận. Chỉ số căn cốt ước lượng với độ chuẩn xác cao.";
+            }
+            else if (_playerPrc >= 50)
+            {
+                UnmetStatsNoticeText.Text = $"👁️ TUỆ NHÃN MẪN TIỆP (PRC {_playerPrc}): Quan sát khí độ, ước lượng năng lực thực tế trong biên độ hẹp (±5 điểm). Bái phỏng để giải mã hoàn toàn.";
+            }
+            else
+            {
+                UnmetStatsNoticeText.Text = $"👁️ TUỆ NHÃN SƠ KHAI (PRC {_playerPrc}): Chỉ số hiển thị ước lượng đại khái (±10 điểm). Cần bái phỏng hoặc trau dồi Tuệ Nhãn để nhìn thấu.";
+            }
+        }
+
+        if (isFullyRevealed)
         {
             TotalStatsLabel.Text = "TỔNG ĐIỂM";
             TotalStatsText.Text = total.ToString();
             TotalStatsMaxText.Text = "/ 1200";
-            UnmetStatsNotice.Visibility = Visibility.Collapsed;
+        }
+        else if (isBehaviorRevealed)
+        {
+            TotalStatsLabel.Text = "TỔNG ĐIỂM (TUỆ NHÃN)";
+            TotalStatsText.Text = $"~{total / 10 * 10}";
+            TotalStatsMaxText.Text = "/ 1200";
         }
         else
         {
@@ -227,7 +263,6 @@ public partial class NpcDetailWindow : Window
             var estimate = Math.Clamp((total / 50) * 50, 400, 1150);
             TotalStatsText.Text = $"~{estimate}";
             TotalStatsMaxText.Text = "danh tiếng";
-            UnmetStatsNotice.Visibility = Visibility.Visible;
         }
 
         // TAB 1: Radar Chart, 4-Branch Summary & Core Stats
@@ -240,14 +275,14 @@ public partial class NpcDetailWindow : Window
         BranchCraftText.Text = $"{a.Dip + a.Cra}";
 
         CoreStatsGrid.Children.Clear();
-        AddStatItem(CoreStatsGrid, "⚔️ WAR · Võ Lực", a.War, _deltas?.WarDelta ?? 0, "Sát thương chiến trận, trảm tướng lôi đài & bạo kích võ công", canInspect, _exps?.War);
-        AddStatItem(CoreStatsGrid, "🛡️ LDR · Thống Soái", a.Ldr, _deltas?.LdrDelta ?? 0, "Khả năng chỉ huy quân đoàn, giữ vững đội hình & sĩ khí", canInspect, _exps?.Ldr);
-        AddStatItem(CoreStatsGrid, "🧠 INT · Trí Tuệ", a.Int, _deltas?.IntDelta ?? 0, "Binh pháp mưu lược, thi triển & hóa giải kế sách quân sự", canInspect, _exps?.Int);
-        AddStatItem(CoreStatsGrid, "📜 POL · Chính Trị", a.Pol, _deltas?.PolDelta ?? 0, "Kinh bang tế thế, khai hoang, thu thuế & tuần tra trị an", canInspect, _exps?.Pol);
-        AddStatItem(CoreStatsGrid, "🗣️ DIP · Ngoại Giao", a.Dip, _deltas?.DipDelta ?? 0, "Du thuyết liên minh, thu phục lòng người & chiêu mộ hiền tài", canInspect, _exps?.Dip);
-        AddStatItem(CoreStatsGrid, "💰 COM · Thương Mại", a.Com, _deltas?.ComDelta ?? 0, "Mặc cả giá buôn, mở rộng thương đoàn & sinh lời giao thương", canInspect, _exps?.Com);
-        AddStatItem(CoreStatsGrid, "📦 LOG · Hậu Cần", a.Log, _deltas?.LogDelta ?? 0, "Vận tải lương thảo, quản lý kho tàng & hành quân viễn chinh", canInspect, _exps?.Log);
-        AddStatItem(CoreStatsGrid, "🔨 CRA · Kỹ Nghệ", a.Cra, _deltas?.CraDelta ?? 0, "Rèn đúc thần binh khí giới, xây dựng thành lũy & công trình", canInspect, _exps?.Cra);
+        AddStatItem(CoreStatsGrid, "⚔️ WAR · Võ Lực", a.War, _deltas?.WarDelta ?? 0, "Sát thương chiến trận, trảm tướng lôi đài & bạo kích võ công", isBehaviorRevealed, _exps?.War);
+        AddStatItem(CoreStatsGrid, "🛡️ LDR · Thống Soái", a.Ldr, _deltas?.LdrDelta ?? 0, "Khả năng chỉ huy quân đoàn, giữ vững đội hình & sĩ khí", isBehaviorRevealed, _exps?.Ldr);
+        AddStatItem(CoreStatsGrid, "🧠 INT · Trí Tuệ", a.Int, _deltas?.IntDelta ?? 0, "Binh pháp mưu lược, thi triển & hóa giải kế sách quân sự", isBehaviorRevealed, _exps?.Int);
+        AddStatItem(CoreStatsGrid, "📜 POL · Chính Trị", a.Pol, _deltas?.PolDelta ?? 0, "Kinh bang tế thế, khai hoang, thu thuế & tuần tra trị an", isBehaviorRevealed, _exps?.Pol);
+        AddStatItem(CoreStatsGrid, "🗣️ DIP · Ngoại Giao", a.Dip, _deltas?.DipDelta ?? 0, "Du thuyết liên minh, thu phục lòng người & chiêu mộ hiền tài", isBehaviorRevealed, _exps?.Dip);
+        AddStatItem(CoreStatsGrid, "💰 COM · Thương Mại", a.Com, _deltas?.ComDelta ?? 0, "Mặc cả giá buôn, mở rộng thương đoàn & sinh lời giao thương", isBehaviorRevealed, _exps?.Com);
+        AddStatItem(CoreStatsGrid, "📦 LOG · Hậu Cần", a.Log, _deltas?.LogDelta ?? 0, "Vận tải lương thảo, quản lý kho tàng & hành quân viễn chinh", isBehaviorRevealed, _exps?.Log);
+        AddStatItem(CoreStatsGrid, "🔨 CRA · Kỹ Nghệ", a.Cra, _deltas?.CraDelta ?? 0, "Rèn đúc thần binh khí giới, xây dựng thành lũy & công trình", isBehaviorRevealed, _exps?.Cra);
 
         // TAB 2: Innate Vitals & Lifestyle
         PopulateInnateStats();
@@ -337,10 +372,11 @@ public partial class NpcDetailWindow : Window
         }
 
         UnmetInnateNotice.Visibility = Visibility.Collapsed;
-        AddStatItem(InnateStatsGrid, "🩸 CON · Căn Cốt", a.Con, 0, "Thể phách sinh mệnh, quyết định HP & Thể lực tối đa", true, _exps?.Con);
-        AddStatItem(InnateStatsGrid, "🧘 WIL · Định Lực", a.Wil, 0, "Ý chí kiên định, chống hoảng loạn, giảm stress & phục hồi thể lực", true, _exps?.Wil);
-        AddStatItem(InnateStatsGrid, "👁️ PRC · Tuệ Nhãn", a.Prc, 0, "Cơ biến mẫn tiệp, phát giác phục kích & giám định thương phẩm", true, _exps?.Prc);
-        AddStatItem(InnateStatsGrid, "✨ LCK · Khí Vận", a.Lck, 0, "Phúc duyên trời ban, bạo kích kỳ ngộ thương trường & bảo mệnh", true, _exps?.Lck);
+        var isFullyRevealed = _hasMet || _isProtagonist || (sameCity && _playerPrc >= 85);
+        AddStatItem(InnateStatsGrid, "🩸 CON · Căn Cốt", a.Con, 0, "Thể phách sinh mệnh, quyết định HP & Thể lực tối đa", isFullyRevealed, _exps?.Con);
+        AddStatItem(InnateStatsGrid, "🧘 WIL · Định Lực", a.Wil, 0, "Ý chí kiên định, chống hoảng loạn, giảm stress & phục hồi thể lực", isFullyRevealed, _exps?.Wil);
+        AddStatItem(InnateStatsGrid, "👁️ PRC · Tuệ Nhãn", a.Prc, 0, "Cơ biến mẫn tiệp, phát giác phục kích & giám định thương phẩm", isFullyRevealed, _exps?.Prc);
+        AddStatItem(InnateStatsGrid, "✨ LCK · Khí Vận", a.Lck, 0, "Phúc duyên trời ban, bạo kích kỳ ngộ thương trường & bảo mệnh", isFullyRevealed, _exps?.Lck);
 
         if (_isProtagonist)
         {
@@ -669,8 +705,18 @@ public partial class NpcDetailWindow : Window
         PopulateRelationship();
         ConfigureFooterActions();
 
-        // Update Total Stats text
         var a = _npc.Attributes;
+        CoreStatsGrid.Children.Clear();
+        AddStatItem(CoreStatsGrid, "⚔️ WAR · Võ Lực", a.War, _deltas?.WarDelta ?? 0, "Sát thương chiến trận, trảm tướng lôi đài & bạo kích võ công", true, _exps?.War);
+        AddStatItem(CoreStatsGrid, "🛡️ LDR · Thống Soái", a.Ldr, _deltas?.LdrDelta ?? 0, "Khả năng chỉ huy quân đoàn, giữ vững đội hình & sĩ khí", true, _exps?.Ldr);
+        AddStatItem(CoreStatsGrid, "🧠 INT · Trí Tuệ", a.Int, _deltas?.IntDelta ?? 0, "Binh pháp mưu lược, thi triển & hóa giải kế sách quân sự", true, _exps?.Int);
+        AddStatItem(CoreStatsGrid, "📜 POL · Chính Trị", a.Pol, _deltas?.PolDelta ?? 0, "Kinh bang tế thế, khai hoang, thu thuế & tuần tra trị an", true, _exps?.Pol);
+        AddStatItem(CoreStatsGrid, "🗣️ DIP · Ngoại Giao", a.Dip, _deltas?.DipDelta ?? 0, "Du thuyết liên minh, thu phục lòng người & chiêu mộ hiền tài", true, _exps?.Dip);
+        AddStatItem(CoreStatsGrid, "💰 COM · Thương Mại", a.Com, _deltas?.ComDelta ?? 0, "Mặc cả giá buôn, mở rộng thương đoàn & sinh lời giao thương", true, _exps?.Com);
+        AddStatItem(CoreStatsGrid, "📦 LOG · Hậu Cần", a.Log, _deltas?.LogDelta ?? 0, "Vận tải lương thảo, quản lý kho tàng & hành quân viễn chinh", true, _exps?.Log);
+        AddStatItem(CoreStatsGrid, "🔨 CRA · Kỹ Nghệ", a.Cra, _deltas?.CraDelta ?? 0, "Rèn đúc thần binh khí giới, xây dựng thành lũy & công trình", true, _exps?.Cra);
+
+        // Update Total Stats text
         var bonusTotal = _deltas?.TotalBonus ?? 0;
         var total = a.War + a.Ldr + a.Int + a.Pol + a.Dip + a.Com + a.Log + a.Cra + a.Con + a.Wil + a.Prc + a.Lck + bonusTotal;
         TotalStatsLabel.Text = "TỔNG ĐIỂM";

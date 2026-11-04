@@ -47,6 +47,7 @@ public partial class MainWindow : Window
         VersionText.TextTrimming = TextTrimming.CharacterEllipsis;
         DarkTitleBar.Apply(this);
         PlayerHudCard.ProfileClicked += OpenPlayerProfileModal;
+        RegisterModalPresenters();
 
         BuildRail();
         UpdateHeader();

@@ -293,6 +293,7 @@ internal sealed class SocialService : ISocialNetwork
             });
 
             _attributes.AddExp("DIP", 10);
+            _attributes.AddExp("PRC", 5);
             return $"{npc.NameVi} khẽ vuốt râu mỉm cười khách sáo: 'Tại hạ quân vụ bề bộn, thứ lỗi chưa tiện cùng các hạ đàm luận sâu.' (Uy danh < 300 đối với hào kiệt phẩm S: +1 Hảo cảm). Mối quan hệ: {brushAffinity}/100 ({brushImp}).";
         }
 
@@ -329,6 +330,7 @@ internal sealed class SocialService : ISocialNetwork
             });
 
             _attributes.AddExp("DIP", 10);
+            _attributes.AddExp("PRC", 5);
             return $"Đàm đạo cùng {npc.NameVi}: cuộc trò chuyện lịch thiệp nhưng đối phương còn giữ khoảng cách (+1 Hảo cảm). Mối quan hệ: {brushAffinity}/100 ({brushImp}).";
         }
 
@@ -441,6 +443,7 @@ internal sealed class SocialService : ISocialNetwork
         });
 
         _attributes.AddExp("DIP", 15);
+        _attributes.AddExp("PRC", 5);
 
         var skillHint = "";
         var unlearnedSkill = npc.Skills.FirstOrDefault(s => !_attributes.HasSkill(s.Code));

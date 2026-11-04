@@ -203,6 +203,12 @@ public sealed class GameStatCard : Border
             }
             sb.AppendLine();
         }
+        else
+        {
+            sb.AppendLine();
+            sb.Append($"👁️ Ước Lượng Tuệ Nhãn: ~{Math.Max(30, (effective / 5) * 5)} điểm (Bái phỏng hoặc nâng cao Tuệ Nhãn để giải mã chính xác)");
+            sb.AppendLine();
+        }
         if (exp.HasValue)
         {
             var curExp = Math.Clamp(exp.Value, 0, 99);

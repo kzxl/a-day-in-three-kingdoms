@@ -42,6 +42,12 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             }
         }
 
+        var playerPrc = 50;
+        if (_capabilities is not null && _capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var playerAttrs) && playerAttrs is not null)
+        {
+            playerPrc = playerAttrs.Attributes.Prc;
+        }
+
         var all = _registry.All;
         var localNpcs = _registry.FindByCitadel(currentCityId);
         var otherNpcs = all.Where(npc => npc.CitadelId != currentCityId).ToList();
@@ -59,7 +65,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             sections.Add(new ScreenSection(
                 $"Nhân sĩ đồng thành · {currentCitadelName} ({localNpcs.Count})",
                 Columns,
-                localNpcs.Select(npc => ToRow(npc, currentCitadelName, isLocal: true, hasMet: metNpcIds.Contains(npc.Id))).ToList()));
+                localNpcs.Select(npc => ToRow(npc, currentCitadelName, isLocal: true, hasMet: metNpcIds.Contains(npc.Id), playerPrc)).ToList()));
         }
 
         if (distantMetNpcs.Count > 0)
@@ -70,7 +76,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
                 distantMetNpcs.Select(npc =>
                 {
                     var cit = _map.Find(npc.CitadelId);
-                    return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: true);
+                    return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: true, playerPrc);
                 }).ToList()));
         }
 
@@ -80,12 +86,20 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             distantRenownedNpcs.Select(npc =>
             {
                 var cit = _map.Find(npc.CitadelId);
-                return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: false);
+                return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: false, playerPrc);
             }).ToList()));
 
         var metCount = all.Count(n => metNpcIds.Contains(n.Id));
+        var prcTitle = playerPrc switch
+        {
+            >= 85 => "Như Đuốc (Thấu Triệt)",
+            >= 70 => "Thông Tuệ (Thức Anh Hùng)",
+            >= 50 => "Mẫn Tiệp (Quan Sát)",
+            _ => "Sơ Khai (Đại Cương)"
+        };
         var metrics = new List<ScreenMetric>
         {
+            new("Tuệ Nhãn", $"{playerPrc} điểm", prcTitle, playerPrc >= 70 ? MetricTone.Positive : MetricTone.Neutral),
             new("Đồng thành", $"{localNpcs.Count} người", $"Tại {currentCitadelName}", MetricTone.Positive),
             new("Đã kết giao", $"{metCount} nhân sĩ", "Đã gặp gỡ / tri kỷ", MetricTone.Positive),
             new("Danh vang thiên hạ", $"{distantRenownedNpcs.Count} vị", "Tiếng tăm lẫy lừng", MetricTone.Neutral),
@@ -118,39 +132,84 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
         return r.Contains("chúa") || r.Contains("vương") || r.Contains("quân sư") || r.Contains("đại tướng");
     }
 
-    private static ScreenRow ToRow(NpcDef npc, string citadelName, bool isLocal, bool hasMet)
+    private static ScreenRow ToRow(NpcDef npc, string citadelName, bool isLocal, bool hasMet, int playerPrc = 50)
     {
         var a = npc.Attributes;
         var nameHan = string.IsNullOrWhiteSpace(npc.NameHan) ? "" : $" ({npc.NameHan})";
         var style = string.IsNullOrWhiteSpace(npc.StyleNameVi) ? "—" : npc.StyleNameVi;
 
+        // Tuệ Nhãn insight tiers
+        var fullReveal = hasMet || (isLocal && playerPrc >= 85);
+        var behaviorReveal = fullReveal || (isLocal && playerPrc >= 70);
+
         string warDisplay, ldrDisplay, intDisplay, comDisplay;
         string statusNote;
 
-        if (hasMet)
+        if (fullReveal)
         {
             warDisplay = a.War.ToString();
             ldrDisplay = a.Ldr.ToString();
             intDisplay = a.Int.ToString();
             comDisplay = a.Com.ToString();
-            statusNote = isLocal ? "Đồng thành · Đã diện kiến" : $"Phương xa ({citadelName}) · Từng diện kiến";
+            statusNote = hasMet
+                ? (isLocal ? "Đồng thành · Đã diện kiến" : $"Phương xa ({citadelName}) · Từng diện kiến")
+                : "Đồng thành · Tuệ Nhãn như đuốc 👁️";
+        }
+        else if (behaviorReveal)
+        {
+            warDisplay = a.War.ToString();
+            ldrDisplay = a.Ldr.ToString();
+            intDisplay = a.Int.ToString();
+            comDisplay = a.Com.ToString();
+            statusNote = "Đồng thành · Tuệ Nhãn thông tuệ 👁️";
         }
         else if (isLocal)
         {
-            // In the same citadel: capabilities can be evaluated through local observation and reputation
-            warDisplay = a.War >= 80 ? $"~{a.War / 5 * 5}" : $"~{Math.Max(30, a.War / 10 * 10)}";
-            ldrDisplay = a.Ldr >= 80 ? $"~{a.Ldr / 5 * 5}" : $"~{Math.Max(30, a.Ldr / 10 * 10)}";
-            intDisplay = a.Int >= 80 ? $"~{a.Int / 5 * 5}" : $"~{Math.Max(30, a.Int / 10 * 10)}";
-            comDisplay = a.Com >= 80 ? $"~{a.Com / 5 * 5}" : $"~{Math.Max(30, a.Com / 10 * 10)}";
-            statusNote = "Đồng thành · Có thể bái phỏng & chiêu mộ";
+            if (playerPrc >= 50)
+            {
+                // Narrow estimation (±5 points) via perceptive observation
+                warDisplay = a.War >= 80 ? $"~{a.War / 5 * 5}" : $"~{Math.Max(30, a.War / 5 * 5)}";
+                ldrDisplay = a.Ldr >= 80 ? $"~{a.Ldr / 5 * 5}" : $"~{Math.Max(30, a.Ldr / 5 * 5)}";
+                intDisplay = a.Int >= 80 ? $"~{a.Int / 5 * 5}" : $"~{Math.Max(30, a.Int / 5 * 5)}";
+                comDisplay = a.Com >= 80 ? $"~{a.Com / 5 * 5}" : $"~{Math.Max(30, a.Com / 5 * 5)}";
+                statusNote = "Đồng thành · Tuệ Nhãn mẫn tiệp (±5)";
+            }
+            else
+            {
+                // Broad estimation (±10 points)
+                warDisplay = $"~{Math.Max(30, a.War / 10 * 10)}";
+                ldrDisplay = $"~{Math.Max(30, a.Ldr / 10 * 10)}";
+                intDisplay = $"~{Math.Max(30, a.Int / 10 * 10)}";
+                comDisplay = $"~{Math.Max(30, a.Com / 10 * 10)}";
+                statusNote = "Đồng thành · Tuệ Nhãn sơ khai (±10)";
+            }
         }
         else
         {
-            warDisplay = a.War >= 95 ? "95+ (Tuyệt Đỉnh)" : a.War >= 80 ? $"~{a.War / 5 * 5}" : a.War >= 65 ? "6x (Khá)" : "???";
-            ldrDisplay = a.Ldr >= 90 ? "90+ (Danh Tướng)" : a.Ldr >= 80 ? $"~{a.Ldr / 5 * 5}" : a.Ldr >= 65 ? "6x (Khá)" : "???";
-            intDisplay = a.Int >= 90 ? "90+ (Kỳ Mưu)" : a.Int >= 80 ? $"~{a.Int / 5 * 5}" : a.Int >= 65 ? "6x (Khá)" : "???";
-            comDisplay = a.Com >= 80 ? $"~{a.Com / 5 * 5}" : a.Com >= 65 ? "6x (Khá)" : "???";
-            statusNote = $"Phương xa · Ngụ tại {citadelName}";
+            if (playerPrc >= 85)
+            {
+                warDisplay = a.War.ToString();
+                ldrDisplay = a.Ldr.ToString();
+                intDisplay = a.Int.ToString();
+                comDisplay = a.Com.ToString();
+                statusNote = $"Phương xa ({citadelName}) · Tuệ Nhãn viễn vọng 👁️";
+            }
+            else if (playerPrc >= 70)
+            {
+                warDisplay = $"~{a.War / 5 * 5}";
+                ldrDisplay = $"~{a.Ldr / 5 * 5}";
+                intDisplay = $"~{a.Int / 5 * 5}";
+                comDisplay = $"~{a.Com / 5 * 5}";
+                statusNote = $"Phương xa · Ngụ tại {citadelName} (±5)";
+            }
+            else
+            {
+                warDisplay = a.War >= 95 ? "95+ (Tuyệt Đỉnh)" : a.War >= 80 ? $"~{a.War / 5 * 5}" : a.War >= 65 ? "6x (Khá)" : "???";
+                ldrDisplay = a.Ldr >= 90 ? "90+ (Danh Tướng)" : a.Ldr >= 80 ? $"~{a.Ldr / 5 * 5}" : a.Ldr >= 65 ? "6x (Khá)" : "???";
+                intDisplay = a.Int >= 90 ? "90+ (Kỳ Mưu)" : a.Int >= 80 ? $"~{a.Int / 5 * 5}" : a.Int >= 65 ? "6x (Khá)" : "???";
+                comDisplay = a.Com >= 80 ? $"~{a.Com / 5 * 5}" : a.Com >= 65 ? "6x (Khá)" : "???";
+                statusNote = $"Phương xa · Ngụ tại {citadelName}";
+            }
         }
 
         var details = new List<ScreenDetail>
@@ -162,7 +221,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             new("Tình Trạng", statusNote)
         };
 
-        if (hasMet)
+        if (fullReveal)
         {
             details.Add(new("Đặc Kỹ", npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => $"[{s.NameVi}]")) : "Chưa khai mở"));
             details.Add(new("Võ Lực (WAR)", a.War.ToString()));
@@ -177,6 +236,21 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             details.Add(new("Ý Chí (WIL)", a.Wil.ToString()));
             details.Add(new("Tuệ Nhãn (PRC)", a.Prc.ToString()));
             details.Add(new("Khí Vận (LCK)", a.Lck.ToString()));
+            details.Add(new("Tính Cách", npc.Personality ?? "Điềm đạm bình ổn"));
+            details.Add(new("Tiểu Sử", npc.BioVi ?? "Hành trạng chưa rõ trong thư tịch."));
+        }
+        else if (behaviorReveal)
+        {
+            details.Add(new("Đặc Kỹ", npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => $"[{s.NameVi}]")) : "Chưa khai mở"));
+            details.Add(new("Võ Lực (WAR)", a.War.ToString()));
+            details.Add(new("Thống Soái (LDR)", a.Ldr.ToString()));
+            details.Add(new("Trí Tuệ (INT)", a.Int.ToString()));
+            details.Add(new("Chính Trị (POL)", a.Pol.ToString()));
+            details.Add(new("Ngoại Giao (DIP)", a.Dip.ToString()));
+            details.Add(new("Thương Mại (COM)", a.Com.ToString()));
+            details.Add(new("Hậu Cần (LOG)", a.Log.ToString()));
+            details.Add(new("Kỹ Nghệ (CRA)", a.Cra.ToString()));
+            details.Add(new("Căn Cốt & Khí Vận", "🔒 Cơ mật bản thể (Tuệ Nhãn bậc 3: Cần đạt bậc 4 (PRC 85+) hoặc bái phỏng để giải mã)"));
             details.Add(new("Tính Cách", npc.Personality ?? "Điềm đạm bình ổn"));
             details.Add(new("Tiểu Sử", npc.BioVi ?? "Hành trạng chưa rõ trong thư tịch."));
         }

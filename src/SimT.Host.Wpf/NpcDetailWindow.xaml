@@ -143,7 +143,7 @@
                         <!-- Unmet Notice Banner -->
                         <Border x:Name="UnmetStatsNotice" Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
                                 BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,10" Visibility="Collapsed">
-                            <TextBlock Text="👁️ THÔNG TIN TÌNH BÁO: Bạn chưa từng diện kiến nhân sĩ này. Các chỉ số hiển thị được ước lượng theo thanh danh truyền tụng trong thiên hạ."
+                            <TextBlock x:Name="UnmetStatsNoticeText" Text="👁️ THÔNG TIN TÌNH BÁO: Bạn chưa từng diện kiến nhân sĩ này. Các chỉ số hiển thị được ước lượng theo thanh danh truyền tụng trong thiên hạ."
                                        Style="{StaticResource Caption}" Foreground="{StaticResource Accent}" TextWrapping="Wrap" />
                         </Border>
 

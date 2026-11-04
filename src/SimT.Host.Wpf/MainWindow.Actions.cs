@@ -130,6 +130,33 @@ public partial class MainWindow
         });
     }
 
+    private void RegisterModalPresenters()
+    {
+        _kernel.Ui.RegisterModalPresenter("npc:modal:", commandId =>
+        {
+            if (long.TryParse(commandId["npc:modal:".Length..], out var npcId))
+            {
+                TryOpenNpcModal(npcId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("duel:", commandId =>
+        {
+            if (long.TryParse(commandId["duel:".Length..], out var duelNpcId))
+            {
+                TryOpenDuelModal(duelNpcId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("letter:read:", commandId =>
+        {
+            if (long.TryParse(commandId["letter:read:".Length..], out var letterId))
+            {
+                TryOpenLetterModal(letterId);
+            }
+        });
+    }
+
     private async void RowCommand_Click(object sender, RoutedEventArgs e)
     {
         if (_isAdvancing) return;
@@ -139,21 +166,8 @@ public partial class MainWindow
             return;
         }
 
-        if (commandId.StartsWith("npc:modal:") && long.TryParse(commandId["npc:modal:".Length..], out var npcId))
+        if (_kernel.Ui.TryPresentModal(commandId))
         {
-            TryOpenNpcModal(npcId);
-            return;
-        }
-
-        if (commandId.StartsWith("duel:") && long.TryParse(commandId["duel:".Length..], out var duelNpcId))
-        {
-            TryOpenDuelModal(duelNpcId);
-            return;
-        }
-
-        if (commandId.StartsWith("letter:read:") && long.TryParse(commandId["letter:read:".Length..], out var letterId))
-        {
-            TryOpenLetterModal(letterId);
             return;
         }
 
@@ -396,6 +410,7 @@ public partial class MainWindow
         var playerCityId = 1L;
         var playerFatigue = 0;
         var playerStamina = 100;
+        var playerPrc = 50;
         if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) && playerState is not null)
         {
             playerCityId = playerState.CurrentCityId;
@@ -404,6 +419,7 @@ public partial class MainWindow
         {
             playerFatigue = playerAttrs.Vitals.Fatigue;
             playerStamina = playerAttrs.Vitals.CurrentStamina;
+            playerPrc = playerAttrs.Attributes.Prc;
         }
 
         NpcDetailWindow.ShowNpc(
@@ -421,7 +437,8 @@ public partial class MainWindow
             playerStamina,
             id => TryOpenDuelModal(id),
             id => MeetNpcFromModal(id),
-            memories: memories);
+            memories: memories,
+            playerPrc: playerPrc);
 
         StatusText.Text = $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role}).";
     }
@@ -434,6 +451,12 @@ public partial class MainWindow
             {
                 var res = social.ChatWithNpc(npcId);
                 StatusText.Text = res;
+
+                if (_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)
+                {
+                    attrs.AddExp("PRC", 5);
+                }
+
                 _kernel.Save();
                 UpdateHeader();
                 RenderSelected();
