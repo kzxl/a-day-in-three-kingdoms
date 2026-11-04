@@ -81,6 +81,7 @@ public partial class MainWindow : Window
         "politics.court" => "⌂",
         "npc.directory" => "👤",
         "society.chronicle" => "📜",
+        "social.network" => "🤝",
         _ => "•"
     };
 
@@ -1168,6 +1169,14 @@ public partial class MainWindow : Window
             }
         }
 
+        RelationshipDef? relationship = null;
+        RetainerDef? retainer = null;
+        if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+        {
+            relationship = social.GetRelationship(npcId);
+            retainer = social.GetRetainer(npcId);
+        }
+
         var citadelName = "Ẩn sĩ";
         if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
         {
@@ -1178,7 +1187,7 @@ public partial class MainWindow : Window
             }
         }
 
-        NpcDetailWindow.ShowNpc(this, npc, citadelName, deltas, activity);
+        NpcDetailWindow.ShowNpc(this, npc, citadelName, deltas, activity, relationship, retainer);
         StatusText.Text = $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role}).";
     }
 

@@ -8,24 +8,24 @@ namespace SimT.Host.Wpf;
 
 public partial class NpcDetailWindow : Window
 {
-    public NpcDetailWindow(NpcDef npc, string citadelName, NpcStatDelta? deltas = null, NpcActivityDef? activity = null)
+    public NpcDetailWindow(NpcDef npc, string citadelName, NpcStatDelta? deltas = null, NpcActivityDef? activity = null, RelationshipDef? relationship = null, RetainerDef? retainer = null)
     {
         InitializeComponent();
         DarkTitleBar.Apply(this);
 
-        Populate(npc, citadelName, deltas, activity);
+        Populate(npc, citadelName, deltas, activity, relationship, retainer);
     }
 
-    public static void ShowNpc(Window owner, NpcDef npc, string citadelName, NpcStatDelta? deltas = null, NpcActivityDef? activity = null)
+    public static void ShowNpc(Window owner, NpcDef npc, string citadelName, NpcStatDelta? deltas = null, NpcActivityDef? activity = null, RelationshipDef? relationship = null, RetainerDef? retainer = null)
     {
-        var window = new NpcDetailWindow(npc, citadelName, deltas, activity)
+        var window = new NpcDetailWindow(npc, citadelName, deltas, activity, relationship, retainer)
         {
             Owner = owner
         };
         window.ShowDialog();
     }
 
-    private void Populate(NpcDef npc, string citadelName, NpcStatDelta? deltas, NpcActivityDef? activity)
+    private void Populate(NpcDef npc, string citadelName, NpcStatDelta? deltas, NpcActivityDef? activity, RelationshipDef? relationship, RetainerDef? retainer)
     {
         Title = $"{npc.NameVi} — Hồ Sơ Nhân Vật";
 
@@ -57,6 +57,25 @@ public partial class NpcDetailWindow : Window
         else
         {
             DynamicLivingPanel.Visibility = Visibility.Collapsed;
+        }
+
+        if (relationship is not null)
+        {
+            SocialKizunaPanel.Visibility = Visibility.Visible;
+            var affSign = relationship.Affinity >= 0 ? "+" : "";
+            AffinityText.Text = $"♥ Hảo cảm: {affSign}{relationship.Affinity}/100 ({relationship.Impression})";
+            if (retainer is not null)
+            {
+                RetainerText.Text = $"🛡️ Gia thần: {retainer.RoleAssigned} (Trung thành {retainer.Loyalty}/100)";
+            }
+            else
+            {
+                RetainerText.Text = relationship.Affinity >= 35 ? "🤝 Có thể chiêu mộ" : "Chưa chiêu mộ";
+            }
+        }
+        else
+        {
+            SocialKizunaPanel.Visibility = Visibility.Collapsed;
         }
 
         BioText.Text = string.IsNullOrWhiteSpace(npc.BioVi)

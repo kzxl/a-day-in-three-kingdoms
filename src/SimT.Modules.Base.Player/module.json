@@ -4,10 +4,21 @@
   "apiVersion": "1",
   "kind": "base",
   "requires": ["base.world"],
-  "provides": ["player.wallet", "player.bag", "player.state"],
+  "provides": [
+    "player.wallet",
+    "player.bag",
+    "player.state",
+    "player.attributes"
+  ],
   "consumes": ["world.map"],
   "owns": {
-    "tables": ["pl_player", "pl_bag"],
+    "tables": [
+      "pl_player",
+      "pl_bag",
+      "pl_attribute",
+      "pl_vitals",
+      "pl_social"
+    ],
     "migrations": ["migrations"]
   },
   "screens": []

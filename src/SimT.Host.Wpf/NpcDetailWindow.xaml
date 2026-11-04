@@ -87,6 +87,17 @@
                             <TextBlock x:Name="ActionText" FontSize="11" Foreground="{StaticResource Text}" TextTrimming="CharacterEllipsis" MaxWidth="280" />
                         </Border>
                     </StackPanel>
+
+                    <StackPanel x:Name="SocialKizunaPanel" Orientation="Horizontal" Margin="0,4,0,0" Visibility="Collapsed">
+                        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="4" Padding="7,2" Margin="0,0,6,0">
+                            <TextBlock x:Name="AffinityText" FontSize="11" Foreground="#FF6B8B" />
+                        </Border>
+                        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="4" Padding="7,2">
+                            <TextBlock x:Name="RetainerText" FontSize="11" Foreground="{StaticResource Accent}" />
+                        </Border>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Total Stat Summary -->

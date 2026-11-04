@@ -12,7 +12,8 @@
     "dlc.lineage",
     "dlc.cultivation",
     "dlc.politics",
-    "dlc.society"
+    "dlc.society",
+    "dlc.social"
   ],
   "seed": 1840502,
   "startLocation": "lac_duong",
