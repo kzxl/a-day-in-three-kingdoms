@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using SimT.Contracts.Playing;
+using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
 
@@ -358,24 +359,21 @@ public partial class NpcDetailWindow : Window
                 ProtagonistHpValText.Text = $"{v.Health}/{v.MaxHp}";
                 var hpRatio = v.MaxHp > 0 ? (double)v.Health / v.MaxHp : 1.0;
                 var hpBrush = (Brush)(hpRatio > 0.4 ? FindResource("Gain") : FindResource("Loss"));
-                RenderGauge(ProtagonistHpBarGrid, hpRatio, hpBrush);
+                ProtagonistHpGauge.SetProgress(v.Health, v.MaxHp, hpBrush);
 
                 // Stamina
                 ProtagonistStaminaValText.Text = $"{v.CurrentStamina}/{v.MaxStamina}";
-                var stRatio = v.MaxStamina > 0 ? (double)v.CurrentStamina / v.MaxStamina : 1.0;
-                RenderGauge(ProtagonistStaminaBarGrid, stRatio, new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xE2)));
+                ProtagonistStaminaGauge.SetProgress(v.CurrentStamina, v.MaxStamina, new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xE2)));
 
                 // Fatigue
                 ProtagonistFatigueValText.Text = $"{v.Fatigue}%";
-                var fatRatio = v.Fatigue / 100.0;
                 var fatBrush = (Brush)(v.Fatigue >= 70 ? FindResource("Loss") : FindResource("Accent"));
-                RenderGauge(ProtagonistFatigueBarGrid, fatRatio, fatBrush);
+                ProtagonistFatigueGauge.SetProgress(v.Fatigue, 100.0, fatBrush);
 
                 // Stress
                 ProtagonistStressValText.Text = $"{v.Stress}%";
-                var stValRatio = v.Stress / 100.0;
                 var stressBrush = (Brush)(v.Stress >= 70 ? FindResource("Loss") : FindResource("Muted"));
-                RenderGauge(ProtagonistStressBarGrid, stValRatio, stressBrush);
+                ProtagonistStressGauge.SetProgress(v.Stress, 100.0, stressBrush);
 
                 // Holdings & Economics
                 ProtagonistLiquidGoldText.Text = $"{_protagonistExtra.LiquidGold:N0} Quan";
@@ -438,7 +436,7 @@ public partial class NpcDetailWindow : Window
 
         foreach (var skill in filtered)
         {
-            SkillsListPanel.Children.Add(BuildSkillCard(skill));
+            SkillsListPanel.Children.Add(new GameSkillCard(skill));
         }
     }
 
@@ -487,41 +485,8 @@ public partial class NpcDetailWindow : Window
                 foreach (var b in brothers)
                 {
                     var name = _protagonistExtra?.NpcNameLookup?.Invoke(b.NpcId) ?? $"Huynh đệ #{b.NpcId}";
-                    var card = new Border
-                    {
-                        Background = (Brush)FindResource("SurfaceAlt"),
-                        BorderBrush = (Brush)FindResource("Line"),
-                        BorderThickness = new Thickness(1),
-                        CornerRadius = new CornerRadius(6),
-                        Padding = new Thickness(10, 6, 10, 6),
-                        Margin = new Thickness(0, 0, 0, 6)
-                    };
-                    var dock = new DockPanel();
-                    var right = new TextBlock
-                    {
-                        Text = $"⚔️ Trợ chiến: {b.AssistCount} trận",
-                        Style = (Style)FindResource("Caption"),
-                        Foreground = (Brush)FindResource("Accent"),
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-                    DockPanel.SetDock(right, Dock.Right);
-                    dock.Children.Add(right);
-
-                    var info = new StackPanel();
-                    info.Children.Add(new TextBlock
-                    {
-                        Text = $"🍑 {name} ({b.BondTitle})",
-                        FontWeight = FontWeights.Bold,
-                        Foreground = (Brush)FindResource("Text")
-                    });
-                    info.Children.Add(new TextBlock
-                    {
-                        Text = $"Thề ước: {b.OathDate}",
-                        Style = (Style)FindResource("Caption"),
-                        Foreground = (Brush)FindResource("Faint")
-                    });
-                    dock.Children.Add(info);
-                    card.Child = dock;
+                    var card = new GameBondCard();
+                    card.ConfigureSwornBrother(name, b.BondTitle, b.OathDate.ToString(), b.AssistCount);
                     SwornBrotherListPanel.Children.Add(card);
                 }
             }
@@ -546,41 +511,8 @@ public partial class NpcDetailWindow : Window
                 foreach (var r in retainers)
                 {
                     var name = _protagonistExtra?.NpcNameLookup?.Invoke(r.NpcId) ?? $"Môn hạ #{r.NpcId}";
-                    var card = new Border
-                    {
-                        Background = (Brush)FindResource("SurfaceAlt"),
-                        BorderBrush = (Brush)FindResource("Line"),
-                        BorderThickness = new Thickness(1),
-                        CornerRadius = new CornerRadius(6),
-                        Padding = new Thickness(10, 6, 10, 6),
-                        Margin = new Thickness(0, 0, 0, 6)
-                    };
-                    var dock = new DockPanel();
-                    var right = new TextBlock
-                    {
-                        Text = $"Trung thành: {r.Loyalty}/100",
-                        Style = (Style)FindResource("Caption"),
-                        Foreground = (Brush)FindResource(r.Loyalty >= 80 ? "Gain" : "Accent"),
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-                    DockPanel.SetDock(right, Dock.Right);
-                    dock.Children.Add(right);
-
-                    var info = new StackPanel();
-                    info.Children.Add(new TextBlock
-                    {
-                        Text = $"🛡️ {name} · {r.RoleAssigned}",
-                        FontWeight = FontWeights.Bold,
-                        Foreground = (Brush)FindResource("Text")
-                    });
-                    info.Children.Add(new TextBlock
-                    {
-                        Text = $"Bổng lộc: {r.MonthlyStipend:N0} Quan/tháng · Gia nhập: {r.RecruitedDate}",
-                        Style = (Style)FindResource("Caption"),
-                        Foreground = (Brush)FindResource("Faint")
-                    });
-                    dock.Children.Add(info);
-                    card.Child = dock;
+                    var card = new GameBondCard();
+                    card.ConfigureRetainer(name, r.RoleAssigned, r.MonthlyStipend, r.Loyalty, r.RecruitedDate.ToString());
                     RetainerListPanel.Children.Add(card);
                 }
             }
@@ -609,9 +541,8 @@ public partial class NpcDetailWindow : Window
             KizunaAffinityDetail.Text = $"♥ {affSign}{aff}/100 ({_relationship?.Impression ?? "Sơ giao"})";
 
             AffinityBarText.Text = $"Hảo cảm {affSign}{aff} · Tin cậy {_relationship?.Trust ?? 50}/100";
-            var affRatio = Math.Clamp((aff + 100) / 200.0, 0.05, 1.0);
             var affBrush = new SolidColorBrush(aff >= 0 ? Color.FromRgb(0xFF, 0x6B, 0x8B) : Color.FromRgb(0x8A, 0x97, 0xA8));
-            RenderGauge(AffinityBarGrid, affRatio, affBrush);
+            AffinityGauge.SetProgress(aff + 100, 200.0, affBrush);
 
             if (_retainer is not null)
             {
@@ -634,43 +565,9 @@ public partial class NpcDetailWindow : Window
                 MemoriesLogBorder.Visibility = Visibility.Visible;
                 foreach (var m in _memories)
                 {
-                    var memBorder = new Border
-                    {
-                        Background = (Brush)FindResource("SurfaceAlt"),
-                        BorderBrush = (Brush)FindResource("Line"),
-                        BorderThickness = new Thickness(1),
-                        CornerRadius = new CornerRadius(4),
-                        Padding = new Thickness(8, 4, 8, 4),
-                        Margin = new Thickness(0, 0, 0, 4)
-                    };
-                    var dock = new DockPanel();
-                    var deltaText = new TextBlock
-                    {
-                        Text = m.AffinityDelta != 0 ? $"{(m.AffinityDelta > 0 ? "+" : "")}{m.AffinityDelta} ♥" : "",
-                        Style = (Style)FindResource("Caption"),
-                        Foreground = (Brush)FindResource(m.AffinityDelta >= 0 ? "Gain" : "Loss"),
-                        FontWeight = FontWeights.Bold,
-                        VerticalAlignment = VerticalAlignment.Center
-                    };
-                    DockPanel.SetDock(deltaText, Dock.Right);
-                    dock.Children.Add(deltaText);
-
-                    var topicIcon = m.Topic switch
-                    {
-                        "chat" => "💬 Đàm đạo",
-                        "gift" => "🎁 Tặng quà",
-                        "recruit" => "🤝 Chiêu mộ",
-                        _ => "⚡ Tương tác"
-                    };
-                    var desc = new TextBlock
-                    {
-                        Text = $"[{m.Date}] {topicIcon}: {m.SummaryVi}",
-                        Style = (Style)FindResource("Caption"),
-                        Foreground = (Brush)FindResource("Text")
-                    };
-                    dock.Children.Add(desc);
-                    memBorder.Child = dock;
-                    MemoriesListPanel.Children.Add(memBorder);
+                    var card = new GameBondCard();
+                    card.ConfigureMemory(m.Date.ToString(), m.Topic, m.AffinityDelta, m.SummaryVi);
+                    MemoriesListPanel.Children.Add(card);
                 }
             }
             else
@@ -683,7 +580,7 @@ public partial class NpcDetailWindow : Window
             KizunaAffinityDetail.Text = "Chưa từng diện kiến (0/100 Hảo cảm)";
             KizunaRetainerDetail.Text = "Chưa thể chiêu mộ";
             AffinityBarText.Text = "Chưa có dữ liệu";
-            RenderGauge(AffinityBarGrid, 0.5, (Brush)FindResource("Line"));
+            AffinityGauge.SetProgress(0, 100.0, (Brush)FindResource("Line"));
             KizunaMemoryText.Text = "Chưa từng gặp gỡ hay trò chuyện. Hãy bấm 'Bái Phỏng' để bắt đầu kết giao!";
             MemoriesLogBorder.Visibility = Visibility.Collapsed;
         }
@@ -793,103 +690,7 @@ public partial class NpcDetailWindow : Window
         }
     }
 
-    private UIElement BuildSkillCard(NpcSkillDef skill)
-    {
-        var card = new Border
-        {
-            Background = (Brush)FindResource("SurfaceAlt"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(12, 10, 12, 10),
-            Margin = new Thickness(0, 0, 0, 8)
-        };
-
-        var stack = new StackPanel();
-        var headerDock = new DockPanel();
-
-        var badgeStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        DockPanel.SetDock(badgeStack, Dock.Right);
-
-        var stars = new string('★', Math.Clamp(skill.Tier, 1, 5));
-        badgeStack.Children.Add(new TextBlock
-        {
-            Text = stars,
-            Foreground = (Brush)FindResource("Gain"),
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0)
-        });
-
-        var (catName, catBrush) = skill.Category switch
-        {
-            "martial" => ("Võ Đạo", (Brush)new SolidColorBrush(Color.FromRgb(0xE0, 0x6C, 0x75))),
-            "strategist" => ("Mưu Lược", (Brush)new SolidColorBrush(Color.FromRgb(0x4D, 0x96, 0xFF))),
-            "governance" => ("Trị Quốc", (Brush)new SolidColorBrush(Color.FromRgb(0x5A, 0xC0, 0x8A))),
-            "commerce" => ("Thương Mại", (Brush)FindResource("Accent")),
-            _ => ("Kỳ Tài", (Brush)new SolidColorBrush(Color.FromRgb(0xBD, 0x93, 0xF9)))
-        };
-
-        var catBorder = new Border
-        {
-            Background = (Brush)FindResource("Surface"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(6, 2, 6, 2)
-        };
-        catBorder.Child = new TextBlock
-        {
-            Text = catName,
-            FontSize = 10,
-            FontWeight = FontWeights.Bold,
-            Foreground = catBrush
-        };
-        badgeStack.Children.Add(catBorder);
-
-        headerDock.Children.Add(badgeStack);
-
-        headerDock.Children.Add(new TextBlock
-        {
-            Text = skill.NameVi,
-            FontSize = 13.5,
-            FontWeight = FontWeights.Bold,
-            Foreground = (Brush)FindResource("Text")
-        });
-
-        stack.Children.Add(headerDock);
-
-        stack.Children.Add(new TextBlock
-        {
-            Text = skill.Description,
-            Style = (Style)FindResource("Caption"),
-            Foreground = (Brush)FindResource("Muted"),
-            Margin = new Thickness(0, 4, 0, 2),
-            TextWrapping = TextWrapping.Wrap
-        });
-
-        var effectBorder = new Border
-        {
-            Background = (Brush)FindResource("AccentSoft"),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(6, 2, 6, 2),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new Thickness(0, 4, 0, 0)
-        };
-        effectBorder.Child = new TextBlock
-        {
-            Text = $"⚡ Hiệu Quả: {skill.EffectSummary}",
-            FontSize = 10.5,
-            FontWeight = FontWeights.Medium,
-            Foreground = (Brush)FindResource("Accent")
-        };
-        stack.Children.Add(effectBorder);
-
-        card.Child = stack;
-        return card;
-    }
-
-    private void AddStatItem(
+    private static void AddStatItem(
         Panel container,
         string label,
         int baseValue,
@@ -898,312 +699,16 @@ public partial class NpcDetailWindow : Window
         bool verified,
         int? exp = null)
     {
-        var effective = baseValue + bonus;
-        var rank = effective switch
-        {
-            >= 95 => "S+",
-            >= 90 => "S",
-            >= 80 => "A",
-            >= 70 => "B",
-            >= 60 => "C",
-            _ => "D"
-        };
-
-        var barBrush = (Brush)(effective >= 90
-            ? FindResource("Accent")
-            : effective >= 80
-                ? FindResource("Gain")
-                : effective >= 70
-                    ? new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xE2))
-                    : FindResource("Muted"));
-
-        var expBrush = (Brush)FindResource("Accent");
-
-        // Rich dark-themed ToolTip description
-        var tooltipBuilder = new System.Text.StringBuilder();
-        tooltipBuilder.AppendLine(label);
-        tooltipBuilder.AppendLine(tip);
-        if (verified)
-        {
-            tooltipBuilder.AppendLine();
-            tooltipBuilder.Append($"📊 Chỉ số: {effective} điểm (Bậc {rank})");
-            if (bonus > 0)
-            {
-                tooltipBuilder.Append($" [Cơ bản: {baseValue}, Ngoại vật/Khí vận: +{bonus}]");
-            }
-            tooltipBuilder.AppendLine();
-        }
-        if (exp.HasValue)
-        {
-            var curExp = Math.Clamp(exp.Value, 0, 99);
-            var needed = 100 - curExp;
-            tooltipBuilder.AppendLine($"⭐ Kinh nghiệm chỉ số: {curExp}/100 EXP");
-            tooltipBuilder.Append($"⚡ Tích lũy thêm {needed} EXP để thăng cấp lên {effective + 1}.");
-        }
-
-        var card = new Border
-        {
-            Background = (Brush)FindResource("SurfaceAlt"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(10, 8, 10, 8),
-            Margin = new Thickness(4, 4, 4, 4),
-            ToolTip = tooltipBuilder.ToString().TrimEnd()
-        };
-
-        var stack = new StackPanel();
-        var line = new DockPanel();
-
-        var valueStack = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        DockPanel.SetDock(valueStack, Dock.Right);
-
-        var displayVal = verified ? effective.ToString() : (effective >= 80 ? $"~{(effective / 5) * 5}" : "???");
-
-        var valueText = new TextBlock
-        {
-            Text = displayVal,
-            Style = (Style)FindResource("Number"),
-            FontWeight = FontWeights.Bold,
-            Foreground = barBrush,
-            FontSize = 14
-        };
-        valueStack.Children.Add(valueText);
-
-        if (bonus > 0 && verified)
-        {
-            var bonusText = new TextBlock
-            {
-                Text = $" (+{bonus})",
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = (Brush)FindResource("Gain"),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(3, 0, 0, 0)
-            };
-            valueStack.Children.Add(bonusText);
-        }
-
-        line.Children.Add(valueStack);
-
-        var rankBorder = new Border
-        {
-            Background = (Brush)FindResource("Surface"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(5, 1, 5, 1),
-            Margin = new Thickness(0, 0, 8, 0),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        DockPanel.SetDock(rankBorder, Dock.Right);
-        rankBorder.Child = new TextBlock
-        {
-            Text = verified ? rank : (effective >= 80 ? rank : "?"),
-            FontSize = 10,
-            FontWeight = FontWeights.Bold,
-            Foreground = barBrush
-        };
-        line.Children.Add(rankBorder);
-
-        var labelText = new TextBlock
-        {
-            Text = label,
-            Style = (Style)FindResource("Caption"),
-            Foreground = (Brush)FindResource("Text"),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        line.Children.Add(labelText);
-        stack.Children.Add(line);
-
-        if (exp.HasValue)
-        {
-            // EXP Sub-header: "EXP CHỈ SỐ" & "xx/100"
-            var curExp = Math.Clamp(exp.Value, 0, 99);
-            var expLine = new DockPanel { Margin = new Thickness(0, 5, 0, 2) };
-
-            var expValText = new TextBlock
-            {
-                Text = $"{curExp}/100",
-                Style = (Style)FindResource("Number"),
-                FontSize = 10.5,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = expBrush
-            };
-            DockPanel.SetDock(expValText, Dock.Right);
-            expLine.Children.Add(expValText);
-
-            var expLabelText = new TextBlock
-            {
-                Text = "EXP CHỈ SỐ",
-                Style = (Style)FindResource("Overline"),
-                FontSize = 9.5,
-                Foreground = (Brush)FindResource("Faint"),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            expLine.Children.Add(expLabelText);
-            stack.Children.Add(expLine);
-
-            // EXP Progress Track & Fill
-            var track = new Border
-            {
-                Background = (Brush)FindResource("Surface"),
-                BorderBrush = (Brush)FindResource("Line"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(2),
-                Height = 6,
-                Margin = new Thickness(0, 1, 0, 0)
-            };
-
-            var fillGrid = new Grid();
-            var expRatio = Math.Clamp(curExp / 100.0, 0.0, 1.0);
-            if (expRatio > 0.001)
-            {
-                fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(expRatio, GridUnitType.Star) });
-                fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0 - expRatio, GridUnitType.Star) });
-
-                var bar = new Border
-                {
-                    Background = expBrush,
-                    CornerRadius = new CornerRadius(1)
-                };
-                Grid.SetColumn(bar, 0);
-                fillGrid.Children.Add(bar);
-            }
-            track.Child = fillGrid;
-            stack.Children.Add(track);
-        }
-        else
-        {
-            // NPC Stat Capacity Track & Fill
-            var track = new Border
-            {
-                Background = (Brush)FindResource("Surface"),
-                BorderBrush = (Brush)FindResource("Line"),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(2),
-                Height = 6,
-                Margin = new Thickness(0, 6, 0, 0)
-            };
-
-            var fillGrid = new Grid();
-            var ratio = Math.Clamp(effective / 120.0, 0.05, 1.0);
-            fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ratio, GridUnitType.Star) });
-            fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0 - ratio, GridUnitType.Star) });
-
-            var bar = new Border
-            {
-                Background = barBrush,
-                CornerRadius = new CornerRadius(1)
-            };
-            Grid.SetColumn(bar, 0);
-            fillGrid.Children.Add(bar);
-
-            track.Child = fillGrid;
-            stack.Children.Add(track);
-        }
-
-        card.Child = stack;
+        var card = new GameStatCard();
+        card.Configure(label, baseValue, bonus, tip, verified, exp);
         container.Children.Add(card);
     }
 
-    private void AddMaskedStatItem(Panel container, string label, string tip)
+    private static void AddMaskedStatItem(Panel container, string label, string tip)
     {
-        var card = new Border
-        {
-            Background = (Brush)FindResource("SurfaceAlt"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(10, 8, 10, 8),
-            Margin = new Thickness(4, 4, 4, 4),
-            ToolTip = tip
-        };
-
-        var stack = new StackPanel();
-        var line = new DockPanel();
-
-        var valueText = new TextBlock
-        {
-            Text = "???",
-            Style = (Style)FindResource("Number"),
-            FontWeight = FontWeights.Bold,
-            Foreground = (Brush)FindResource("Faint"),
-            FontSize = 14
-        };
-        DockPanel.SetDock(valueText, Dock.Right);
-        line.Children.Add(valueText);
-
-        var rankBorder = new Border
-        {
-            Background = (Brush)FindResource("Surface"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(5, 1, 5, 1),
-            Margin = new Thickness(0, 0, 8, 0),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        DockPanel.SetDock(rankBorder, Dock.Right);
-        rankBorder.Child = new TextBlock
-        {
-            Text = "🔒",
-            FontSize = 10,
-            Foreground = (Brush)FindResource("Faint")
-        };
-        line.Children.Add(rankBorder);
-
-        var labelText = new TextBlock
-        {
-            Text = label,
-            Style = (Style)FindResource("Caption"),
-            Foreground = (Brush)FindResource("Muted"),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        line.Children.Add(labelText);
-        stack.Children.Add(line);
-
-        var track = new Border
-        {
-            Background = (Brush)FindResource("Surface"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(2),
-            Height = 6,
-            Margin = new Thickness(0, 6, 0, 0),
-            Opacity = 0.3
-        };
-        stack.Children.Add(track);
-
-        card.Child = stack;
+        var card = new GameStatCard();
+        card.ConfigureMasked(label, tip);
         container.Children.Add(card);
-    }
-
-    private static void RenderGauge(Grid grid, double ratio, Brush brush)
-    {
-        grid.Children.Clear();
-        grid.ColumnDefinitions.Clear();
-
-        var clamped = Math.Clamp(ratio, 0.0, 1.0);
-        if (clamped < 0.005)
-        {
-            return;
-        }
-
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(clamped, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0 - clamped, GridUnitType.Star) });
-
-        var bar = new Border
-        {
-            Background = brush,
-            CornerRadius = new CornerRadius(1)
-        };
-        Grid.SetColumn(bar, 0);
-        grid.Children.Add(bar);
     }
 
     private static (int cp, string tier) CalculateCombatPower(CharacterAttributes a)
