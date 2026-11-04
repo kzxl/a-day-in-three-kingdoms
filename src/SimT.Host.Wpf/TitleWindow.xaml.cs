@@ -15,6 +15,8 @@ public partial class TitleWindow : Window
     {
         InitializeComponent();
         _saves = saves;
+        DarkTitleBar.Apply(this);
+        VersionText.Text = $"SimT {App.Version()} · lưu tại {saves.Root}";
         Reload();
     }
 
@@ -25,6 +27,8 @@ public partial class TitleWindow : Window
             .ToList();
 
         SaveList.ItemsSource = items;
+        EmptyText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
         if (items.Count > 0)
         {
             SaveList.SelectedIndex = 0;

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
@@ -46,10 +47,27 @@ public partial class App : Application
             return;
         }
 
-        var saves = new SaveManager();
-        var title = new TitleWindow(saves);
-        MainWindow = title;
-        title.Show();
+        try
+        {
+            var saves = new SaveManager();
+            var title = new TitleWindow(saves);
+            MainWindow = title;
+            title.Show();
+        }
+        catch (Exception error)
+        {
+            // A start-up failure must say so instead of vanishing: the player has no console.
+            var log = Path.Combine(Path.GetTempPath(), "simt-crash.txt");
+            File.WriteAllText(log, error.ToString());
+            var message = string.Join(
+                Environment.NewLine + Environment.NewLine,
+                "Không mở được SimT.",
+                error.GetType().Name + ": " + error.Message,
+                "Chi tiết: " + log);
+
+            MessageBox.Show(message, "SimT", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+        }
     }
 
     /// <summary>
@@ -85,6 +103,12 @@ public partial class App : Application
         var log = Path.Combine(Path.GetTempPath(), "simt-smoke.txt");
         try
         {
+            // The title screen parses its own XAML; a missing resource there must fail the gate,
+            // not only the player's first double-click.
+            var title = new TitleWindow(saves);
+            title.UpdateLayout();
+            title.Close();
+
             var meta = saves.Create("smoke-" + DateTime.UtcNow.Ticks);
             var kernel = saves.Open(meta);
             var window = new MainWindow(kernel, saves, meta);
@@ -138,6 +162,12 @@ public partial class App : Application
 
 
     }
+
+    /// <summary>Informational version, which includes the commit the build came from.</summary>
+    internal static string Version() =>
+        typeof(App).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(App).Assembly.GetName().Version?.ToString()
+        ?? "unknown";
 
     /// <summary>Enough activity that every screen has rows worth looking at.</summary>
     private static void SeedDemo(SimKernel kernel)

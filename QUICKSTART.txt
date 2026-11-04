@@ -1,4 +1,4 @@
-SimT 0.2.1
+SimT 0.2.2
 =========================
 
 A single-player, offline merchant simulation for Windows.
