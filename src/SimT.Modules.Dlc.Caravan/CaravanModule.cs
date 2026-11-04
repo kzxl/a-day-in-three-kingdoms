@@ -18,12 +18,13 @@ public sealed class CaravanModule : ISimModule
         var wallet = context.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
         var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
         var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var npcs = context.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var nr) ? nr : null;
 
         var freightPerUnit = context.Config.GetLong("freightPerUnit", CaravanService.DefaultFreightPerUnit);
-        var service = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, player, context.Ids, context.Log, context.ActionTime, freightPerUnit);
+        var service = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, player, context.Ids, context.Log, context.ActionTime, freightPerUnit, npcs);
 
         context.Capabilities.Provide(CapabilityIds.CaravanGuild, service);
-        context.Ui.AddScreen(new CaravanScreen(service, map, bag, player, context.Clock, items));
+        context.Ui.AddScreen(new CaravanScreen(service, map, bag, player, context.Clock, items, npcs));
         context.Ui.AddCommandHandler(new CaravanCommandHandler(service, player));
 
         context.Events.Subscribe<DayAdvanced>(day => service.OnDay(day.Date));

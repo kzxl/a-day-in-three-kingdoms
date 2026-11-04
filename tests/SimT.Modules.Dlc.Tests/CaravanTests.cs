@@ -329,6 +329,93 @@ public sealed class CaravanTests : IDisposable
         Assert.True(kernel.Ledger.Balance < balanceBefore);
     }
 
+    [Fact]
+    public void MarketRumors_seeded_and_modify_city_prices()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
+
+        var rumors = guild.Rumors;
+        Assert.NotEmpty(rumors);
+        Assert.Contains(rumors, r => r.HeadlineVi.Contains("Nạn Đói Ký Châu"));
+
+        // City 3 (Nghiệp Thành) item 1 (Gạo) has 2200 permille factor
+        var factor = guild.GetRumorPriceFactorPermille(3, 1);
+        Assert.Equal(2200, factor);
+
+        var quote = trade.QuoteBuy(3, 1);
+        // Base price of Gạo is 12, with regional factor and 2.2x rumor multiplier it should be > 20
+        Assert.True(quote >= 20, $"Expected elevated price due to rumor, got {quote}");
+    }
+
+    [Fact]
+    public void CaravanCrew_assignment_and_perks()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        // Initial crew is empty
+        Assert.Null(guild.Crew.EscortNpcId);
+        Assert.Null(guild.Crew.AccountantNpcId);
+        Assert.Null(guild.Crew.NavigatorNpcId);
+
+        // Assign escort from existing NPCs
+        var candidateEscort = npcs.All.First(n => n.Attributes.War >= 60);
+        var resEscort = guild.AssignCrew("escort", candidateEscort.Id);
+        Assert.True(resEscort.Ok, resEscort.Message);
+        Assert.Equal(candidateEscort.Id, guild.Crew.EscortNpcId);
+        Assert.Equal(candidateEscort.NameVi, guild.Crew.EscortNameVi);
+        Assert.Equal(candidateEscort.Attributes.War, guild.Crew.EscortWar);
+
+        // Assign accountant
+        var candidateAcct = npcs.All.First(n => n.Attributes.Com >= 50);
+        var resAcct = guild.AssignCrew("accountant", candidateAcct.Id);
+        Assert.True(resAcct.Ok, resAcct.Message);
+        Assert.Equal(candidateAcct.Id, guild.Crew.AccountantNpcId);
+
+        // Assign navigator
+        var candidateNav = npcs.All.First(n => n.Attributes.Log >= 50);
+        var resNav = guild.AssignCrew("navigator", candidateNav.Id);
+        Assert.True(resNav.Ok, resNav.Message);
+        Assert.Equal(candidateNav.Id, guild.Crew.NavigatorNpcId);
+
+        // Test unassigning
+        var resUnassign = guild.AssignCrew("escort", null);
+        Assert.True(resUnassign.Ok);
+        Assert.Null(guild.Crew.EscortNpcId);
+    }
+
+    [Fact]
+    public void CaravanScreen_commands_for_crew_assignment()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var candidate = npcs.All.First();
+
+        var assignMsg = Command(kernel, $"assign_crew:escort:{candidate.Id}");
+        Assert.Contains("Đã bổ nhiệm", assignMsg);
+        Assert.Equal(candidate.Id, guild.Crew.EscortNpcId);
+
+        var unassignMsg = Command(kernel, "unassign_crew:escort");
+        Assert.Contains("Đã bãi nhiệm", unassignMsg);
+        Assert.Null(guild.Crew.EscortNpcId);
+    }
+
+    [Fact]
+    public void GreatMerchantGuild_prestige_contracts_available()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+
+        var contracts = guild.Contracts;
+        Assert.Contains(contracts, c => c.GuildName.Contains("Hà Bắc Chân Thị"));
+        Assert.Contains(contracts, c => c.GuildName.Contains("Từ Châu Mi Thị"));
+        Assert.Contains(contracts, c => c.GuildName.Contains("Thục Trung Lương Bang"));
+    }
+
     private static void Seed(SimKernel kernel, int quantity)
     {
         var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);

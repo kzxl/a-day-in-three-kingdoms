@@ -97,7 +97,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
                     continue;
                 }
 
-                var price = MarketPricing.Quote(item, city, date.Month, row.Stock, row.Baseline);
+                var price = QuoteBuy(row.City, row.Item);
                 _db.Execute(
                     """
                     INSERT OR IGNORE INTO mk_price_sample(citadel_id, item_id, day_index, buy_price)
@@ -117,16 +117,44 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         });
     }
 
+    private bool _hasRumorTable;
+
+    private int GetRumorPriceFactor(long cityId, long itemId)
+    {
+        if (!_hasRumorTable)
+        {
+            _hasRumorTable = _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='cv_market_rumor'") > 0;
+            if (!_hasRumorTable)
+            {
+                return 1000;
+            }
+        }
+
+        var factor = _db.ScalarLong(
+            """
+            SELECT price_mult_permille
+            FROM cv_market_rumor
+            WHERE citadel_id = @city AND item_id = @item AND is_active = 1 AND start_day <= @day AND end_day >= @day
+            ORDER BY id DESC LIMIT 1
+            """,
+            new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@day", _clock.Today.DayIndex));
+
+        return factor > 0 ? (int)factor : 1000;
+    }
+
     public long QuoteBuy(long cityId, long itemId)
     {
         var item = RequireItem(itemId);
         var citadel = RequireCitadel(cityId);
-        return MarketPricing.Quote(
+        var baseQuote = MarketPricing.Quote(
             item,
             citadel,
             _clock.Today.Month,
             StallStock(cityId, itemId),
             StallBaseline(cityId, itemId));
+
+        var factor = GetRumorPriceFactor(cityId, itemId);
+        return factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
     }
 
     public long QuoteSell(long cityId, long itemId) => MarketPricing.SellQuote(QuoteBuy(cityId, itemId));
@@ -151,7 +179,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
             return TradeResult.Fail("Sạp không đủ hàng.");
         }
 
-        var unit = MarketPricing.Quote(item, citadel, _clock.Today.Month, stock, StallBaseline(cityId, itemId));
+        var unit = QuoteBuy(cityId, itemId);
         var total = MarketPricing.Total(unit, quantity);
         if (_wallet.Liquid < total)
         {
@@ -198,8 +226,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
                 $"Sạp chỉ thu mua thêm {Math.Max(0, MarketPricing.BuyBackCapacity(baseline) - stock)} đơn vị nữa.");
         }
 
-        var unit = MarketPricing.SellQuote(
-            MarketPricing.Quote(item, citadel, _clock.Today.Month, stock, baseline));
+        var unit = QuoteSell(cityId, itemId);
         var total = MarketPricing.Total(unit, quantity);
 
         var moved = false;

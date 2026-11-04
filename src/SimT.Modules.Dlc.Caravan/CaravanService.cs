@@ -28,6 +28,7 @@ internal sealed class CaravanService : ICaravanGuild
     private readonly ILog _log;
     private readonly IActionTime _actionTime;
     private readonly long _freightPerUnit;
+    private readonly INpcRegistry? _npcRegistry;
 
     public CaravanService(
         IDbSession db,
@@ -40,7 +41,8 @@ internal sealed class CaravanService : ICaravanGuild
         IIdGenerator ids,
         ILog log,
         IActionTime actionTime,
-        long freightPerUnit = DefaultFreightPerUnit)
+        long freightPerUnit = DefaultFreightPerUnit,
+        INpcRegistry? npcRegistry = null)
     {
         _db = db;
         _clock = clock;
@@ -55,6 +57,7 @@ internal sealed class CaravanService : ICaravanGuild
         _freightPerUnit = freightPerUnit > 0
             ? freightPerUnit
             : throw new SimException("caravan.config_invalid", $"freightPerUnit must be positive, got {freightPerUnit}.");
+        _npcRegistry = npcRegistry;
     }
 
     public long FeePerUnit => _freightPerUnit;
@@ -67,6 +70,150 @@ internal sealed class CaravanService : ICaravanGuild
                 "SELECT tier, name_vi, capacity_mult, cost_discount, defense_bonus, spoilage_reduction FROM cv_fleet WHERE id = 1",
                 r => new CaravanFleetDef(r.GetInt32(0), r.GetString(1), r.GetDouble(2), r.GetDouble(3), r.GetDouble(4), r.GetDouble(5)));
             return row ?? new CaravanFleetDef(1, "Xe Thồ Mộc Cơ Bản", 1.0, 0.0, 0.0, 0.0);
+        }
+    }
+
+    public IReadOnlyList<MarketRumorDef> Rumors
+    {
+        get
+        {
+            var today = _clock.Today.DayIndex;
+            return _db.Query(
+                """
+                SELECT id, citadel_id, item_id, headline_vi, detail_vi, price_mult_permille, end_day
+                FROM cv_market_rumor
+                WHERE is_active = 1 AND start_day <= @day AND end_day >= @day
+                ORDER BY id ASC
+                """,
+                row =>
+                {
+                    var id = row.GetInt64(0);
+                    var cityId = row.GetInt64(1);
+                    var itemId = row.GetInt64(2);
+                    var headline = row.GetString(3);
+                    var detail = row.GetString(4);
+                    var mult = row.GetInt32(5);
+                    var endDay = row.GetInt32(6);
+                    var cityName = _map.Find(cityId)?.NameVi ?? $"Thành #{cityId}";
+                    var itemName = _items.Find(itemId)?.NameVi ?? $"Vật phẩm #{itemId}";
+                    var remaining = (int)Math.Max(0, endDay - today);
+                    return new MarketRumorDef(id, cityId, cityName, itemId, itemName, headline, detail, mult, remaining);
+                },
+                DbArgs.One("@day", today));
+        }
+    }
+
+    public int GetRumorPriceFactorPermille(long citadelId, long itemId)
+    {
+        var factor = _db.ScalarLong(
+            """
+            SELECT price_mult_permille
+            FROM cv_market_rumor
+            WHERE citadel_id = @city AND item_id = @item AND is_active = 1 AND start_day <= @day AND end_day >= @day
+            ORDER BY id DESC LIMIT 1
+            """,
+            new DbArgs().Add("@city", citadelId).Add("@item", itemId).Add("@day", _clock.Today.DayIndex));
+        return factor > 0 ? (int)factor : 1000;
+    }
+
+    public CaravanCrewDef Crew
+    {
+        get
+        {
+            var rows = _db.Query(
+                "SELECT escort_npc_id, accountant_npc_id, navigator_npc_id FROM cv_fleet_crew WHERE id = 1",
+                r => (
+                    EscortId: r.IsDbNull(0) ? (long?)null : r.GetInt64(0),
+                    AccountantId: r.IsDbNull(1) ? (long?)null : r.GetInt64(1),
+                    NavigatorId: r.IsDbNull(2) ? (long?)null : r.GetInt64(2)
+                ));
+
+            if (rows.Count == 0)
+            {
+                return new CaravanCrewDef(null, null, 0, null, null, 0, null, null, 0);
+            }
+
+            var row = rows[0];
+
+            var escortNpc = row.EscortId.HasValue ? _npcRegistry?.Find(row.EscortId.Value) : null;
+            var acctNpc = row.AccountantId.HasValue ? _npcRegistry?.Find(row.AccountantId.Value) : null;
+            var navNpc = row.NavigatorId.HasValue ? _npcRegistry?.Find(row.NavigatorId.Value) : null;
+
+            return new CaravanCrewDef(
+                row.EscortId,
+                escortNpc?.NameVi,
+                escortNpc?.Attributes.War ?? 0,
+                row.AccountantId,
+                acctNpc?.NameVi,
+                acctNpc?.Attributes.Com ?? 0,
+                row.NavigatorId,
+                navNpc?.NameVi,
+                navNpc?.Attributes.Log ?? 0);
+        }
+    }
+
+    public CaravanResult AssignCrew(string role, long? npcId)
+    {
+        var normRole = role?.Trim().ToLowerInvariant() switch
+        {
+            "escort" or "tieu_dau" or "tieudau" => "escort",
+            "accountant" or "chuong_quy" or "chuongquy" => "accountant",
+            "navigator" or "dan_duong" or "danduong" => "navigator",
+            _ => null
+        };
+
+        if (normRole is null)
+        {
+            return CaravanResult.Failure($"Chức vụ không hợp lệ: '{role}'. Hợp lệ: escort (Tiêu Đầu), accountant (Chưởng Quỹ), navigator (Dẫn Đường).");
+        }
+
+        string roleTitleVi = normRole switch
+        {
+            "escort" => "Tiêu Đầu",
+            "accountant" => "Chưởng Quỹ",
+            _ => "Dẫn Đường"
+        };
+
+        var col = normRole switch
+        {
+            "escort" => "escort_npc_id",
+            "accountant" => "accountant_npc_id",
+            _ => "navigator_npc_id"
+        };
+
+        if (npcId.HasValue)
+        {
+            var npc = _npcRegistry?.Find(npcId.Value);
+            if (npc is null)
+            {
+                return CaravanResult.Failure($"Không tìm thấy nhân vật có ID {npcId.Value}.");
+            }
+
+            _db.Execute(
+                $"""
+                INSERT INTO cv_fleet_crew (id, {col}) VALUES (1, @npcId)
+                ON CONFLICT(id) DO UPDATE SET {col} = @npcId
+                """,
+                DbArgs.One("@npcId", npcId.Value));
+
+            var statInfo = normRole switch
+            {
+                "escort" => $"Võ lực {npc.Attributes.War} (giảm nguy cơ cướp đường và áp tải an toàn)",
+                "accountant" => $"Thương tài {npc.Attributes.Com} (giảm phí cước vận tải lên tới 25%)",
+                _ => $"Hậu cần {npc.Attributes.Log} (rút ngắn thời gian di chuyển đường xa 1 ngày)"
+            };
+
+            return CaravanResult.Success($"Đã bổ nhiệm {npc.NameVi} làm {roleTitleVi} cho thương đội ({statInfo}).");
+        }
+        else
+        {
+            _db.Execute(
+                $"""
+                INSERT INTO cv_fleet_crew (id, {col}) VALUES (1, NULL)
+                ON CONFLICT(id) DO UPDATE SET {col} = NULL
+                """);
+
+            return CaravanResult.Success($"Đã bãi nhiệm chức vụ {roleTitleVi} của thương đội.");
         }
     }
 
@@ -171,8 +318,8 @@ internal sealed class CaravanService : ICaravanGuild
 
     public CaravanResult SendWithEscort(long fromCity, long toCity, long? escortNpcId)
     {
-        var days = _map.TravelDays(fromCity, toCity);
-        if (days <= 0)
+        var baseDays = _map.TravelDays(fromCity, toCity);
+        if (baseDays <= 0)
         {
             return CaravanResult.Failure("Không có đường thương giữa hai thành này.");
         }
@@ -183,10 +330,22 @@ internal sealed class CaravanService : ICaravanGuild
             return CaravanResult.Failure("Túi trống, không có gì để gửi.");
         }
 
+        var crew = Crew;
+        var effectiveEscort = escortNpcId ?? crew.EscortNpcId;
+
+        // Navigator bonus: Log >= 60 reduces route time by 1 day for longer journeys (>= 3 days)
+        var days = (crew.NavigatorLog >= 60 && baseDays >= 3) ? Math.Max(1, baseDays - 1) : baseDays;
+
         var units = rows.Sum(row => row.Quantity);
         var baseFee = units * _freightPerUnit;
         var fleet = Fleet;
-        var fee = Math.Max(1, (long)(baseFee * (1.0 - fleet.CostDiscount)));
+
+        // Fleet discount + Accountant bonus (up to 25% discount based on Com stat)
+        var fleetDiscountPermille = (int)(fleet.CostDiscount * 1000);
+        var acctDiscountPermille = crew.AccountantCom > 0 ? Math.Min(250, crew.AccountantCom * 250 / 100) : 0;
+        var totalDiscountPermille = Math.Min(500, fleetDiscountPermille + acctDiscountPermille);
+        var fee = Math.Max(1, baseFee * (1000 - totalDiscountPermille) / 1000);
+
         if (_wallet.Liquid < fee)
         {
             return CaravanResult.Failure($"Cần {fee} Quan cước, chỉ có {_wallet.Liquid}.");
@@ -221,7 +380,7 @@ internal sealed class CaravanService : ICaravanGuild
                     .Add("@depart", departDay)
                     .Add("@arrive", arriveDay)
                     .Add("@fee", fee)
-                    .Add("@escort", (object?)escortNpcId ?? DBNull.Value));
+                    .Add("@escort", (object?)effectiveEscort ?? DBNull.Value));
 
             foreach (var row in rows)
             {
@@ -231,9 +390,10 @@ internal sealed class CaravanService : ICaravanGuild
             }
         });
 
-        var escortText = escortNpcId.HasValue ? " (có tiêu đầu hộ vệ)" : string.Empty;
+        var escortText = effectiveEscort.HasValue ? " (có tiêu đầu hộ vệ)" : string.Empty;
+        var navText = (days < baseDays) ? " (Dẫn Đường rút ngắn 1 ngày)" : string.Empty;
         return CaravanResult.Success(
-            $"Đoàn {units} đơn vị lên đường{escortText}, tới sau {days} ngày (ngày {GameDate.FromDayIndex(arriveDay)}), cước {fee} Quan.");
+            $"Đoàn {units} đơn vị lên đường{escortText}{navText}, tới sau {days} ngày (ngày {GameDate.FromDayIndex(arriveDay)}), cước {fee} Quan.");
     }
 
     public CaravanResult SendWithEscortFee(long fromCity, long toCity, int escortFee)
@@ -253,11 +413,14 @@ internal sealed class CaravanService : ICaravanGuild
 
     public CaravanResult Travel(long fromCity, long toCity, IPlayerState player)
     {
-        var days = _map.TravelDays(fromCity, toCity);
-        if (days <= 0)
+        var baseDays = _map.TravelDays(fromCity, toCity);
+        if (baseDays <= 0)
         {
             return CaravanResult.Failure("Không có đường đi giữa hai thành này.");
         }
+
+        var crew = Crew;
+        var days = (crew.NavigatorLog >= 60 && baseDays >= 3) ? Math.Max(1, baseDays - 1) : baseDays;
 
         var incidentLog = string.Empty;
 
@@ -286,9 +449,32 @@ internal sealed class CaravanService : ICaravanGuild
             {
                 var seed = (int)(fromCity * 17 + toCity * 31 + _clock.Today.DayIndex);
                 var rng = new Random(seed);
-                if (rng.NextDouble() < 0.40)
+                var roll = rng.NextDouble();
+                if (roll < 0.20)
                 {
-                    incidentLog = " Trên đường thiên lý gặp toán thổ phỉ chặn đường, bạn cùng đoàn tùy tùng cảnh giác đề phòng, thuận lợi kích lui chúng và tiếp tục lộ trình.";
+                    if (crew.EscortNpcId.HasValue && crew.EscortWar >= 60)
+                    {
+                        incidentLog = $" Trên đường đi qua hẻm núi gặp toán sơn tặc chặn đường, Tiêu Đầu {crew.EscortNameVi} rút đao uy dũng hét vang, lũ cướp khiếp sợ tháo lui tán loạn!";
+                    }
+                    else
+                    {
+                        incidentLog = " Trên đường thiên lý gặp toán thổ phỉ chặn đường, bạn cùng đoàn tùy tùng cảnh giác đề phòng, thuận lợi kích lui chúng và tiếp tục lộ trình.";
+                    }
+                }
+                else if (roll < 0.35)
+                {
+                    if (crew.AccountantNpcId.HasValue && crew.AccountantCom >= 60)
+                    {
+                        incidentLog = $" Qua trạm tuần kiểm quan ải, Chưởng Quỹ {crew.AccountantNameVi} am hiểu quan lộ xuất trình thông quan văn điệp, được quan lại tạo điều kiện đi nhanh.";
+                    }
+                    else
+                    {
+                        incidentLog = " Đoàn xe ngang qua dịch trạm quan phương, dừng chân tiếp tế lương thảo nước uống rồi tiếp tục lên đường.";
+                    }
+                }
+                else if (roll < 0.50 && days < baseDays)
+                {
+                    incidentLog = $" Nhờ Dẫn Đường {crew.NavigatorNameVi} chỉ lối đường mòn hiểm trở, đoàn xe đã vượt quan ải sớm 1 ngày!";
                 }
             }
         });
@@ -413,6 +599,16 @@ internal sealed class CaravanService : ICaravanGuild
     /// <summary>Arrival hook: runs on every day, marks a run arrived exactly once.</summary>
     public void OnDay(GameDate date)
     {
+        // Expire outdated market rumors
+        _db.Execute(
+            "UPDATE cv_market_rumor SET is_active = 0 WHERE is_active = 1 AND end_day < @day",
+            DbArgs.One("@day", date.DayIndex));
+
+        // Expire unaccepted deadline-passed contracts
+        _db.Execute(
+            "UPDATE cv_contract SET status = 'EXPIRED' WHERE status = 'AVAILABLE' AND deadline_day < @day",
+            DbArgs.One("@day", date.DayIndex));
+
         var due = _db.Query(
             "SELECT id, to_city, depart_day, arrive_day, escort_npc_id FROM cv_run WHERE status = 'RUNNING' AND arrive_day <= @day ORDER BY id",
             row => (

@@ -7,6 +7,8 @@ namespace SimT.Modules.Dlc.Caravan;
 /// <summary>Route board: what can be shipped or walked to from here, contracts, and what is already moving.</summary>
 internal sealed class CaravanScreen : IScreenContribution
 {
+    private static readonly string[] RumorColumns = ["Thành Trấn", "Mặt Hàng", "Biến Động Giá", "Thời Hạn Còn", "Sự Kiện"];
+    private static readonly string[] CrewColumns = ["Chức Vụ", "Nhân Sự", "Chỉ Số Trọng Yếu", "Hiệu Quả Kỹ Năng"];
     private static readonly string[] RouteColumns = ["Đích", "Ngày đi", "Cước/đơn vị", "Trong túi"];
     private static readonly string[] ContractColumns = ["Hội Quán", "Nơi Nhận", "Nơi Giao", "Hàng Hóa", "Thù Lao", "Hạn Chót", "Trạng Thái"];
     private static readonly string[] RunColumns = ["Mã", "Đến", "Khởi hành", "Tới nơi", "Hàng", "Hao", "Hộ Vệ", "Trạng thái"];
@@ -17,6 +19,7 @@ internal sealed class CaravanScreen : IScreenContribution
     private readonly IPlayerState _player;
     private readonly IGameClock _clock;
     private readonly IItemCatalog _items;
+    private readonly INpcRegistry? _npcs;
 
     public CaravanScreen(
         CaravanService service,
@@ -24,7 +27,8 @@ internal sealed class CaravanScreen : IScreenContribution
         IBag bag,
         IPlayerState player,
         IGameClock clock,
-        IItemCatalog items)
+        IItemCatalog items,
+        INpcRegistry? npcs = null)
     {
         _service = service;
         _map = map;
@@ -32,6 +36,7 @@ internal sealed class CaravanScreen : IScreenContribution
         _player = player;
         _clock = clock;
         _items = items;
+        _npcs = npcs;
     }
 
     private static string Fmt(long value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -53,6 +58,130 @@ internal sealed class CaravanScreen : IScreenContribution
         var neighbours = _map.RouteNeighbours(city.Id);
         var held = _bag.TotalQuantity(city.Id);
         var fleet = _service.Fleet;
+
+        var rumorRows = new List<ScreenRow>();
+        foreach (var r in _service.Rumors)
+        {
+            var multText = r.PriceMultPermille > 1000
+                ? $"+{(r.PriceMultPermille - 1000) / 10}%"
+                : $"-{(1000 - r.PriceMultPermille) / 10}%";
+            rumorRows.Add(new ScreenRow(
+                [
+                    r.CitadelNameVi,
+                    r.ItemNameVi,
+                    multText,
+                    $"{r.ExpireDaysRemaining} ngày",
+                    r.HeadlineVi
+                ],
+                [],
+                Title: r.HeadlineVi,
+                Details:
+                [
+                    new ScreenDetail("Thành Trấn", r.CitadelNameVi),
+                    new ScreenDetail("Mặt Hàng", r.ItemNameVi),
+                    new ScreenDetail("Thời Hạn", $"{r.ExpireDaysRemaining} ngày tới"),
+                    new ScreenDetail("Tác Động", $"Giá giao dịch biến động {multText}"),
+                    new ScreenDetail("Chi Tiết", r.DetailVi),
+                    new ScreenDetail("Mẹo Đầu Cơ", "Chở mặt hàng này tới bán tại thành đang có biến cố để thu siêu lợi nhuận!")
+                ]));
+        }
+
+        var crew = _service.Crew;
+        var crewRows = new List<ScreenRow>();
+
+        // Escort row
+        var escortCommands = new List<ScreenCommand>();
+        if (crew.EscortNpcId.HasValue)
+        {
+            escortCommands.Add(new ScreenCommand("unassign_crew:escort", "Bãi Nhiệm ✖"));
+        }
+        else if (_npcs is not null)
+        {
+            var bestEscort = _npcs.FindByCitadel(city.Id)
+                .OrderByDescending(n => n.Attributes.War)
+                .FirstOrDefault();
+            if (bestEscort is not null && bestEscort.Attributes.War >= 40)
+            {
+                escortCommands.Add(new ScreenCommand($"assign_crew:escort:{bestEscort.Id}", $"Thuê {bestEscort.NameVi} (Võ {bestEscort.Attributes.War})"));
+            }
+        }
+        crewRows.Add(new ScreenRow(
+            [
+                "Tiêu Đầu 🛡️",
+                crew.EscortNpcId.HasValue ? crew.EscortNameVi! : "(Trống)",
+                crew.EscortNpcId.HasValue ? $"Võ Lực: {crew.EscortWar}" : "—",
+                crew.EscortNpcId.HasValue ? "Trấn áp cướp đường, giảm thiểu tối đa tổn thất hàng hóa" : "Chưa có tiêu đầu, dễ bị đạo tặc phục kích khi đi xa"
+            ],
+            escortCommands,
+            Title: "Tiêu Đầu (Hộ Vệ)",
+            Details:
+            [
+                new ScreenDetail("Nhiệm Vụ", "Áp tải, bảo vệ hàng hóa và đẩy lùi cướp đường khi vận chuyển viễn chinh"),
+                new ScreenDetail("Chỉ Số Then Chốt", "Võ Lực (WAR)")
+            ]));
+
+        // Accountant row
+        var acctCommands = new List<ScreenCommand>();
+        if (crew.AccountantNpcId.HasValue)
+        {
+            acctCommands.Add(new ScreenCommand("unassign_crew:accountant", "Bãi Nhiệm ✖"));
+        }
+        else if (_npcs is not null)
+        {
+            var bestAcct = _npcs.FindByCitadel(city.Id)
+                .OrderByDescending(n => n.Attributes.Com)
+                .FirstOrDefault();
+            if (bestAcct is not null && bestAcct.Attributes.Com >= 40)
+            {
+                acctCommands.Add(new ScreenCommand($"assign_crew:accountant:{bestAcct.Id}", $"Thuê {bestAcct.NameVi} (Thương {bestAcct.Attributes.Com})"));
+            }
+        }
+        var acctDiscount = crew.AccountantCom > 0 ? Math.Min(25, crew.AccountantCom * 25 / 100) : 0;
+        crewRows.Add(new ScreenRow(
+            [
+                "Chưởng Quỹ 💰",
+                crew.AccountantNpcId.HasValue ? crew.AccountantNameVi! : "(Trống)",
+                crew.AccountantNpcId.HasValue ? $"Thương Tài: {crew.AccountantCom}" : "—",
+                crew.AccountantNpcId.HasValue ? $"Giảm {acctDiscount}% cước phí vận chuyển hàng hóa toàn tuyến" : "Chưa có chưởng quỹ, tính nguyên giá cước vận tải"
+            ],
+            acctCommands,
+            Title: "Chưởng Quỹ (Kế Toán)",
+            Details:
+            [
+                new ScreenDetail("Nhiệm Vụ", "Quản lý sổ sách, đàm phán cước phí xe trạm, tối ưu hóa chi phí lộ trình"),
+                new ScreenDetail("Chỉ Số Then Chốt", "Thương Tài (COM)")
+            ]));
+
+        // Navigator row
+        var navCommands = new List<ScreenCommand>();
+        if (crew.NavigatorNpcId.HasValue)
+        {
+            navCommands.Add(new ScreenCommand("unassign_crew:navigator", "Bãi Nhiệm ✖"));
+        }
+        else if (_npcs is not null)
+        {
+            var bestNav = _npcs.FindByCitadel(city.Id)
+                .OrderByDescending(n => n.Attributes.Log)
+                .FirstOrDefault();
+            if (bestNav is not null && bestNav.Attributes.Log >= 40)
+            {
+                navCommands.Add(new ScreenCommand($"assign_crew:navigator:{bestNav.Id}", $"Thuê {bestNav.NameVi} (Hậu {bestNav.Attributes.Log})"));
+            }
+        }
+        crewRows.Add(new ScreenRow(
+            [
+                "Dẫn Đường 🧭",
+                crew.NavigatorNpcId.HasValue ? crew.NavigatorNameVi! : "(Trống)",
+                crew.NavigatorNpcId.HasValue ? $"Hậu Cần: {crew.NavigatorLog}" : "—",
+                (crew.NavigatorNpcId.HasValue && crew.NavigatorLog >= 60) ? "Rút ngắn 1 ngày di chuyển trên tuyến viễn chinh (>=3 ngày)" : "Thông thuộc đường sá, chuẩn bị lương thảo nước uống"
+            ],
+            navCommands,
+            Title: "Dẫn Đường (Thổ Địa)",
+            Details:
+            [
+                new ScreenDetail("Nhiệm Vụ", "Thông thạo địa hình, vạch lối tắt hiểm yếu, rút ngắn ngày đường"),
+                new ScreenDetail("Chỉ Số Then Chốt", "Hậu Cần (LOG)")
+            ]));
 
         var routeRows = new List<ScreenRow>(neighbours.Count);
         foreach (var neighbourId in neighbours)
@@ -171,7 +300,9 @@ internal sealed class CaravanScreen : IScreenContribution
             $"{Title} — {city.NameVi}",
             $"Đội xe: {fleet.NameVi} (Bậc {fleet.Tier}/3) · Đang chở {_service.UnitsInTransit} đv · Hợp đồng: {activeContracts} · Túi: {held} đv",
             [
-                new ScreenSection("Hợp Đồng Áp Tiêu (Thương Hội)", ContractColumns, contractRows),
+                new ScreenSection("Thương Cơ Thị Trường & Tin Tức Thời Thế", RumorColumns, rumorRows),
+                new ScreenSection("Biên Chế Nhân Sự Thương Đội", CrewColumns, crewRows),
+                new ScreenSection("Hợp Đồng Áp Tiêu (Đại Thương Bang)", ContractColumns, contractRows),
                 new ScreenSection("Tuyến Đường & Lộ Trình", RouteColumns, routeRows),
                 new ScreenSection("Đoàn Hàng Đang Di Chuyển", RunColumns, runRows)
             ],
@@ -203,9 +334,25 @@ internal sealed class CaravanCommandHandler : IScreenCommandHandler
 
     public string? Execute(string commandId)
     {
-        if (commandId == "upgrade_fleet")
+        if (string.Equals(commandId, "upgrade_fleet", StringComparison.Ordinal))
         {
             return _service.UpgradeFleet().Message;
+        }
+
+        if (commandId.StartsWith("unassign_crew:", StringComparison.Ordinal))
+        {
+            var role = commandId["unassign_crew:".Length..];
+            return _service.AssignCrew(role, null).Message;
+        }
+
+        if (commandId.StartsWith("assign_crew:", StringComparison.Ordinal))
+        {
+            var parts = commandId.Split(':');
+            if (parts.Length >= 3 && long.TryParse(parts[2], out var npcId))
+            {
+                return _service.AssignCrew(parts[1], npcId).Message;
+            }
+            return "Lệnh bổ nhiệm không hợp lệ.";
         }
 
         var separator = commandId.IndexOf(':');

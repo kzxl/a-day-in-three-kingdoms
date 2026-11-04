@@ -1,0 +1,10 @@
+-- Migration 0306: Ngũ Đại Thương Bang Tam Quốc (Prestige Guild Contracts)
+INSERT OR IGNORE INTO cv_contract (id, guild_name, from_city, to_city, item_id, quantity, reward_copper, deadline_day, status)
+VALUES
+    (9,  'Hà Bắc Chân Thị',       3,  2,  4,  10, 1200, 66060, 'AVAILABLE'), -- Nghiệp Thành -> Trường An (Lụa cao cấp, 1200 Quan)
+    (10, 'Từ Châu Mi Thị',        9,  7,  2,  25,  950, 66065, 'AVAILABLE'), -- Hạ Phì -> Hứa Xương (Muối biển, 950 Quan)
+    (11, 'Kinh Châu Sái Bang',    10, 7,  3,  16, 1400, 66070, 'AVAILABLE'), -- Tương Dương -> Hứa Xương (Trà mạn hảo hạng, 1400 Quan)
+    (12, 'Thục Trung Lương Bang', 15, 14, 12,  8, 2200, 66075, 'AVAILABLE'), -- Thành Đô -> Hán Trung (Gấm Thục quý, 2200 Quan)
+    (13, 'Tây Lương Mã Thương',   2,  14, 5,  20, 1600, 66080, 'AVAILABLE'), -- Trường An -> Hán Trung (Sắt rèn vũ khí, 1600 Quan)
+    (14, 'Giang Đông Cố Thị',     13, 9,  10, 15, 1100, 66085, 'AVAILABLE'), -- Kiến Nghiệp -> Hạ Phì (Rượu nếp, 1100 Quan)
+    (15, 'Thục Trung Lương Bang', 14, 10, 13,  6, 1850, 66090, 'AVAILABLE'); -- Hán Trung -> Tương Dương (Nhân sâm, 1850 Quan)

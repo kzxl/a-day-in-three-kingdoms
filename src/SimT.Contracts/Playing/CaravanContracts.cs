@@ -13,6 +13,14 @@ public interface ICaravanGuild
 
     CaravanFleetDef Fleet { get; }
 
+    IReadOnlyList<MarketRumorDef> Rumors { get; }
+
+    int GetRumorPriceFactorPermille(long citadelId, long itemId);
+
+    CaravanCrewDef Crew { get; }
+
+    CaravanResult AssignCrew(string role, long? npcId);
+
     CaravanResult UpgradeFleet();
 
     CaravanResult Send(long fromCity, long toCity);
@@ -70,3 +78,31 @@ public readonly record struct CaravanResult(bool Ok, string Message)
 
     public static CaravanResult Failure(string message) => new(false, message);
 }
+
+/// <summary>
+/// Geopolitical/macroeconomic price shock or commercial rumor in the realm.
+/// </summary>
+public sealed record MarketRumorDef(
+    long Id,
+    long CitadelId,
+    string CitadelNameVi,
+    long ItemId,
+    string ItemNameVi,
+    string HeadlineVi,
+    string DetailVi,
+    int PriceMultPermille,
+    int ExpireDaysRemaining);
+
+/// <summary>
+/// Specialist crew members assigned to manage, guide and defend the caravan.
+/// </summary>
+public sealed record CaravanCrewDef(
+    long? EscortNpcId,
+    string? EscortNameVi,
+    int EscortWar,
+    long? AccountantNpcId,
+    string? AccountantNameVi,
+    int AccountantCom,
+    long? NavigatorNpcId,
+    string? NavigatorNameVi,
+    int NavigatorLog);
