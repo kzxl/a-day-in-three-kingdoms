@@ -52,6 +52,7 @@ internal sealed class CaravanScreen : IScreenContribution
 
         var neighbours = _map.RouteNeighbours(city.Id);
         var held = _bag.TotalQuantity(city.Id);
+        var fleet = _service.Fleet;
 
         var routeRows = new List<ScreenRow>(neighbours.Count);
         foreach (var neighbourId in neighbours)
@@ -71,8 +72,17 @@ internal sealed class CaravanScreen : IScreenContribution
                     held.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 ],
                 [
-                    new ScreenCommand($"send:{neighbourId}", "Gửi hàng"),
-                    new ScreenCommand($"goto:{neighbourId}", "Đi bộ")
+                    new ScreenCommand($"send:{neighbourId}", "Gửi hàng 📦"),
+                    new ScreenCommand($"send_escort:{neighbourId}", "Thuê Tiêu Sư 🛡️", CommandKind.Primary),
+                    new ScreenCommand($"goto:{neighbourId}", "Lên Đường 🐎")
+                ],
+                Title: $"{destination.NameVi} ({days} ngày đường)",
+                Details:
+                [
+                    new ScreenDetail("Đích Đến", destination.NameVi),
+                    new ScreenDetail("Lộ Trình", $"{days} ngày đi bộ"),
+                    new ScreenDetail("Đội Xe Vận Tải", fleet.NameVi),
+                    new ScreenDetail("Bảo Hiểm Áp Tiêu", "Thuê tiêu sư (50 Quan) để phòng tránh 100% thổ phỉ cướp hàng.")
                 ]));
         }
 
@@ -149,17 +159,25 @@ internal sealed class CaravanScreen : IScreenContribution
         var running = _service.Runs.Count(run => run.Status == "RUNNING");
         var activeContracts = _service.Contracts.Count(c => c.Status == "IN_TRANSIT");
 
+        var topCommands = new List<ScreenCommand>();
+        if (fleet.Tier < 3)
+        {
+            var nextCost = fleet.Tier == 1 ? 600 : 1500;
+            topCommands.Add(new ScreenCommand("upgrade_fleet", $"Nâng Cấp Đội Xe ({nextCost} Quan)", CommandKind.Primary));
+        }
+
         return new ScreenModel(
             ScreenId,
             $"{Title} — {city.NameVi}",
-            $"Đang chở {_service.UnitsInTransit} đơn vị · hợp đồng đang áp tải: {activeContracts} · túi tại thành {held} đơn vị",
+            $"Đội xe: {fleet.NameVi} (Bậc {fleet.Tier}/3) · Đang chở {_service.UnitsInTransit} đv · Hợp đồng: {activeContracts} · Túi: {held} đv",
             [
                 new ScreenSection("Hợp Đồng Áp Tiêu (Thương Hội)", ContractColumns, contractRows),
                 new ScreenSection("Tuyến Đường & Lộ Trình", RouteColumns, routeRows),
                 new ScreenSection("Đoàn Hàng Đang Di Chuyển", RunColumns, runRows)
             ],
-            [],
+            topCommands,
             [
+                new ScreenMetric("Đội Xe", fleet.NameVi, $"Bậc {fleet.Tier}/3", MetricTone.Positive),
                 new ScreenMetric("Đang chở", Fmt(_service.UnitsInTransit), "đơn vị"),
                 new ScreenMetric("Đoàn đang đi", Fmt(running), "chuyến"),
                 new ScreenMetric("Áp tiêu nhận", Fmt(activeContracts), "hợp đồng"),
@@ -169,7 +187,7 @@ internal sealed class CaravanScreen : IScreenContribution
     }
 }
 
-/// <summary>Parses <c>send:&lt;cityId&gt;</c>, <c>goto:&lt;cityId&gt;</c>, <c>accept:&lt;contractId&gt;</c>, <c>deliver:&lt;contractId&gt;</c>.</summary>
+/// <summary>Parses <c>send:&lt;cityId&gt;</c>, <c>send_escort:&lt;cityId&gt;</c>, <c>goto:&lt;cityId&gt;</c>, <c>accept:&lt;contractId&gt;</c>, <c>deliver:&lt;contractId&gt;</c>, <c>upgrade_fleet</c>.</summary>
 internal sealed class CaravanCommandHandler : IScreenCommandHandler
 {
     private readonly CaravanService _service;
@@ -185,6 +203,11 @@ internal sealed class CaravanCommandHandler : IScreenCommandHandler
 
     public string? Execute(string commandId)
     {
+        if (commandId == "upgrade_fleet")
+        {
+            return _service.UpgradeFleet().Message;
+        }
+
         var separator = commandId.IndexOf(':');
         if (separator <= 0 || !long.TryParse(commandId[(separator + 1)..], out var targetId))
         {
@@ -195,6 +218,7 @@ internal sealed class CaravanCommandHandler : IScreenCommandHandler
         return commandId[..separator] switch
         {
             "send" => _service.Send(from, targetId).Message,
+            "send_escort" => _service.SendWithEscortFee(from, targetId, 50).Message,
             "goto" => _service.Travel(from, targetId, _player).Message,
             "accept" => _service.AcceptContract(targetId).Message,
             "deliver" => _service.DeliverContract(targetId).Message,

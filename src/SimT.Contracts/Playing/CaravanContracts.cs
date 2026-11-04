@@ -11,9 +11,15 @@ public interface ICaravanGuild
 
     int UnitsInTransit { get; }
 
+    CaravanFleetDef Fleet { get; }
+
+    CaravanResult UpgradeFleet();
+
     CaravanResult Send(long fromCity, long toCity);
 
     CaravanResult SendWithEscort(long fromCity, long toCity, long? escortNpcId);
+
+    CaravanResult SendWithEscortFee(long fromCity, long toCity, int escortFee);
 
     CaravanResult Travel(long fromCity, long toCity, IPlayerState player);
 
@@ -46,6 +52,17 @@ public sealed record FreightContractDef(
     string Status,
     int? AcceptedDayIndex = null,
     int? CompletedDayIndex = null);
+
+/// <summary>
+/// Status and capabilities of the player's commercial logistics fleet (Xe Thồ, Thiết Xa, Vận Thuyền).
+/// </summary>
+public sealed record CaravanFleetDef(
+    int Tier,
+    string NameVi,
+    double CapacityMult,
+    double CostDiscount,
+    double DefenseBonus,
+    double SpoilageReduction);
 
 public readonly record struct CaravanResult(bool Ok, string Message)
 {

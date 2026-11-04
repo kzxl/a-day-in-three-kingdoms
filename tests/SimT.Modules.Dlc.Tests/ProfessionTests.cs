@@ -157,6 +157,72 @@ public sealed class ProfessionTests : IDisposable
         Assert.Empty(kernel.RunInvariants());
     }
 
+    [Fact]
+    public void Masterpiece_recipes_are_seeded_including_weapons_and_alchemy()
+    {
+        using var kernel = _host.Boot();
+        var recipes = Guild(kernel).Recipes;
+
+        Assert.True(recipes.Count >= 11);
+        Assert.Contains(recipes, r => r.NameVi.Contains("Thanh Long Yển Nguyệt Đao") && r.RequiredTier == 3);
+        Assert.Contains(recipes, r => r.NameVi.Contains("Bát Xà Mâu") && r.RequiredTier == 3);
+        Assert.Contains(recipes, r => r.NameVi.Contains("Thần Tý Cung") && r.RequiredTier == 2);
+        Assert.Contains(recipes, r => r.NameVi.Contains("Bách Thảo Cao") && r.TradeId == 5);
+        Assert.Contains(recipes, r => r.NameVi.Contains("Kim Sáng Dược") && r.TradeId == 5);
+        Assert.Contains(recipes, r => r.NameVi.Contains("Cửu Chuyển Hoàn Đan") && r.RequiredTier == 4);
+    }
+
+    [Fact]
+    public void Herbalist_duoc_su_trade_is_available_and_workable()
+    {
+        using var kernel = _host.Boot();
+        var trades = Guild(kernel).Trades;
+        var duocSu = trades.FirstOrDefault(t => t.Code == "duoc_su");
+
+        Assert.NotNull(duocSu);
+        Assert.Equal("Dược Sư", duocSu.NameVi);
+        Assert.Equal(7, duocSu.OutputItemId);
+
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+        var initialMeds = bag.Quantity(player.CurrentCityId, 7);
+
+        var msg = Command(kernel, $"work:{duocSu.Id}");
+        Assert.Contains("làm Dược Sư", msg);
+        Assert.Contains("+2 Thuốc", msg);
+        Assert.True(bag.Quantity(player.CurrentCityId, 7) > initialMeds);
+    }
+
+    [Fact]
+    public void High_tier_smith_crafts_masterpiece_equipment()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+
+        // Raise trade 4 (luyen_kim) to tier 4
+        for (var i = 0; i < 20; i++)
+        {
+            Command(kernel, "work:4");
+        }
+        Assert.True(Guild(kernel).Tier(4) >= 4);
+
+        // Seed materials for Recipe 6 (Thanh Long Yển Nguyệt Đao: 6 sat, 2 go)
+        bag.Add(player.CurrentCityId, 5, 20);
+        bag.Add(player.CurrentCityId, 6, 10);
+
+        var msg = Command(kernel, "craft:6");
+        Assert.Contains("Chế tác thành công", msg);
+
+        var equips = Guild(kernel).Equipments(player.CurrentCityId);
+        var craftedDao = equips.FirstOrDefault(e => e.NameVi.Contains("Thanh Long"));
+        Assert.NotNull(craftedDao);
+        Assert.True(craftedDao.QualityRank is "FINE" or "MASTER" or "LEGENDARY");
+        Assert.Equal("WAR", craftedDao.BonusStat);
+        Assert.True(craftedDao.BonusValue >= 4);
+        Assert.True(craftedDao.MaxDurability >= 100);
+    }
+
     private static string Command(SimKernel kernel, string commandId)
     {
         Assert.True(kernel.TryGetCommandHandler("professions.trades", out var handler), "professions screen is not registered");

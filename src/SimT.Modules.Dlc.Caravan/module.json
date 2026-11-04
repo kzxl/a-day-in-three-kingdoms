@@ -7,7 +7,7 @@
   "provides": ["caravan.guild"],
   "consumes": ["content.items", "world.map", "player.wallet", "player.bag", "player.state"],
   "owns": {
-    "tables": ["cv_run", "cv_cargo", "cv_contract"],
+    "tables": ["cv_run", "cv_cargo", "cv_contract", "cv_fleet"],
     "migrations": ["migrations"]
   },
   "screens": ["caravan.routes"],

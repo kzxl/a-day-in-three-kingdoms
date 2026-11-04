@@ -269,6 +269,66 @@ public sealed class CaravanTests : IDisposable
         Assert.Contains("Không đủ số lượng", deliverMsg);
     }
 
+    [Fact]
+    public void Fleet_defaults_to_tier_1_wooden_cart()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+
+        var fleet = guild.Fleet;
+        Assert.Equal(1, fleet.Tier);
+        Assert.Contains("Xe Thồ Mộc", fleet.NameVi);
+        Assert.Equal(1.0, fleet.CapacityMult);
+        Assert.Equal(0.0, fleet.CostDiscount);
+    }
+
+    [Fact]
+    public void Upgrading_fleet_deducts_fee_and_advances_tier()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        wallet.Pay(2000, JournalCodes.CaravanReward, "Thêm ngân lượng thử nghiệm");
+        var balanceBefore = kernel.Ledger.Balance;
+
+        // Tier 1 -> Tier 2: Cost 600
+        var res1 = guild.UpgradeFleet();
+        Assert.True(res1.Ok, res1.Message);
+        Assert.Equal(balanceBefore - 600, kernel.Ledger.Balance);
+        Assert.Equal(2, guild.Fleet.Tier);
+        Assert.Contains("Thiết Xa", guild.Fleet.NameVi);
+
+        // Tier 2 -> Tier 3: Cost 1500
+        var res2 = guild.UpgradeFleet();
+        Assert.True(res2.Ok, res2.Message);
+        Assert.Equal(balanceBefore - 600 - 1500, kernel.Ledger.Balance);
+        Assert.Equal(3, guild.Fleet.Tier);
+        Assert.Contains("Đại Vận Thuyền", guild.Fleet.NameVi);
+
+        // Max tier check
+        var res3 = guild.UpgradeFleet();
+        Assert.False(res3.Ok);
+        Assert.Contains("đẳng cấp tối cao", res3.Message);
+    }
+
+    [Fact]
+    public void Send_with_escort_fee_charges_escort_cost_and_records_escort_id()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var player = Player(kernel);
+        var neighbour = Neighbour(kernel);
+        Seed(kernel, 5);
+
+        var balanceBefore = kernel.Ledger.Balance;
+        var res = guild.SendWithEscortFee(player.CurrentCityId, neighbour, 50);
+        Assert.True(res.Ok, res.Message);
+
+        var run = guild.Runs.First();
+        Assert.NotNull(run.EscortNpcId);
+        Assert.True(kernel.Ledger.Balance < balanceBefore);
+    }
+
     private static void Seed(SimKernel kernel, int quantity)
     {
         var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);

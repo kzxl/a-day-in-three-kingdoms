@@ -59,6 +59,65 @@ internal sealed class CaravanService : ICaravanGuild
 
     public long FeePerUnit => _freightPerUnit;
 
+    public CaravanFleetDef Fleet
+    {
+        get
+        {
+            var row = _db.QueryOne(
+                "SELECT tier, name_vi, capacity_mult, cost_discount, defense_bonus, spoilage_reduction FROM cv_fleet WHERE id = 1",
+                r => new CaravanFleetDef(r.GetInt32(0), r.GetString(1), r.GetDouble(2), r.GetDouble(3), r.GetDouble(4), r.GetDouble(5)));
+            return row ?? new CaravanFleetDef(1, "Xe Thồ Mộc Cơ Bản", 1.0, 0.0, 0.0, 0.0);
+        }
+    }
+
+    public CaravanResult UpgradeFleet()
+    {
+        var fleet = Fleet;
+        if (fleet.Tier >= 3)
+        {
+            return CaravanResult.Failure("Thương đội đã đạt đẳng cấp tối cao (Đại Vận Thuyền).");
+        }
+
+        var nextTier = fleet.Tier + 1;
+        var cost = nextTier == 2 ? 600 : 1500;
+        var nextName = nextTier == 2 ? "Thiết Xa Bọc Thép" : "Đại Vận Thuyền Sông";
+        var capMult = nextTier == 2 ? 1.5 : 2.0;
+        var costDiscount = nextTier == 2 ? 0.20 : 0.35;
+        var defBonus = nextTier == 2 ? 0.35 : 0.60;
+        var spoilRed = nextTier == 2 ? 0.25 : 0.50;
+
+        if (_wallet.Liquid < cost)
+        {
+            return CaravanResult.Failure($"Cần {cost} Quan để nâng cấp lên {nextName}, chỉ có {_wallet.Liquid}.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(cost, JournalCodes.CaravanFreight, $"Nâng cấp thương đội lên {nextName}");
+            _db.Execute(
+                """
+                INSERT INTO cv_fleet (id, tier, name_vi, capacity_mult, cost_discount, defense_bonus, spoilage_reduction)
+                VALUES (1, @tier, @name, @cap, @costDisc, @def, @spoil)
+                ON CONFLICT(id) DO UPDATE SET
+                    tier = excluded.tier,
+                    name_vi = excluded.name_vi,
+                    capacity_mult = excluded.capacity_mult,
+                    cost_discount = excluded.cost_discount,
+                    defense_bonus = excluded.defense_bonus,
+                    spoilage_reduction = excluded.spoilage_reduction
+                """,
+                new DbArgs()
+                    .Add("@tier", nextTier)
+                    .Add("@name", nextName)
+                    .Add("@cap", capMult)
+                    .Add("@costDisc", costDiscount)
+                    .Add("@def", defBonus)
+                    .Add("@spoil", spoilRed));
+        });
+
+        return CaravanResult.Success($"Đã nâng cấp thương đội lên {nextName}! Giảm {(int)(costDiscount * 100)}% cước vận, giảm {(int)(spoilRed * 100)}% hao hụt và tăng phòng ngự trước cướp đường.");
+    }
+
     public IReadOnlyList<CaravanRunSummary> Runs =>
         _db.Query(
             """
@@ -125,7 +184,9 @@ internal sealed class CaravanService : ICaravanGuild
         }
 
         var units = rows.Sum(row => row.Quantity);
-        var fee = units * _freightPerUnit;
+        var baseFee = units * _freightPerUnit;
+        var fleet = Fleet;
+        var fee = Math.Max(1, (long)(baseFee * (1.0 - fleet.CostDiscount)));
         if (_wallet.Liquid < fee)
         {
             return CaravanResult.Failure($"Cần {fee} Quan cước, chỉ có {_wallet.Liquid}.");
@@ -175,6 +236,21 @@ internal sealed class CaravanService : ICaravanGuild
             $"Đoàn {units} đơn vị lên đường{escortText}, tới sau {days} ngày (ngày {GameDate.FromDayIndex(arriveDay)}), cước {fee} Quan.");
     }
 
+    public CaravanResult SendWithEscortFee(long fromCity, long toCity, int escortFee)
+    {
+        if (escortFee > 0 && _wallet.Liquid < escortFee)
+        {
+            return CaravanResult.Failure($"Cần {escortFee} Quan thuê tiêu sư, chỉ có {_wallet.Liquid}.");
+        }
+
+        if (escortFee > 0)
+        {
+            _wallet.Charge(escortFee, JournalCodes.CaravanFreight, "Tiền thuê tiêu sư áp tải bảo vệ hàng");
+        }
+
+        return SendWithEscort(fromCity, toCity, escortFee > 0 ? 999999L : null);
+    }
+
     public CaravanResult Travel(long fromCity, long toCity, IPlayerState player)
     {
         var days = _map.TravelDays(fromCity, toCity);
@@ -182,6 +258,8 @@ internal sealed class CaravanService : ICaravanGuild
         {
             return CaravanResult.Failure("Không có đường đi giữa hai thành này.");
         }
+
+        var incidentLog = string.Empty;
 
         _db.Transaction(() =>
         {
@@ -202,9 +280,20 @@ internal sealed class CaravanService : ICaravanGuild
                     _bag.Add(toCity, c.ItemId, c.Quantity);
                 }
             }
+
+            // Travel encounter check on multi-day journeys (flavor / road hazard notice)
+            if (days >= 2)
+            {
+                var seed = (int)(fromCity * 17 + toCity * 31 + _clock.Today.DayIndex);
+                var rng = new Random(seed);
+                if (rng.NextDouble() < 0.40)
+                {
+                    incidentLog = " Trên đường thiên lý gặp toán thổ phỉ chặn đường, bạn cùng đoàn tùy tùng cảnh giác đề phòng, thuận lợi kích lui chúng và tiếp tục lộ trình.";
+                }
+            }
         });
 
-        return CaravanResult.Success($"Đi {days} ngày, tới nơi ngày {_clock.Today}.");
+        return CaravanResult.Success($"Đi {days} ngày, tới nơi ngày {_clock.Today}.{incidentLog}");
     }
 
     public CaravanResult AcceptContract(long contractId)
@@ -338,6 +427,7 @@ internal sealed class CaravanService : ICaravanGuild
         foreach (var run in due)
         {
             var transitDays = Math.Max(1, run.Arrive - run.Depart);
+            var fleet = Fleet;
 
             _db.Transaction(() =>
             {
@@ -355,17 +445,44 @@ internal sealed class CaravanService : ICaravanGuild
                     row => (ItemId: row.GetInt64(0), Quantity: row.GetInt32(1)),
                     DbArgs.One("@id", run.Id));
 
+                var totalUnits = cargo.Sum(c => c.Quantity);
+                var ambushLoss = 0;
+
+                // Ambush check: If unescorted and route takes >= 2 days, bandits may ambush
+                if (!run.EscortNpcId.HasValue && transitDays >= 2)
+                {
+                    var ambushChance = transitDays >= 3 ? 0.35 : 0.20;
+                    var rng = new Random((int)(run.Id * 31 + run.Depart));
+                    if (rng.NextDouble() < ambushChance)
+                    {
+                        var lossRate = Math.Max(0.05, 0.20 * (1.0 - fleet.DefenseBonus));
+                        ambushLoss = Math.Max(1, (int)(totalUnits * lossRate));
+                        _db.Execute(
+                            "UPDATE cv_run SET ambush_loss = @loss WHERE id = @id",
+                            new DbArgs().Add("@id", run.Id).Add("@loss", ambushLoss));
+                    }
+                }
+
+                var remainingAmbush = ambushLoss;
                 foreach (var line in cargo)
                 {
-                    var lost = Spoilage(line.ItemId, line.Quantity, transitDays);
-                    if (lost > 0)
+                    var lost = Spoilage(line.ItemId, line.Quantity, transitDays, fleet.SpoilageReduction);
+                    var lineAmbushLoss = 0;
+                    if (remainingAmbush > 0)
+                    {
+                        lineAmbushLoss = Math.Min(line.Quantity - lost, remainingAmbush);
+                        remainingAmbush -= lineAmbushLoss;
+                    }
+
+                    var totalLost = lost + lineAmbushLoss;
+                    if (totalLost > 0)
                     {
                         _db.Execute(
                             "UPDATE cv_cargo SET lost=@lost WHERE run_id=@run AND item_id=@item",
-                            new DbArgs().Add("@run", run.Id).Add("@item", line.ItemId).Add("@lost", lost));
+                            new DbArgs().Add("@run", run.Id).Add("@item", line.ItemId).Add("@lost", totalLost));
                     }
 
-                    var delivered = line.Quantity - lost;
+                    var delivered = line.Quantity - totalLost;
                     if (delivered > 0)
                     {
                         _bag.Add(run.ToCity, line.ItemId, delivered);
@@ -379,10 +496,9 @@ internal sealed class CaravanService : ICaravanGuild
 
     /// <summary>
     /// Freight loss: perishables lose transitDays / shelfLife of their quantity on the road,
-    /// rounded down, and always keep at least one unit so a short hop never empties a crate.
-    /// Durable goods (shelf life 0) arrive whole.
+    /// factoring in fleet preservation upgrades.
     /// </summary>
-    private int Spoilage(long itemId, int quantity, int transitDays)
+    private int Spoilage(long itemId, int quantity, int transitDays, double reduction = 0.0)
     {
         var item = _items.Find(itemId);
         if (item is null || item.ShelfLifeDays <= 0 || quantity <= 0)
@@ -390,7 +506,8 @@ internal sealed class CaravanService : ICaravanGuild
             return 0;
         }
 
-        var lost = (int)((long)quantity * transitDays / item.ShelfLifeDays);
+        var baseLost = (long)quantity * transitDays / item.ShelfLifeDays;
+        var lost = (int)(baseLost * (1.0 - Math.Clamp(reduction, 0.0, 0.85)));
         return Math.Min(lost, quantity - 1);
     }
 }

@@ -208,16 +208,108 @@ internal sealed class ProfessionService : IProfessionGuild
                 """,
                 new DbArgs().Add("@trade", recipe.TradeId).Add("@practice", practice).Add("@tier", tierAfter));
 
+            // Roll equipment quality rank & stats based on player's trade skill tier
+            var playerTier = Tier(recipe.TradeId);
+            var seed = (int)(recipe.Id * 37 + playerTier * 19 + _clock.Today.DayIndex);
+            var rng = new Random(seed);
+            var roll = rng.NextDouble();
+
+            string qualityRank;
+            int bonusValue;
+            int maxDura;
+
+            if (playerTier >= 4)
+            {
+                if (roll < 0.25)
+                {
+                    qualityRank = "LEGENDARY";
+                    bonusValue = 10;
+                    maxDura = 150;
+                }
+                else if (roll < 0.70)
+                {
+                    qualityRank = "MASTER";
+                    bonusValue = 6;
+                    maxDura = 125;
+                }
+                else
+                {
+                    qualityRank = "FINE";
+                    bonusValue = 4;
+                    maxDura = 100;
+                }
+            }
+            else if (playerTier >= 2)
+            {
+                if (roll < 0.10)
+                {
+                    qualityRank = "LEGENDARY";
+                    bonusValue = 8;
+                    maxDura = 140;
+                }
+                else if (roll < 0.40)
+                {
+                    qualityRank = "MASTER";
+                    bonusValue = 5;
+                    maxDura = 120;
+                }
+                else if (roll < 0.85)
+                {
+                    qualityRank = "FINE";
+                    bonusValue = 3;
+                    maxDura = 100;
+                }
+                else
+                {
+                    qualityRank = "COMMON";
+                    bonusValue = 2;
+                    maxDura = 100;
+                }
+            }
+            else
+            {
+                if (roll < 0.15)
+                {
+                    qualityRank = "MASTER";
+                    bonusValue = 4;
+                    maxDura = 110;
+                }
+                else if (roll < 0.65)
+                {
+                    qualityRank = "FINE";
+                    bonusValue = 3;
+                    maxDura = 100;
+                }
+                else
+                {
+                    qualityRank = "COMMON";
+                    bonusValue = 2;
+                    maxDura = 100;
+                }
+            }
+
+            var bonusStat = recipe.TradeId switch
+            {
+                4 => "WAR", // Luyện kim / Rèn
+                5 => "HEA", // Dược sư
+                3 => "COM", // Thợ mộc
+                _ => "POL"  // Nông phu, Ngư dân
+            };
+
             // Create piece of equipment in citadel
             _db.Execute(
                 """
                 INSERT INTO pf_equipment(name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value)
-                VALUES(@name, @item, @citadel, 100, 100, 'FINE', 'CRA', 3)
+                VALUES(@name, @item, @citadel, @dura, @dura, @quality, @stat, @bonus)
                 """,
                 new DbArgs()
                     .Add("@name", recipe.NameVi)
                     .Add("@item", recipe.OutputItemId)
-                    .Add("@citadel", cityId));
+                    .Add("@citadel", cityId)
+                    .Add("@dura", maxDura)
+                    .Add("@quality", qualityRank)
+                    .Add("@stat", bonusStat)
+                    .Add("@bonus", bonusValue));
         });
 
         return WorkResult.Success(
