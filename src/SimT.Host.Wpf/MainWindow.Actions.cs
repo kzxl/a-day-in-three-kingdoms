@@ -238,11 +238,17 @@ public partial class MainWindow
         if (_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) && reg is not null)
         {
             var skillLookup = reg.All.SelectMany(n => n.Skills).DistinctBy(sk => sk.Code).ToDictionary(sk => sk.Code, StringComparer.OrdinalIgnoreCase);
-            foreach (var code in attributes.LearnedSkills)
+            foreach (var prog in attributes.SkillProgresses)
             {
-                if (skillLookup.TryGetValue(code, out var sDef))
+                if (skillLookup.TryGetValue(prog.SkillCode, out var sDef))
                 {
-                    learnedSkills.Add(sDef);
+                    var slotNote = prog.IsEquipped ? $" [Ô {prog.EquippedSlot}]" : "";
+                    var enhancedSkill = sDef with
+                    {
+                        NameVi = $"{sDef.NameVi} Lv.{prog.Level}{slotNote}",
+                        EffectSummary = $"{sDef.EffectSummary} (Thuần Thục: {(prog.Level >= 5 ? "Tối Đa" : $"{prog.Proficiency}/{prog.MaxProficiency}")})"
+                    };
+                    learnedSkills.Add(enhancedSkill);
                 }
             }
         }

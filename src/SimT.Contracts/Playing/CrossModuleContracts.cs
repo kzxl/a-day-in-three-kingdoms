@@ -234,6 +234,16 @@ public interface IPlayerState
     void MoveTo(long cityId, GameDate date);
 }
 
+/// <summary>Active status and progression level of a skill owned by the player.</summary>
+public sealed record PlayerSkillProgressDef(
+    string SkillCode,
+    int Level,
+    int Proficiency,
+    int MaxProficiency,
+    bool IsEquipped,
+    int? EquippedSlot,
+    int Tier = 1);
+
 /// <summary>RPG character stats and vitals owned by <c>base.player</c>.</summary>
 public interface IPlayerAttributes
 {
@@ -255,9 +265,23 @@ public interface IPlayerAttributes
 
     IReadOnlyList<string> LearnedSkills { get; }
 
+    IReadOnlyList<PlayerSkillProgressDef> SkillProgresses { get; }
+
+    PlayerSkillProgressDef? GetSkillProgress(string skillCode);
+
     bool HasSkill(string skillCode);
 
+    bool IsSkillEquipped(string skillCode);
+
+    int GetEquippedSkillLevel(string skillCode);
+
     bool LearnSkill(string skillCode);
+
+    bool TrainSkill(string skillCode, int expGain);
+
+    string EquipSkill(string skillCode, int slot, int tier);
+
+    string UnequipSkill(int slot);
 
     void GainFame(int amount, string reason, int virtueDelta = 0, int credDelta = 0);
 }

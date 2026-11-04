@@ -794,11 +794,30 @@ internal sealed class SocialService : ISocialNetwork
             return $"{npc.NameVi} khẽ lắc đầu từ tốn: 'Mối quan hệ đôi bên chưa đủ thâm sâu (Hảo cảm hiện tại: {rel.Affinity}/100, cần ≥ {reqAffinity} đối với tuyệt kỹ bậc {skill.Tier}). Tuyệt kỹ bản môn chưa thể tùy tiện truyền thụ.'";
         }
 
+        var fameCheck = CheckSkillFameRequirement(skill);
+        if (!fameCheck.Met)
+        {
+            return $"{npc.NameVi} trầm ngâm vuốt râu: 'Tuyệt kỹ bậc {skill.Tier} [{skill.NameVi}] danh bất hư truyền, chỉ truyền thụ cho bậc kỳ tài đã vang danh thiên hạ (Yêu cầu Danh Vọng ≥ {fameCheck.Required}, hiện tại: {fameCheck.Current}).'";
+        }
+
+        var statCheck = CheckSkillStatRequirement(skill);
+        if (!statCheck.Met)
+        {
+            return $"{npc.NameVi} mỉm cười lắc đầu: 'Căn cơ tu vi của bạn chưa đủ để ngộ tuyệt kỹ [{skill.NameVi}] (Yêu cầu chỉ số {statCheck.StatName} ≥ {statCheck.Required}, hiện tại: {statCheck.Current}). Hãy rèn luyện thêm!'";
+        }
+
+        var tuition = GetSkillTuitionFee(skill);
+        if (_wallet.Balance < tuition)
+        {
+            return $"Lễ bái sư thỉnh giáo tuyệt kỹ [{skill.NameVi}] cần dâng lễ {tuition} Quan kính sư (Ngân quỹ hiện tại: {_wallet.Balance:N0} Quan).";
+        }
+
         if (_attributes.Vitals.CurrentStamina < 15 || _attributes.Vitals.Fatigue >= 90)
         {
             return $"Thân thể mệt mỏi, khó lòng ngộ đạo ({_attributes.Vitals.Fatigue}/100 mệt). Hãy nghỉ ngơi trước khi thỉnh giáo tuyệt kỹ.";
         }
 
+        _wallet.Charge(tuition, "social.tuition", $"Bái sư thỉnh giáo tuyệt kỹ [{skill.NameVi}] từ {npc.NameVi}");
         _attributes.ApplyFatigue(15);
         _clock.Advance(1);
 
@@ -846,8 +865,124 @@ internal sealed class SocialService : ISocialNetwork
         _attributes.AddExp(expAttr, 30);
 
         _log.Info($"Player learned skill {skill.Code} from NPC {npc.NameVi}.");
-        return $"[Thụ Nghiệp Thành Công] Dưới sự chỉ điểm tận tình của {npc.NameVi}, bạn đã giác ngộ và lĩnh hội thành công đặc kỹ [{skill.NameVi}] ({skill.EffectSummary})! (+5 Hảo cảm, +30 EXP {expAttr}).";
+        return $"[Thụ Nghiệp Thành Công] Dưới sự chỉ điểm tận tình của {npc.NameVi}, bạn đã giác ngộ và lĩnh hội thành công đặc kỹ [{skill.NameVi}] ({skill.EffectSummary})! (-{tuition} Quan, +5 Hảo cảm, +30 EXP {expAttr}). Tuyệt kỹ đã tự động kích hoạt vào ô trang bị.";
     }
+
+    public string TrainSkillWithNpc(long npcId, string skillCode)
+    {
+        var npc = _registry.Find(npcId)
+                  ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        if (npc.CitadelId != _player.CurrentCityId && GetRetainer(npcId) is null)
+        {
+            var cit = _map.Find(npc.CitadelId);
+            var citName = cit?.NameVi ?? "châu quận khác";
+            return $"{npc.NameVi} hiện đang ở {citName}, không thể cùng luận đạo tu luyện.";
+        }
+
+        var skill = npc.Skills.FirstOrDefault(s => s.Code.Equals(skillCode, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new SimException("social.skill_not_found", $"Nhân sĩ {npc.NameVi} không sở hữu tuyệt kỹ '{skillCode}'.");
+
+        if (!_attributes.HasSkill(skill.Code))
+        {
+            return $"Bạn chưa lĩnh hội tuyệt kỹ [{skill.NameVi}], hãy bái sư thỉnh giáo trước khi tu luyện!";
+        }
+
+        var progress = _attributes.GetSkillProgress(skill.Code);
+        if (progress != null && progress.Level >= 5)
+        {
+            return $"Tuyệt kỹ [{skill.NameVi}] của bạn đã đạt cảnh giới Tông Sư (Cực Hạn), không thể thăng tiến thêm cùng sư phụ.";
+        }
+
+        if (_wallet.Balance < 30)
+        {
+            return $"Chi phí trà đàm và thỉnh giáo tu luyện cần 30 Quan kính trà (Hiện có: {_wallet.Balance:N0} Quan).";
+        }
+
+        if (_attributes.Vitals.CurrentStamina < 10 || _attributes.Vitals.Fatigue >= 90)
+        {
+            return $"Thân thể mệt mỏi ({_attributes.Vitals.Fatigue}/100 mệt), không thể dốc sức tu luyện. Hãy dưỡng sức!";
+        }
+
+        _wallet.Charge(30, "social.train", $"Trà đàm tu luyện tuyệt kỹ [{skill.NameVi}] cùng {npc.NameVi}");
+        _attributes.ApplyFatigue(10);
+        _clock.Advance(1);
+
+        var leveledUp = _attributes.TrainSkill(skill.Code, 60);
+
+        var updated = _attributes.GetSkillProgress(skill.Code);
+        var title = updated != null ? GetSkillLevelTitle(updated.Level) : "";
+
+        var today = _clock.Today;
+        var formattedDate = GameDateCodec.Format(today);
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "INSERT INTO kz_memory (npc_id, date, topic, sentiment, affinity_delta, summary_vi) " +
+                "VALUES (@npcId, @date, 'train', 'positive', 2, @summary)",
+                new DbArgs()
+                    .Add("@npcId", npcId)
+                    .Add("@date", formattedDate)
+                    .Add("@summary", $"Luận đạo tu luyện: Cùng {npc.NameVi} nghiên cứu tuyệt kỹ [{skill.NameVi}], lĩnh hội thêm thuần thục."));
+        });
+
+        if (leveledUp)
+        {
+            return $"[Đột Phá Cảnh Giới ⭐] Qua sự chỉ điểm sâu sắc của {npc.NameVi}, tuyệt kỹ [{skill.NameVi}] của bạn đã đột phá lên Cấp {updated?.Level} ({title})! (+60 Thuần Thục, -10 Thể Lực, -30 Quan).";
+        }
+
+        return $"[Tu Luyện Tinh Tiến 🥋] Cùng {npc.NameVi} chuyên tâm rèn giũa, tuyệt kỹ [{skill.NameVi}] tích lũy thêm 60 điểm thuần thục ({updated?.Proficiency}/{updated?.MaxProficiency})! (-10 Thể Lực, -30 Quan).";
+    }
+
+    private static string GetSkillLevelTitle(int level) => level switch
+    {
+        1 => "Nhập Môn",
+        2 => "Tiểu Thành",
+        3 => "Đại Thành",
+        4 => "Tinh Thông",
+        5 => "Tông Sư",
+        _ => "Nhập Môn"
+    };
+
+    private (bool Met, string StatName, int Required, int Current) CheckSkillStatRequirement(NpcSkillDef skill)
+    {
+        var req = skill.Tier switch
+        {
+            >= 5 => 75,
+            4 => 60,
+            _ => 40
+        };
+
+        var attrs = _attributes.Attributes;
+        return skill.Category switch
+        {
+            "martial" => (attrs.War >= req, "Võ Lực (WAR)", req, attrs.War),
+            "strategist" => (attrs.Int >= req, "Trí Tuệ (INT)", req, attrs.Int),
+            "commerce" => (attrs.Com >= req, "Thương Mại (COM)", req, attrs.Com),
+            "governance" => (Math.Max(attrs.Pol, attrs.Dip) >= req, "Chính Trị/Ngoại Giao (POL/DIP)", req, Math.Max(attrs.Pol, attrs.Dip)),
+            _ => (Math.Max(attrs.Wil, attrs.Prc) >= req, "Ý Chí/Cảm Tri (WIL/PRC)", req, Math.Max(attrs.Wil, attrs.Prc))
+        };
+    }
+
+    private (bool Met, int Required, int Current) CheckSkillFameRequirement(NpcSkillDef skill)
+    {
+        var req = skill.Tier switch
+        {
+            >= 5 => 800,
+            4 => 300,
+            _ => 0
+        };
+        var current = _attributes.Social.Fame;
+        return (current >= req, req, current);
+    }
+
+    private static int GetSkillTuitionFee(NpcSkillDef skill) => skill.Tier switch
+    {
+        >= 5 => 300,
+        4 => 100,
+        _ => 30
+    };
 
     public void OnMonthClosed(GameDate date)
     {

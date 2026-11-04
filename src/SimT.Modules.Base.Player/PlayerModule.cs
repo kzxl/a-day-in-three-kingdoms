@@ -57,7 +57,7 @@ public sealed class PlayerModule : ISimModule
 
         var reputation = new PlayerReputationService(context.Db, player.Id, context.Capabilities, context.Clock, context.Log);
 
-        var attributes = new PlayerAttributesStore(context.Db, player.Id, reputation);
+        var attributes = new PlayerAttributesStore(context.Db, player.Id, reputation, context.Capabilities);
 
         context.Capabilities.Provide(CapabilityIds.PlayerWallet, wallet);
 
@@ -331,12 +331,18 @@ public sealed class PlayerModule : ISimModule
         private readonly IDbSession _db;
         private readonly long _playerId;
         private readonly IPlayerReputation? _reputation;
+        private readonly ICapabilityBroker? _capabilities;
 
-        public PlayerAttributesStore(IDbSession db, long playerId, IPlayerReputation? reputation = null)
+        public PlayerAttributesStore(
+            IDbSession db,
+            long playerId,
+            IPlayerReputation? reputation = null,
+            ICapabilityBroker? capabilities = null)
         {
             _db = db;
             _playerId = playerId;
             _reputation = reputation;
+            _capabilities = capabilities;
         }
 
         public CharacterAttributes Attributes
@@ -580,6 +586,51 @@ public sealed class PlayerModule : ISimModule
             }
         }
 
+        public IReadOnlyList<PlayerSkillProgressDef> SkillProgresses
+        {
+            get
+            {
+                return _db.Query(
+                    @"SELECT skill_code, level, proficiency, is_equipped, equipped_slot, tier
+                      FROM pl_skill
+                      WHERE player_id = @id
+                      ORDER BY is_equipped DESC, equipped_slot ASC, tier DESC, level DESC, skill_code ASC",
+                    row =>
+                    {
+                        var code = row.GetString(0);
+                        var lvl = row.GetInt32(1);
+                        var prof = row.GetInt32(2);
+                        var isEq = row.GetInt32(3) == 1;
+                        var slot = row.IsDbNull(4) ? (int?)null : row.GetInt32(4);
+                        var tier = row.GetInt32(5);
+                        var maxProf = GetMaxProficiency(lvl);
+                        return new PlayerSkillProgressDef(code, lvl, prof, maxProf, isEq, slot, tier);
+                    },
+                    DbArgs.One("@id", _playerId));
+            }
+        }
+
+        public PlayerSkillProgressDef? GetSkillProgress(string skillCode)
+        {
+            if (string.IsNullOrWhiteSpace(skillCode)) return null;
+            return _db.Query(
+                @"SELECT skill_code, level, proficiency, is_equipped, equipped_slot, tier
+                  FROM pl_skill
+                  WHERE player_id = @id AND skill_code = @code",
+                row =>
+                {
+                    var code = row.GetString(0);
+                    var lvl = row.GetInt32(1);
+                    var prof = row.GetInt32(2);
+                    var isEq = row.GetInt32(3) == 1;
+                    var slot = row.IsDbNull(4) ? (int?)null : row.GetInt32(4);
+                    var tier = row.GetInt32(5);
+                    var maxProf = GetMaxProficiency(lvl);
+                    return new PlayerSkillProgressDef(code, lvl, prof, maxProf, isEq, slot, tier);
+                },
+                new DbArgs().Add("@id", _playerId).Add("@code", skillCode)).FirstOrDefault();
+        }
+
         public bool HasSkill(string skillCode)
         {
             if (string.IsNullOrWhiteSpace(skillCode)) return false;
@@ -588,18 +639,191 @@ public sealed class PlayerModule : ISimModule
                 new DbArgs().Add("@id", _playerId).Add("@code", skillCode)) > 0;
         }
 
+        public bool IsSkillEquipped(string skillCode)
+        {
+            if (string.IsNullOrWhiteSpace(skillCode)) return false;
+            return _db.ScalarLong(
+                "SELECT COUNT(*) FROM pl_skill WHERE player_id = @id AND skill_code = @code AND is_equipped = 1",
+                new DbArgs().Add("@id", _playerId).Add("@code", skillCode)) > 0;
+        }
+
+        public int GetEquippedSkillLevel(string skillCode)
+        {
+            if (string.IsNullOrWhiteSpace(skillCode)) return 0;
+            return _db.Query(
+                "SELECT level FROM pl_skill WHERE player_id = @id AND skill_code = @code AND is_equipped = 1",
+                r => r.GetInt32(0),
+                new DbArgs().Add("@id", _playerId).Add("@code", skillCode)).FirstOrDefault();
+        }
+
         public bool LearnSkill(string skillCode)
         {
             if (string.IsNullOrWhiteSpace(skillCode)) return false;
             if (HasSkill(skillCode)) return false;
 
+            var tier = ResolveSkillTier(skillCode);
+
             _db.Execute(
-                @"INSERT INTO pl_skill (player_id, skill_code, learned_date, proficiency)
-                  VALUES (@id, @code, '184-05-01', 1)
+                @"INSERT INTO pl_skill (player_id, skill_code, learned_date, proficiency, level, is_equipped, equipped_slot, tier)
+                  VALUES (@id, @code, '184-05-01', 1, 1, 0, NULL, @tier)
                   ON CONFLICT(player_id, skill_code) DO NOTHING",
-                new DbArgs().Add("@id", _playerId).Add("@code", skillCode));
+                new DbArgs().Add("@id", _playerId).Add("@code", skillCode).Add("@tier", tier));
+
+            AutoEquipIfSlotAvailable(skillCode, tier);
 
             return true;
+        }
+
+        public bool TrainSkill(string skillCode, int expGain)
+        {
+            if (string.IsNullOrWhiteSpace(skillCode) || expGain <= 0) return false;
+            var current = GetSkillProgress(skillCode);
+            if (current == null) return false;
+            if (current.Level >= 5) return false;
+
+            var level = current.Level;
+            var prof = current.Proficiency + expGain;
+            var leveledUp = false;
+
+            while (level < 5)
+            {
+                var needed = GetMaxProficiency(level);
+                if (prof >= needed)
+                {
+                    prof -= needed;
+                    level++;
+                    leveledUp = true;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (level >= 5)
+            {
+                level = 5;
+                prof = GetMaxProficiency(5);
+            }
+            else
+            {
+                prof = Math.Max(1, prof);
+            }
+
+            _db.Execute(
+                "UPDATE pl_skill SET level = @lvl, proficiency = @prof WHERE player_id = @id AND skill_code = @code",
+                new DbArgs().Add("@lvl", level).Add("@prof", prof).Add("@id", _playerId).Add("@code", skillCode));
+
+            return leveledUp;
+        }
+
+        public string EquipSkill(string skillCode, int slot, int tier)
+        {
+            if (slot < 1 || slot > 6)
+            {
+                return "Vị trí ô trang bị không hợp lệ (Chỉ hỗ trợ ô từ 1 đến 6).";
+            }
+
+            var progress = GetSkillProgress(skillCode);
+            if (progress == null)
+            {
+                return $"Chưa lĩnh hội đặc kỹ '{skillCode}'. Hãy bái sư học đạo trước!";
+            }
+
+            var effectiveTier = tier > 0 ? tier : progress.Tier;
+
+            var currentEquipped = SkillProgresses
+                .Where(s => s.IsEquipped && !s.SkillCode.Equals(skillCode, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            currentEquipped.RemoveAll(s => s.EquippedSlot == slot);
+
+            if (effectiveTier >= 5)
+            {
+                var tier5Count = currentEquipped.Count(s => s.Tier >= 5);
+                if (tier5Count >= 1)
+                {
+                    return "Giới hạn tuyệt kỹ: Đã trang bị 1 tuyệt kỹ Phẩm S (Bậc 5). Chỉ được kích hoạt tối đa 1 tuyệt kỹ Phẩm S!";
+                }
+            }
+            else if (effectiveTier == 4)
+            {
+                var tier4Count = currentEquipped.Count(s => s.Tier == 4);
+                if (tier4Count >= 2)
+                {
+                    return "Giới hạn tuyệt kỹ: Đã trang bị 2 tuyệt kỹ Phẩm A (Bậc 4). Chỉ được kích hoạt tối đa 2 tuyệt kỹ Phẩm A!";
+                }
+            }
+
+            _db.Transaction(() =>
+            {
+                _db.Execute(
+                    "UPDATE pl_skill SET is_equipped = 0, equipped_slot = NULL WHERE player_id = @id AND equipped_slot = @slot",
+                    new DbArgs().Add("@id", _playerId).Add("@slot", slot));
+
+                _db.Execute(
+                    "UPDATE pl_skill SET is_equipped = 1, equipped_slot = @slot WHERE player_id = @id AND skill_code = @code",
+                    new DbArgs().Add("@id", _playerId).Add("@slot", slot).Add("@code", skillCode));
+            });
+
+            return $"Đã trang bị thành công đặc kỹ [{skillCode}] vào Ô {slot}.";
+        }
+
+        public string UnequipSkill(int slot)
+        {
+            if (slot < 1 || slot > 6)
+            {
+                return "Vị trí ô trang bị không hợp lệ.";
+            }
+
+            var affected = _db.Execute(
+                "UPDATE pl_skill SET is_equipped = 0, equipped_slot = NULL WHERE player_id = @id AND equipped_slot = @slot",
+                new DbArgs().Add("@id", _playerId).Add("@slot", slot));
+
+            return affected > 0 ? $"Đã gỡ bỏ đặc kỹ tại Ô {slot}." : $"Ô {slot} hiện đang trống.";
+        }
+
+        private static int GetMaxProficiency(int level) => level switch
+        {
+            1 => 100,
+            2 => 250,
+            3 => 500,
+            4 => 1000,
+            _ => 1000
+        };
+
+        private int ResolveSkillTier(string skillCode)
+        {
+            if (_capabilities != null && _capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) && reg != null)
+            {
+                var skill = reg.All.SelectMany(n => n.Skills).FirstOrDefault(s => s.Code.Equals(skillCode, StringComparison.OrdinalIgnoreCase));
+                if (skill != null) return skill.Tier;
+            }
+            return 1;
+        }
+
+        private void AutoEquipIfSlotAvailable(string skillCode, int tier)
+        {
+            var progresses = SkillProgresses;
+            var occupiedSlots = progresses.Where(p => p.IsEquipped && p.EquippedSlot.HasValue).Select(p => p.EquippedSlot!.Value).ToHashSet();
+            int? freeSlot = null;
+            for (int s = 1; s <= 6; s++)
+            {
+                if (!occupiedSlots.Contains(s))
+                {
+                    freeSlot = s;
+                    break;
+                }
+            }
+
+            if (freeSlot == null) return;
+
+            if (tier >= 5 && progresses.Count(p => p.IsEquipped && p.Tier >= 5) >= 1) return;
+            if (tier == 4 && progresses.Count(p => p.IsEquipped && p.Tier == 4) >= 2) return;
+
+            _db.Execute(
+                "UPDATE pl_skill SET is_equipped = 1, equipped_slot = @slot WHERE player_id = @id AND skill_code = @code",
+                new DbArgs().Add("@id", _playerId).Add("@slot", freeSlot.Value).Add("@code", skillCode));
         }
 
         public void GainFame(int amount, string reason, int virtueDelta = 0, int credDelta = 0)

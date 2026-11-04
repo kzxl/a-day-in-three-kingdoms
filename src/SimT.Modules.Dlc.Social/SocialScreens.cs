@@ -13,6 +13,7 @@ internal sealed class SocialScreen : IScreenContribution
     private readonly IBag _bag;
     private readonly IItemCatalog _items;
     private readonly IGameClock _clock;
+    private readonly IPlayerAttributes _attributes;
 
     public SocialScreen(
         ISocialNetwork social,
@@ -21,7 +22,8 @@ internal sealed class SocialScreen : IScreenContribution
         IPlayerState player,
         IBag bag,
         IItemCatalog items,
-        IGameClock clock)
+        IGameClock clock,
+        IPlayerAttributes attributes)
     {
         _social = social;
         _registry = registry;
@@ -30,6 +32,7 @@ internal sealed class SocialScreen : IScreenContribution
         _bag = bag;
         _items = items;
         _clock = clock;
+        _attributes = attributes;
     }
 
     public string ScreenId => "social.network";
@@ -184,6 +187,143 @@ internal sealed class SocialScreen : IScreenContribution
             sections.Add(new ScreenSection($"🛡️ Đội Ngũ Gia Thần & Môn Khách ({retainers.Count})", retainerColumns, retainerRows));
         }
 
+        // 3. Equipped Skills Loadout Section (6 Slots)
+        var progresses = _attributes.SkillProgresses;
+        var allSkillsLookup = _registry.All.SelectMany(n => n.Skills).DistinctBy(s => s.Code).ToDictionary(s => s.Code, StringComparer.OrdinalIgnoreCase);
+
+        var slotColumns = new[] { "Ô Trang Bị", "Đặc Kỹ Kích Hoạt", "Phẩm Giai", "Cảnh Giới", "Độ Thuần Thục", "Hiệu Quả Kích Hoạt", "Thao Tác" };
+        var slotRows = new List<ScreenRow>();
+
+        for (int slot = 1; slot <= 6; slot++)
+        {
+            var equipped = progresses.FirstOrDefault(p => p.IsEquipped && p.EquippedSlot == slot);
+            if (equipped != null)
+            {
+                allSkillsLookup.TryGetValue(equipped.SkillCode, out var skillDef);
+                var skillName = skillDef?.NameVi ?? equipped.SkillCode;
+                var rankBadge = equipped.Tier switch
+                {
+                    >= 5 => "⭐ Phẩm S (Tuyệt Thế)",
+                    4 => "🔷 Phẩm A (Danh Môn)",
+                    3 => "🔶 Phẩm B (Thực Dụng)",
+                    _ => "⚪ Phẩm C (Cơ Bản)"
+                };
+                var levelTitle = GetSkillLevelTitle(equipped.Level);
+                var profDisplay = equipped.Level >= 5 ? "Tối Đa (Max)" : $"{equipped.Proficiency}/{equipped.MaxProficiency} EXP";
+                var effectDesc = skillDef?.EffectSummary ?? "Gia tăng năng lực";
+
+                slotRows.Add(new ScreenRow(
+                    [
+                        $"Ô Số {slot}",
+                        skillName,
+                        rankBadge,
+                        $"Cấp {equipped.Level} · {levelTitle}",
+                        profDisplay,
+                        effectDesc,
+                        "Đang kích hoạt"
+                    ],
+                    [
+                        new ScreenCommand($"skill:unequip:{slot}", "Gỡ Bỏ ✖", CommandKind.Danger)
+                    ],
+                    Title: $"Ô {slot}: {skillName} (Cấp {equipped.Level})",
+                    Details:
+                    [
+                        new ScreenDetail("Vị Trí", $"Ô Kích Hoạt Số {slot}/6"),
+                        new ScreenDetail("Đặc Kỹ", skillName),
+                        new ScreenDetail("Phẩm Giai", rankBadge),
+                        new ScreenDetail("Cảnh Giới", $"Cấp {equipped.Level}/5 ({levelTitle})"),
+                        new ScreenDetail("Độ Thuần Thục", profDisplay),
+                        new ScreenDetail("Hiệu Quả", effectDesc)
+                    ]));
+            }
+            else
+            {
+                slotRows.Add(new ScreenRow(
+                    [
+                        $"Ô Số {slot}",
+                        "[Trống]",
+                        "—",
+                        "—",
+                        "—",
+                        "Chưa kích hoạt kỹ năng",
+                        "Có thể trang bị"
+                    ],
+                    [],
+                    Title: $"Ô {slot}: Trống",
+                    Details:
+                    [
+                        new ScreenDetail("Vị Trí", $"Ô Kích Hoạt Số {slot}/6"),
+                        new ScreenDetail("Trạng Thái", "Chưa trang bị kỹ năng vào ô này")
+                    ]));
+            }
+        }
+
+        sections.Add(new ScreenSection("🥋 Tâm Pháp & Tuyệt Kỹ Kích Hoạt (Tối đa: 1 Phẩm S, 2 Phẩm A, Phẩm B-C tự do)", slotColumns, slotRows));
+
+        // 4. Learned Skills Library Section
+        if (progresses.Count > 0)
+        {
+            var libraryColumns = new[] { "Đặc Kỹ", "Phẩm Giai", "Cảnh Giới", "Độ Thuần Thục", "Trạng Thái Ô", "Hiệu Quả" };
+            var libraryRows = progresses.Select(p =>
+            {
+                allSkillsLookup.TryGetValue(p.SkillCode, out var skillDef);
+                var skillName = skillDef?.NameVi ?? p.SkillCode;
+                var rankBadge = p.Tier switch
+                {
+                    >= 5 => "⭐ Phẩm S",
+                    4 => "🔷 Phẩm A",
+                    3 => "🔶 Phẩm B",
+                    _ => "⚪ Phẩm C"
+                };
+                var levelTitle = GetSkillLevelTitle(p.Level);
+                var profDisplay = p.Level >= 5 ? "Tối Đa (Max)" : $"{p.Proficiency}/{p.MaxProficiency} EXP";
+                var statusDisplay = p.IsEquipped ? $"✓ Đang trang bị (Ô {p.EquippedSlot})" : "Chưa trang bị";
+
+                var cmds = new List<ScreenCommand>();
+                if (p.IsEquipped && p.EquippedSlot.HasValue)
+                {
+                    cmds.Add(new ScreenCommand($"skill:unequip:{p.EquippedSlot.Value}", "Gỡ Bỏ ✖", CommandKind.Secondary));
+                }
+                else
+                {
+                    var occupied = progresses.Where(x => x.IsEquipped && x.EquippedSlot.HasValue).Select(x => x.EquippedSlot!.Value).ToHashSet();
+                    int? nextSlot = null;
+                    for (int s = 1; s <= 6; s++)
+                    {
+                        if (!occupied.Contains(s)) { nextSlot = s; break; }
+                    }
+                    if (nextSlot.HasValue)
+                    {
+                        cmds.Add(new ScreenCommand($"skill:equip:{p.SkillCode}:{nextSlot.Value}", $"Trang Bị (Ô {nextSlot.Value}) ⚡", CommandKind.Primary));
+                    }
+                }
+
+                return new ScreenRow(
+                    [
+                        skillName,
+                        rankBadge,
+                        $"Cấp {p.Level} · {levelTitle}",
+                        profDisplay,
+                        statusDisplay,
+                        skillDef?.EffectSummary ?? "—"
+                    ],
+                    cmds,
+                    Title: $"{skillName} (Cấp {p.Level})",
+                    Details:
+                    [
+                        new ScreenDetail("Tên Đặc Kỹ", skillName),
+                        new ScreenDetail("Phẩm Cấp", rankBadge),
+                        new ScreenDetail("Cảnh Giới", $"Cấp {p.Level} ({levelTitle})"),
+                        new ScreenDetail("Độ Thuần Thục", profDisplay),
+                        new ScreenDetail("Trạng Thái", statusDisplay),
+                        new ScreenDetail("Mô Tả", skillDef?.Description ?? "—"),
+                        new ScreenDetail("Hiệu Quả", skillDef?.EffectSummary ?? "—")
+                    ]);
+            }).ToList();
+
+            sections.Add(new ScreenSection($"📚 Tuyệt Kỹ Đã Lĩnh Hội & Kho Bí Kíp ({progresses.Count})", libraryColumns, libraryRows));
+        }
+
         // 2. Local NPCs & Interaction Section
         var localColumns = new[] { "Nhân Sĩ", "Phẩm Giai", "Thân Phận", "Đặc Kỹ", "Hảo Cảm", "Quan Hệ", "Chiêu Mộ / Tình Trạng" };
         var localRows = localNpcs.Select(npc =>
@@ -212,11 +352,24 @@ internal sealed class SocialScreen : IScreenContribution
                 new($"npc:modal:{npc.Id}", "Hồ Sơ 🔍", CommandKind.Secondary)
             };
 
-            var unlearnedSkill = npc.Skills.FirstOrDefault();
-            var reqSkillAff = unlearnedSkill?.Tier >= 5 ? 75 : unlearnedSkill?.Tier == 4 ? 55 : 35;
-            if (unlearnedSkill is not null && affinity >= reqSkillAff)
+            foreach (var sk in npc.Skills)
             {
-                commands.Insert(1, new ScreenCommand($"learn:{npc.Id}:{unlearnedSkill.Code}", $"Thỉnh Giáo 📜 [{unlearnedSkill.NameVi}]", CommandKind.Primary));
+                if (!_attributes.HasSkill(sk.Code))
+                {
+                    var reqSkillAff = sk.Tier >= 5 ? 75 : sk.Tier == 4 ? 55 : 35;
+                    if (affinity >= reqSkillAff)
+                    {
+                        commands.Insert(1, new ScreenCommand($"learn:{npc.Id}:{sk.Code}", $"Thỉnh Giáo 📜 [{sk.NameVi}]", CommandKind.Primary));
+                    }
+                }
+                else
+                {
+                    var prog = _attributes.GetSkillProgress(sk.Code);
+                    if (prog != null && prog.Level < 5)
+                    {
+                        commands.Insert(1, new ScreenCommand($"train_skill:{npc.Id}:{sk.Code}", $"Tu Luyện 🥋 [{sk.NameVi} Lv.{prog.Level}]", CommandKind.Primary));
+                    }
+                }
             }
 
             if (!swornBrothers.Any(s => s.NpcId == npc.Id) && swornBrothers.Count < 2 && affinity >= 80)
@@ -296,6 +449,16 @@ internal sealed class SocialScreen : IScreenContribution
             metrics,
             alerts);
     }
+
+    private static string GetSkillLevelTitle(int level) => level switch
+    {
+        1 => "Nhập Môn",
+        2 => "Tiểu Thành",
+        3 => "Đại Thành",
+        4 => "Tinh Thông",
+        5 => "Tông Sư",
+        _ => "Nhập Môn"
+    };
 }
 
 internal sealed class SocialCommandHandler : IScreenCommandHandler
@@ -304,17 +467,20 @@ internal sealed class SocialCommandHandler : IScreenCommandHandler
     private readonly IBag _bag;
     private readonly IPlayerState _player;
     private readonly IItemCatalog _items;
+    private readonly IPlayerAttributes _attributes;
 
     public SocialCommandHandler(
         ISocialNetwork social,
         IBag bag,
         IPlayerState player,
-        IItemCatalog items)
+        IItemCatalog items,
+        IPlayerAttributes attributes)
     {
         _social = social;
         _bag = bag;
         _player = player;
         _items = items;
+        _attributes = attributes;
     }
 
     public string ScreenId => "social.network";
@@ -371,6 +537,31 @@ internal sealed class SocialCommandHandler : IScreenCommandHandler
             {
                 var skillCode = parts[1];
                 return _social.LearnSkillFromNpc(npcId, skillCode);
+            }
+        }
+        else if (commandId.StartsWith("train_skill:"))
+        {
+            var parts = commandId["train_skill:".Length..].Split(':');
+            if (long.TryParse(parts[0], out var npcId) && parts.Length > 1)
+            {
+                var skillCode = parts[1];
+                return _social.TrainSkillWithNpc(npcId, skillCode);
+            }
+        }
+        else if (commandId.StartsWith("skill:equip:"))
+        {
+            var parts = commandId["skill:equip:".Length..].Split(':');
+            if (parts.Length >= 2 && int.TryParse(parts[1], out var slot))
+            {
+                var skillCode = parts[0];
+                return _attributes.EquipSkill(skillCode, slot, tier: 0);
+            }
+        }
+        else if (commandId.StartsWith("skill:unequip:"))
+        {
+            if (int.TryParse(commandId["skill:unequip:".Length..], out var slot))
+            {
+                return _attributes.UnequipSkill(slot);
             }
         }
         else if (commandId.StartsWith("swear:"))

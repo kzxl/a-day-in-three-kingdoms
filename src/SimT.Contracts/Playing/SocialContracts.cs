@@ -130,6 +130,9 @@ public interface ISocialNetwork
     /// <summary>Requests mentorship/skill training from a friendly NPC.</summary>
     string LearnSkillFromNpc(long npcId, string skillCode);
 
+    /// <summary>Undergoes intensive mastery training with an NPC who knows the skill, gaining proficiency EXP towards the next level.</summary>
+    string TrainSkillWithNpc(long npcId, string skillCode);
+
     /// <summary>Performs the sworn brotherhood oath (Kết Nghĩa Kim Lan) with an eligible NPC.</summary>
     string SwearBrotherhood(long npcId);
 

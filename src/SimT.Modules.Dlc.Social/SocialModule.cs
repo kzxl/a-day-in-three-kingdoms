@@ -34,9 +34,9 @@ public sealed class SocialModule : ISimModule
 
         context.Capabilities.Provide(CapabilityIds.SocialNetwork, service);
 
-        var screen = new SocialScreen(service, registry, map, player, bag, items, context.Clock);
+        var screen = new SocialScreen(service, registry, map, player, bag, items, context.Clock, attributes);
         context.Ui.AddScreen(screen);
-        context.Ui.AddCommandHandler(new SocialCommandHandler(service, bag, player, items));
+        context.Ui.AddCommandHandler(new SocialCommandHandler(service, bag, player, items, attributes));
 
         context.Events.Subscribe<MonthClosed>(month => service.OnMonthClosed(month.Date));
 

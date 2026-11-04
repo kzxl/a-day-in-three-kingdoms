@@ -115,25 +115,34 @@ public static class TacticalDuelEngine
         var skillNotes = new List<string>();
 
         var pSkillMult = 1.0;
-        if (playerAttrs.HasSkill("vo_thanh"))
+        if (playerAttrs.IsSkillEquipped("vo_thanh"))
         {
-            pSkillMult += 0.25;
-            skillNotes.Add("Bạn thi triển tuyệt kỹ [Võ Thánh] (+25% chiến lực)");
+            var lvl = Math.Max(1, playerAttrs.GetEquippedSkillLevel("vo_thanh"));
+            var bonus = 0.15 + (lvl * 0.03); // Lv 1: +18%, Lv 5: +30%
+            pSkillMult += bonus;
+            skillNotes.Add($"Bạn thi triển tuyệt kỹ [Võ Thánh Lv.{lvl}] (+{(int)(bonus * 100)}% chiến lực)");
         }
-        else if (playerAttrs.HasSkill("long_dam"))
+        else if (playerAttrs.IsSkillEquipped("long_dam"))
         {
-            pSkillMult += 0.20;
-            skillNotes.Add("Bạn thi triển tuyệt kỹ [Long Đảm] (+20% chiến lực)");
+            var lvl = Math.Max(1, playerAttrs.GetEquippedSkillLevel("long_dam"));
+            var bonus = 0.11 + (lvl * 0.03); // Lv 1: +14%, Lv 5: +26%
+            pSkillMult += bonus;
+            skillNotes.Add($"Bạn thi triển tuyệt kỹ [Long Đảm Lv.{lvl}] (+{(int)(bonus * 100)}% chiến lực)");
         }
-        else if (playerAttrs.HasSkill("dau_than"))
+        else if (playerAttrs.IsSkillEquipped("dau_than"))
         {
-            pSkillMult += 0.20;
-            skillNotes.Add("Bạn thi triển tuyệt kỹ [Đấu Thần] (+20% chiến lực)");
+            var lvl = Math.Max(1, playerAttrs.GetEquippedSkillLevel("dau_than"));
+            var bonus = 0.11 + (lvl * 0.03); // Lv 1: +14%, Lv 5: +26%
+            pSkillMult += bonus;
+            skillNotes.Add($"Bạn thi triển tuyệt kỹ [Đấu Thần Lv.{lvl}] (+{(int)(bonus * 100)}% chiến lực)");
         }
 
-        if (playerAttrs.HasSkill("thiet_bich"))
+        var isThietBichEquipped = playerAttrs.IsSkillEquipped("thiet_bich");
+        var thietBichLevel = isThietBichEquipped ? Math.Max(1, playerAttrs.GetEquippedSkillLevel("thiet_bich")) : 0;
+        if (isThietBichEquipped)
         {
-            skillNotes.Add("Bạn kích hoạt thế thủ [Thiết Bích] (+15% phòng thủ)");
+            var defBonus = 10 + (thietBichLevel * 2); // Lv 1: +12%, Lv 5: +20%
+            skillNotes.Add($"Bạn kích hoạt thế thủ [Thiết Bích Lv.{thietBichLevel}] (+{defBonus}% phòng thủ)");
         }
 
         var nSkillMult = 1.0;
@@ -181,7 +190,7 @@ public static class TacticalDuelEngine
                 opponentSpirit,
                 playerCharged,
                 opponentCharged,
-                playerAttrs.HasSkill("thiet_bich"),
+                thietBichLevel,
                 opponent.NameVi,
                 playerBranch,
                 opponentBranch,
@@ -201,6 +210,13 @@ public static class TacticalDuelEngine
         var won = playerHp > opponentHp;
         var totalRounds = roundLogs.Count;
         var prizeGold = won ? Math.Max(70, (int)(nAttr.War * 2.4)) : 0;
+
+        // Combat Experience: Train all equipped martial skills
+        var expReward = won ? 40 : 20;
+        foreach (var prog in playerAttrs.SkillProgresses.Where(p => p.IsEquipped))
+        {
+            playerAttrs.TrainSkill(prog.SkillCode, expReward);
+        }
 
         var skillDesc = skillNotes.Count > 0 ? " " + string.Join(" · ", skillNotes) : "";
         var summary = won
@@ -306,7 +322,7 @@ public static class TacticalDuelEngine
         int currentOpponentSpirit,
         bool pCharged,
         bool oCharged,
-        bool pHasThietBich,
+        int pThietBichLevel,
         string opponentName,
         TroopBranch playerBranch,
         TroopBranch opponentBranch,
@@ -357,13 +373,13 @@ public static class TacticalDuelEngine
                 break;
 
             case (TacticalDuelAction.Defend, TacticalDuelAction.Attack):
-                var defFactor = pHasThietBich ? 0.18 : 0.25;
+                var defFactor = pThietBichLevel > 0 ? Math.Max(0.12, 0.22 - (pThietBichLevel * 0.015)) : 0.25;
                 oDmg = Math.Max(2, (int)(oRawAtk * defFactor * pBranchDef));
                 pDmg = 0;
                 pSpiritDelta += 12;
                 oSpiritDelta += 8;
                 isParried = true;
-                narrative = $"Hiệp {round}: {opponentName} dồn lực vung vũ khí [CÔNG], bạn bình tĩnh lập thuẫn thế [THỦ] {(pHasThietBich ? "[Thiết Bích] " : "")}chặn đứng đòn hiểm (chỉ nhận {oDmg} sát thương)!";
+                narrative = $"Hiệp {round}: {opponentName} dồn lực vung vũ khí [CÔNG], bạn bình tĩnh lập thuẫn thế [THỦ] {(pThietBichLevel > 0 ? $"[Thiết Bích Lv.{pThietBichLevel}] " : "")}chặn đứng đòn hiểm (chỉ nhận {oDmg} sát thương)!";
                 break;
 
             case (TacticalDuelAction.Defend, TacticalDuelAction.Defend):
