@@ -1,4 +1,9 @@
-# SimT
+# Một Ngày Ở Tam Quốc (SimT)
+
+[![Build & Test](https://img.shields.io/badge/Tests-308%2F308%20Passed-emerald.svg)](tests/)
+[![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%20DLC%20Modular%20Monolith-blueviolet.svg)](docs/module-authoring.md)
+[![Platform](https://img.shields.io/badge/Platform-.NET%208%20%7C%20WPF%20%7C%20SQLite%20WAL-blue.svg)](src/SimT.Host.Wpf/)
+[![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
 
 A single-player, offline, text-based merchant simulation for Windows, built as a **Core + DLC
 modular monolith**. This repository is a deliberate restart of the `Simulation` web project:
@@ -82,6 +87,9 @@ any table contradicts another.
 | `dlc.lineage` | DLC | marriage, children, one heir, monthly household upkeep | `ln_*` |
 | `dlc.cultivation` | DLC | rented plots, seasonal sowing, harvest, monthly land rent | `fm_*` |
 | `dlc.politics` | DLC | reputation from service, offices with gates, monthly stipend | `po_*` |
+| `dlc.social` | DLC | 2-axis social network, gifting, sworn brotherhood, tiered retainers | `kz_*` |
+| `dlc.military` | DLC | tactical martial duel, bandit strongholds, garrison arena | `mi_*` |
+| `dlc.society` | DLC | autonomous 127 NPC lifecycle, monthly dynamic progression | `so_*` |
 
 Every DLC declares its tables and migrations in its own `module.json`, reaches other modules
 only through capabilities, and registers its own screens. Disabling one in
