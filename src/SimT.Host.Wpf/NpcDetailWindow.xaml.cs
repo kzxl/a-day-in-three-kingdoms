@@ -8,24 +8,24 @@ namespace SimT.Host.Wpf;
 
 public partial class NpcDetailWindow : Window
 {
-    public NpcDetailWindow(NpcDef npc, string citadelName)
+    public NpcDetailWindow(NpcDef npc, string citadelName, NpcStatDelta? deltas = null, NpcActivityDef? activity = null)
     {
         InitializeComponent();
         DarkTitleBar.Apply(this);
 
-        Populate(npc, citadelName);
+        Populate(npc, citadelName, deltas, activity);
     }
 
-    public static void ShowNpc(Window owner, NpcDef npc, string citadelName)
+    public static void ShowNpc(Window owner, NpcDef npc, string citadelName, NpcStatDelta? deltas = null, NpcActivityDef? activity = null)
     {
-        var window = new NpcDetailWindow(npc, citadelName)
+        var window = new NpcDetailWindow(npc, citadelName, deltas, activity)
         {
             Owner = owner
         };
         window.ShowDialog();
     }
 
-    private void Populate(NpcDef npc, string citadelName)
+    private void Populate(NpcDef npc, string citadelName, NpcStatDelta? deltas, NpcActivityDef? activity)
     {
         Title = $"{npc.NameVi} — Hồ Sơ Nhân Vật";
 
@@ -47,36 +47,50 @@ public partial class NpcDetailWindow : Window
             ? "Khí chất bình ổn, chưa bộc lộ dã tâm."
             : $"Khí chất: {npc.Personality}";
 
+        if (activity is not null)
+        {
+            DynamicLivingPanel.Visibility = Visibility.Visible;
+            WealthText.Text = $"💰 {activity.CurrentWealth:N0} Quan";
+            ReputationText.Text = $"★ Uy danh {activity.Reputation}";
+            ActionText.Text = $"⚡ {activity.CurrentAction}";
+        }
+        else
+        {
+            DynamicLivingPanel.Visibility = Visibility.Collapsed;
+        }
+
         BioText.Text = string.IsNullOrWhiteSpace(npc.BioVi)
             ? "Nhân sĩ danh tiếng thời Tam Quốc, hành trạng được dân gian ca tụng."
             : npc.BioVi;
 
         var a = npc.Attributes;
-        var total = a.War + a.Ldr + a.Int + a.Pol + a.Dip + a.Com + a.Log + a.Cra + a.Con + a.Wil + a.Prc + a.Lck;
+        var bonusTotal = deltas?.TotalBonus ?? 0;
+        var total = a.War + a.Ldr + a.Int + a.Pol + a.Dip + a.Com + a.Log + a.Cra + a.Con + a.Wil + a.Prc + a.Lck + bonusTotal;
         TotalStatsText.Text = total.ToString();
 
-        // 8 Core Stats
+        // 8 Core Stats (with growth bonuses if available)
         CoreStatsGrid.Children.Clear();
-        AddStatItem(CoreStatsGrid, "WAR · Võ Lực", a.War, "Khả năng chiến đấu, trảm tướng phá trận");
-        AddStatItem(CoreStatsGrid, "LDR · Thống Soái", a.Ldr, "Khả năng chỉ huy quân đội, giữ vững đội hình");
-        AddStatItem(CoreStatsGrid, "INT · Trí Tuệ", a.Int, "Mưu lược quân sự, bày binh bố trận");
-        AddStatItem(CoreStatsGrid, "POL · Chính Trị", a.Pol, "Quản lý kinh bang tế thế, phát triển thành thị");
-        AddStatItem(CoreStatsGrid, "DIP · Ngoại Giao", a.Dip, "Du thuyết liên minh, thu phục lòng người");
-        AddStatItem(CoreStatsGrid, "COM · Thương Mại", a.Com, "Đàm phán giá cả, kinh doanh sinh lời");
-        AddStatItem(CoreStatsGrid, "LOG · Hậu Cần", a.Log, "Vận tải lương thảo, quản lý kho tàng");
-        AddStatItem(CoreStatsGrid, "CRA · Kỹ Nghệ", a.Cra, "Chế tạo khí giới, xây đắp công trình");
+        AddStatItem(CoreStatsGrid, "WAR · Võ Lực", a.War, deltas?.WarDelta ?? 0, "Khả năng chiến đấu, trảm tướng phá trận");
+        AddStatItem(CoreStatsGrid, "LDR · Thống Soái", a.Ldr, deltas?.LdrDelta ?? 0, "Khả năng chỉ huy quân đội, giữ vững đội hình");
+        AddStatItem(CoreStatsGrid, "INT · Trí Tuệ", a.Int, deltas?.IntDelta ?? 0, "Mưu lược quân sự, bày binh bố trận");
+        AddStatItem(CoreStatsGrid, "POL · Chính Trị", a.Pol, deltas?.PolDelta ?? 0, "Quản lý kinh bang tế thế, phát triển thành thị");
+        AddStatItem(CoreStatsGrid, "DIP · Ngoại Giao", a.Dip, deltas?.DipDelta ?? 0, "Du thuyết liên minh, thu phục lòng người");
+        AddStatItem(CoreStatsGrid, "COM · Thương Mại", a.Com, deltas?.ComDelta ?? 0, "Đàm phán giá cả, kinh doanh sinh lời");
+        AddStatItem(CoreStatsGrid, "LOG · Hậu Cần", a.Log, deltas?.LogDelta ?? 0, "Vận tải lương thảo, quản lý kho tàng");
+        AddStatItem(CoreStatsGrid, "CRA · Kỹ Nghệ", a.Cra, deltas?.CraDelta ?? 0, "Chế tạo khí giới, xây đắp công trình");
 
         // 4 Innate Stats
         InnateStatsGrid.Children.Clear();
-        AddStatItem(InnateStatsGrid, "CON · Căn Cốt", a.Con, "Thể phách, quyết định sinh lực & thể lực tối đa");
-        AddStatItem(InnateStatsGrid, "WIL · Định Lực", a.Wil, "Ý chí kiên định, chống hoảng loạn & giảm stress");
-        AddStatItem(InnateStatsGrid, "PRC · Tuệ Nhãn", a.Prc, "Cơ biến, giám định hàng hóa & phát giác phục kích");
-        AddStatItem(InnateStatsGrid, "LCK · Khí Vận", a.Lck, "Phúc duyên trời ban, bạo kích kỳ ngộ thương trường");
+        AddStatItem(InnateStatsGrid, "CON · Căn Cốt", a.Con, 0, "Thể phách, quyết định sinh lực & thể lực tối đa");
+        AddStatItem(InnateStatsGrid, "WIL · Định Lực", a.Wil, 0, "Ý chí kiên định, chống hoảng loạn & giảm stress");
+        AddStatItem(InnateStatsGrid, "PRC · Tuệ Nhãn", a.Prc, 0, "Cơ biến, giám định hàng hóa & phát giác phục kích");
+        AddStatItem(InnateStatsGrid, "LCK · Khí Vận", a.Lck, 0, "Phúc duyên trời ban, bạo kích kỳ ngộ thương trường");
     }
 
-    private void AddStatItem(Panel container, string label, int value, string tip)
+    private void AddStatItem(Panel container, string label, int baseValue, int bonus, string tip)
     {
-        var rank = value switch
+        var effective = baseValue + bonus;
+        var rank = effective switch
         {
             >= 95 => "S+",
             >= 90 => "S",
@@ -86,11 +100,11 @@ public partial class NpcDetailWindow : Window
             _ => "D"
         };
 
-        var barBrush = (Brush)(value >= 90
+        var barBrush = (Brush)(effective >= 90
             ? FindResource("Accent")
-            : value >= 80
+            : effective >= 80
                 ? FindResource("Gain")
-                : value >= 70
+                : effective >= 70
                     ? new SolidColorBrush(Color.FromRgb(0x4A, 0x90, 0xE2))
                     : FindResource("Muted"));
 
@@ -107,19 +121,41 @@ public partial class NpcDetailWindow : Window
 
         var stack = new StackPanel();
 
-        // Line 1: Label + Rank + Value
+        // Line 1: Label + Rank + Value (+Bonus)
         var line = new DockPanel();
+
+        var valueStack = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        DockPanel.SetDock(valueStack, Dock.Right);
+
         var valueText = new TextBlock
         {
-            Text = value.ToString(),
+            Text = effective.ToString(),
             Style = (Style)FindResource("Number"),
             FontWeight = FontWeights.Bold,
             Foreground = barBrush,
-            FontSize = 14,
-            VerticalAlignment = VerticalAlignment.Center
+            FontSize = 14
         };
-        DockPanel.SetDock(valueText, Dock.Right);
-        line.Children.Add(valueText);
+        valueStack.Children.Add(valueText);
+
+        if (bonus > 0)
+        {
+            var bonusText = new TextBlock
+            {
+                Text = $" (+{bonus})",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = (Brush)FindResource("Gain"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(3, 0, 0, 0)
+            };
+            valueStack.Children.Add(bonusText);
+        }
+
+        line.Children.Add(valueStack);
 
         var rankBorder = new Border
         {
@@ -163,7 +199,7 @@ public partial class NpcDetailWindow : Window
         };
 
         var fillGrid = new Grid();
-        var ratio = Math.Clamp(value / 120.0, 0.05, 1.0);
+        var ratio = Math.Clamp(effective / 120.0, 0.05, 1.0);
         fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ratio, GridUnitType.Star) });
         fillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0 - ratio, GridUnitType.Star) });
 

@@ -24,6 +24,7 @@
     <ModuleProject Include="..\SimT.Modules.Dlc.Lineage\SimT.Modules.Dlc.Lineage.csproj" />
     <ModuleProject Include="..\SimT.Modules.Dlc.Cultivation\SimT.Modules.Dlc.Cultivation.csproj" />
     <ModuleProject Include="..\SimT.Modules.Dlc.Politics\SimT.Modules.Dlc.Politics.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Dlc.Society\SimT.Modules.Dlc.Society.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -25,6 +25,7 @@ public static class CapabilityIds
     public const string CourtOffice = "politics.court";
     public const string NpcRegistry = "npc.registry";
     public const string NpcMarket = "market.npc_stalls";
+    public const string SocietyChronicle = "society.chronicle";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>

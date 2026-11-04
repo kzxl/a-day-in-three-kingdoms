@@ -72,6 +72,21 @@
 
                     <TextBlock x:Name="PersonalityText" Style="{StaticResource Caption}"
                                Foreground="{StaticResource Faint}" Margin="0,6,0,0" TextTrimming="CharacterEllipsis" />
+
+                    <StackPanel x:Name="DynamicLivingPanel" Orientation="Horizontal" Margin="0,6,0,0" Visibility="Collapsed">
+                        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="4" Padding="7,2" Margin="0,0,6,0">
+                            <TextBlock x:Name="WealthText" FontSize="11" Foreground="{StaticResource Gain}" />
+                        </Border>
+                        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="4" Padding="7,2" Margin="0,0,6,0">
+                            <TextBlock x:Name="ReputationText" FontSize="11" Foreground="{StaticResource Accent}" />
+                        </Border>
+                        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="4" Padding="7,2">
+                            <TextBlock x:Name="ActionText" FontSize="11" Foreground="{StaticResource Text}" TextTrimming="CharacterEllipsis" MaxWidth="280" />
+                        </Border>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Total Stat Summary -->

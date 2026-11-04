@@ -1,0 +1,19 @@
+{
+  "id": "dlc.society",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "kind": "dlc",
+  "requires": ["base.world", "base.npc", "base.player"],
+  "provides": ["society.chronicle"],
+  "consumes": ["world.map", "npc.registry", "player.state"],
+  "owns": {
+    "tables": [
+      "so_ledger",
+      "so_journey_log",
+      "so_npc_activity",
+      "so_npc_stat_delta"
+    ],
+    "migrations": ["migrations"]
+  },
+  "screens": ["society.chronicle"]
+}

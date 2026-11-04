@@ -80,6 +80,7 @@ public partial class MainWindow : Window
         "lineage.family" => "⚭",
         "politics.court" => "⌂",
         "npc.directory" => "👤",
+        "society.chronicle" => "📜",
         _ => "•"
     };
 
@@ -1153,17 +1154,31 @@ public partial class MainWindow : Window
             return;
         }
 
+        NpcActivityDef? activity = null;
+        NpcStatDelta? deltas = null;
+        var currentCitId = npc.CitadelId;
+
+        if (_kernel.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society) && society is not null)
+        {
+            activity = society.GetNpcActivity(npcId);
+            deltas = society.GetStatDeltas(npcId);
+            if (activity is not null)
+            {
+                currentCitId = activity.CurrentCitadelId;
+            }
+        }
+
         var citadelName = "Ẩn sĩ";
         if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
         {
-            var cit = map.Find(npc.CitadelId);
+            var cit = map.Find(currentCitId);
             if (cit is not null)
             {
                 citadelName = cit.NameVi;
             }
         }
 
-        NpcDetailWindow.ShowNpc(this, npc, citadelName);
+        NpcDetailWindow.ShowNpc(this, npc, citadelName, deltas, activity);
         StatusText.Text = $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role}).";
     }
 
