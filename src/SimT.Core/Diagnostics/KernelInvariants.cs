@@ -54,7 +54,7 @@ public static class KernelInvariants
         public string Id => "core.clock.readable";
 
         public string? Check(IInvariantContext context) =>
-            context.Clock.Today.Year >= GameDate.Start.Year ? null : "clock is before campaign start";
+            context.Clock.Today.IsValid ? null : $"clock holds an impossible date: {context.Clock.Today}";
     }
 
     public static IReadOnlyList<IInvariant> All() =>

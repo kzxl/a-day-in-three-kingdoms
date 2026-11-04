@@ -18,13 +18,15 @@ public sealed class SimClock : IGameClock
     private readonly IEventPublisher _events;
     private GameDate _today;
 
-    public SimClock(IDbSession db, IEventPublisher events)
+    public SimClock(IDbSession db, IEventPublisher events, GameDate? campaignStart = null)
     {
         _db = db;
         _events = events;
 
         var stored = db.ScalarString("SELECT value FROM core_state WHERE key=@key", DbArgs.One("@key", DateKey));
-        _today = stored is null ? GameDate.Start : Parse(stored);
+        _today = stored is null
+            ? campaignStart ?? GameDate.Start
+            : GameDateCodec.Parse(stored);
     }
 
     public GameDate Today => _today;
@@ -56,7 +58,7 @@ public sealed class SimClock : IGameClock
     {
         _db.Execute(
             "INSERT INTO core_state(key, value) VALUES(@key, @value) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-            new DbArgs().Add("@key", DateKey).Add("@value", _today.ToString()));
+            new DbArgs().Add("@key", DateKey).Add("@value", GameDateCodec.Format(_today)));
     }
 
     /// <summary>
@@ -79,19 +81,4 @@ public sealed class SimClock : IGameClock
         _events.Publish(closed);
     }
 
-    private static GameDate Parse(string stored)
-    {
-        var parts = stored.Split('-');
-        if (parts.Length != 3
-            || !int.TryParse(parts[0], out var year)
-            || !int.TryParse(parts[1], out var month)
-            || !int.TryParse(parts[2], out var day)
-            || month is < 1 or > GameDate.MonthsPerYear
-            || day is < 1 or > GameDate.DaysPerMonth)
-        {
-            throw new SimException("time.corrupt", $"Stored date '{stored}' cannot be parsed.");
-        }
-
-        return new GameDate(year, month, day);
-    }
 }

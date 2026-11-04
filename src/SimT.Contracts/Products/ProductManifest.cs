@@ -11,7 +11,8 @@ public sealed record ProductManifest(
     IReadOnlyList<string> Modules,
     long Seed,
     string StartLocationCode,
-    long StartingCash);
+    long StartingCash,
+    Time.GameDate StartDate);
 
 /// <summary>Per-campaign save metadata, stored next to the database file.</summary>
 public sealed record CampaignMeta(
@@ -28,7 +29,7 @@ public sealed record CampaignMeta(
         name,
         DateTime.UtcNow.ToString("O"),
         DateTime.UtcNow.ToString("O"),
-        Time.GameDate.Start.ToString(),
+        Time.GameDateCodec.Format(product.StartDate),
         "1",
         product.Modules);
 }

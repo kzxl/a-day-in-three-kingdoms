@@ -93,7 +93,7 @@ public sealed class SqliteLedger : ILedger
 
     private static readonly Func<DbRecord, LedgerLine> Map = row => new LedgerLine(
         row.GetInt64(0),
-        ParseDate(row.GetString(1)),
+        GameDateCodec.Parse(row.GetString(1)),
         row.GetString(2),
         row.GetInt64(3) > 0 ? LedgerDirection.In : LedgerDirection.Out,
         row.GetInt64(4),
@@ -160,9 +160,4 @@ public sealed class SqliteLedger : ILedger
     private long LastBalance() =>
         _db.ScalarLong("SELECT COALESCE((SELECT balance_after FROM core_ledger ORDER BY id DESC LIMIT 1), 0)");
 
-    private static GameDate ParseDate(string stored)
-    {
-        var parts = stored.Split('-');
-        return new GameDate(int.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[2]));
-    }
 }

@@ -23,13 +23,17 @@ public static class ProductManifestLoader
             Modules: Strings(root, "modules"),
             Seed: root.TryGetProperty("seed", out var seed) ? seed.GetInt64() : 1L,
             StartLocationCode: Text(root, "startLocation"),
-            StartingCash: root.TryGetProperty("startingCash", out var cash) ? cash.GetInt64() : 0L);
+            StartingCash: root.TryGetProperty("startingCash", out var cash) ? cash.GetInt64() : 0L,
+            StartDate: SimT.Contracts.Time.GameDateCodec.Parse(TextOr(root, "startDate", "0001-01-01")));
     }
 
     private static string Text(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) && value.GetString() is { Length: > 0 } text
             ? text
             : throw new SimException("product.invalid", $"Product manifest is missing '{name}'.");
+
+    private static string TextOr(JsonElement root, string name, string fallback) =>
+        root.TryGetProperty(name, out var value) && value.GetString() is { Length: > 0 } text ? text : fallback;
 
     private static IReadOnlyList<string> Strings(JsonElement root, string name)
     {

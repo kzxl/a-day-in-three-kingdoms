@@ -122,7 +122,7 @@ public sealed class SimKernel : IDisposable
             EnsureSchemaVersion(db);
 
             var events = new EventPublisher();
-            var clock = new SimClock(db, events);
+            var clock = new SimClock(db, events, product.StartDate);
             var ledger = new SqliteLedger(db);
             var ids = new SequenceIdGenerator(db);
 

@@ -28,6 +28,7 @@ public sealed class TestHost : IDisposable
             name = "Test product",
             modules = AvailableModules(),
             seed = 1840502,
+            startDate = "184-01-01",
             startLocation = "lac_duong",
             startingCash = 2000
         }, new JsonSerializerOptions { WriteIndented = true }));

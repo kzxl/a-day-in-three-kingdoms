@@ -13,6 +13,24 @@ public readonly record struct GameDate(int Year, int Month, int Day) : IComparab
 
     public static GameDate Start { get; } = new(1, 1, 1);
 
+    /// <summary>True when the month and day exist in this calendar; years start at 1.</summary>
+    public bool IsValid =>
+        Year >= 1 && Month is >= 1 and <= MonthsPerYear && Day is >= 1 and <= DaysPerMonth;
+
+    /// <summary>Validating factory. Use it wherever a date enters from outside the kernel.</summary>
+    public static GameDate Create(int year, int month, int day)
+    {
+        var date = new GameDate(year, month, day);
+        if (!date.IsValid)
+        {
+            throw new SimException(
+                "date.invalid",
+                $"Year {year}, month {month}, day {day} is not a date in a {DaysPerMonth}-day, {MonthsPerYear}-month year.");
+        }
+
+        return date;
+    }
+
     public long DayIndex => ((long)(Year - 1) * DaysPerYear) + ((Month - 1) * DaysPerMonth) + (Day - 1);
 
     public bool IsMonthStart => Day == 1;
@@ -49,5 +67,5 @@ public readonly record struct GameDate(int Year, int Month, int Day) : IComparab
 
     public static bool operator >=(GameDate left, GameDate right) => left.DayIndex >= right.DayIndex;
 
-    public override string ToString() => $"{Year:0000}-{Month:00}-{Day:00}";
+    public override string ToString() => GameDateCodec.Format(this);
 }
