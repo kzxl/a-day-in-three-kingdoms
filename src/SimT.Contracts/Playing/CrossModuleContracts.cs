@@ -248,6 +248,24 @@ public interface IPlayerState
 }
 
 /// <summary>Active status and progression level of a skill owned by the player.</summary>
+public static class SkillRankTitles
+{
+    public static string ForLevel(int level) => level switch
+    {
+        1 => "Sơ Học (Lv.1)",
+        2 => "Nhập Môn (Lv.2)",
+        3 => "Hạ Thủ (Lv.3)",
+        4 => "Thành Thục (Lv.4)",
+        5 => "Tiểu Thành (Lv.5)",
+        6 => "Tinh Thông (Lv.6)",
+        7 => "Đại Thành (Lv.7)",
+        8 => "Xuất Thần (Lv.8)",
+        9 => "Đăng Phong (Lv.9)",
+        >= 10 => "Hóa Cảnh (Lv.10)",
+        _ => "Chưa học"
+    };
+}
+
 public sealed record PlayerSkillProgressDef(
     string SkillCode,
     int Level,
@@ -296,6 +314,12 @@ public interface IPlayerAttributes
     bool LearnSkill(string skillCode);
 
     bool TrainSkill(string skillCode, int expGain);
+
+    /// <summary>
+    /// Practices a skill: automatically awakens (learns) the skill if unlearned,
+    /// trains proficiency exp, and returns awakening and level-up milestones.
+    /// </summary>
+    (bool Awakened, bool LeveledUp, int Level) PracticeSkill(string skillCode, int expGain);
 
     string EquipSkill(string skillCode, int slot, int tier);
 

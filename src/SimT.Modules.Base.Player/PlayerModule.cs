@@ -748,18 +748,20 @@ public sealed class PlayerModule : ISimModule
             return true;
         }
 
+        public const int MaxSkillLevel = 10;
+
         public bool TrainSkill(string skillCode, int expGain)
         {
             if (string.IsNullOrWhiteSpace(skillCode) || expGain <= 0) return false;
             var current = GetSkillProgress(skillCode);
             if (current == null) return false;
-            if (current.Level >= 5) return false;
+            if (current.Level >= MaxSkillLevel) return false;
 
             var level = current.Level;
             var prof = current.Proficiency + expGain;
             var leveledUp = false;
 
-            while (level < 5)
+            while (level < MaxSkillLevel)
             {
                 var needed = GetMaxProficiency(level);
                 if (prof >= needed)
@@ -774,10 +776,10 @@ public sealed class PlayerModule : ISimModule
                 }
             }
 
-            if (level >= 5)
+            if (level >= MaxSkillLevel)
             {
-                level = 5;
-                prof = GetMaxProficiency(5);
+                level = MaxSkillLevel;
+                prof = GetMaxProficiency(MaxSkillLevel);
             }
             else
             {
@@ -789,6 +791,19 @@ public sealed class PlayerModule : ISimModule
                 new DbArgs().Add("@lvl", level).Add("@prof", prof).Add("@id", _playerId).Add("@code", skillCode));
 
             return leveledUp;
+        }
+
+        public (bool Awakened, bool LeveledUp, int Level) PracticeSkill(string skillCode, int expGain)
+        {
+            var awakened = false;
+            if (!HasSkill(skillCode))
+            {
+                awakened = LearnSkill(skillCode);
+            }
+
+            var leveledUp = TrainSkill(skillCode, expGain);
+            var progress = GetSkillProgress(skillCode);
+            return (awakened, leveledUp, progress?.Level ?? 1);
         }
 
         public string EquipSkill(string skillCode, int slot, int tier)
@@ -860,11 +875,18 @@ public sealed class PlayerModule : ISimModule
         private static int GetMaxProficiency(int level) => level switch
         {
             1 => 100,
-            2 => 250,
-            3 => 500,
-            4 => 1000,
-            _ => 1000
+            2 => 200,
+            3 => 350,
+            4 => 500,
+            5 => 750,
+            6 => 1100,
+            7 => 1600,
+            8 => 2300,
+            9 => 3200,
+            _ => 5000
         };
+
+        public static string GetSkillRankTitle(int level) => SkillRankTitles.ForLevel(level);
 
         private int ResolveSkillTier(string skillCode)
         {

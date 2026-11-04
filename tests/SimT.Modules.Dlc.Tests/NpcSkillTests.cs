@@ -161,13 +161,21 @@ public sealed class NpcSkillTests : IDisposable
         var p5 = attributes.GetSkillProgress("vo_thanh");
         Assert.Equal(4, p5!.Level);
 
-        // Train 1000 EXP -> Breakthrough to Lv.5 (Tông Sư)!
+        // Train 1000 EXP -> Breakthrough to Lv.5!
         leveledUp = attributes.TrainSkill("vo_thanh", 1000);
         Assert.True(leveledUp);
         var p6 = attributes.GetSkillProgress("vo_thanh");
         Assert.Equal(5, p6!.Level);
 
-        // Training past Lv.5 is capped and returns false
+        // Train extensively up to Lv.10 (Hóa Cảnh)
+        for (int i = 0; i < 200; i++)
+        {
+            attributes.TrainSkill("vo_thanh", 100);
+        }
+        var p10 = attributes.GetSkillProgress("vo_thanh");
+        Assert.Equal(10, p10!.Level);
+
+        // Training past Lv.10 is capped and returns false
         leveledUp = attributes.TrainSkill("vo_thanh", 100);
         Assert.False(leveledUp);
     }

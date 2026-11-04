@@ -515,6 +515,43 @@ public sealed class ProfessionTests : IDisposable
         Assert.True(bag.Quantity(4, 13) > samBefore);
     }
 
+    [Fact]
+    public void Natural_skill_awakening_and_rank_titles()
+    {
+        using var kernel = _host.Boot();
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        Assert.False(attrs.HasSkill("dieu_ngu"));
+
+        var msg = Command(kernel, "wild:fish");
+
+        Assert.True(attrs.HasSkill("dieu_ngu"));
+        Assert.Contains("[LĨNH HỘI", msg);
+
+        var prog = attrs.GetSkillProgress("dieu_ngu");
+        Assert.NotNull(prog);
+        Assert.Equal(1, prog.Level);
+        Assert.Contains("Sơ Học", SkillRankTitles.ForLevel(prog.Level));
+    }
+
+    [Fact]
+    public void Skill_level_can_reach_level_10_hoa_canh()
+    {
+        using var kernel = _host.Boot();
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        // Practice repeatedly until max level 10
+        for (int i = 0; i < 600; i++)
+        {
+            attrs.PracticeSkill("dieu_ngu", 50);
+        }
+
+        var prog = attrs.GetSkillProgress("dieu_ngu");
+        Assert.NotNull(prog);
+        Assert.Equal(10, prog.Level);
+        Assert.Contains("Hóa Cảnh", SkillRankTitles.ForLevel(prog.Level));
+    }
+
     private static string Command(SimKernel kernel, string commandId)
     {
         Assert.True(kernel.TryGetCommandHandler("professions.trades", out var handler), "professions screen is not registered");

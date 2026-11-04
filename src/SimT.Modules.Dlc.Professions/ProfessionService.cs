@@ -188,6 +188,20 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 new DbArgs().Add("@trade", tradeId).Add("@practice", practice).Add("@tier", tierAfter));
 
             _attributes?.AddExp("CRA", 15);
+            var skillToTrain = trade.Code switch
+            {
+                "nong_phu" or "canh_nong" => "nong_canh",
+                "tho_moc" => "moc_nghe",
+                "luyen_kim" or "duc_dong" => "che_tac",
+                "tho_may" or "tho_det" or "det_gam" => "det_may",
+                "hai_tra" or "tam_tang" => "nong_canh",
+                "ngu_phu" => "dieu_ngu",
+                "hai_thuoc" or "tam_tram" => "tam_duoc",
+                "khai_khoang" or "lam_muoi" => "khai_khoang",
+                "nau_ruou" => "u_men",
+                _ => "che_tac"
+            };
+            _attributes?.PracticeSkill(skillToTrain, 20);
         });
 
         _log.Info($"worked {trade.Code}: +{quantity} {output.Code}, tier {tierBefore} -> {tierAfter}");
@@ -1045,17 +1059,18 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             """,
             DbArgs.One("@id", dish.Id));
 
+        (bool Awakened, bool LeveledUp, int Level) practice = (false, false, 1);
         if (_attributes is not null)
         {
-            if (!_attributes.HasSkill("am_thuc")) _attributes.LearnSkill("am_thuc");
-            _attributes.TrainSkill("am_thuc", 25);
+            practice = _attributes.PracticeSkill("am_thuc", 25);
             _attributes.AddExp("CRA", 15);
             _attributes.AddExp("INT", 10);
         }
 
+        var milestoneMsg = FormatSkillProgressMessage("Ẩm Thực", practice);
         _log.Info($"dlc.professions: cooked {dish.Code}: {dish.NameVi}");
 
-        return WorkResult.Success($"Nấu thành công 1 phần {dish.NameVi} thơm ngon!", 1, 0);
+        return WorkResult.Success($"Nấu thành công 1 phần {dish.NameVi} thơm ngon!{milestoneMsg}", 1, 0);
     }
 
     public WorkResult Eat(long dishId)
@@ -1089,13 +1104,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _clock.Advance(1);
         _attributes?.ApplyFatigue(10);
 
-        if (_attributes is not null)
-        {
-            if (!_attributes.HasSkill("dieu_ngu")) _attributes.LearnSkill("dieu_ngu");
-            _attributes.TrainSkill("dieu_ngu", 25);
-        }
-
-        var skillLevel = _attributes?.GetSkillProgress("dieu_ngu")?.Level ?? 1;
+        var practice = _attributes?.PracticeSkill("dieu_ngu", 25) ?? (false, false, 1);
+        var skillLevel = practice.Level > 0 ? practice.Level : (_attributes?.GetSkillProgress("dieu_ngu")?.Level ?? 1);
         var attrs = _attributes?.Attributes;
         var wil = attrs?.Wil ?? 50;
         var prc = attrs?.Prc ?? 50;
@@ -1104,7 +1114,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         var region = _map?.Find(citadelId)?.Region ?? "trung_tho";
         var isWaterRegion = region is "giang_dong" or "duong_chau" or "kinh_chau";
 
-        var catchCount = 2 + (skillLevel >= 3 ? 1 : 0);
+        var catchCount = 2 + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0);
         if (wil >= 60 || prc >= 60) catchCount += 1;
         if (isWaterRegion) catchCount += 1;
 
@@ -1126,9 +1136,10 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             extraMsg = " Cơ duyên vớt được Rương Cổ Tích dưới đáy sông (+80 Quan)!";
         }
 
+        var milestoneMsg = FormatSkillProgressMessage("Điêu Ngư", practice);
         var regionalFlavor = isWaterRegion ? "Lưu vực Trường Giang thủy triều mênh mông" : "Bến đò sông Hoàng Hà";
         _log.Info($"dlc.professions: fished at citadel {citadelId} ({region}): +{catchCount} fish");
-        return WorkResult.Success($"1 ngày buông cần tại {regionalFlavor}: Câu được {catchCount} Cá tươi/khô, tâm trí thư thái (giảm 15 Căng thẳng).{extraMsg}", catchCount, 1);
+        return WorkResult.Success($"1 ngày buông cần tại {regionalFlavor}: Câu được {catchCount} Cá tươi/khô, tâm trí thư thái (giảm 15 Căng thẳng).{extraMsg}{milestoneMsg}", catchCount, 1);
     }
 
     public WorkResult Forage(long citadelId)
@@ -1136,19 +1147,14 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _clock.Advance(1);
         _attributes?.ApplyFatigue(15);
 
-        if (_attributes is not null)
-        {
-            if (!_attributes.HasSkill("tam_duoc")) _attributes.LearnSkill("tam_duoc");
-            _attributes.TrainSkill("tam_duoc", 25);
-        }
-
-        var skillLevel = _attributes?.GetSkillProgress("tam_duoc")?.Level ?? 1;
+        var practice = _attributes?.PracticeSkill("tam_duoc", 25) ?? (false, false, 1);
+        var skillLevel = practice.Level > 0 ? practice.Level : (_attributes?.GetSkillProgress("tam_duoc")?.Level ?? 1);
         var attrs = _attributes?.Attributes;
         var prc = attrs?.Prc ?? 50;
         var @int = attrs?.Int ?? 50;
 
         var region = _map?.Find(citadelId)?.Region ?? "trung_tho";
-        var herbCount = 2 + (skillLevel >= 3 ? 1 : 0);
+        var herbCount = 2 + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0);
         if (prc >= 60) herbCount += 1;
         _bag.Add(citadelId, 7, herbCount); // 7: thuoc
 
@@ -1172,21 +1178,17 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             extraMsg = " Tinh mắt phát hiện thêm 1 củ Nhân Sâm quý hiếm!";
         }
 
+        var milestoneMsg = FormatSkillProgressMessage("Tầm Dược", practice);
         _log.Info($"dlc.professions: foraged at citadel {citadelId} ({region}): +{herbCount} herbs");
-        return WorkResult.Success($"1 ngày vượt suối trèo non tầm dược: Thu hái được {herbCount} Thảo dược quý.{extraMsg}", herbCount, 1);
+        return WorkResult.Success($"1 ngày vượt suối trèo non tầm dược: Thu hái được {herbCount} Thảo dược quý.{extraMsg}{milestoneMsg}", herbCount, 1);
     }
 
     public WorkResult Hunt(long citadelId)
     {
         _clock.Advance(1);
 
-        if (_attributes is not null)
-        {
-            if (!_attributes.HasSkill("thu_liep")) _attributes.LearnSkill("thu_liep");
-            _attributes.TrainSkill("thu_liep", 25);
-        }
-
-        var skillLevel = _attributes?.GetSkillProgress("thu_liep")?.Level ?? 1;
+        var practice = _attributes?.PracticeSkill("thu_liep", 25) ?? (false, false, 1);
+        var skillLevel = practice.Level > 0 ? practice.Level : (_attributes?.GetSkillProgress("thu_liep")?.Level ?? 1);
         var attrs = _attributes?.Attributes;
         var war = attrs?.War ?? 50;
         var prc = attrs?.Prc ?? 50;
@@ -1204,7 +1206,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
 
         _attributes?.ApplyFatigue(20);
 
-        var meatCount = 2 + (skillLevel >= 3 ? 1 : 0) + (war >= 60 ? 1 : 0);
+        var meatCount = 2 + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0) + (war >= 60 ? 1 : 0);
         _bag.Add(citadelId, 8, meatCount); // 8: ca_kho (lương thực thịt cá)
 
         var extraMsg = string.Empty;
@@ -1248,8 +1250,9 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _attributes?.AddExp("PRC", 15);
         _attributes?.AddExp("CON", 10);
 
+        var milestoneMsg = FormatSkillProgressMessage("Thú Liệp", practice);
         _log.Info($"dlc.professions: hunted at citadel {citadelId} ({region}): +{meatCount} meat");
-        return WorkResult.Success($"1 ngày giương cung săn bắn tại vùng {region}: Thu hoạch {meatCount} phần thịt thú săn.{extraMsg}", meatCount, 1);
+        return WorkResult.Success($"1 ngày giương cung săn bắn tại vùng {region}: Thu hoạch {meatCount} phần thịt thú săn.{extraMsg}{milestoneMsg}", meatCount, 1);
     }
 
     public WorkResult Temper(long citadelId, long equipmentId)
@@ -1315,17 +1318,27 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 .Add("@maxDur", newMaxDur)
                 .Add("@id", eq.Id));
 
+        (bool Awakened, bool LeveledUp, int Level) practice = (false, false, 1);
         if (_attributes is not null)
         {
-            if (!_attributes.HasSkill("che_tac")) _attributes.LearnSkill("che_tac");
-            _attributes.TrainSkill("che_tac", 25);
+            practice = _attributes.PracticeSkill("che_tac", 25);
             _attributes.ApplyFatigue(15);
             _attributes.AddExp("CRA", 25);
             _attributes.AddExp("WAR", 15);
         }
 
+        var milestoneMsg = FormatSkillProgressMessage("Chế Tác", practice);
         _log.Info($"dlc.professions: tempered equipment {eq.Id} to +{nextLevel}");
-        return WorkResult.Success($"Tôi luyện thành công {eq.NameVi} lên cấp +{nextLevel}! Chỉ số tăng lên +{newBonus} {eq.BonusStat}, độ bền tối đa đạt {newMaxDur}.", 1, 1);
+        return WorkResult.Success($"Tôi luyện thành công {eq.NameVi} lên cấp +{nextLevel}! Chỉ số tăng lên +{newBonus} {eq.BonusStat}, độ bền tối đa đạt {newMaxDur}.{milestoneMsg}", 1, 1);
+    }
+
+    private static string FormatSkillProgressMessage(string skillNameVi, (bool Awakened, bool LeveledUp, int Level) progress)
+    {
+        if (progress.Awakened)
+            return $" [LĨNH HỘI: Tự ngộ kỹ năng {skillNameVi} - Cấp 1 {SkillRankTitles.ForLevel(1)}!]";
+        if (progress.LeveledUp)
+            return $" [THĂNG CẤP: Kỹ năng {skillNameVi} đột phá Cấp {progress.Level} - {SkillRankTitles.ForLevel(progress.Level)}!]";
+        return string.Empty;
     }
 
     private static IReadOnlyList<TradeDefinition> LoadTrades(IDbSession db) =>
