@@ -26,7 +26,8 @@ public sealed class NpcRegistryTests : IDisposable
         Assert.NotNull(stubMerchant);
         Assert.Equal("thuong_nhan_a", stubMerchant.Code);
         Assert.Equal("Trương Lão Bản", stubMerchant.NameVi);
-        Assert.Equal(85, stubMerchant.ComAttr);
+        Assert.Equal(85, stubMerchant.Attributes.Com);
+        Assert.Equal(65, stubMerchant.Attributes.Con);
 
         // Historical characters
         var liuBei = registry.FindByCode("npc_0001");
@@ -35,25 +36,32 @@ public sealed class NpcRegistryTests : IDisposable
         Assert.Equal("Huyền Đức", liuBei.StyleNameVi);
         Assert.Equal("刘备", liuBei.NameHan);
         Assert.Equal(4, liuBei.CitadelId); // Trác Huyện
+        Assert.Equal(86, liuBei.Attributes.Con);
+        Assert.Equal(98, liuBei.Attributes.Wil);
+        Assert.Equal(90, liuBei.Attributes.Lck);
     }
 
     [Fact]
-    public void NpcRegistry_preserves_eight_core_attributes()
+    public void NpcRegistry_preserves_canonical_twelve_attributes()
     {
         using var kernel = _host.Boot();
         var registry = Registry(kernel);
 
-        // Quan Vũ: WAR=98
+        // Quan Vũ: WAR=98, CON=92, WIL=96
         var guanYu = registry.FindByCode("npc_0003");
         Assert.NotNull(guanYu);
         Assert.Equal("Quan Vũ (Vân Trường)", guanYu.NameVi);
-        Assert.Equal(98, guanYu.WarAttr);
+        Assert.Equal(98, guanYu.Attributes.War);
+        Assert.Equal(92, guanYu.Attributes.Con);
+        Assert.Equal(96, guanYu.Attributes.Wil);
 
-        // Gia Cát Lượng: INT=100
+        // Gia Cát Lượng: INT=100, PRC=99, WIL=100
         var zhugeLiang = registry.FindByCode("npc_0025");
         Assert.NotNull(zhugeLiang);
         Assert.Equal("Gia Cát Lượng (Khổng Minh)", zhugeLiang.NameVi);
-        Assert.Equal(100, zhugeLiang.IntAttr);
+        Assert.Equal(100, zhugeLiang.Attributes.Int);
+        Assert.Equal(99, zhugeLiang.Attributes.Prc);
+        Assert.Equal(100, zhugeLiang.Attributes.Wil);
     }
 
     [Fact]

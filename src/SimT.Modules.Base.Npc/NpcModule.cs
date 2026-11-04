@@ -27,9 +27,10 @@ public sealed class NpcModule : ISimModule
         {
             _all = db.Query(
                 @"SELECT n.id, n.code, n.name_vi, a.name_han, a.style_name_vi, n.role, n.citadel_id,
-                         COALESCE(a.war_attr, 50), COALESCE(a.int_attr, 50), COALESCE(a.pol_attr, 50),
-                         COALESCE(a.ldr_attr, 50), COALESCE(a.dip_attr, 50), COALESCE(a.com_attr, 50),
-                         COALESCE(a.log_attr, 50), COALESCE(a.cra_attr, 50),
+                         COALESCE(a.war_attr, 50), COALESCE(a.ldr_attr, 50), COALESCE(a.int_attr, 50),
+                         COALESCE(a.pol_attr, 50), COALESCE(a.dip_attr, 50), COALESCE(a.com_attr, 50),
+                         COALESCE(a.log_attr, 50), COALESCE(a.cra_attr, 50), COALESCE(a.con_attr, 50),
+                         COALESCE(a.wil_attr, 50), COALESCE(a.prc_attr, 50), COALESCE(a.lck_attr, 50),
                          a.personality, a.bio_vi
                   FROM np_npc n
                   LEFT JOIN np_attribute a ON a.npc_id = n.id
@@ -42,16 +43,21 @@ public sealed class NpcModule : ISimModule
                     row.GetStringOrNull(4),
                     row.GetString(5),
                     row.GetInt64(6),
-                    row.GetInt32(7),
-                    row.GetInt32(8),
-                    row.GetInt32(9),
-                    row.GetInt32(10),
-                    row.GetInt32(11),
-                    row.GetInt32(12),
-                    row.GetInt32(13),
-                    row.GetInt32(14),
-                    row.GetStringOrNull(15),
-                    row.GetStringOrNull(16)))
+                    new CharacterAttributes(
+                        row.GetInt32(7),
+                        row.GetInt32(8),
+                        row.GetInt32(9),
+                        row.GetInt32(10),
+                        row.GetInt32(11),
+                        row.GetInt32(12),
+                        row.GetInt32(13),
+                        row.GetInt32(14),
+                        row.GetInt32(15),
+                        row.GetInt32(16),
+                        row.GetInt32(17),
+                        row.GetInt32(18)),
+                    row.GetStringOrNull(19),
+                    row.GetStringOrNull(20)))
                 .ToArray();
 
             _byId = new Dictionary<long, NpcDef>(_all.Length);
