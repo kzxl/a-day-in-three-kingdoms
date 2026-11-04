@@ -107,7 +107,35 @@ public interface IProfessionGuild
     IReadOnlyList<MasteryPerkDef> Perks { get; }
 
     WorkResult UnlockPerk(long perkId);
+
+    // Deep RPG Life Skills
+    IReadOnlyList<DishRecipeDef> Dishes { get; }
+
+    WorkResult Cook(long citadelId, long dishId);
+
+    WorkResult Eat(long dishId);
+
+    WorkResult Fish(long citadelId);
+
+    WorkResult Forage(long citadelId);
+
+    WorkResult Temper(long citadelId, long equipmentId);
 }
+
+public sealed record DishRecipeDef(
+    long Id,
+    string Code,
+    string NameVi,
+    string DescriptionVi,
+    long PrimaryItemId,
+    int PrimaryQuantity,
+    long? SecondaryItemId,
+    int SecondaryQuantity,
+    int FatigueRelief,
+    int StressRelief,
+    int HealthGain,
+    long CookFee,
+    int InInventory = 0);
 
 public sealed record MasteryPerkDef(
     long Id,
@@ -151,7 +179,8 @@ public sealed record EquipmentDef(
     int MaxDurability,
     string QualityRank,
     string BonusStat,
-    int BonusValue);
+    int BonusValue,
+    int TemperLevel = 0);
 
 public readonly record struct WorkResult(bool Ok, string Message, int Quantity, int Days)
 {

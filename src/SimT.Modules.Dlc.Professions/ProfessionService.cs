@@ -73,7 +73,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     public IReadOnlyList<EquipmentDef> Equipments(long citadelId) =>
         _db.Query(
             """
-            SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value
+            SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value, COALESCE(temper_level, 0)
             FROM pf_equipment
             WHERE citadel_id = @citadel
             ORDER BY id ASC
@@ -87,13 +87,14 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 row.GetInt32(5),
                 row.GetString(6),
                 row.GetString(7),
-                row.GetInt32(8)),
+                row.GetInt32(8),
+                row.GetInt32(9)),
             DbArgs.One("@citadel", citadelId));
 
     public EquipmentDef? FindEquipment(long equipmentId) =>
         _db.QueryOne(
             """
-            SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value
+            SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value, COALESCE(temper_level, 0)
             FROM pf_equipment
             WHERE id = @id
             """,
@@ -106,7 +107,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 row.GetInt32(5),
                 row.GetString(6),
                 row.GetString(7),
-                row.GetInt32(8)),
+                row.GetInt32(8),
+                row.GetInt32(9)),
             DbArgs.One("@id", equipmentId));
 
     public void ValidateCatalog()
@@ -726,7 +728,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     public IReadOnlyList<EquippedSlotDef> Slots =>
         _db.Query(
             """
-            SELECT s.slot_code, s.equipment_id, e.name_vi, e.item_id, e.citadel_id, e.durability, e.max_durability, e.quality_rank, e.bonus_stat, e.bonus_value
+            SELECT s.slot_code, s.equipment_id, e.name_vi, e.item_id, e.citadel_id, e.durability, e.max_durability, e.quality_rank, e.bonus_stat, e.bonus_value, COALESCE(e.temper_level, 0)
             FROM pf_equipped_slot s
             LEFT JOIN pf_equipment e ON e.id = s.equipment_id
             ORDER BY s.slot_code DESC
@@ -753,7 +755,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                         row.GetInt32(6),
                         row.GetString(7),
                         row.GetString(8),
-                        row.GetInt32(9));
+                        row.GetInt32(9),
+                        row.GetInt32(10));
                 }
 
                 return new EquippedSlotDef(slotCode, slotName, row.IsDbNull(1) ? null : row.GetInt64(1), equip);
@@ -965,6 +968,241 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         });
 
         return WorkResult.Success($"Giác ngộ thành công bí kỹ '{perk.NameVi}'! {perk.DescriptionVi}", 1, 0);
+    }
+
+    // =========================================================================
+    // DEEP RPG LIFE SKILLS (COOKING, FISHING, FORAGING, TEMPERING)
+    // =========================================================================
+
+    public IReadOnlyList<DishRecipeDef> Dishes =>
+        _db.Query(
+            """
+            SELECT d.id, d.code, d.name_vi, d.description_vi, d.primary_item_id, d.primary_qty,
+                   d.secondary_item_id, d.secondary_qty, d.fatigue_relief, d.stress_relief, d.health_gain,
+                   d.cook_fee, COALESCE(inv.quantity, 0)
+            FROM pf_dish d
+            LEFT JOIN pf_dish_inventory inv ON inv.dish_id = d.id
+            ORDER BY d.id ASC
+            """,
+            row => new DishRecipeDef(
+                row.GetInt64(0),
+                row.GetString(1),
+                row.GetString(2),
+                row.GetString(3),
+                row.GetInt64(4),
+                row.GetInt32(5),
+                row.IsDbNull(6) ? null : row.GetInt64(6),
+                row.GetInt32(7),
+                row.GetInt32(8),
+                row.GetInt32(9),
+                row.GetInt32(10),
+                row.GetInt64(11),
+                row.GetInt32(12)));
+
+    public WorkResult Cook(long citadelId, long dishId)
+    {
+        var dish = Dishes.FirstOrDefault(d => d.Id == dishId);
+        if (dish is null)
+            return WorkResult.Failure("Không tìm thấy thực đơn món ăn.");
+
+        if (_wallet.Liquid < dish.CookFee)
+            return WorkResult.Failure($"Không đủ tiền mua gia vị, củi lửa ({dish.CookFee} Quan).");
+
+        var primaryItem = _items.Find(dish.PrimaryItemId);
+        if (primaryItem is null)
+            return WorkResult.Failure("Vật phẩm nguyên liệu không tồn tại.");
+
+        var hasPrimary = _bag.Quantity(citadelId, dish.PrimaryItemId);
+        if (hasPrimary < dish.PrimaryQuantity)
+            return WorkResult.Failure($"Thiếu nguyên liệu chính: Cần {dish.PrimaryQuantity} {primaryItem.NameVi} (hiện có {hasPrimary}).");
+
+        if (dish.SecondaryItemId.HasValue && dish.SecondaryQuantity > 0)
+        {
+            var secondaryItem = _items.Find(dish.SecondaryItemId.Value);
+            var hasSecondary = _bag.Quantity(citadelId, dish.SecondaryItemId.Value);
+            if (hasSecondary < dish.SecondaryQuantity)
+                return WorkResult.Failure($"Thiếu nguyên liệu phụ: Cần {dish.SecondaryQuantity} {secondaryItem?.NameVi ?? "phụ gia"} (hiện có {hasSecondary}).");
+        }
+
+        // Deduct materials & fee
+        _bag.Remove(citadelId, dish.PrimaryItemId, dish.PrimaryQuantity);
+        if (dish.SecondaryItemId.HasValue && dish.SecondaryQuantity > 0)
+        {
+            _bag.Remove(citadelId, dish.SecondaryItemId.Value, dish.SecondaryQuantity);
+        }
+
+        _wallet.Charge(dish.CookFee, JournalCodes.ToolFee, $"Nấu món {dish.NameVi}");
+
+        // Add to dish inventory
+        _db.Execute(
+            """
+            INSERT INTO pf_dish_inventory (dish_id, quantity)
+            VALUES (@id, 1)
+            ON CONFLICT(dish_id) DO UPDATE SET quantity = quantity + 1
+            """,
+            DbArgs.One("@id", dish.Id));
+
+        _attributes?.AddExp("CRA", 15);
+        _attributes?.AddExp("INT", 10);
+        _log.Info($"dlc.professions: cooked {dish.Code}: {dish.NameVi}");
+
+        return WorkResult.Success($"Nấu thành công 1 phần {dish.NameVi} thơm ngon!", 1, 0);
+    }
+
+    public WorkResult Eat(long dishId)
+    {
+        var dish = Dishes.FirstOrDefault(d => d.Id == dishId);
+        if (dish is null)
+            return WorkResult.Failure("Không tìm thấy món ăn.");
+
+        if (dish.InInventory <= 0)
+            return WorkResult.Failure($"Không còn {dish.NameVi} trong giỏ ẩm thực để dùng bữa.");
+
+        _db.Execute(
+            """
+            UPDATE pf_dish_inventory
+            SET quantity = quantity - 1
+            WHERE dish_id = @id AND quantity > 0
+            """,
+            DbArgs.One("@id", dish.Id));
+
+        _attributes?.RecoverVitals(dish.FatigueRelief, dish.StressRelief, dish.HealthGain);
+        _log.Info($"dlc.professions: consumed {dish.Code}: -{dish.FatigueRelief} fatigue, -{dish.StressRelief} stress, +{dish.HealthGain} hp");
+
+        return WorkResult.Success(
+            $"Thưởng thức {dish.NameVi}: Giảm {dish.FatigueRelief} Mệt mỏi, giảm {dish.StressRelief} Căng thẳng, hồi phục {dish.HealthGain} Khí huyết.",
+            1,
+            0);
+    }
+
+    public WorkResult Fish(long citadelId)
+    {
+        _clock.Advance(1);
+        _attributes?.ApplyFatigue(10);
+
+        var attrs = _attributes?.Attributes;
+        var wil = attrs?.Wil ?? 50;
+        var prc = attrs?.Prc ?? 50;
+        var lck = attrs?.Lck ?? 50;
+
+        var catchCount = 2;
+        if (wil >= 60 || prc >= 60)
+            catchCount += 1;
+
+        _bag.Add(citadelId, 8, catchCount); // 8: ca_kho
+
+        _attributes?.RecoverVitals(fatigueRelief: 0, stressRelief: 15, healthGain: 0);
+        _attributes?.AddExp("WIL", 15);
+        _attributes?.AddExp("PRC", 10);
+
+        var extraMsg = string.Empty;
+        if (lck >= 60)
+        {
+            _wallet.Pay(35, "PF.SALVAGE", "Vớt được túi tiền cổ dưới sông");
+            extraMsg = " Cơ duyên vớt được túi đồng cổ dưới đáy sông (+35 Quan)!";
+        }
+
+        _log.Info($"dlc.professions: fished at citadel {citadelId}: +{catchCount} fish");
+        return WorkResult.Success($"1 ngày buông cần bên bến sông: Câu được {catchCount} Cá khô, tâm trí thư thái (giảm 15 Căng thẳng).{extraMsg}", catchCount, 1);
+    }
+
+    public WorkResult Forage(long citadelId)
+    {
+        _clock.Advance(1);
+        _attributes?.ApplyFatigue(15);
+
+        var attrs = _attributes?.Attributes;
+        var prc = attrs?.Prc ?? 50;
+        var @int = attrs?.Int ?? 50;
+
+        var herbCount = 2;
+        if (prc >= 60)
+            herbCount += 1;
+
+        _bag.Add(citadelId, 7, herbCount); // 7: thuoc
+        _attributes?.AddExp("PRC", 20);
+        _attributes?.AddExp("INT", 10);
+
+        var extraMsg = string.Empty;
+        if (prc >= 65 || @int >= 65)
+        {
+            _bag.Add(citadelId, 13, 1); // 13: sam (Nhân sâm)
+            extraMsg = " Tinh mắt phát hiện thêm 1 củ Nhân Sâm quý hiếm!";
+        }
+
+        _log.Info($"dlc.professions: foraged at citadel {citadelId}: +{herbCount} herbs");
+        return WorkResult.Success($"1 ngày vượt suối trèo non tầm dược: Thu hái được {herbCount} Thảo dược quý.{extraMsg}", herbCount, 1);
+    }
+
+    public WorkResult Temper(long citadelId, long equipmentId)
+    {
+        var eq = FindEquipment(equipmentId);
+        if (eq is null)
+            return WorkResult.Failure("Không tìm thấy khí cụ để tôi luyện.");
+
+        if (eq.CitadelId != citadelId)
+            return WorkResult.Failure("Khí cụ không có ở thành này.");
+
+        if (eq.TemperLevel >= 5)
+            return WorkResult.Failure("Khí cụ đã tôi luyện đạt mức tối đa (+5).");
+
+        var nextLevel = eq.TemperLevel + 1;
+        var reqSat = nextLevel * 2;
+        var reqThan = nextLevel * 1;
+        var fee = nextLevel * 25;
+
+        var reqCra = 20 + nextLevel * 10;
+        var reqWar = 20 + nextLevel * 10;
+
+        var attrs = _attributes?.Attributes;
+        if (attrs is not null)
+        {
+            if (attrs.Cra < reqCra || attrs.War < reqWar)
+            {
+                return WorkResult.Failure($"Không đủ công xảo hoặc võ lực để tôi luyện cấp +{nextLevel}: Cần CRA {reqCra} (hiện {attrs.Cra}) và WAR {reqWar} (hiện {attrs.War}).");
+            }
+        }
+
+        if (_wallet.Liquid < fee)
+            return WorkResult.Failure($"Không đủ lộ phí và lò than tôi luyện ({fee} Quan).");
+
+        var satInBag = _bag.Quantity(citadelId, 5); // 5 = sat
+        if (satInBag < reqSat)
+            return WorkResult.Failure($"Thiếu quặng sắt tôi luyện: Cần {reqSat} Sắt (hiện có {satInBag}).");
+
+        var thanInBag = _bag.Quantity(citadelId, 15); // 15 = than_da
+        if (thanInBag < reqThan)
+            return WorkResult.Failure($"Thiếu than đá hỏa hầu: Cần {reqThan} Than Đá (hiện có {thanInBag}).");
+
+        // Deduct materials & fee
+        _bag.Remove(citadelId, 5, reqSat);
+        _bag.Remove(citadelId, 15, reqThan);
+        _wallet.Charge(fee, JournalCodes.ToolFee, $"Tôi luyện khí cụ {eq.NameVi} lên +{nextLevel}");
+
+        var newBonus = eq.BonusValue + 1;
+        var newMaxDur = eq.MaxDurability + 15;
+
+        _db.Execute(
+            """
+            UPDATE pf_equipment
+            SET temper_level = @lvl,
+                bonus_value = @bonus,
+                max_durability = @maxDur,
+                durability = @maxDur
+            WHERE id = @id
+            """,
+            new DbArgs()
+                .Add("@lvl", nextLevel)
+                .Add("@bonus", newBonus)
+                .Add("@maxDur", newMaxDur)
+                .Add("@id", eq.Id));
+
+        _attributes?.ApplyFatigue(15);
+        _attributes?.AddExp("CRA", 25);
+        _attributes?.AddExp("WAR", 15);
+
+        _log.Info($"dlc.professions: tempered equipment {eq.Id} to +{nextLevel}");
+        return WorkResult.Success($"Tôi luyện thành công {eq.NameVi} lên cấp +{nextLevel}! Chỉ số tăng lên +{newBonus} {eq.BonusStat}, độ bền tối đa đạt {newMaxDur}.", 1, 1);
     }
 
     private static IReadOnlyList<TradeDefinition> LoadTrades(IDbSession db) =>

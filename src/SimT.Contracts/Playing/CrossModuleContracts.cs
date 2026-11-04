@@ -277,6 +277,8 @@ public interface IPlayerAttributes
 
     void Rest(int days);
 
+    void RecoverVitals(int fatigueRelief, int stressRelief = 0, int healthGain = 0);
+
     void OnDayAdvanced();
 
     IReadOnlyList<string> LearnedSkills { get; }

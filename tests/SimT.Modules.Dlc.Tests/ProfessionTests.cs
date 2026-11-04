@@ -381,6 +381,86 @@ public sealed class ProfessionTests : IDisposable
         Assert.Equal(5, gaoGained);
     }
 
+    [Fact]
+    public void Fishing_activity_yields_fish_advances_day_and_relieves_stress()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        var todayBefore = kernel.Today;
+        var fishBefore = bag.Quantity(player.CurrentCityId, 8); // 8: ca_kho
+
+        var msg = Command(kernel, "wild:fish");
+
+        Assert.Contains("buông cần bên bến sông", msg);
+        Assert.Equal(todayBefore.AddDays(1), kernel.Today);
+        Assert.True(bag.Quantity(player.CurrentCityId, 8) > fishBefore);
+    }
+
+    [Fact]
+    public void Foraging_activity_yields_herbs_advances_day_and_grants_exp()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+
+        var todayBefore = kernel.Today;
+        var herbsBefore = bag.Quantity(player.CurrentCityId, 7); // 7: thuoc
+
+        var msg = Command(kernel, "wild:forage");
+
+        Assert.Contains("vượt suối trèo non tầm dược", msg);
+        Assert.Equal(todayBefore.AddDays(1), kernel.Today);
+        Assert.True(bag.Quantity(player.CurrentCityId, 7) > herbsBefore);
+    }
+
+    [Fact]
+    public void Cooking_and_consuming_dishes_relieves_fatigue_and_heals()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        // Dish 1: com_nam requires 2 gao (1) + 1 muoi (2), cook fee 5
+        bag.Add(player.CurrentCityId, 1, 2);
+        bag.Add(player.CurrentCityId, 2, 1);
+
+        var cookMsg = Command(kernel, "dish:cook:1");
+        Assert.Contains("Nấu thành công", cookMsg);
+
+        attrs.ApplyFatigue(50);
+        Assert.Equal(50, attrs.Vitals.Fatigue);
+
+        var eatMsg = Command(kernel, "dish:eat:1");
+        Assert.Contains("Thưởng thức Cơm Nắm Hành Quân", eatMsg);
+        Assert.Equal(35, attrs.Vitals.Fatigue); // 50 - 15 = 35
+    }
+
+    [Fact]
+    public void Blacksmithing_tempering_enhances_equipment_durability_and_bonus()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+        var guild = Guild(kernel);
+
+        // Equipment 1 at citadel 1 starts with Bonus 3 (WAR), Durability 100/100, TemperLevel 0
+        // Level 1 Temper needs 2 sat (5), 1 than_da (15), 25 Quan fee
+        bag.Add(player.CurrentCityId, 5, 2);
+        bag.Add(player.CurrentCityId, 15, 1);
+
+        var temperMsg = Command(kernel, "temper:1");
+        Assert.Contains("Tôi luyện thành công", temperMsg);
+
+        var eq = guild.Equipments(player.CurrentCityId).First(e => e.Id == 1);
+        Assert.Equal(1, eq.TemperLevel);
+        Assert.Equal(4, eq.BonusValue); // 3 + 1 = 4
+        Assert.Equal(115, eq.MaxDurability); // 100 + 15 = 115
+    }
+
     private static string Command(SimKernel kernel, string commandId)
     {
         Assert.True(kernel.TryGetCommandHandler("professions.trades", out var handler), "professions screen is not registered");

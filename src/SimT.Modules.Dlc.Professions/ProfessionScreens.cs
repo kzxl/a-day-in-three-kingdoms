@@ -83,9 +83,14 @@ internal sealed class ProfessionScreen : IScreenContribution
                 commands.Add(new ScreenCommand($"repair:{eq.Id}", "Tu sửa (15 Quan)"));
             }
 
+            if (eq.TemperLevel < 5)
+            {
+                commands.Add(new ScreenCommand($"temper:{eq.Id}", $"Tôi luyện (+{eq.TemperLevel + 1})"));
+            }
+
             equipRows.Add(new ScreenRow(
                 [
-                    eq.NameVi + (isEquipped ? " [Đang mặc]" : string.Empty),
+                    $"{eq.NameVi} [+{eq.TemperLevel}]" + (isEquipped ? " [Đang mặc]" : string.Empty),
                     $"+{eq.BonusValue} {eq.BonusStat}",
                     $"{eq.Durability}/{eq.MaxDurability}",
                     eq.QualityRank
@@ -283,6 +288,60 @@ internal sealed class ProfessionScreen : IScreenContribution
                 ]));
         }
 
+        // 8. Culinary Kitchen (Dishes)
+        var dishRows = new List<ScreenRow>();
+        foreach (var d in _service.Dishes)
+        {
+            var pItem = _items.Find(d.PrimaryItemId)?.NameVi ?? $"Vật phẩm #{d.PrimaryItemId}";
+            var matText = $"{d.PrimaryQuantity}x {pItem}";
+            if (d.SecondaryItemId.HasValue && d.SecondaryQuantity > 0)
+            {
+                var sItem = _items.Find(d.SecondaryItemId.Value)?.NameVi ?? $"Phụ #{d.SecondaryItemId}";
+                matText += $", {d.SecondaryQuantity}x {sItem}";
+            }
+
+            var commands = new List<ScreenCommand> { new ScreenCommand($"dish:cook:{d.Id}", "Nấu") };
+            if (d.InInventory > 0)
+            {
+                commands.Add(new ScreenCommand($"dish:eat:{d.Id}", "Dùng bữa"));
+            }
+
+            dishRows.Add(new ScreenRow(
+                [
+                    d.NameVi,
+                    matText,
+                    $"{d.CookFee} Quan",
+                    $"-{d.FatigueRelief} Mệt, -{d.StressRelief} Stress, +{d.HealthGain} HP",
+                    $"{d.InInventory} phần"
+                ],
+                commands,
+                Title: d.NameVi,
+                Details: [new ScreenDetail("Thuyết minh", d.DescriptionVi)]));
+        }
+
+        // 9. Wilderness Activities
+        var wildRows = new List<ScreenRow>
+        {
+            new(
+                [
+                    "Buông Cần Câu Cá",
+                    "Bến sông / Vùng nước",
+                    "1 ngày · 10 Mệt mỏi",
+                    "2~3 Cá khô (Cơ duyên vớt túi tiền)",
+                    "Giảm 15 Căng thẳng, +WIL/PRC"
+                ],
+                [new ScreenCommand("wild:fish", "Buông cần câu")]),
+            new(
+                [
+                    "Lên Núi Tầm Dược",
+                    "Rừng sâu / Núi cao",
+                    "1 ngày · 15 Mệt mỏi",
+                    "2~3 Thảo dược (Cơ duyên hái Nhân sâm)",
+                    "Mở mang nhận thức, +PRC/INT"
+                ],
+                [new ScreenCommand("wild:forage", "Lên núi hái thuốc")])
+        };
+
         var totalPractice = _service.Trades.Sum(trade => _service.PracticeCount(trade.Id));
         var bestTier = _service.Trades.Max(trade => _service.Tier(trade.Id));
 
@@ -294,6 +353,8 @@ internal sealed class ProfessionScreen : IScreenContribution
                 new ScreenSection("Trang Bị Cá Nhân & Chỉ Số Cộng", SlotColumns, slotRows),
                 new ScreenSection("Xưởng Chế Tác Tại Thành", ["Tên Xưởng", "Chuyên Môn", "Lò Luyện", "Thợ Phụ", "Tiền Thuê", "Trạng Thái"], workshopRows),
                 new ScreenSection("Ủy Thác & Đơn Đặt Hàng Phường Hội", OrderColumns, orderRows),
+                new ScreenSection("Bếp Nấu Ẩm Thực (Mỹ Vị Tam Quốc)", ["Món Ăn", "Nguyên Liệu", "Chi Phí", "Hiệu Quả Sinh Mệnh", "Có Sẵn"], dishRows),
+                new ScreenSection("Dã Ngoại Sinh Hoạt (Câu Cá & Hái Thuốc)", ["Hoạt Động", "Địa Điểm", "Tiêu Hao", "Thu Hoạch Dự Kiến", "Lợi Ích Thần Trí"], wildRows),
                 new ScreenSection("Bí Kỹ Nghề Nghiệp & Giác Ngộ", PerkColumns, perkRows),
                 new ScreenSection("Khí Cụ Trong Thành", EquipmentColumns, equipRows),
                 new ScreenSection("Bản Vẽ Chế Tác Khí Cụ", RecipeColumns, recipeRows),
@@ -403,6 +464,31 @@ internal sealed class ProfessionCommandHandler : IScreenCommandHandler
                             return _service.FulfillOrder(cityId, ordId).Message;
                     }
                 }
+                break;
+
+            case "wild":
+                if (parts.Length >= 2)
+                {
+                    if (parts[1] == "fish")
+                        return _service.Fish(cityId).Message;
+                    if (parts[1] == "forage")
+                        return _service.Forage(cityId).Message;
+                }
+                break;
+
+            case "dish":
+                if (parts.Length >= 3)
+                {
+                    if (parts[1] == "cook" && long.TryParse(parts[2], out var cookDishId))
+                        return _service.Cook(cityId, cookDishId).Message;
+                    if (parts[1] == "eat" && long.TryParse(parts[2], out var eatDishId))
+                        return _service.Eat(eatDishId).Message;
+                }
+                break;
+
+            case "temper":
+                if (long.TryParse(parts[1], out var temperEqId))
+                    return _service.Temper(cityId, temperEqId).Message;
                 break;
         }
 

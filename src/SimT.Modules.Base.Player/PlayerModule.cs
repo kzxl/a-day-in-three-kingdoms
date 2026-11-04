@@ -612,6 +612,21 @@ public sealed class PlayerModule : ISimModule
                     .Add("@id", _playerId));
         }
 
+        public void RecoverVitals(int fatigueRelief, int stressRelief = 0, int healthGain = 0)
+        {
+            _db.Execute(
+                @"UPDATE pl_vitals
+                  SET fatigue = MAX(0, fatigue - @rec),
+                      stress = MAX(0, stress - @st),
+                      health = MIN(100, health + @hp)
+                  WHERE player_id = @id",
+                new DbArgs()
+                    .Add("@rec", fatigueRelief)
+                    .Add("@st", stressRelief)
+                    .Add("@hp", healthGain)
+                    .Add("@id", _playerId));
+        }
+
         public void OnDayAdvanced()
         {
             var attrs = Attributes;

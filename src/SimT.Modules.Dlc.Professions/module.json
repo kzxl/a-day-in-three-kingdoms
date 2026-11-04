@@ -23,7 +23,9 @@
       "pf_workshop",
       "pf_order",
       "pf_guild_fame",
-      "pf_mastery_perk"
+      "pf_mastery_perk",
+      "pf_dish",
+      "pf_dish_inventory"
     ],
     "migrations": ["migrations"]
   },
