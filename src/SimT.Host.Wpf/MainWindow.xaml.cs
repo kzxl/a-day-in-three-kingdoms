@@ -85,11 +85,11 @@ public partial class MainWindow : Window
     {
         var today = _kernel.Today;
         YearText.Text = today.Year.ToString(Vietnamese);
-        YearSuffixText.Text = "CN";
+        YearSuffixText.Text = "SCN";
         SeasonText.Text = $"{GameDateCodec.SeasonVi(today.Month)} · Tháng {GameDateCodec.MonthNameVi(today.Month)}";
-        DateText.Text = $"Ngày {today.Day}/{GameDate.DaysPerMonth} · {GameDateCodec.Format(today)}";
+        DateText.Text = $"Ngày {today.Day}/{GameDate.DaysPerMonth} · {GameDateCodec.ShortVi(today)}";
 
-        TurnText.Text = $"Lượt {Turn(today)} · {_kernel.Product.StartDate.Year} khởi nghiệp";
+        TurnText.Text = $"Lượt {_kernel.Turn} · {GameDateCodec.ShortVi(_kernel.Product.StartDate)} khởi nghiệp";
 
         var liquid = _kernel.Ledger.Liquid;
         var safe = _kernel.Ledger.Safe;
@@ -100,13 +100,6 @@ public partial class MainWindow : Window
         NetWorthText.Text = $"tổng {(_kernel.Ledger.Balance + goods).ToString("N0", Vietnamese)} quan";
 
         RenderCalendar(today);
-    }
-
-    /// <summary>Month index since the campaign start, the way the old game counted turns.</summary>
-    private int Turn(GameDate today)
-    {
-        var start = _kernel.Product.StartDate;
-        return ((today.Year - start.Year) * GameDate.MonthsPerYear) + (today.Month - start.Month) + 1;
     }
 
     /// <summary>Goods at sell prices; zero when the market module is disabled.</summary>
@@ -137,7 +130,7 @@ public partial class MainWindow : Window
 
         CalendarStrip.ItemsSource = cells;
         var remaining = GameDate.DaysPerMonth - today.Day + 1;
-        MonthLabel.Text = $"Tháng {GameDateCodec.MonthNameVi(today.Month)} · còn {remaining} ngày";
+        MonthLabel.Text = $"Tháng {GameDateCodec.MonthNameVi(today.Month)} · Lượt {_kernel.Turn} · còn {remaining} ngày";
     }
 
     // ------------------------------------------------------------- screens
@@ -312,7 +305,7 @@ public partial class MainWindow : Window
         var rows = lines
             .Select(line => new ScreenRow(
                 [
-                    GameDateCodec.Format(line.Date),
+                    GameDateCodec.ShortVi(line.Date),
                     line.JournalCode,
                     line.Direction == SimT.Contracts.Ledger.LedgerDirection.In ? "thu" : "chi",
                     (line.Direction == SimT.Contracts.Ledger.LedgerDirection.In ? "+" : "−")
@@ -976,7 +969,7 @@ public partial class MainWindow : Window
             .Select(group => $"{group.Key} {group.Sum(line => line.Amount).ToString("N0", Vietnamese)}");
 
         var days = (int)(to.DayIndex - from.DayIndex);
-        var heading = $"BÁO CÁO · {GameDateCodec.Format(from)} → {GameDateCodec.Format(to)} ({days} ngày)";
+        var heading = $"BÁO CÁO · {GameDateCodec.ShortVi(from)} → {GameDateCodec.ShortVi(to)} ({days} ngày)";
         var summary = $"thu {income.ToString("N0", Vietnamese)} · chi {spend.ToString("N0", Vietnamese)} · "
                       + $"ròng {(income - spend).ToString("N0", Vietnamese)} quan";
 

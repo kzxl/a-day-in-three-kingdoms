@@ -74,8 +74,8 @@ internal sealed class CaravanScreen : IScreenContribution
             runRows.Add(ScreenRow.Of([
                 run.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 destination?.NameVi ?? run.ToCityId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                GameDate.FromDayIndex(run.DepartDayIndex).ToString(),
-                GameDate.FromDayIndex(run.ArriveDayIndex).ToString(),
+                GameDateCodec.ShortVi(GameDate.FromDayIndex(run.DepartDayIndex)),
+                GameDateCodec.ShortVi(GameDate.FromDayIndex(run.ArriveDayIndex)),
                 run.Units.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 run.Lost > 0 ? $"-{run.Lost}" : "—",
                 run.Status == "RUNNING" ? "đang đi" : "đã tới"

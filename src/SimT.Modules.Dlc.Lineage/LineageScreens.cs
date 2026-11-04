@@ -30,7 +30,7 @@ internal sealed class FamilyScreen : IScreenContribution
                 [
                     member.Name,
                     member.Role,
-                    GameDate.FromDayIndex(member.DayIndex).ToString(),
+                    GameDateCodec.ShortVi(GameDate.FromDayIndex(member.DayIndex)),
                     member.IsHeir ? "người kế vị" : "—"
                 ],
                 rowCommands,
@@ -38,7 +38,7 @@ internal sealed class FamilyScreen : IScreenContribution
                 Details:
                 [
                     new ScreenDetail("Vai trò", member.Role),
-                    new ScreenDetail("Ngày", GameDate.FromDayIndex(member.DayIndex).ToString()),
+                    new ScreenDetail("Ngày", GameDateCodec.ShortVi(GameDate.FromDayIndex(member.DayIndex))),
                     new ScreenDetail("Kế vị", member.IsHeir ? "đang là người kế vị" : "chưa")
                 ]));
         }

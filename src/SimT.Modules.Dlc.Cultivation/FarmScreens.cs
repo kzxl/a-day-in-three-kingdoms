@@ -70,7 +70,7 @@ internal sealed class FarmScreen : IScreenContribution
                     Describe(plot),
                     plot.ReadyDayIndex is null
                         ? "—"
-                        : GameDate.FromDayIndex(plot.ReadyDayIndex.Value).ToString(),
+                        : GameDateCodec.ShortVi(GameDate.FromDayIndex(plot.ReadyDayIndex.Value)),
                     plot.YieldQuantity?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "—"
                 ],
                 commands,
@@ -83,7 +83,7 @@ internal sealed class FarmScreen : IScreenContribution
                     new ScreenDetail("Trạng thái", Describe(plot)),
                     new ScreenDetail("Ngày chín", plot.ReadyDayIndex is null
                         ? "—"
-                        : GameDate.FromDayIndex(plot.ReadyDayIndex.Value).ToString()),
+                        : GameDateCodec.ShortVi(GameDate.FromDayIndex(plot.ReadyDayIndex.Value))),
                     new ScreenDetail("Dự thu", plot.YieldQuantity?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "—")
                 ]));
         }
