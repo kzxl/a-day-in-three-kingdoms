@@ -118,6 +118,14 @@ internal sealed class SocietyService : ISocietyChronicle
             govByCitadel = court.Governances.ToDictionary(g => g.CitadelId);
         }
 
+        HashSet<long>? swornBrotherIds = null;
+        Dictionary<long, RetainerDef>? retainersByNpc = null;
+        if (_broker is not null && _broker.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+        {
+            swornBrotherIds = social.GetSwornBrothers().Select(s => s.NpcId).ToHashSet();
+            retainersByNpc = social.GetRetainers().ToDictionary(r => r.NpcId);
+        }
+
         _db.Transaction(() =>
         {
             foreach (var act in activities)
@@ -128,15 +136,9 @@ internal sealed class SocietyService : ISocietyChronicle
                 }
 
                 // Check if NPC is bound to player retinue (sworn brother or personal companion retainer)
-                var isCompanion = false;
-                var isSworn = false;
-                if (_broker is not null && _broker.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
-                {
-                    isSworn = social.GetSwornBrothers().Any(s => s.NpcId == npc.Id);
-                    var ret = social.GetRetainer(npc.Id);
-                    var isRetainerCompanion = ret is not null && ret.RoleAssigned is "bodyguard" or "advisor";
-                    isCompanion = isSworn || isRetainerCompanion;
-                }
+                var isSworn = swornBrotherIds != null && swornBrotherIds.Contains(npc.Id);
+                var isRetainerCompanion = retainersByNpc != null && retainersByNpc.TryGetValue(npc.Id, out var ret) && ret.RoleAssigned is "bodyguard" or "advisor";
+                var isCompanion = isSworn || isRetainerCompanion;
 
                 if (isCompanion)
                 {

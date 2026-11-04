@@ -86,28 +86,52 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
             "SELECT citadel_id, item_id, stock, baseline_stock FROM mk_stall_listing",
             row => (City: row.GetInt64(0), Item: row.GetInt64(1), Stock: row.GetInt32(2), Baseline: row.GetInt32(3)));
 
+        Dictionary<(long City, long Item), int>? rumorFactors = null;
+        if (_hasRumorTable || _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='cv_market_rumor'") > 0)
+        {
+            _hasRumorTable = true;
+            rumorFactors = _db.Query(
+                "SELECT citadel_id, item_id, price_mult_permille FROM cv_market_rumor WHERE is_active = 1 AND start_day <= @day AND end_day >= @day",
+                r => (City: r.GetInt64(0), Item: r.GetInt64(1), Mult: r.GetInt32(2)),
+                DbArgs.One("@day", date.DayIndex))
+                .ToDictionary(x => (x.City, x.Item), x => x.Mult);
+        }
+
+        var month = date.Month;
+        var samples = new List<(long City, long Item, long Price)>(rows.Count);
+        foreach (var row in rows)
+        {
+            var item = _items.Find(row.Item);
+            var city = _map.Find(row.City);
+            if (item is null || city is null)
+            {
+                continue;
+            }
+
+            var baseQuote = MarketPricing.Quote(item, city, month, row.Stock, row.Baseline);
+            var factor = rumorFactors != null && rumorFactors.TryGetValue((row.City, row.Item), out var f) ? f : 1000;
+            var price = factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
+            samples.Add((row.City, row.Item, price));
+        }
+
         _db.Transaction(() =>
         {
-            foreach (var row in rows)
+            const int chunkSize = 50;
+            for (var i = 0; i < samples.Count; i += chunkSize)
             {
-                var item = _items.Find(row.Item);
-                var city = _map.Find(row.City);
-                if (item is null || city is null)
+                var chunk = samples.Skip(i).Take(chunkSize).ToList();
+                var sql = new System.Text.StringBuilder("INSERT OR IGNORE INTO mk_price_sample(citadel_id, item_id, day_index, buy_price) VALUES ");
+                var args = new DbArgs();
+                for (var j = 0; j < chunk.Count; j++)
                 {
-                    continue;
+                    if (j > 0) sql.Append(", ");
+                    sql.Append($"(@c{j}, @i{j}, @d{j}, @p{j})");
+                    args.Add($"@c{j}", chunk[j].City)
+                        .Add($"@i{j}", chunk[j].Item)
+                        .Add($"@d{j}", date.DayIndex)
+                        .Add($"@p{j}", chunk[j].Price);
                 }
-
-                var price = QuoteBuy(row.City, row.Item);
-                _db.Execute(
-                    """
-                    INSERT OR IGNORE INTO mk_price_sample(citadel_id, item_id, day_index, buy_price)
-                    VALUES(@city, @item, @day, @price)
-                    """,
-                    new DbArgs()
-                        .Add("@city", row.City)
-                        .Add("@item", row.Item)
-                        .Add("@day", date.DayIndex)
-                        .Add("@price", price));
+                _db.Execute(sql.ToString(), args);
             }
 
             // Sixty days is the whole window the screen ever reads.

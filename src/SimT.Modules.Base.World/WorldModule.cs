@@ -21,6 +21,8 @@ public sealed class WorldModule : ISimModule
         private readonly CitadelDef[] _citadels;
         private readonly Dictionary<long, CitadelDef> _byId;
         private readonly Dictionary<long, RouteStep[]> _routes;
+        private readonly Dictionary<long, long[]> _neighbours;
+        private readonly int[,] _travelMatrix;
         private readonly Dictionary<long, SublocationDef[]> _sublocations;
 
         public WorldMap(IDbSession db)
@@ -57,6 +59,23 @@ public sealed class WorldModule : ISimModule
             }
 
             _routes = routes.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
+            _neighbours = _routes.ToDictionary(pair => pair.Key, pair => pair.Value.Select(s => s.To).ToArray());
+
+            var maxId = _citadels.Length > 0 ? (int)_citadels.Max(c => c.Id) : 0;
+            _travelMatrix = new int[maxId + 1, maxId + 1];
+            foreach (var (from, steps) in _routes)
+            {
+                if (from <= maxId)
+                {
+                    foreach (var step in steps)
+                    {
+                        if (step.To <= maxId)
+                        {
+                            _travelMatrix[from, step.To] = step.Days;
+                        }
+                    }
+                }
+            }
 
             var sublocations = new Dictionary<long, List<SublocationDef>>();
             foreach (var sub in db.Query(
@@ -85,23 +104,16 @@ public sealed class WorldModule : ISimModule
         public CitadelDef? Find(long citadelId) => _byId.GetValueOrDefault(citadelId);
 
         public IReadOnlyList<long> RouteNeighbours(long citadelId) =>
-            _routes.TryGetValue(citadelId, out var steps)
-                ? steps.Select(step => step.To).ToArray()
+            _neighbours.TryGetValue(citadelId, out var list)
+                ? list
                 : Array.Empty<long>();
 
         public int TravelDays(long fromCitadelId, long toCitadelId)
         {
-            if (!_routes.TryGetValue(fromCitadelId, out var steps))
+            if (fromCitadelId >= 0 && fromCitadelId < _travelMatrix.GetLength(0) &&
+                toCitadelId >= 0 && toCitadelId < _travelMatrix.GetLength(1))
             {
-                return 0;
-            }
-
-            foreach (var step in steps)
-            {
-                if (step.To == toCitadelId)
-                {
-                    return step.Days;
-                }
+                return _travelMatrix[fromCitadelId, toCitadelId];
             }
 
             return 0;

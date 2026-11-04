@@ -327,8 +327,11 @@ public partial class MainWindow
         {
             ItemsSource = rows,
             Margin = new Thickness(-4, 0, -4, 0),
-            MaxHeight = 440
+            MaxHeight = 440,
+            EnableRowVirtualization = true
         };
+        VirtualizingPanel.SetIsVirtualizing(grid, true);
+        VirtualizingPanel.SetVirtualizationMode(grid, VirtualizationMode.Recycling);
 
         for (var index = 0; index < columns.Count; index++)
         {

@@ -41,6 +41,10 @@ public sealed class SqliteSession : IDbSession, IDisposable
 
         var session = new SqliteSession(connection);
         session.Execute("PRAGMA journal_mode=WAL;");
+        session.Execute("PRAGMA synchronous=NORMAL;");
+        session.Execute("PRAGMA temp_store=MEMORY;");
+        session.Execute("PRAGMA cache_size=-8000;");
+        session.Execute("PRAGMA mmap_size=268435456;");
         session.Execute("PRAGMA foreign_keys=ON;");
         session.Execute("PRAGMA busy_timeout=5000;");
         return session;

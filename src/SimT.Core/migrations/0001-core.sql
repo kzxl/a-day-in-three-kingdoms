@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS core_ledger (
 );
 
 CREATE INDEX IF NOT EXISTS ix_core_ledger_day ON core_ledger(day_index);
+CREATE INDEX IF NOT EXISTS ix_core_ledger_account ON core_ledger(account, id);
 
 -- A ledger line with a non-positive amount or an unknown direction is unrepresentable.
 CREATE TRIGGER IF NOT EXISTS trg_core_ledger_guard
