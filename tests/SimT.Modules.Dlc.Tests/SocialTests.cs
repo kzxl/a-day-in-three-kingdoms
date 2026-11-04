@@ -271,4 +271,121 @@ public sealed class SocialTests : IDisposable
         var ex = Assert.Throws<SimException>(() => social.GiftNpc(distantNpc.Id, teaItem.Id));
         Assert.Equal("social.not_in_same_city", ex.Code);
     }
+
+    [Fact]
+    public void Rank_S_officer_aloof_when_fame_is_low_and_debates_when_fame_rises()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        var guanYu = registry.FindByCode("npc_0003")!;
+        Assert.NotNull(guanYu);
+        Assert.Equal(NpcRank.S, social.GetNpcRank(guanYu.Id));
+
+        // Move player to Guan Yu's city (citadel 4 - Trác Quận)
+        player.MoveTo(guanYu.CitadelId, kernel.Clock.Today);
+
+        // Player starting fame is 100 (< 300 required for Rank S)
+        Assert.True(attrs.Social.Fame < 300);
+
+        var aloofMsg = social.ChatWithNpc(guanYu.Id);
+        Assert.Contains("Uy danh < 300", aloofMsg);
+        Assert.Equal(1, social.GetRelationship(guanYu.Id).Affinity);
+
+        // Boost player fame to 350
+        attrs.GainFame(250, "Chiến công hiển hách dẹp loạn khăn vàng");
+        Assert.True(attrs.Social.Fame >= 300);
+
+        attrs.Rest(1);
+        var intimateMsg = social.ChatWithNpc(guanYu.Id);
+        Assert.Contains("Đàm đạo cùng", intimateMsg);
+        Assert.Contains("Phẩm S", intimateMsg);
+        // Affinity grew with martial camaraderie
+        Assert.True(social.GetRelationship(guanYu.Id).Affinity >= 3);
+    }
+
+    [Fact]
+    public void Rank_S_officer_rejects_cheap_grain_commodity_gifts()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var items = kernel.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
+
+        var guanYu = registry.FindByCode("npc_0003")!;
+        player.MoveTo(guanYu.CitadelId, kernel.Clock.Today);
+
+        var riceItem = items.FindByCode("gao")!;
+        var brocadeItem = items.FindByCode("gam")!;
+
+        bag.Add(guanYu.CitadelId, riceItem.Id, 5);
+        bag.Add(guanYu.CitadelId, brocadeItem.Id, 2);
+
+        // Guan Yu rejects cheap rice (< 35 base price bulk grain)
+        var ex = Assert.Throws<SimException>(() => social.GiftNpc(guanYu.Id, riceItem.Id));
+        Assert.Equal("social.gift_rejected", ex.Code);
+        Assert.Contains("lễ mọn", ex.Message);
+        // Rice was NOT removed from bag
+        Assert.Equal(5, bag.Quantity(guanYu.CitadelId, riceItem.Id));
+
+        // High quality brocade (150 quan) is graciously accepted
+        var giftResult = social.GiftNpc(guanYu.Id, brocadeItem.Id);
+        Assert.Contains("Đã biếu tặng", giftResult);
+        Assert.Contains("Phẩm S", giftResult);
+        Assert.Equal(1, bag.Quantity(guanYu.CitadelId, brocadeItem.Id));
+
+        // Affinity gain is tightly balanced (2 to 4) instead of runaway 30+
+        var rel = social.GetRelationship(guanYu.Id);
+        Assert.InRange(rel.Affinity, 2, 6);
+    }
+
+    [Fact]
+    public void Recruiting_warlord_is_strictly_forbidden()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+
+        var liuBei = registry.FindByCode("npc_0001")!;
+        player.MoveTo(liuBei.CitadelId, kernel.Clock.Today);
+
+        var req = social.GetRecruitRequirement(liuBei.Id);
+        Assert.True(req.IsWarlord);
+        Assert.False(req.CanRecruit);
+
+        var ex = Assert.Throws<SimException>(() => social.RecruitRetainer(liuBei.Id, "auto", 500));
+        Assert.Equal("social.warlord_unrecruitable", ex.Code);
+        Assert.Contains("chư hầu", ex.Message);
+    }
+
+    [Fact]
+    public void Recruiting_rank_S_officer_enforces_tiered_fame_affinity_and_fee()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        var guanYu = registry.FindByCode("npc_0003")!;
+        player.MoveTo(guanYu.CitadelId, kernel.Clock.Today);
+
+        var req = social.GetRecruitRequirement(guanYu.Id);
+        Assert.Equal(NpcRank.S, req.Rank);
+        Assert.Equal(80, req.RequiredAffinity);
+        Assert.Equal(1200, req.RequiredFame);
+        Assert.Equal(1500, req.SigningFee);
+        Assert.Equal(120, req.MinMonthlyStipend);
+
+        // 1. Without affinity, throws affinity_insufficient
+        var ex1 = Assert.Throws<SimException>(() => social.RecruitRetainer(guanYu.Id, "auto", 150));
+        Assert.Equal("social.affinity_insufficient", ex1.Code);
+    }
 }

@@ -46,6 +46,30 @@ public sealed record SwornBrotherDef(
     int AssistCount);
 
 /// <summary>
+/// NPC social and recruitment tier based on talent, prestige, and historical stature.
+/// </summary>
+public enum NpcRank
+{
+    S, // Legendary commanders, peerless strategists, top luminaries (Quan Vũ, Triệu Vân, Gia Cát Lượng, Chu Du)
+    A, // Renowned generals, high court ministers, master scholars (Lư Thực, Vương Doãn, Phú Hào)
+    B, // Capable officers, local champions, senior artisans
+    C  // Commoners, local merchants, tavern keepers, wanderers
+}
+
+/// <summary>
+/// Requirement specification for recruiting an NPC as a personal retainer.
+/// </summary>
+public sealed record RecruitRequirementDef(
+    NpcRank Rank,
+    int RequiredAffinity,
+    int RequiredFame,
+    int SigningFee,
+    int MinMonthlyStipend,
+    bool IsWarlord,
+    bool CanRecruit,
+    string StatusSummary);
+
+/// <summary>
 /// Social network, relationship matrix, and retainer management surface owned by <c>dlc.social</c>.
 /// </summary>
 public interface ISocialNetwork
@@ -65,6 +89,12 @@ public interface ISocialNetwork
 
     /// <summary>Checks whether the player has met, interacted with, or established relations with an NPC.</summary>
     bool HasMet(long npcId);
+
+    /// <summary>Evaluates the social/recruitment rank tier of an NPC.</summary>
+    NpcRank GetNpcRank(long npcId);
+
+    /// <summary>Calculates the recruitment eligibility and requirements for an NPC.</summary>
+    RecruitRequirementDef GetRecruitRequirement(long npcId);
 
     /// <summary>Engages in dialogue with an NPC in the same settlement.</summary>
     string ChatWithNpc(long npcId);

@@ -121,13 +121,22 @@ internal sealed class SocialScreen : IScreenContribution
         }
 
         // 2. Local NPCs & Interaction Section
-        var localColumns = new[] { "Nhân Sĩ", "Thân Phận", "Đặc Kỹ", "Hảo Cảm", "Quan Hệ", "Quà Đã Tặng", "Tương Tác" };
+        var localColumns = new[] { "Nhân Sĩ", "Phẩm Giai", "Thân Phận", "Đặc Kỹ", "Hảo Cảm", "Quan Hệ", "Chiêu Mộ / Tình Trạng" };
         var localRows = localNpcs.Select(npc =>
         {
             relMap.TryGetValue(npc.Id, out var rel);
             var affinity = rel?.Affinity ?? 0;
             var impression = rel?.Impression ?? "Sơ giao";
             var giftCount = rel?.GiftCount ?? 0;
+
+            var req = _social.GetRecruitRequirement(npc.Id);
+            var rankBadge = req.Rank switch
+            {
+                NpcRank.S => "⭐ Phẩm S",
+                NpcRank.A => "🔷 Phẩm A",
+                NpcRank.B => "🔶 Phẩm B",
+                _ => "⚪ Phẩm C"
+            };
 
             var isRetainer = retainers.Any(r => r.NpcId == npc.Id);
             var skillDisplay = npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => s.NameVi)) : "—";
@@ -139,9 +148,11 @@ internal sealed class SocialScreen : IScreenContribution
                 new($"npc:modal:{npc.Id}", "Hồ Sơ 🔍", CommandKind.Secondary)
             };
 
-            if (npc.Skills.Count > 0 && affinity >= 35)
+            var unlearnedSkill = npc.Skills.FirstOrDefault();
+            var reqSkillAff = unlearnedSkill?.Tier >= 5 ? 75 : unlearnedSkill?.Tier == 4 ? 55 : 35;
+            if (unlearnedSkill is not null && affinity >= reqSkillAff)
             {
-                commands.Insert(1, new ScreenCommand($"learn:{npc.Id}:{npc.Skills[0].Code}", $"Thỉnh Giáo 📜 [{npc.Skills[0].NameVi}]", CommandKind.Primary));
+                commands.Insert(1, new ScreenCommand($"learn:{npc.Id}:{unlearnedSkill.Code}", $"Thỉnh Giáo 📜 [{unlearnedSkill.NameVi}]", CommandKind.Primary));
             }
 
             if (!swornBrothers.Any(s => s.NpcId == npc.Id) && swornBrothers.Count < 2 && affinity >= 80)
@@ -149,34 +160,42 @@ internal sealed class SocialScreen : IScreenContribution
                 commands.Insert(1, new ScreenCommand($"swear:{npc.Id}", "Kết Nghĩa 🤝", CommandKind.Primary));
             }
 
-            if (!isRetainer && affinity >= 35)
+            if (!isRetainer && !req.IsWarlord && req.CanRecruit)
             {
-                commands.Insert(commands.Count - 1, new ScreenCommand($"recruit:{npc.Id}", "Chiêu Mộ 🤝", CommandKind.Primary));
+                commands.Insert(commands.Count - 1, new ScreenCommand($"recruit:{npc.Id}", $"Chiêu Mộ 🤝 ({req.SigningFee}Q)", CommandKind.Primary));
             }
 
             var affinityDisplay = affinity >= 0 ? $"+{affinity}" : affinity.ToString();
+            var recruitStatus = isRetainer
+                ? "Đã đầu quân"
+                : req.IsWarlord
+                    ? "Chư hầu cát cứ"
+                    : req.CanRecruit
+                        ? $"Có thể chiêu mộ ({req.SigningFee}Q)"
+                        : req.StatusSummary;
 
             return new ScreenRow(
                 [
                     npc.NameVi,
+                    rankBadge,
                     npc.Role,
                     skillDisplay,
                     $"{affinityDisplay}/100",
                     impression,
-                    $"{giftCount} lần",
-                    isRetainer ? "Đã đầu quân" : affinity >= 35 ? "Có thể chiêu mộ" : "Cần bồi dưỡng"
+                    recruitStatus
                 ],
                 commands,
-                Title: $"{npc.NameVi} ({npc.Role})",
+                Title: $"{npc.NameVi} ({rankBadge} · {npc.Role})",
                 Details:
                 [
                     new ScreenDetail("Họ Tên", npc.NameVi),
+                    new ScreenDetail("Phẩm Giai", $"{rankBadge} · Sính lễ: {req.SigningFee:N0} Quan, Bổng lộc tối thiểu: {req.MinMonthlyStipend:N0} Quan/tháng"),
                     new ScreenDetail("Thân Phận", npc.Role),
                     new ScreenDetail("Đặc Kỹ", npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => $"[{s.NameVi}] {s.EffectSummary}")) : "Chưa khai mở"),
                     new ScreenDetail("Hảo Cảm", $"{affinity}/100"),
                     new ScreenDetail("Mức Độ Quan Hệ", impression),
                     new ScreenDetail("Số Lần Biếu Tặng", $"{giftCount} lần"),
-                    new ScreenDetail("Trạng Thái Gia Thần", isRetainer ? "Đã quy phục" : "Chưa chiêu mộ")
+                    new ScreenDetail("Tình Trạng Chiêu Mộ", req.StatusSummary)
                 ]);
         }).ToList();
 
