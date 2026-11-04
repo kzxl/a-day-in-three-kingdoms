@@ -589,8 +589,7 @@ public partial class MainWindow : Window
             var column = index;
             numeric[column] = rows.All(row =>
                 column < row.Cells.Length
-                && (string.IsNullOrWhiteSpace(row.Cells[column])
-                    || long.TryParse(row.Cells[column], NumberStyles.AllowLeadingSign | NumberStyles.AllowThousands, Vietnamese, out _)));
+                && (string.IsNullOrWhiteSpace(row.Cells[column].Text) || row.Cells[column].IsNumeric));
         }
 
         // Exactly one column may stretch, and it should carry the longest text.
@@ -606,7 +605,7 @@ public partial class MainWindow : Window
                     continue;
                 }
 
-                var average = rows.Average(row => row.Cells[index].Length);
+                var average = rows.Average(row => row.Cells[index].Text.Length);
                 if (average > bestLength)
                 {
                     bestLength = average;
@@ -626,10 +625,10 @@ public partial class MainWindow : Window
 
         for (var index = 0; index < columns.Count; index++)
         {
-            var text = new DataGridTextColumn
+            var templateCol = new DataGridTemplateColumn
             {
                 Header = columns[index],
-                Binding = new Binding($"Cells[{index}]"),
+                SortMemberPath = $"Cells[{index}]",
                 Width = index == flexColumn
                     ? new DataGridLength(1, DataGridLengthUnitType.Star)
                     : DataGridLength.Auto
@@ -637,24 +636,23 @@ public partial class MainWindow : Window
 
             if (index == flexColumn)
             {
-                // Star columns shrink below their content when a table has many columns; keep
-                // the descriptive one readable instead of clipping "đang lớn (còn 5 ngày)".
-                text.MinWidth = 150;
+                templateCol.MinWidth = 150;
             }
 
             if (numeric[index])
             {
-                var style = new Style(typeof(TextBlock));
-                style.Setters.Add(new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right));
-                style.Setters.Add(new Setter(TextBlock.FontFamilyProperty, new FontFamily("Consolas")));
-                text.ElementStyle = style;
-
                 var header = new Style(typeof(DataGridColumnHeader), (Style)FindResource(typeof(DataGridColumnHeader)));
                 header.Setters.Add(new Setter(DataGridColumnHeader.HorizontalContentAlignmentProperty, HorizontalAlignment.Right));
-                text.HeaderStyle = header;
+                templateCol.HeaderStyle = header;
             }
 
-            grid.Columns.Add(text);
+            var factory = new FrameworkElementFactory(typeof(ContentControl));
+            factory.SetBinding(ContentControl.ContentProperty, new Binding($"Cells[{index}]"));
+            factory.SetValue(ContentControl.FocusableProperty, false);
+            factory.SetValue(ContentControl.IsHitTestVisibleProperty, false);
+            templateCol.CellTemplate = new DataTemplate { VisualTree = factory };
+
+            grid.Columns.Add(templateCol);
         }
 
         if (section.Rows.Any(row => row.Commands.Any(command => !command.RequiresQuantity)))
@@ -816,11 +814,25 @@ public partial class MainWindow : Window
                 {
                     Content = "🔍 Xem Toàn Bộ Hồ Sơ Nhân Sĩ (Modal)",
                     Style = (Style)FindResource("PrimaryButton"),
-                    Margin = new Thickness(0, 8, 0, 8),
+                    Margin = new Thickness(0, 8, 0, 6),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
                 modalBtn.Click += (_, _) => TryOpenNpcModal(inspectorNpcId);
                 InspectorBody.Children.Add(modalBtn);
+
+                var duelCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("duel:"));
+                if (duelCmd is not null)
+                {
+                    var duelBtn = new Button
+                    {
+                        Content = "⚔️ Tỷ Võ Lôi Đài (Đơn Đấu Chiến Thuật)",
+                        Style = (Style)FindResource("PrimaryButton"),
+                        Margin = new Thickness(0, 0, 0, 8),
+                        HorizontalAlignment = HorizontalAlignment.Stretch
+                    };
+                    duelBtn.Click += (_, _) => TryOpenDuelModal(inspectorNpcId);
+                    InspectorBody.Children.Add(duelBtn);
+                }
             }
         }
 
@@ -1221,7 +1233,7 @@ private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
             }
         }
 
-        NpcDetailWindow.ShowNpc(this, npc, citadelName, deltas, activity, relationship, retainer);
+        NpcDetailWindow.ShowNpc(this, npc, citadelName, deltas, activity, relationship, retainer, id => TryOpenDuelModal(id));
         StatusText.Text = $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role}).";
     }
 
@@ -1356,7 +1368,7 @@ private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
         {
             Section = section;
             Row = row;
-            Cells = row.Cells.ToArray();
+            Cells = row.Cells.Select(CellVm.Create).ToArray();
             Chips = row.Commands
                 .Where(command => !command.RequiresQuantity)
                 .Select(command => new ChipVm(
@@ -1369,7 +1381,7 @@ private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
 
         public ScreenRow Row { get; }
 
-        public string[] Cells { get; }
+        public CellVm[] Cells { get; }
 
         public IReadOnlyList<ChipVm> Chips { get; }
     }

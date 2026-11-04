@@ -8,6 +8,10 @@ namespace SimT.Host.Wpf;
 
 public partial class NpcDetailWindow : Window
 {
+    private long _npcId;
+
+    public Action<long>? OnChallengeDuel { get; set; }
+
     public NpcDetailWindow(NpcDef npc, string citadelName, NpcStatDelta? deltas = null, NpcActivityDef? activity = null, RelationshipDef? relationship = null, RetainerDef? retainer = null)
     {
         InitializeComponent();
@@ -16,18 +20,24 @@ public partial class NpcDetailWindow : Window
         Populate(npc, citadelName, deltas, activity, relationship, retainer);
     }
 
-    public static void ShowNpc(Window owner, NpcDef npc, string citadelName, NpcStatDelta? deltas = null, NpcActivityDef? activity = null, RelationshipDef? relationship = null, RetainerDef? retainer = null)
+    public static void ShowNpc(Window owner, NpcDef npc, string citadelName, NpcStatDelta? deltas = null, NpcActivityDef? activity = null, RelationshipDef? relationship = null, RetainerDef? retainer = null, Action<long>? onChallengeDuel = null)
     {
         var window = new NpcDetailWindow(npc, citadelName, deltas, activity, relationship, retainer)
         {
-            Owner = owner
+            Owner = owner,
+            OnChallengeDuel = onChallengeDuel
         };
+        if (onChallengeDuel is not null && npc.Attributes.War >= 30)
+        {
+            window.DuelChallengeButton.Visibility = Visibility.Visible;
+        }
         window.ShowDialog();
     }
 
     private void Populate(NpcDef npc, string citadelName, NpcStatDelta? deltas, NpcActivityDef? activity, RelationshipDef? relationship, RetainerDef? retainer)
     {
         Title = $"{npc.NameVi} — Hồ Sơ Nhân Vật";
+        _npcId = npc.Id;
 
         // Avatar char: first letter of Han name or Vietnamese name
         var avatarChar = !string.IsNullOrWhiteSpace(npc.NameHan) && npc.NameHan.Length > 0
@@ -367,6 +377,13 @@ public partial class NpcDetailWindow : Window
         if (r.Contains("thương") || r.Contains("buôn") || r.Contains("bản")) return "THƯƠNG";
         if (r.Contains("chủ") || r.Contains("vương") || r.Contains("đế")) return "CHÚA";
         return "SĨ";
+    }
+
+    private void DuelChallenge_Click(object sender, RoutedEventArgs e)
+    {
+        var id = _npcId;
+        Close();
+        OnChallengeDuel?.Invoke(id);
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
