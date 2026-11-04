@@ -7,7 +7,7 @@
   "provides": ["npc.registry"],
   "consumes": ["world.map", "player.state"],
   "owns": {
-    "tables": ["np_npc", "np_attribute"],
+    "tables": ["np_npc", "np_attribute", "np_skill"],
     "migrations": ["migrations"]
   },
   "screens": ["npc.directory"]

@@ -143,6 +143,22 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Section: Đặc Kỹ Danh Tướng (Character Skills & Feats) -->
+                <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                        BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,10">
+                            <TextBlock Text="ĐẶC KỸ TAM QUỐC · CHARACTER SKILLS &amp; FEATS" Style="{StaticResource Overline}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SkillCountText" Style="{StaticResource Caption}" Foreground="{StaticResource Accent}"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </DockPanel>
+
+                        <StackPanel x:Name="SkillsListPanel">
+                            <!-- Populated dynamically in code-behind -->
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Section: Tiểu Sử & Hành Trạng Lịch Sử -->
                 <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
                         BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,6">

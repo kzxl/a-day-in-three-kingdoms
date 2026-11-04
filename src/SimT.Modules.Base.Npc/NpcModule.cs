@@ -30,6 +30,31 @@ public sealed class NpcModule : ISimModule
 
         public NpcRegistry(IDbSession db)
         {
+            var skillRows = db.Query(
+                @"SELECT npc_id, code, name_vi, category, tier, description, effect_summary
+                  FROM np_skill
+                  ORDER BY tier DESC, id ASC",
+                row => (
+                    NpcId: row.GetInt64(0),
+                    Skill: new NpcSkillDef(
+                        row.GetString(1),
+                        row.GetString(2),
+                        row.GetString(3),
+                        row.GetInt32(4),
+                        row.GetString(5),
+                        row.GetString(6))));
+
+            var skillsByNpc = new Dictionary<long, List<NpcSkillDef>>();
+            foreach (var item in skillRows)
+            {
+                if (!skillsByNpc.TryGetValue(item.NpcId, out var list))
+                {
+                    list = new List<NpcSkillDef>();
+                    skillsByNpc[item.NpcId] = list;
+                }
+                list.Add(item.Skill);
+            }
+
             _all = db.Query(
                 @"SELECT n.id, n.code, n.name_vi, a.name_han, a.style_name_vi, n.role, n.citadel_id,
                          COALESCE(a.war_attr, 50), COALESCE(a.ldr_attr, 50), COALESCE(a.int_attr, 50),
@@ -62,7 +87,8 @@ public sealed class NpcModule : ISimModule
                         row.GetInt32(17),
                         row.GetInt32(18)),
                     row.GetStringOrNull(19),
-                    row.GetStringOrNull(20)))
+                    row.GetStringOrNull(20),
+                    skillsByNpc.TryGetValue(row.GetInt64(0), out var sList) ? sList : Array.Empty<NpcSkillDef>()))
                 .ToArray();
 
             _byId = new Dictionary<long, NpcDef>(_all.Length);

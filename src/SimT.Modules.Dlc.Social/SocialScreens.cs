@@ -87,7 +87,7 @@ internal sealed class SocialScreen : IScreenContribution
         }
 
         // 2. Local NPCs & Interaction Section
-        var localColumns = new[] { "Nhân Sĩ", "Thân Phận", "Hảo Cảm", "Quan Hệ", "Quà Đã Tặng", "Tương Tác" };
+        var localColumns = new[] { "Nhân Sĩ", "Thân Phận", "Đặc Kỹ", "Hảo Cảm", "Quan Hệ", "Quà Đã Tặng", "Tương Tác" };
         var localRows = localNpcs.Select(npc =>
         {
             relMap.TryGetValue(npc.Id, out var rel);
@@ -96,6 +96,7 @@ internal sealed class SocialScreen : IScreenContribution
             var giftCount = rel?.GiftCount ?? 0;
 
             var isRetainer = retainers.Any(r => r.NpcId == npc.Id);
+            var skillDisplay = npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => s.NameVi)) : "—";
 
             var commands = new List<ScreenCommand>
             {
@@ -104,9 +105,14 @@ internal sealed class SocialScreen : IScreenContribution
                 new($"npc:modal:{npc.Id}", "Hồ Sơ 🔍", CommandKind.Secondary)
             };
 
+            if (npc.Skills.Count > 0 && affinity >= 35)
+            {
+                commands.Insert(1, new ScreenCommand($"learn:{npc.Id}:{npc.Skills[0].Code}", $"Thỉnh Giáo 📜 [{npc.Skills[0].NameVi}]", CommandKind.Primary));
+            }
+
             if (!isRetainer && affinity >= 35)
             {
-                commands.Insert(2, new ScreenCommand($"recruit:{npc.Id}", "Chiêu Mộ 🤝", CommandKind.Primary));
+                commands.Insert(commands.Count - 1, new ScreenCommand($"recruit:{npc.Id}", "Chiêu Mộ 🤝", CommandKind.Primary));
             }
 
             var affinityDisplay = affinity >= 0 ? $"+{affinity}" : affinity.ToString();
@@ -115,6 +121,7 @@ internal sealed class SocialScreen : IScreenContribution
                 [
                     npc.NameVi,
                     npc.Role,
+                    skillDisplay,
                     $"{affinityDisplay}/100",
                     impression,
                     $"{giftCount} lần",
@@ -126,6 +133,7 @@ internal sealed class SocialScreen : IScreenContribution
                 [
                     new ScreenDetail("Họ Tên", npc.NameVi),
                     new ScreenDetail("Thân Phận", npc.Role),
+                    new ScreenDetail("Đặc Kỹ", npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => $"[{s.NameVi}] {s.EffectSummary}")) : "Chưa khai mở"),
                     new ScreenDetail("Hảo Cảm", $"{affinity}/100"),
                     new ScreenDetail("Mức Độ Quan Hệ", impression),
                     new ScreenDetail("Số Lần Biếu Tặng", $"{giftCount} lần"),
@@ -226,6 +234,15 @@ internal sealed class SocialCommandHandler : IScreenCommandHandler
             if (long.TryParse(commandId["dismiss:".Length..], out var npcId))
             {
                 return _social.DismissRetainer(npcId);
+            }
+        }
+        else if (commandId.StartsWith("learn:"))
+        {
+            var parts = commandId["learn:".Length..].Split(':');
+            if (long.TryParse(parts[0], out var npcId) && parts.Length > 1)
+            {
+                var skillCode = parts[1];
+                return _social.LearnSkillFromNpc(npcId, skillCode);
             }
         }
 

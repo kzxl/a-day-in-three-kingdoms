@@ -104,6 +104,128 @@ public partial class NpcDetailWindow : Window
         AddStatItem(InnateStatsGrid, "WIL · Định Lực", a.Wil, 0, "Ý chí kiên định, chống hoảng loạn & giảm stress");
         AddStatItem(InnateStatsGrid, "PRC · Tuệ Nhãn", a.Prc, 0, "Cơ biến, giám định hàng hóa & phát giác phục kích");
         AddStatItem(InnateStatsGrid, "LCK · Khí Vận", a.Lck, 0, "Phúc duyên trời ban, bạo kích kỳ ngộ thương trường");
+
+        // Character Skills & Feats
+        SkillsListPanel.Children.Clear();
+        SkillCountText.Text = npc.Skills.Count > 0 ? $"{npc.Skills.Count} tuyệt kỹ" : "Chưa khai mở";
+
+        if (npc.Skills.Count == 0)
+        {
+            SkillsListPanel.Children.Add(new TextBlock
+            {
+                Text = "Nhân sĩ này chưa bộc lộ đặc kỹ danh tướng riêng biệt.",
+                Style = (Style)FindResource("Caption"),
+                Foreground = (Brush)FindResource("Muted"),
+                Margin = new Thickness(4, 2, 4, 4)
+            });
+        }
+        else
+        {
+            foreach (var skill in npc.Skills)
+            {
+                SkillsListPanel.Children.Add(BuildSkillCard(skill));
+            }
+        }
+    }
+
+    private UIElement BuildSkillCard(NpcSkillDef skill)
+    {
+        var card = new Border
+        {
+            Background = (Brush)FindResource("SurfaceAlt"),
+            BorderBrush = (Brush)FindResource("Line"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(12, 10, 12, 10),
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+
+        var stack = new StackPanel();
+
+        var headerDock = new DockPanel();
+
+        // Right side: Category badge + stars
+        var badgeStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        DockPanel.SetDock(badgeStack, Dock.Right);
+
+        var stars = new string('★', Math.Clamp(skill.Tier, 1, 5));
+        badgeStack.Children.Add(new TextBlock
+        {
+            Text = stars,
+            Foreground = (Brush)FindResource("Gain"),
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0)
+        });
+
+        var catName = skill.Category switch
+        {
+            "martial" => "Võ Đạo",
+            "strategist" => "Mưu Lược",
+            "governance" => "Trị Quốc",
+            "commerce" => "Thương Mại",
+            _ => "Kỳ Tài"
+        };
+        var catBorder = new Border
+        {
+            Background = (Brush)FindResource("Surface"),
+            BorderBrush = (Brush)FindResource("Line"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(6, 2, 6, 2)
+        };
+        catBorder.Child = new TextBlock
+        {
+            Text = catName,
+            FontSize = 10,
+            FontWeight = FontWeights.Bold,
+            Foreground = (Brush)FindResource("Accent")
+        };
+        badgeStack.Children.Add(catBorder);
+
+        headerDock.Children.Add(badgeStack);
+
+        // Left side: Skill Name
+        headerDock.Children.Add(new TextBlock
+        {
+            Text = skill.NameVi,
+            FontSize = 13.5,
+            FontWeight = FontWeights.Bold,
+            Foreground = (Brush)FindResource("Text")
+        });
+
+        stack.Children.Add(headerDock);
+
+        // Description
+        stack.Children.Add(new TextBlock
+        {
+            Text = skill.Description,
+            Style = (Style)FindResource("Caption"),
+            Foreground = (Brush)FindResource("Muted"),
+            Margin = new Thickness(0, 4, 0, 2),
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        // Effect Summary tag
+        var effectBorder = new Border
+        {
+            Background = (Brush)FindResource("AccentSoft"),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(6, 2, 6, 2),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 4, 0, 0)
+        };
+        effectBorder.Child = new TextBlock
+        {
+            Text = $"⚡ Hiệu Quả: {skill.EffectSummary}",
+            FontSize = 10.5,
+            FontWeight = FontWeights.Medium,
+            Foreground = (Brush)FindResource("Accent")
+        };
+        stack.Children.Add(effectBorder);
+
+        card.Child = stack;
+        return card;
     }
 
     private void AddStatItem(Panel container, string label, int baseValue, int bonus, string tip)

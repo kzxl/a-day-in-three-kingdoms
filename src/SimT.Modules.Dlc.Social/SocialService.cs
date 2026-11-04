@@ -143,6 +143,9 @@ internal sealed class SocialService : ISocialNetwork
         if (pAttr.Dip >= 70) gain += 2;
         if (pAttr.Dip >= 85) gain += 3;
 
+        // Skill synergies
+        if (npc.Skills.Any(s => s.Code == "nhan_duc")) gain += 3;
+
         // Synergy bonuses
         if (nAttr.War >= 80 && pAttr.War >= 75) gain += 2; // Martial camaraderie
         if (nAttr.Com >= 75 && pAttr.Com >= 70) gain += 2; // Mercantile synergy
@@ -178,13 +181,32 @@ internal sealed class SocialService : ISocialNetwork
                     .Add("@summary", $"Đàm đạo nhân sinh cùng {npc.NameVi} tại trà lâu, chuyện trò tương đắc (+{gain} Hảo cảm)."));
         });
 
-        // Award relevant attribute EXP to player
-        if (nAttr.War >= 80) _attributes.AddExp("WAR", 15);
+        // Award relevant attribute EXP to player with skill buffs
+        if (npc.Skills.Any(s => s.Code == "than_toan" || s.Code == "ngoa_long" || s.Code == "quy_muu"))
+        {
+            _attributes.AddExp("INT", 25);
+        }
+        else if (npc.Skills.Any(s => s.Code == "phu_hao" || s.Code == "thuong_tai"))
+        {
+            _attributes.AddExp("COM", 25);
+        }
+        else if (npc.Skills.Any(s => s.Code == "vo_thanh" || s.Code == "long_dam" || s.Code == "dau_than"))
+        {
+            _attributes.AddExp("WAR", 25);
+        }
+        else if (nAttr.War >= 80) _attributes.AddExp("WAR", 15);
         else if (nAttr.Int >= 80) _attributes.AddExp("INT", 15);
         else if (nAttr.Com >= 75) _attributes.AddExp("COM", 15);
         else _attributes.AddExp("DIP", 15);
 
-        return $"Đàm đạo cùng {npc.NameVi}: +{gain} Hảo cảm. Quan hệ hiện tại: {newAffinity}/100 ({newImpression}).";
+        var skillHint = "";
+        var unlearnedSkill = npc.Skills.FirstOrDefault(s => !_attributes.HasSkill(s.Code));
+        if (newAffinity >= 35 && unlearnedSkill is not null)
+        {
+            skillHint = $" {npc.NameVi} sẵn sàng truyền dạy đặc kỹ [{unlearnedSkill.NameVi}]!";
+        }
+
+        return $"Đàm đạo cùng {npc.NameVi}: +{gain} Hảo cảm. Quan hệ hiện tại: {newAffinity}/100 ({newImpression}).{skillHint}";
     }
 
     public string GiftNpc(long npcId, long itemId)
@@ -337,6 +359,80 @@ internal sealed class SocialService : ISocialNetwork
         });
 
         return $"Đã cho {name} xuất ngũ, giải trừ chức vụ gia thần.";
+    }
+
+    public string LearnSkillFromNpc(long npcId, string skillCode)
+    {
+        var npc = _registry.Find(npcId)
+                  ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        var skill = npc.Skills.FirstOrDefault(s => s.Code.Equals(skillCode, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new SimException("social.skill_not_found", $"Nhân sĩ {npc.NameVi} không sở hữu tuyệt kỹ '{skillCode}'.");
+
+        if (_attributes.HasSkill(skill.Code))
+        {
+            return $"Bạn đã lĩnh hội tuyệt kỹ [{skill.NameVi}] từ trước, hãy tiếp tục tu luyện!";
+        }
+
+        var rel = GetRelationship(npcId);
+        if (rel.Affinity < 35)
+        {
+            return $"{npc.NameVi} khẽ lắc đầu từ tốn: 'Mối quan hệ đôi bên chưa đủ thâm sâu (Hảo cảm hiện tại: {rel.Affinity}/100, cần ≥ 35). Tuyệt kỹ bản môn chưa thể tùy tiện truyền thụ.'";
+        }
+
+        if (_attributes.Vitals.CurrentStamina < 15 || _attributes.Vitals.Fatigue >= 90)
+        {
+            return $"Thân thể mệt mỏi, khó lòng ngộ đạo ({_attributes.Vitals.Fatigue}/100 mệt). Hãy nghỉ ngơi trước khi thỉnh giáo tuyệt kỹ.";
+        }
+
+        _attributes.ApplyFatigue(15);
+        _clock.Advance(1);
+
+        var today = _clock.Today;
+        var formattedDate = GameDateCodec.Format(today);
+
+        _attributes.LearnSkill(skill.Code);
+
+        var newAffinity = Math.Clamp(rel.Affinity + 5, -100, 100);
+        var newTrust = Math.Clamp(rel.Trust + 5, 0, 100);
+        var newImp = CalculateImpression(newAffinity);
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "INSERT INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date) " +
+                "VALUES (@npcId, @aff, @trust, @imp, @gifts, @date) " +
+                "ON CONFLICT(npc_id) DO UPDATE SET " +
+                "affinity = @aff, trust = @trust, impression = @imp, last_interaction_date = @date",
+                new DbArgs()
+                    .Add("@npcId", npcId)
+                    .Add("@aff", newAffinity)
+                    .Add("@trust", newTrust)
+                    .Add("@imp", newImp)
+                    .Add("@gifts", rel.GiftCount)
+                    .Add("@date", formattedDate));
+
+            _db.Execute(
+                "INSERT INTO kz_memory (npc_id, date, topic, sentiment, affinity_delta, summary_vi) " +
+                "VALUES (@npcId, @date, 'learn', 'positive', 5, @summary)",
+                new DbArgs()
+                    .Add("@npcId", npcId)
+                    .Add("@date", formattedDate)
+                    .Add("@summary", $"Thỉnh giáo học đạo: Được {npc.NameVi} chỉ điểm, ngộ ra tuyệt kỹ [{skill.NameVi}] ({skill.EffectSummary})."));
+        });
+
+        var expAttr = skill.Category switch
+        {
+            "martial" => "WAR",
+            "strategist" => "INT",
+            "commerce" => "COM",
+            "governance" => "POL",
+            _ => "WIL"
+        };
+        _attributes.AddExp(expAttr, 30);
+
+        _log.Info($"Player learned skill {skill.Code} from NPC {npc.NameVi}.");
+        return $"[Thụ Nghiệp Thành Công] Dưới sự chỉ điểm tận tình của {npc.NameVi}, bạn đã giác ngộ và lĩnh hội thành công đặc kỹ [{skill.NameVi}] ({skill.EffectSummary})! (+5 Hảo cảm, +30 EXP {expAttr}).";
     }
 
     public void OnMonthClosed(GameDate date)

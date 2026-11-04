@@ -203,13 +203,14 @@ internal sealed class SocietyService : ISocietyChronicle
     private void ExecuteMartialAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, SimpleRng rng)
     {
         var roll = rng.Next(4);
+        var skillTag = npc.Skills.Count > 0 ? $"[{npc.Skills[0].NameVi}] " : "";
         string headline, detail, impact, actionText;
         int deltaWar = 0, deltaLdr = 0, repGain = 0, goldGain = 0;
 
         switch (roll)
         {
             case 0:
-                headline = $"{npc.NameVi} tiễu trừ sơn tặc tại ngoại thành {citName}";
+                headline = $"{skillTag}{npc.NameVi} tiễu trừ sơn tặc tại ngoại thành {citName}";
                 detail = $"{npc.NameVi} dẫn bộ hạ xuất kích đánh tan sào huyệt thổ phỉ hẻm núi, thu giữ quân giới và ban thưởng cho dân làng.";
                 deltaWar = 1;
                 repGain = 8;
@@ -218,7 +219,7 @@ internal sealed class SocietyService : ISocietyChronicle
                 actionText = "Vừa đắc thắng trở về sau chuyến tiễu phỉ";
                 break;
             case 1:
-                headline = $"{npc.NameVi} thao luyện binh sĩ trên thao trường {citName}";
+                headline = $"{skillTag}{npc.NameVi} thao luyện binh sĩ trên thao trường {citName}";
                 detail = $"Trời đông giá rét nhưng hiệu lệnh thao trường của {npc.NameVi} vang dội, quân sĩ đồng lòng tề chỉnh.";
                 deltaLdr = 1;
                 repGain = 5;
@@ -226,7 +227,7 @@ internal sealed class SocietyService : ISocietyChronicle
                 actionText = "Chỉ huy huấn luyện quân sĩ tại đại doanh";
                 break;
             case 2:
-                headline = $"{npc.NameVi} tỷ võ luận kiếm tại võ đài {citName}";
+                headline = $"{skillTag}{npc.NameVi} tỷ võ luận kiếm tại võ đài {citName}";
                 detail = $"{npc.NameVi} luận bàn võ nghệ cùng các hảo thủ trong vùng, quyền cước tuyệt luân khiến quần hùng thán phục.";
                 deltaWar = 1;
                 repGain = 6;
@@ -234,7 +235,7 @@ internal sealed class SocietyService : ISocietyChronicle
                 actionText = "Tọa đàm võ học cùng các danh sĩ";
                 break;
             default:
-                headline = $"{npc.NameVi} tuần tra thành phòng {citName}";
+                headline = $"{skillTag}{npc.NameVi} tuần tra thành phòng {citName}";
                 detail = $"{npc.NameVi} đốc thúc quân phòng thủ canh gác nghiêm ngặt, giữ yên trị an nơi biên ải.";
                 deltaLdr = 1;
                 goldGain = 80;

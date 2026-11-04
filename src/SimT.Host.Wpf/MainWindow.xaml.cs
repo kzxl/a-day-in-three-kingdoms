@@ -1135,6 +1135,20 @@ private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
 
         var v = attributes.Vitals;
         var s = attributes.Social;
+
+        var learnedSkills = new List<NpcSkillDef>();
+        if (_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) && reg is not null)
+        {
+            var skillLookup = reg.All.SelectMany(n => n.Skills).DistinctBy(sk => sk.Code).ToDictionary(sk => sk.Code, StringComparer.OrdinalIgnoreCase);
+            foreach (var code in attributes.LearnedSkills)
+            {
+                if (skillLookup.TryGetValue(code, out var sDef))
+                {
+                    learnedSkills.Add(sDef);
+                }
+            }
+        }
+
         var protagonistDef = new NpcDef(
             0,
             "protagonist",
@@ -1147,7 +1161,8 @@ private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
             "Chí tại bốn phương, cơ biến mẫn tiệp, khéo xoay sở thương trường.",
             $"Khởi nghiệp thời loạn thế Tam Quốc. Hiện ngụ cư tại {citadelName}. " +
             $"Thể lực hiện tại: {v.CurrentStamina}/{v.MaxStamina} (Mệt mỏi: {v.Fatigue}%, Áp lực: {v.Stress}%). " +
-            $"Danh vọng thiên hạ: {s.Fame} điểm, Đức độ: {s.Virtue} điểm, Tín nghĩa: {s.Credibility} điểm.");
+            $"Danh vọng thiên hạ: {s.Fame} điểm, Đức độ: {s.Virtue} điểm, Tín nghĩa: {s.Credibility} điểm.",
+            learnedSkills);
 
         NpcDetailWindow.ShowNpc(this, protagonistDef, citadelName);
         StatusText.Text = $"Đã mở hồ sơ nhân vật chính: {playerState.Name}.";

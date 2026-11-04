@@ -522,6 +522,39 @@ public sealed class PlayerModule : ISimModule
                     .Add("@hp", dailyHealthRecovery)
                     .Add("@id", _playerId));
         }
+
+        public IReadOnlyList<string> LearnedSkills
+        {
+            get
+            {
+                return _db.Query(
+                    "SELECT skill_code FROM pl_skill WHERE player_id = @id ORDER BY skill_code ASC",
+                    row => row.GetString(0),
+                    DbArgs.One("@id", _playerId));
+            }
+        }
+
+        public bool HasSkill(string skillCode)
+        {
+            if (string.IsNullOrWhiteSpace(skillCode)) return false;
+            return _db.ScalarLong(
+                "SELECT COUNT(*) FROM pl_skill WHERE player_id = @id AND skill_code = @code",
+                new DbArgs().Add("@id", _playerId).Add("@code", skillCode)) > 0;
+        }
+
+        public bool LearnSkill(string skillCode)
+        {
+            if (string.IsNullOrWhiteSpace(skillCode)) return false;
+            if (HasSkill(skillCode)) return false;
+
+            _db.Execute(
+                @"INSERT INTO pl_skill (player_id, skill_code, learned_date, proficiency)
+                  VALUES (@id, @code, '184-05-01', 1)
+                  ON CONFLICT(player_id, skill_code) DO NOTHING",
+                new DbArgs().Add("@id", _playerId).Add("@code", skillCode));
+
+            return true;
+        }
     }
 
 }

@@ -123,13 +123,51 @@ internal sealed class MilitaryService : IMilitaryCommand
         var pPower = (pAttr.War * 0.7) + (pAttr.Con * 0.2) + (pAttr.Wil * 0.1);
         var nPower = (nAttr.War * 0.7) + (nAttr.Con * 0.2) + (nAttr.Wil * 0.1);
 
+        var skillNotes = new List<string>();
+
+        // NPC skills activation
+        foreach (var skill in npc.Skills.Where(s => s.Category == "martial" || s.Tier >= 4))
+        {
+            var mult = skill.Tier switch
+            {
+                5 => 0.20,
+                4 => 0.12,
+                _ => 0.08
+            };
+            nPower *= (1.0 + mult);
+            skillNotes.Add($"Đối thủ kích hoạt đặc kỹ [{skill.NameVi}] ({skill.EffectSummary})");
+        }
+
+        // Player learned martial skills
+        if (_attributes.HasSkill("vo_thanh"))
+        {
+            pPower *= 1.25;
+            skillNotes.Add("Bạn thi triển tuyệt kỹ [Võ Thánh] (+25% chiến lực)");
+        }
+        else if (_attributes.HasSkill("long_dam"))
+        {
+            pPower *= 1.20;
+            skillNotes.Add("Bạn thi triển tuyệt kỹ [Long Đảm] (+20% chiến lực)");
+        }
+        else if (_attributes.HasSkill("dau_than"))
+        {
+            pPower *= 1.20;
+            skillNotes.Add("Bạn thi triển tuyệt kỹ [Đấu Thần] (+20% chiến lực)");
+        }
+        else if (_attributes.HasSkill("thiet_bich"))
+        {
+            pPower *= 1.15;
+            skillNotes.Add("Bạn kích hoạt thế thủ [Thiết Bích] (+15% chiến lực)");
+        }
+
         var won = pPower >= nPower;
         var rounds = won ? 3 : 4;
         var prize = won ? Math.Max(60, (int)(nAttr.War * 2.2)) : 0;
 
+        var skillDesc = skillNotes.Count > 0 ? " " + string.Join(" · ", skillNotes) : "";
         var summary = won
-            ? $"Trải qua {rounds} hiệp giao tranh kịch liệt, quyền pháp biến ảo vô lường, bạn đã xuất sắc đả bại {npc.NameVi}!"
-            : $"Võ công của {npc.NameVi} quá xuất chúng ({nAttr.War} Võ Lực), sau {rounds} hiệp bạn đã bại trận trong gang tấc.";
+            ? $"Trải qua {rounds} hiệp giao tranh kịch liệt, quyền pháp biến ảo vô lường, bạn đã xuất sắc đả bại {npc.NameVi}!{skillDesc}"
+            : $"Võ công của {npc.NameVi} quá xuất chúng ({nAttr.War} Võ Lực), sau {rounds} hiệp bạn đã bại trận trong gang tấc.{skillDesc}";
 
         _db.Transaction(() =>
         {

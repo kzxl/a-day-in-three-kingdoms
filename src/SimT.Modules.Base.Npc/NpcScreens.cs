@@ -106,6 +106,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
                 new ScreenDetail("Tên Tự", style),
                 new ScreenDetail("Thân Phận", npc.Role),
                 new ScreenDetail("Ngụ Cư", citadelName),
+                new ScreenDetail("Đặc Kỹ", npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => $"[{s.NameVi}]")) : "Chưa khai mở"),
                 new ScreenDetail("Võ Lực (WAR)", a.War.ToString()),
                 new ScreenDetail("Thống Soái (LDR)", a.Ldr.ToString()),
                 new ScreenDetail("Trí Tuệ (INT)", a.Int.ToString()),

@@ -62,4 +62,7 @@ public interface ISocialNetwork
 
     /// <summary>Dismisses a retainer from personal service.</summary>
     string DismissRetainer(long npcId);
+
+    /// <summary>Requests mentorship/skill training from a friendly NPC.</summary>
+    string LearnSkillFromNpc(long npcId, string skillCode);
 }

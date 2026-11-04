@@ -17,7 +17,8 @@
       "pl_bag",
       "pl_attribute",
       "pl_vitals",
-      "pl_social"
+      "pl_social",
+      "pl_skill"
     ],
     "migrations": ["migrations"]
   },

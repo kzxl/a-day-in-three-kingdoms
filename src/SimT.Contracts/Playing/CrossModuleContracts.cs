@@ -104,6 +104,15 @@ public sealed record CharacterSocial(
     int Virtue,
     int Credibility);
 
+/// <summary>Canonical Tam Quốc special feat/skill owned by an NPC or learned by protagonist.</summary>
+public sealed record NpcSkillDef(
+    string Code,
+    string NameVi,
+    string Category,
+    int Tier,
+    string Description,
+    string EffectSummary);
+
 /// <summary>Full demographic and canonical attributes of an NPC owned by <c>base.npc</c>.</summary>
 public sealed record NpcDef(
     long Id,
@@ -115,7 +124,11 @@ public sealed record NpcDef(
     long CitadelId,
     CharacterAttributes Attributes,
     string? Personality,
-    string? BioVi);
+    string? BioVi,
+    IReadOnlyList<NpcSkillDef>? Skills = null)
+{
+    public IReadOnlyList<NpcSkillDef> Skills { get; init; } = Skills ?? Array.Empty<NpcSkillDef>();
+}
 
 public sealed record BagRow(long CityId, long ItemId, int Quantity);
 
@@ -198,4 +211,10 @@ public interface IPlayerAttributes
     void Rest(int days);
 
     void OnDayAdvanced();
+
+    IReadOnlyList<string> LearnedSkills { get; }
+
+    bool HasSkill(string skillCode);
+
+    bool LearnSkill(string skillCode);
 }
