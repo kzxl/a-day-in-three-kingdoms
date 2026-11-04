@@ -21,3 +21,6 @@ saves/
 publish/
 dist/
 *.zip
+
+# Z-Plugin Local Project Directives
+.project-rule.md
