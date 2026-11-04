@@ -336,6 +336,51 @@ public sealed class ProfessionTests : IDisposable
         Assert.Equal("Thợ Nghề", guild.GetCraftsmanRank(1));
     }
 
+    [Fact]
+    public void All_16_trades_are_loaded_across_four_sectors()
+    {
+        using var kernel = _host.Boot();
+        var trades = Guild(kernel).Trades;
+
+        Assert.Equal(16, trades.Count);
+
+        var sectors = trades.Select(t => t.Sector).Distinct().ToHashSet();
+        Assert.Contains("AGRI", sectors);
+        Assert.Contains("CRAFT", sectors);
+        Assert.Contains("TEXTILE", sectors);
+        Assert.Contains("ALCH", sectors);
+
+        // Verify representative trades in each sector
+        Assert.Contains(trades, t => t.Code == "canh_nong" && t.Sector == "AGRI");
+        Assert.Contains(trades, t => t.Code == "duc_dong" && t.Sector == "CRAFT");
+        Assert.Contains(trades, t => t.Code == "det_gam" && t.Sector == "TEXTILE");
+        Assert.Contains(trades, t => t.Code == "nau_ruou" && t.Sector == "ALCH");
+    }
+
+    [Fact]
+    public void Mastery_perks_can_be_unlocked_and_boost_yield_and_durability()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+
+        // Fulfill order 1 (+15 fame) to reach 25 fame (starts with 10)
+        Command(kernel, "order:accept:1");
+        bag.Add(player.CurrentCityId, 5, 10);
+        Command(kernel, "order:fulfill:1");
+        Assert.True(guild.TotalGuildFame >= 25);
+
+        // Unlock Perk 1: Xảo Đoạt Thiên Công (needs 15 fame) -> +1 yield
+        var unlockMsg = Command(kernel, "perk:unlock:1");
+        Assert.Contains("Giác ngộ thành công", unlockMsg);
+
+        var gaoBefore = bag.Quantity(player.CurrentCityId, 1);
+        Command(kernel, "work:1"); // Base 4 + tier 0 + 1 perk bonus = 5
+        var gaoGained = bag.Quantity(player.CurrentCityId, 1) - gaoBefore;
+        Assert.Equal(5, gaoGained);
+    }
+
     private static string Command(SimKernel kernel, string commandId)
     {
         Assert.True(kernel.TryGetCommandHandler("professions.trades", out var handler), "professions screen is not registered");

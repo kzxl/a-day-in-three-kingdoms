@@ -22,7 +22,8 @@
       "pf_equipped_slot",
       "pf_workshop",
       "pf_order",
-      "pf_guild_fame"
+      "pf_guild_fame",
+      "pf_mastery_perk"
     ],
     "migrations": ["migrations"]
   },

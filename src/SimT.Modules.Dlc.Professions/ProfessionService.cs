@@ -161,13 +161,15 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         }
 
         var tierBefore = Tier(tradeId);
-        var quantity = trade.BaseQuantity + tierBefore;
+        var perkBonus = HasPerk("xao_doat_thien_cong") ? 1 : 0;
+        var quantity = trade.BaseQuantity + tierBefore + perkBonus;
+        var daysCost = HasPerk("nhat_tam_nhi_dung") ? Math.Max(1, trade.DaysPerBatch - 1) : trade.DaysPerBatch;
         var tierAfter = 0;
 
         _db.Transaction(() =>
         {
             _wallet.Charge(trade.ToolFee, JournalCodes.ToolFee, $"Dụng cụ nghề {trade.NameVi}");
-            _clock.Advance(trade.DaysPerBatch);
+            _clock.Advance(daysCost);
             _bag.Add(cityId, trade.OutputItemId, quantity);
 
             var practice = PracticeCount(tradeId) + 1;
@@ -238,7 +240,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _db.Transaction(() =>
         {
             _wallet.Charge(recipe.CraftFee, JournalCodes.ToolFee, $"Chi phí chế tác {recipe.NameVi}");
-            _clock.Advance(recipe.CraftDays);
+            var craftDays = HasPerk("nhat_tam_nhi_dung") ? Math.Max(1, recipe.CraftDays - 1) : recipe.CraftDays;
+            _clock.Advance(craftDays);
 
             _bag.Remove(cityId, recipe.MaterialItemId, recipe.MaterialQuantity);
             if (recipe.SecondaryItemId.HasValue && recipe.SecondaryQuantity > 0)
@@ -263,7 +266,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             var playerTier = Tier(recipe.TradeId);
             var seed = (int)(recipe.Id * 37 + playerTier * 19 + _clock.Today.DayIndex);
             var rng = new Random(seed);
-            var roll = Math.Max(0.0, rng.NextDouble() - furnaceBonus);
+            var perkAlchDiscount = HasPerk("dan_dao_thong_than") ? 0.10 : 0.0;
+            var roll = Math.Max(0.0, rng.NextDouble() - furnaceBonus - perkAlchDiscount);
 
             string qualityRank;
             int bonusValue;
@@ -339,11 +343,19 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 }
             }
 
+            if (HasPerk("thiet_cot_bach_luyen"))
+            {
+                maxDura += 25;
+            }
+
             var bonusStat = recipe.TradeId switch
             {
                 4 => "WAR", // Luyện kim / Rèn
                 5 => "HEA", // Dược sư
-                3 => "COM", // Thợ mộc
+                7 => "DIP", // Nấu rượu
+                9 => "COM", // Dệt gấm
+                16 => "COM", // Đúc đồng
+                3 => recipe.NameVi.Contains("Nỗ") || recipe.NameVi.Contains("Cung") ? "WAR" : "COM",
                 _ => "POL"  // Nông phu, Ngư dân
             };
 
@@ -677,10 +689,16 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             return WorkResult.Failure($"Chưa đủ số lượng giao nộp: cần {order.QuantityNeeded} {itemName}, chỉ có {currentQty} trong tay nải tại thành này.");
         }
 
+        var rewardCopper = order.RewardCopper;
+        if (HasPerk("thuong_than_dieu_toan"))
+        {
+            rewardCopper += (int)(rewardCopper * 0.25);
+        }
+
         _db.Transaction(() =>
         {
             _bag.Remove(citadelId, order.TargetItemId, order.QuantityNeeded);
-            _wallet.Pay(order.RewardCopper, JournalCodes.CourtStipend, $"Thù lao đơn đặt hàng {order.ClientName}");
+            _wallet.Pay(rewardCopper, JournalCodes.CourtStipend, $"Thù lao đơn đặt hàng {order.ClientName}");
 
             _db.Execute(
                 "UPDATE pf_guild_fame SET total_fame = total_fame + @fame WHERE id = 1",
@@ -694,7 +712,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         });
 
         return WorkResult.Success(
-            $"Giao nộp thành công cho {order.ClientName}! Nhận {order.RewardCopper} Quan và +{order.FameReward} Danh vọng phường nghề.",
+            $"Giao nộp thành công cho {order.ClientName}! Nhận {rewardCopper} Quan và +{order.FameReward} Danh vọng phường nghề.",
             order.QuantityNeeded,
             0);
     }
@@ -899,10 +917,60 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             DbArgs.One("@day", date.DayIndex));
     }
 
+    // =========================================================================
+    // MASTERY PERKS & TALENTS
+    // =========================================================================
+
+    public IReadOnlyList<MasteryPerkDef> Perks =>
+        _db.Query(
+            """
+            SELECT id, code, name_vi, description_vi, required_fame, is_unlocked
+            FROM pf_mastery_perk
+            ORDER BY required_fame ASC
+            """,
+            row => new MasteryPerkDef(
+                row.GetInt64(0),
+                row.GetString(1),
+                row.GetString(2),
+                row.GetString(3),
+                row.GetInt32(4),
+                row.GetInt64(5) != 0));
+
+    public bool HasPerk(string code) =>
+        _db.ScalarLong("SELECT COUNT(*) FROM pf_mastery_perk WHERE code = @code AND is_unlocked = 1", DbArgs.One("@code", code)) > 0;
+
+    public WorkResult UnlockPerk(long perkId)
+    {
+        var perk = Perks.FirstOrDefault(p => p.Id == perkId);
+        if (perk is null)
+        {
+            return WorkResult.Failure("Không tìm thấy bí kỹ này.");
+        }
+
+        if (perk.IsUnlocked)
+        {
+            return WorkResult.Failure($"Bí kỹ '{perk.NameVi}' đã được giác ngộ.");
+        }
+
+        if (TotalGuildFame < perk.RequiredFame)
+        {
+            return WorkResult.Failure($"Chưa đủ danh vọng phường nghề (cần {perk.RequiredFame} điểm, hiện có {TotalGuildFame}).");
+        }
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "UPDATE pf_mastery_perk SET is_unlocked = 1 WHERE id = @id",
+                DbArgs.One("@id", perkId));
+        });
+
+        return WorkResult.Success($"Giác ngộ thành công bí kỹ '{perk.NameVi}'! {perk.DescriptionVi}", 1, 0);
+    }
+
     private static IReadOnlyList<TradeDefinition> LoadTrades(IDbSession db) =>
         db.Query(
             """
-            SELECT id, code, name_vi, name_en, output_item_id, days_per_batch, base_quantity, tool_fee
+            SELECT id, code, name_vi, name_en, output_item_id, days_per_batch, base_quantity, tool_fee, COALESCE(sector, 'CRAFT')
             FROM pf_trade
             ORDER BY id
             """,
@@ -914,5 +982,6 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 row.GetInt64(4),
                 row.GetInt32(5),
                 row.GetInt32(6),
-                row.GetInt64(7)));
+                row.GetInt64(7),
+                row.GetString(8)));
 }

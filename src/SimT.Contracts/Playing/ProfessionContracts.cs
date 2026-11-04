@@ -102,7 +102,20 @@ public interface IProfessionGuild
     WorkResult Unequip(string slotCode);
 
     int GetEquippedStatBonus(string statCode);
+
+    // Mastery perks
+    IReadOnlyList<MasteryPerkDef> Perks { get; }
+
+    WorkResult UnlockPerk(long perkId);
 }
+
+public sealed record MasteryPerkDef(
+    long Id,
+    string Code,
+    string NameVi,
+    string DescriptionVi,
+    int RequiredFame,
+    bool IsUnlocked);
 
 public sealed record TradeDefinition(
     long Id,
@@ -112,7 +125,8 @@ public sealed record TradeDefinition(
     long OutputItemId,
     int DaysPerBatch,
     int BaseQuantity,
-    long ToolFee);
+    long ToolFee,
+    string Sector = "CRAFT");
 
 public sealed record RecipeDef(
     long Id,

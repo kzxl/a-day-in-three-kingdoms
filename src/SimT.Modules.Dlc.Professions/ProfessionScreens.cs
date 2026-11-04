@@ -18,7 +18,10 @@ internal sealed class ProfessionScreen : IScreenContribution
         ["Bản Vẽ", "Yêu Cầu", "Nguyên Liệu", "Phí Đúc", "Thời Gian", "Thành Phẩm"];
 
     private static readonly string[] Columns =
-        ["Nghề", "Danh Hiệu", "Ngày/lượt", "Sản phẩm", "Sản lượng", "Dụng cụ", "Tay nghề"];
+        ["Nghề", "Phân Ngành", "Danh Hiệu", "Ngày/lượt", "Sản phẩm", "Sản lượng", "Dụng cụ", "Tay nghề"];
+
+    private static readonly string[] PerkColumns =
+        ["Bí Kỹ Nghề", "Yêu Cầu Danh Vọng", "Hiệu Quả Bí Truyền", "Trạng Thái"];
 
     private readonly ProfessionService _service;
     private readonly IItemCatalog _items;
@@ -219,20 +222,51 @@ internal sealed class ProfessionScreen : IScreenContribution
                 commands));
         }
 
-        // 6. Basic trades
+        // 6. Mastery Perks
+        var perkRows = new List<ScreenRow>();
+        foreach (var p in _service.Perks)
+        {
+            var canUnlock = !p.IsUnlocked && _service.TotalGuildFame >= p.RequiredFame;
+            var commands = canUnlock
+                ? new List<ScreenCommand> { new ScreenCommand($"perk:unlock:{p.Id}", "Giác ngộ") }
+                : new List<ScreenCommand>();
+
+            perkRows.Add(new ScreenRow(
+                [
+                    p.NameVi,
+                    $"{p.RequiredFame} Danh vọng",
+                    p.DescriptionVi,
+                    p.IsUnlocked ? "★ Đã giác ngộ" : (canUnlock ? "Có thể lãnh hội" : "Chưa đủ danh vọng")
+                ],
+                commands));
+        }
+
+        // 7. Basic trades
         var rows = new List<ScreenRow>(_service.Trades.Count);
         foreach (var trade in _service.Trades)
         {
             var output = _items.Find(trade.OutputItemId);
             var tier = _service.Tier(trade.Id);
             var rank = _service.GetCraftsmanRank(trade.Id);
+            var sectorVi = trade.Sector switch
+            {
+                "AGRI" => "🌾 Nông Lâm",
+                "ALCH" => "🍶 Dược Thực",
+                "TEXTILE" => "🧵 Dệt May",
+                _ => "🔨 Công Xảo"
+            };
+
+            var perkBonus = _service.HasPerk("xao_doat_thien_cong") ? 1 : 0;
+            var finalYield = trade.BaseQuantity + tier + perkBonus;
+
             rows.Add(new ScreenRow(
                 [
                     $"{trade.NameVi} ({trade.NameEn})",
+                    sectorVi,
                     rank,
                     Fmt(trade.DaysPerBatch),
                     output?.NameVi ?? trade.OutputItemId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    Fmt(trade.BaseQuantity + tier),
+                    Fmt(finalYield),
                     Fmt(trade.ToolFee),
                     $"bậc {tier} · {_service.PracticeCount(trade.Id)} lượt"
                 ],
@@ -240,10 +274,11 @@ internal sealed class ProfessionScreen : IScreenContribution
                 Title: trade.NameVi,
                 Details:
                 [
+                    new ScreenDetail("Phân ngành", sectorVi),
                     new ScreenDetail("Danh vị", rank),
                     new ScreenDetail("Mỗi lượt", $"{trade.DaysPerBatch} ngày · {trade.ToolFee} quan dụng cụ"),
                     new ScreenDetail("Sản phẩm", output?.NameVi ?? "—"),
-                    new ScreenDetail("Sản lượng", $"{trade.BaseQuantity + tier} mỗi lượt"),
+                    new ScreenDetail("Sản lượng", $"{finalYield} mỗi lượt"),
                     new ScreenDetail("Tay nghề", $"bậc {tier}/5 · {_service.PracticeCount(trade.Id)} lượt")
                 ]));
         }
@@ -259,15 +294,16 @@ internal sealed class ProfessionScreen : IScreenContribution
                 new ScreenSection("Trang Bị Cá Nhân & Chỉ Số Cộng", SlotColumns, slotRows),
                 new ScreenSection("Xưởng Chế Tác Tại Thành", ["Tên Xưởng", "Chuyên Môn", "Lò Luyện", "Thợ Phụ", "Tiền Thuê", "Trạng Thái"], workshopRows),
                 new ScreenSection("Ủy Thác & Đơn Đặt Hàng Phường Hội", OrderColumns, orderRows),
+                new ScreenSection("Bí Kỹ Nghề Nghiệp & Giác Ngộ", PerkColumns, perkRows),
                 new ScreenSection("Khí Cụ Trong Thành", EquipmentColumns, equipRows),
                 new ScreenSection("Bản Vẽ Chế Tác Khí Cụ", RecipeColumns, recipeRows),
-                new ScreenSection("Nghề Lao Tác Cơ Bản", Columns, rows)
+                new ScreenSection("Bách Nghệ Lao Tác (16 Ngành Nghề)", Columns, rows)
             ],
             [],
             [
+                new ScreenMetric("Tổng ngành nghề", Fmt(_service.Trades.Count), "nghề"),
                 new ScreenMetric("Danh vọng phường nghề", Fmt(_service.TotalGuildFame), "điểm", MetricTone.Positive),
                 new ScreenMetric("Vũ khí trang bị", _service.Slots.FirstOrDefault(s => s.SlotCode == "WEAPON")?.Equipment?.NameVi ?? "Tay không", "Binh khí"),
-                new ScreenMetric("Xưởng nghề", workshop is not null ? $"Cấp {workshop.FurnaceLevel}" : "Chưa có", "Cơ sở"),
                 new ScreenMetric("Tay nghề cao nhất", $"bậc {bestTier}", "trên 5", bestTier > 0 ? MetricTone.Positive : MetricTone.Neutral)
             ],
             []);
@@ -345,6 +381,13 @@ internal sealed class ProfessionCommandHandler : IScreenCommandHandler
                     {
                         return _service.UpgradeFurnace(cityId).Message;
                     }
+                }
+                break;
+
+            case "perk":
+                if (parts.Length >= 3 && parts[1] == "unlock" && long.TryParse(parts[2], out var perkId))
+                {
+                    return _service.UnlockPerk(perkId).Message;
                 }
                 break;
 
