@@ -91,6 +91,13 @@ public sealed class GameDateCodecTests
     }
 
     [Fact]
+    public void The_short_form_is_the_vietnamese_table_date()
+    {
+        Assert.Equal("02/05/184", GameDateCodec.ShortVi(new GameDate(184, 5, 2)));
+        Assert.Equal("27/01/184", GameDateCodec.ShortVi(new GameDate(184, 1, 27)));
+    }
+
+    [Fact]
     public void Every_month_name_is_defined()
     {
         for (var month = 1; month <= GameDate.MonthsPerYear; month++)

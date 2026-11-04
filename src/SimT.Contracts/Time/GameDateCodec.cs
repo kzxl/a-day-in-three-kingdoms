@@ -62,6 +62,9 @@ public static class GameDateCodec
             ? date
             : throw new SimException("date.invalid", $"'{text}' is not a valid date; expected {CanonicalFormat} (month 1-12, day 1-30).");
 
+    /// <summary>Vietnamese table form: "02/05/184" — what a player reads in a list.</summary>
+    public static string ShortVi(GameDate date) => $"{date.Day:00}/{date.Month:00}/{date.Year}";
+
     /// <summary>Long form for the screen: "Ngày 2 tháng Năm, năm 184".</summary>
     public static string DescribeVi(GameDate date) =>
         $"Ngày {date.Day} tháng {MonthNames[date.Month - 1]}, năm {date.Year}";
