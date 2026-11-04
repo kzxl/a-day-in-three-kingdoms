@@ -91,6 +91,33 @@ public partial class MainWindow : Window
         var safe = _kernel.Ledger.Safe;
         CashText.Text = liquid.ToString("N0", Vietnamese);
         CashHintText.Text = safe > 0 ? $"quan · trong két {safe.ToString("N0", Vietnamese)}" : "quan";
+
+        RenderCalendar(today);
+    }
+
+    /// <summary>
+    /// The month as thirty cells: past days fade, today is solid, day 30 is the close marker.
+    /// A management sim always shows the clock you are spending.
+    /// </summary>
+    private void RenderCalendar(GameDate today)
+    {
+        var cells = new List<DayVm>(GameDate.DaysPerMonth);
+        for (var day = 1; day <= GameDate.DaysPerMonth; day++)
+        {
+            var isToday = day == today.Day;
+            var isClose = day == GameDate.DaysPerMonth;
+            var isPast = day < today.Day;
+
+            cells.Add(new DayVm(
+                day.ToString(Vietnamese),
+                isToday ? "#D9A441" : isPast ? "#1A212C" : isClose ? "#2E2617" : "#171E28",
+                isToday ? "#1A1408" : isPast ? "#4C5666" : isClose ? "#D9A441" : "#8A97A8",
+                isToday ? $"Hôm nay · ngày {day}" : isClose ? "Ngày cuối tháng · chốt tháng" : $"Ngày {day}"));
+        }
+
+        CalendarStrip.ItemsSource = cells;
+        var remaining = GameDate.DaysPerMonth - today.Day + 1;
+        MonthLabel.Text = $"Tháng {GameDateCodec.MonthNameVi(today.Month)} · còn {remaining} ngày";
     }
 
     // ------------------------------------------------------------- screens
@@ -435,6 +462,13 @@ public partial class MainWindow : Window
                     ? new DataGridLength(1, DataGridLengthUnitType.Star)
                     : DataGridLength.Auto
             };
+
+            if (index == flexColumn)
+            {
+                // Star columns shrink below their content when a table has many columns; keep
+                // the descriptive one readable instead of clipping "đang lớn (còn 5 ngày)".
+                text.MinWidth = 150;
+            }
 
             if (numeric[index])
             {
@@ -857,6 +891,8 @@ public partial class MainWindow : Window
 
         public string Label => Command.Label;
     }
+
+    private sealed record DayVm(string Label, string Background, string Foreground, string Tip);
 
     private sealed class AlertVm
     {

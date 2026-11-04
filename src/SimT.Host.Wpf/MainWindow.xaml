@@ -133,6 +133,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -142,20 +143,45 @@
                 <TextBlock x:Name="ScreenStatus" Style="{StaticResource Caption}" Margin="0,4,0,0" />
             </StackPanel>
 
-            <WrapPanel x:Name="KpiStrip" Grid.Row="1" Margin="0,14,0,0" />
+            <StackPanel Grid.Row="1" Margin="0,14,0,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" x:Name="MonthLabel" Style="{StaticResource Caption}"
+                               Foreground="{StaticResource Faint}" VerticalAlignment="Bottom" />
+                    <TextBlock Text="THÁNG NÀY" Style="{StaticResource Overline}" VerticalAlignment="Bottom" />
+                </DockPanel>
+                <ItemsControl x:Name="CalendarStrip" Margin="0,6,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="1" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding Background}" CornerRadius="3" Height="26"
+                                    Margin="0,0,3,0" ToolTip="{Binding Tip}">
+                                <TextBlock Text="{Binding Label}" FontSize="10"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{Binding Foreground}" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
 
-            <ItemsControl x:Name="AlertFeed" Grid.Row="2" Margin="0,4,0,0"
+            <WrapPanel x:Name="KpiStrip" Grid.Row="2" Margin="0,12,0,0" />
+
+            <ItemsControl x:Name="AlertFeed" Grid.Row="3" Margin="0,4,0,0"
                           ItemTemplate="{StaticResource AlertRow}" />
 
-            <StackPanel x:Name="GlobalCommands" Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0" />
+            <StackPanel x:Name="GlobalCommands" Grid.Row="4" Orientation="Horizontal" Margin="0,12,0,0" />
 
-            <ScrollViewer Grid.Row="4" Margin="0,14,0,0"
+            <ScrollViewer Grid.Row="5" Margin="0,14,0,0"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel x:Name="ContentPanel" />
             </ScrollViewer>
 
-            <Border Grid.Row="5" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+            <Border Grid.Row="6" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
                     BorderThickness="1" CornerRadius="6" Padding="12,9" Margin="0,12,0,0">
                 <TextBlock x:Name="StatusText" Style="{StaticResource Caption}" Text="Sẵn sàng." />
             </Border>

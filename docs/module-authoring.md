@@ -147,24 +147,28 @@ All cash goes through `context.Ledger` (or an `IWallet` capability). All time co
 
 ## 6. Register screens
 
-A screen is a read model — no WPF types:
+A screen is a read model — no WPF types. Give it numbers worth reading and warnings worth acting
+on; the shell renders both generically:
 
 ```csharp
-internal sealed class FamilyScreen : IScreenContribution
-{
-    public string ScreenId => "lineage.family";
-    public string Title => "Gia Tộc";
-    public int Order => 40;
-
-    public ScreenModel Render() => new(
-        ScreenId, Title, "Thế hệ 1",
-        [new ScreenSection("Thành viên", ["Tên", "Vai trò"],
-            _family.Members.Select(member => new ScreenRow(
-                [member.NameVi, member.Role],
-                [new ScreenCommand($"marry:{member.Id}", "Cưới")])).ToList())],
-        []);
-}
+public ScreenModel Render() => new(
+    ScreenId, Title, "Thế hệ 1",
+    [new ScreenSection("Thành viên", ["Tên", "Vai trò"],
+        _family.Members.Select(member => new ScreenRow(
+            [member.NameVi, member.Role],
+            [new ScreenCommand($"marry:{member.Id}", "Cưới"),
+             new ScreenCommand($"dowry:{member.Id}", "Sính lễ…", RequiresQuantity: true,
+                 Preview: qty => $"{qty} lễ vật = {qty * 30} quan")],
+            Title: member.NameVi,
+            Details: [new ScreenDetail("Vai trò", member.Role)])).ToList())],
+    [],
+    [new ScreenMetric("Thành viên", _family.Members.Count.ToString(), "người"),
+     new ScreenMetric("Phí tháng", _family.Upkeep.ToString(), "quan/tháng", MetricTone.Neutral)],
+    [new ScreenAlert("Chưa lập người kế vị.", AlertLevel.Warning)]);
 ```
+
+`Preview` is how a module keeps pricing rules: the shell shows the sentence, the module does the
+maths, and the number the player approves is the number that gets charged.
 
 Command ids are opaque to the host. Parse them in your `IScreenCommandHandler`.
 

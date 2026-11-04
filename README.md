@@ -108,6 +108,8 @@ only through capabilities, and registers its own screens. Disabling one in
 - Every cash movement posted by one ledger writer; spending draws on liquid cash, not the vault.
 - Multiple independent campaigns, each one SQLite file, with duplicate/delete.
 - Eight screens contributed by DLCs plus a kernel ledger view, rendered by a generic host.
+- Shell: 30-cell month strip, headline numbers per screen, an alert feed with rail badges, and an
+  inspector that shows the selected row's numbers with quantity actions and a cost preview.
 
 ## Verification snapshot
 

@@ -85,20 +85,25 @@ appear in that module's own migrations, and that no `CREATE TABLE` exists outsid
 
 ## 6. UI without coupling
 
-A screen is a read model plus commands:
+A screen is a read model, not markup:
 
 ```csharp
-ScreenModel(ScreenId, Title, StatusLine, Sections, Commands)
+ScreenModel(ScreenId, Title, StatusLine, Sections, Commands, Metrics, Alerts)
+ScreenMetric(Label, Value, Hint, Tone)          // headline strip
+ScreenAlert(Message, Level, ScreenId)           // attention feed + rail badge
 ScreenSection(Heading, Columns, Rows)
-ScreenRow(Cells, Commands)   // row-level buttons
+ScreenRow(Cells, Commands, Title, Details)      // inspector content
+ScreenCommand(Id, Label, Kind, RequiresQuantity, Preview)
 ```
 
-The host renders sections as tables and commands as buttons. Command ids are opaque strings
-(`buy:3`, `rent`), dispatched to the owning module's `IScreenCommandHandler`. Consequences:
+The host renders metrics as tiles, alerts as a feed, sections as cards, the selected row in an
+inspector, and quantity commands with a live preview the module computes. Command ids are opaque
+strings (`buy:3`, `buy:3:10`, `rent`), dispatched to the owning module's handler. Consequences:
 
-- A new DLC adds a tab with zero host changes.
+- A new DLC adds a tab, its own headline numbers and its own warnings with zero host changes.
 - No WPF type crosses the module boundary, so screens are testable headlessly.
-- The host cannot accidentally implement game rules.
+- The host cannot implement game rules: every number, warning and cost preview comes from the
+  module, which is why the price preview and the actual purchase cannot disagree.
 
 ## 7. Money and performance
 
