@@ -42,6 +42,34 @@ public sealed class PoliticsTests : IDisposable
     }
 
     [Fact]
+    public void High_rank_office_requires_faction_allegiance()
+    {
+        using var kernel = _host.Boot();
+        var court = Court(kernel);
+
+        // Raise reputation to qualify for Rank 4 (Biệt Giá requires 40 rep)
+        for (var i = 0; i < 15; i++)
+        {
+            Command(kernel, "serve");
+        }
+        Assert.True(court.Reputation >= 40);
+
+        // Applying for Rank 4 without faction allegiance is refused
+        var blocked = Command(kernel, "apply:4");
+        Assert.Contains("quy thuận một thế lực", blocked);
+        Assert.Equal(0, court.OfficeId);
+
+        // Pledge allegiance to Cao Wei (Faction 1)
+        Command(kernel, "join_faction:1");
+        Assert.Equal(1, court.AllegianceFactionId);
+
+        // Now application succeeds
+        var granted = Command(kernel, "apply:4");
+        Assert.Contains("Được bổ nhiệm", granted);
+        Assert.Equal(4, court.OfficeId);
+    }
+
+    [Fact]
     public void An_eligible_office_is_granted()
     {
         using var kernel = _host.Boot();

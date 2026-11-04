@@ -5,10 +5,10 @@ namespace SimT.Modules.Dlc.Cultivation;
 /// <summary>A crop a plot can grow: what it yields, how long it takes and how much land it needs.</summary>
 internal sealed record CropSpec(string Code, long OutputItemId, int FixedGrowthDays, int YieldPerMu)
 {
-    public static readonly CropSpec Rice = new("gao", 1, 0, 6);
-    public static readonly CropSpec Tea = new("tra", 3, 35, 2);
-    public static readonly CropSpec Mulberry = new("dau_tam", 4, 40, 2);
-    public static readonly CropSpec Herb = new("duoc_thao", 7, 30, 2);
+    public static readonly CropSpec Rice = new("gao", 1, 0, 8);
+    public static readonly CropSpec Tea = new("tra", 3, 24, 2);
+    public static readonly CropSpec Mulberry = new("dau_tam", 4, 30, 2);
+    public static readonly CropSpec Herb = new("duoc_thao", 7, 20, 2);
 
     public static readonly CropSpec[] All = [Rice, Tea, Mulberry, Herb];
 
@@ -24,7 +24,7 @@ internal static class CropCalendar
 {
     public const int SoilCostPerHarvest = 25;
     public const int SoilRecoveryPerMonth = 5;
-    public const long FertiliseCost = 30;
+    public const long FertiliseCost = 15;
     public const int FertiliseGain = 30;
     public const int SoilCeiling = 100;
 

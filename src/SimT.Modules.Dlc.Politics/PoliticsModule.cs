@@ -13,7 +13,8 @@ public sealed class PoliticsModule : ISimModule
         var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
         var map = context.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
 
-        var service = new CourtService(context.Db, context.Clock, wallet, context.Log);
+        var attrs = context.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var a) ? a : null;
+        var service = new CourtService(context.Db, context.Clock, wallet, context.Log, attrs);
 
         // Force a state read at boot: a missing migration must fail here, not mid-game.
         _ = service.Reputation;

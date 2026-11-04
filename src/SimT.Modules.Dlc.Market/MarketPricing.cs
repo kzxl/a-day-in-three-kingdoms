@@ -12,7 +12,7 @@ namespace SimT.Modules.Dlc.Market;
 internal static class MarketPricing
 {
     private const long PermilleScale = 1_000_000_000L;
-    private const int SellRatePercent = 60;
+    private const int SellRatePercent = 82;
 
     /// <summary>Applied when a stall is empty: the last units cost 40% above baseline.</summary>
     internal const int ScarcityCeilingPermille = 1400;

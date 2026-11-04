@@ -73,6 +73,24 @@ public sealed class MilitaryTests : IDisposable
     }
 
     [Fact]
+    public void Stronghold_assault_enforces_thirty_day_cooldown()
+    {
+        using var kernel = _host.Boot();
+        var military = kernel.Capabilities.Get<IMilitaryCommand>(CapabilityIds.MilitaryCommand);
+        var target = military.StrongholdsAt(1).First(s => s.DangerLevel == 2);
+
+        var firstResult = military.AssaultStronghold(target.Id);
+        Assert.Contains("Đại Thắng", firstResult);
+
+        // Immediate subsequent assault must be blocked by cooldown
+        var secondResult = military.AssaultStronghold(target.Id);
+        Assert.Contains("vừa bị tiễu phạt", secondResult);
+        Assert.Contains("ngày nữa mới xuất hiện", secondResult);
+    }
+
+
+
+    [Fact]
     public void Fulfilling_supply_requisition_deducts_bag_and_pays_commissary()
     {
         using var kernel = _host.Boot();
@@ -110,6 +128,7 @@ public sealed class MilitaryTests : IDisposable
         var failures = kernel.RunInvariants();
         Assert.Empty(failures);
     }
+
     [Fact]
     public void Exhaustion_gate_blocks_arena_and_assault_until_rested()
     {

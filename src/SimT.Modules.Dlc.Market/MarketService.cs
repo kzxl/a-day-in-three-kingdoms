@@ -727,22 +727,25 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
 
     public void DailyRetailSales(GameDate date)
     {
-        var stalls = _db.Query("SELECT citadel_id FROM mk_player_stall WHERE is_open = 1", row => row.GetInt64(0));
+        var stalls = _db.Query(
+            "SELECT citadel_id, hired_clerks FROM mk_player_stall WHERE is_open = 1",
+            row => (CityId: row.GetInt64(0), Clerks: row.GetInt32(1)));
         if (stalls.Count == 0)
         {
             return;
         }
 
-        foreach (var cityId in stalls)
+        foreach (var (cityId, clerks) in stalls)
         {
             var city = _map.Find(cityId);
             var shelves = Shelves(cityId);
             var totalRevenue = 0L;
             var soldLines = new List<string>();
+            var dailyStallCapacity = Math.Max(2, clerks * 4);
 
             foreach (var shelf in shelves)
             {
-                if (shelf.Quantity <= 0) continue;
+                if (shelf.Quantity <= 0 || dailyStallCapacity <= 0) continue;
 
                 var item = _items.Find(shelf.ItemId);
                 if (item is null) continue;
@@ -753,23 +756,24 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
                 int sold;
                 if (ratio <= 100)
                 {
-                    sold = Math.Min(shelf.Quantity, 3);
+                    sold = Math.Min(shelf.Quantity, Math.Min(2, dailyStallCapacity));
                 }
-                else if (ratio <= 125)
+                else if (ratio <= 120)
                 {
-                    sold = Math.Min(shelf.Quantity, 2);
+                    sold = Math.Min(shelf.Quantity, Math.Min(1, dailyStallCapacity));
                 }
-                else if (ratio <= 150)
+                else if (ratio <= 140)
                 {
-                    sold = Math.Min(shelf.Quantity, 1);
+                    sold = (date.DayIndex % 2 == 0) ? Math.Min(shelf.Quantity, Math.Min(1, dailyStallCapacity)) : 0;
                 }
                 else
                 {
-                    sold = (date.DayIndex % 3 == 0) ? Math.Min(shelf.Quantity, 1) : 0;
+                    sold = (date.DayIndex % 4 == 0) ? Math.Min(shelf.Quantity, Math.Min(1, dailyStallCapacity)) : 0;
                 }
 
                 if (sold > 0)
                 {
+                    dailyStallCapacity -= sold;
                     if (sold >= shelf.Quantity)
                     {
                         _db.Execute(

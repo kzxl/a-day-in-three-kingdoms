@@ -16,8 +16,8 @@ CREATE TABLE IF NOT EXISTS po_state (
 );
 
 INSERT OR IGNORE INTO po_office (id, code, name_vi, name_en, rank, monthly_stipend, reputation_required) VALUES
-    (1, 'huyen_thua', 'Huyện Thừa', 'county deputy', 1,  80,  2),
-    (2, 'quan_thua',  'Quận Thừa',  'commandery deputy', 2, 150,  6),
-    (3, 'thai_thu',   'Thái Thú',   'governor', 3, 300, 12);
+    (1, 'huyen_thua', 'Huyện Thừa', 'county deputy', 1,  80,  3),
+    (2, 'quan_thua',  'Quận Thừa',  'commandery deputy', 2, 150,  8),
+    (3, 'thai_thu',   'Thái Thú',   'governor', 3, 300, 20);
 
 INSERT OR IGNORE INTO po_state (key, value) VALUES ('reputation', 0), ('office_id', 0);

@@ -120,5 +120,37 @@ public sealed class PlayerStallTests : IDisposable
         Assert.NotEmpty(recentSales);
     }
 
+    [Fact]
+    public void DailyRetailSales_respects_clerk_capacity_cap()
+    {
+        using var kernel = Boot();
+        var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
+        var stall = kernel.Capabilities.Get<IPlayerStall>(CapabilityIds.PlayerStall);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var cityId = player.CurrentCityId;
+
+        stall.RentStall(cityId, out _);
+
+        // Stock 3 different items, 10 units each
+        for (long itemId = 1; itemId <= 3; itemId++)
+        {
+            trade.Buy(cityId, itemId, 10);
+            stall.Stock(cityId, itemId, 10, out _);
+            stall.SetPrice(cityId, itemId, trade.QuoteBuy(cityId, itemId), out _);
+        }
+
+        var beforeQty = stall.Shelves(cityId).Sum(s => s.Quantity);
+
+        // Advance 1 day
+        kernel.AdvanceDays(1);
+
+        var afterQty = stall.Shelves(cityId).Sum(s => s.Quantity);
+        var totalSoldInOneDay = beforeQty - afterQty;
+
+        // 1 clerk has capacity cap of 4 items/day
+        Assert.True(totalSoldInOneDay <= 4, $"Expected at most 4 items sold in 1 day, got {totalSoldInOneDay}");
+        Assert.True(totalSoldInOneDay > 0, "Expected at least some items to be sold");
+    }
+
     private SimKernel Boot() => _host.Boot();
 }

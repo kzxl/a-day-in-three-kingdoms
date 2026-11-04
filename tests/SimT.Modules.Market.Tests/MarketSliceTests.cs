@@ -70,7 +70,7 @@ public sealed class MarketSliceTests : IDisposable
     }
 
     [Fact]
-    public void Selling_pays_sixty_percent_of_the_ask()
+    public void Selling_pays_wholesale_markdown_of_the_ask()
     {
         using var kernel = Boot();
         var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
@@ -78,6 +78,7 @@ public sealed class MarketSliceTests : IDisposable
 
         trade.Buy(player.CurrentCityId, 2, 1);
         var sellQuote = trade.QuoteSell(player.CurrentCityId, 2);
+        Assert.Equal(trade.QuoteBuy(player.CurrentCityId, 2) * 82 / 100, sellQuote);
         var before = kernel.Ledger.Balance;
 
         var outcome = trade.Sell(player.CurrentCityId, 2, 1);

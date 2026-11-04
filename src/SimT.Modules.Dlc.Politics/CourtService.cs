@@ -14,9 +14,9 @@ namespace SimT.Modules.Dlc.Politics;
 /// </summary>
 internal sealed class CourtService : IPoliticalCourt
 {
-    public const int ServiceDays = 3;
-    public const int ServiceReputation = 2;
-    public const long ServiceCost = 5;
+    public const int ServiceDays = 4;
+    public const int ServiceReputation = 3;
+    public const long ServiceCost = 15;
 
     public const long FactionStipendBonus = 50;
 
@@ -24,13 +24,15 @@ internal sealed class CourtService : IPoliticalCourt
     private readonly IGameClock _clock;
     private readonly IWallet _wallet;
     private readonly ILog _log;
+    private readonly IPlayerAttributes? _attributes;
 
-    public CourtService(IDbSession db, IGameClock clock, IWallet wallet, ILog log)
+    public CourtService(IDbSession db, IGameClock clock, IWallet wallet, ILog log, IPlayerAttributes? attributes = null)
     {
         _db = db;
         _clock = clock;
         _wallet = wallet;
         _log = log;
+        _attributes = attributes;
     }
 
     public int Reputation => (int)State("reputation");
@@ -151,6 +153,36 @@ internal sealed class CourtService : IPoliticalCourt
         {
             return CourtResult.Failure(
                 $"Cần {office.ReputationRequired} uy tín để nhận {office.NameVi}, hiện có {Reputation}.");
+        }
+
+        if (office.Rank >= 4 && AllegianceFactionId == 0)
+        {
+            return CourtResult.Failure(
+                $"Từ phẩm {office.Rank} ({office.NameVi}) trở lên là trọng chức địa phương, bắt buộc phải quy thuận một thế lực chư hầu để được đề bạt!");
+        }
+
+        if (_attributes is not null)
+        {
+            var attrs = _attributes.Attributes;
+            if (office.Rank >= 6 && attrs.War < 60 && attrs.Ldr < 55)
+            {
+                return CourtResult.Failure($"Chức vị võ quan {office.NameVi} yêu cầu Võ Lực tối thiểu 60 hoặc Thống Soái 55 (hiện có Võ {attrs.War}, Thống {attrs.Ldr}).");
+            }
+
+            if (office.Rank >= 7 && (attrs.Pol < 60 || attrs.Ldr < 50))
+            {
+                return CourtResult.Failure($"Chức vị phiên trấn {office.NameVi} yêu cầu Trị Quốc 60 và Thống Soái 50 (hiện có Trị {attrs.Pol}, Thống {attrs.Ldr}).");
+            }
+
+            if (office.Rank >= 8 && attrs.Pol < 70)
+            {
+                return CourtResult.Failure($"Chức vị Tam Công yêu cầu Trị Quốc tối thiểu 70 (hiện có Trị {attrs.Pol}).");
+            }
+
+            if (office.Rank >= 9 && (attrs.Pol < 80 || attrs.Int < 75))
+            {
+                return CourtResult.Failure($"Chức vị Thừa Tướng tột đỉnh triều cương yêu cầu Trị Quốc 80 và Mưu Lược 75 (hiện có Trị {attrs.Pol}, Mưu {attrs.Int}).");
+            }
         }
 
         _db.Transaction(() => SetState("office_id", officeId));

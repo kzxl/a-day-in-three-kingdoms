@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS pf_skill (
 );
 
 INSERT OR IGNORE INTO pf_trade (id, code, name_vi, name_en, output_item_id, days_per_batch, base_quantity, tool_fee) VALUES
-    (1, 'nong_phu',   'Nông Phu',      'farmer',     1, 2, 3, 2),
+    (1, 'nong_phu',   'Nông Phu',      'farmer',     1, 2, 4, 2),
     (2, 'ngu_dan',    'Ngư Dân',       'fisher',     8, 2, 2, 2),
-    (3, 'tho_moc',    'Thợ Mộc',       'carpenter',  6, 3, 2, 5),
-    (4, 'luyen_kim',  'Thợ Luyện Kim', 'smelter',    5, 4, 2, 9);
+    (3, 'tho_moc',    'Thợ Mộc',       'carpenter',  6, 2, 3, 3),
+    (4, 'luyen_kim',  'Thợ Luyện Kim', 'smelter',    5, 4, 2, 15);

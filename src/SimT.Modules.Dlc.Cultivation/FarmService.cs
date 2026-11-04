@@ -122,8 +122,8 @@ internal sealed class FarmService : ICultivationEstate
         {
             foreach (var citadel in map.Citadels)
             {
-                InsertPlot(citadel.Id, areaMu: 2, rent: 60);
-                InsertPlot(citadel.Id, areaMu: 3, rent: 90);
+                InsertPlot(citadel.Id, areaMu: 2, rent: 25);
+                InsertPlot(citadel.Id, areaMu: 3, rent: 35);
             }
         });
     }

@@ -190,6 +190,16 @@ internal sealed class MilitaryService : IMilitaryCommand
             DbArgs.One("@id", strongholdId))
             ?? throw new SimException("military.stronghold_not_found", $"Không tìm thấy sào huyệt mã {strongholdId}.");
 
+        if (stronghold.LastClearedDate is not null)
+        {
+            var daysSince = _clock.Today.DayIndex - stronghold.LastClearedDate.Value.DayIndex;
+            if (daysSince < 30)
+            {
+                var daysRemaining = 30 - daysSince;
+                return $"Sào huyệt {stronghold.NameVi} vừa bị tiễu phạt cách đây {daysSince} ngày, thổ phỉ tan tác chưa kịp tụ tập lại (cần {daysRemaining} ngày nữa mới xuất hiện).";
+            }
+        }
+
         if (_attributes.Vitals.CurrentStamina < 15 || _attributes.Vitals.Fatigue >= 95)
         {
             return $"Thể lực đã cạn kiệt (mệt mỏi {_attributes.Vitals.Fatigue}/100). Không đủ sức dẫn binh tiến đánh sào huyệt hiểm trở. Hãy tĩnh dưỡng nghỉ ngơi!";

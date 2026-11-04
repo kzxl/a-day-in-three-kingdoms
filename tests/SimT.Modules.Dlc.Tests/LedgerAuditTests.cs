@@ -131,12 +131,12 @@ public sealed class LedgerAuditTests : IDisposable
         kernel.AdvanceDays(31);
 
         var rentLines = kernel.Ledger.Query(GameDate.Start, kernel.Today, journalCode: JournalCodes.FarmRent);
-        Assert.Contains(rentLines, line => line.Amount == 60);
+        Assert.Contains(rentLines, line => line.Amount == 25);
 
         // Nothing may appear twice for the same month.
         var duplicated = rentLines
             .GroupBy(line => (line.Date, line.Amount, line.ModuleId))
-            .Where(group => group.Count() > 1 && group.Key.Amount != 60)
+            .Where(group => group.Count() > 1 && group.Key.Amount != 25)
             .ToList();
         Assert.Empty(duplicated);
     }

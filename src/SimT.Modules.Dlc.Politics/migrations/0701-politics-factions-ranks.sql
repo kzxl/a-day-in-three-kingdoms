@@ -37,12 +37,12 @@ CREATE TABLE IF NOT EXISTS po_decree_log (
 
 -- Expand po_office to 9 ranks (Cửu phẩm quan chế)
 INSERT OR IGNORE INTO po_office (id, code, name_vi, name_en, rank, monthly_stipend, reputation_required) VALUES
-    (4, 'biet_gia',   'Biệt Giá Tòng Sự',     'provincial aide',               4,  500,  20),
-    (5, 'thu_su',     'Thứ Sử',               'inspector general',             5,  800,  30),
-    (6, 'tran_quan',   'Trấn Quân Tướng Quân', 'garrison general',              6, 1200,  45),
-    (7, 'chau_muc',   'Châu Mục',             'provincial governor',           7, 1800,  60),
-    (8, 'tam_cong',   'Tam Công (Tư Đồ)',     'minister of the masses',        8, 2600,  80),
-    (9, 'thua_tuong', 'Thừa Tướng',           'grand chancellor',              9, 3500, 100);
+    (4, 'biet_gia',   'Biệt Giá Tòng Sự',     'provincial aide',               4,  500,  40),
+    (5, 'thu_su',     'Thứ Sử',               'inspector general',             5,  800,  65),
+    (6, 'tran_quan',   'Trấn Quân Tướng Quân', 'garrison general',              6, 1200,  95),
+    (7, 'chau_muc',   'Châu Mục',             'provincial governor',           7, 1800, 130),
+    (8, 'tam_cong',   'Tam Công (Tư Đồ)',     'minister of the masses',        8, 2600, 175),
+    (9, 'thua_tuong', 'Thừa Tướng',           'grand chancellor',              9, 3500, 230);
 
 -- State key for player allegiance faction
 INSERT OR IGNORE INTO po_state (key, value) VALUES ('allegiance_faction_id', 0);
