@@ -11,7 +11,7 @@ public sealed class LineageModule : ISimModule
     {
         var wallet = context.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
 
-        var service = new LineageService(context.Db, context.Clock, wallet, context.Rng, context.Ids, context.Log);
+        var service = new LineageService(context.Db, context.Clock, wallet, context.Rng, context.Ids, context.ActionTime, context.Log);
 
         context.Capabilities.Provide(CapabilityIds.LineageHouse, service);
         context.Ui.AddScreen(new FamilyScreen(service));

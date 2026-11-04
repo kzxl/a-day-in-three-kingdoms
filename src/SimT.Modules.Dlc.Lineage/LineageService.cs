@@ -32,15 +32,24 @@ internal sealed class LineageService : ILineageHouse
     private readonly IWallet _wallet;
     private readonly IRng _rng;
     private readonly IIdGenerator _ids;
+    private readonly IActionTime _actionTime;
     private readonly ILog _log;
 
-    public LineageService(IDbSession db, IGameClock clock, IWallet wallet, IRng rng, IIdGenerator ids, ILog log)
+    public LineageService(
+        IDbSession db,
+        IGameClock clock,
+        IWallet wallet,
+        IRng rng,
+        IIdGenerator ids,
+        IActionTime actionTime,
+        ILog log)
     {
         _db = db;
         _clock = clock;
         _wallet = wallet;
         _rng = rng;
         _ids = ids;
+        _actionTime = actionTime;
         _log = log;
     }
 
@@ -98,6 +107,7 @@ internal sealed class LineageService : ILineageHouse
 
         _db.Transaction(() =>
         {
+            _actionTime.Charge(ActionCodes.LineageMarry);
             _wallet.Charge(DowryCost, JournalCodes.Dowry, $"Sính lễ cưới {name}");
             _db.Execute(
                 "INSERT INTO ln_spouse(id, name_vi, dowry_paid, married_day_index) VALUES(@id, @name, @dowry, @day)",

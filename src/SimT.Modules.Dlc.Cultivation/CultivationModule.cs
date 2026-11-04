@@ -15,7 +15,7 @@ public sealed class CultivationModule : ISimModule
         var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
         var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
 
-        var service = new FarmService(context.Db, context.Clock, wallet, bag, items, context.Ids, context.Log);
+        var service = new FarmService(context.Db, context.Clock, wallet, bag, items, context.Ids, context.ActionTime, context.Log);
         service.ValidateCrops();
         service.EnsurePlots(map);
 

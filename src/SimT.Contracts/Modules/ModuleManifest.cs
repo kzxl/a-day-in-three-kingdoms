@@ -46,6 +46,7 @@ public sealed class ModuleContext
         Identity.IIdGenerator ids,
         Identity.IRng rng,
         Events.IEventPublisher events,
+        Time.IActionTime actionTime,
         ICapabilityBroker capabilities,
         Config.GameConstants constants,
         Logging.ILog log,
@@ -59,6 +60,7 @@ public sealed class ModuleContext
         Ids = ids;
         Rng = rng;
         Events = events;
+        ActionTime = actionTime;
         Capabilities = capabilities;
         Constants = constants;
         Log = log;
@@ -80,6 +82,8 @@ public sealed class ModuleContext
     public Identity.IRng Rng { get; }
 
     public Events.IEventPublisher Events { get; }
+
+    public Time.IActionTime ActionTime { get; }
 
     public ICapabilityBroker Capabilities { get; }
 

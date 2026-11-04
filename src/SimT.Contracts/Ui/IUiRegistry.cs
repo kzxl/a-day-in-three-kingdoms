@@ -70,7 +70,8 @@ public sealed record ScreenCommand(
     string Label,
     CommandKind Kind = CommandKind.Primary,
     bool RequiresQuantity = false,
-    Func<int, string>? Preview = null);
+    Func<int, string>? Preview = null,
+    string? Cost = null);
 
 /// <summary>One headline number for the page header strip.</summary>
 public sealed record ScreenMetric(string Label, string Value, string? Hint = null, MetricTone Tone = MetricTone.Neutral);

@@ -367,7 +367,8 @@ public partial class MainWindow : Window
             Content = command.Label,
             Tag = id,
             Style = (Style)FindResource(StyleFor(command.Kind)),
-            Margin = new Thickness(0, 0, 8, 0)
+            Margin = new Thickness(0, 0, 8, 0),
+            ToolTip = command.Cost is null ? null : $"Tốn {command.Cost}"
         };
 
         button.Click += RowCommand_Click;
@@ -788,6 +789,17 @@ public partial class MainWindow : Window
         });
         stack.Children.Add(row);
         stack.Children.Add(preview);
+
+        if (command.Cost is not null)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"Tốn {command.Cost}",
+                Style = (Style)FindResource("Caption"),
+                Foreground = (Brush)FindResource("Accent"),
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+        }
         Refresh();
         return stack;
     }

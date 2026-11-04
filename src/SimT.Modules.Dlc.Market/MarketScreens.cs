@@ -20,6 +20,7 @@ internal sealed class StallScreen : IScreenContribution
     private readonly IPlayerState _player;
     private readonly IGameClock _clock;
     private readonly IWallet _wallet;
+    private readonly IActionTime _actionTime;
 
     public StallScreen(
         IMarketTrade trade,
@@ -28,7 +29,8 @@ internal sealed class StallScreen : IScreenContribution
         IBag bag,
         IPlayerState player,
         IGameClock clock,
-        IWallet wallet)
+        IWallet wallet,
+        IActionTime actionTime)
     {
         _trade = trade;
         _items = items;
@@ -37,6 +39,7 @@ internal sealed class StallScreen : IScreenContribution
         _player = player;
         _clock = clock;
         _wallet = wallet;
+        _actionTime = actionTime;
     }
 
     public string ScreenId => "market.stall";
@@ -53,6 +56,7 @@ internal sealed class StallScreen : IScreenContribution
             return ScreenModel.Empty(ScreenId, Title, "Không xác định được thành trấn hiện tại.");
         }
 
+        var buyCost = _actionTime.Quote(ActionCodes.TradeBuy).ToString();
         var rows = new List<ScreenRow>(_items.All.Count);
         var alerts = new List<ScreenAlert>();
         var emptyShelves = 0;
@@ -86,10 +90,10 @@ internal sealed class StallScreen : IScreenContribution
                     Fmt(held)
                 ],
                 [
-                    new ScreenCommand($"buy:{item.Id}", "Mua 1"),
-                    new ScreenCommand($"sell:{item.Id}", "Bán 1"),
-                    new ScreenCommand($"buy:{item.Id}", "Mua…", RequiresQuantity: true, Preview: BuyPreview(buy, stock)),
-                    new ScreenCommand($"sell:{item.Id}", "Bán…", RequiresQuantity: true, Preview: SellPreview(sell, held))
+                    new ScreenCommand($"buy:{item.Id}", "Mua 1", Cost: buyCost),
+                    new ScreenCommand($"sell:{item.Id}", "Bán 1", Cost: buyCost),
+                    new ScreenCommand($"buy:{item.Id}", "Mua…", RequiresQuantity: true, Preview: BuyPreview(buy, stock), Cost: buyCost),
+                    new ScreenCommand($"sell:{item.Id}", "Bán…", RequiresQuantity: true, Preview: SellPreview(sell, held), Cost: buyCost)
                 ],
                 Title: item.NameVi,
                 Details:
@@ -222,14 +226,22 @@ internal sealed class WarehouseScreen : IScreenContribution
     private readonly IWorldMap _map;
     private readonly IBag _bag;
     private readonly IPlayerState _player;
+    private readonly IActionTime _actionTime;
 
-    public WarehouseScreen(IMarketWarehouse warehouse, IItemCatalog items, IWorldMap map, IBag bag, IPlayerState player)
+    public WarehouseScreen(
+        IMarketWarehouse warehouse,
+        IItemCatalog items,
+        IWorldMap map,
+        IBag bag,
+        IPlayerState player,
+        IActionTime actionTime)
     {
         _warehouse = warehouse;
         _items = items;
         _map = map;
         _bag = bag;
         _player = player;
+        _actionTime = actionTime;
     }
 
     public string ScreenId => "market.warehouse";
@@ -254,7 +266,10 @@ internal sealed class WarehouseScreen : IScreenContribution
                 $"{Title} — {city.NameVi}",
                 $"Chưa thuê kho. Sức chứa {_warehouse.DefaultCapacity}, phí {_warehouse.DefaultMonthlyRent} quan/tháng.",
                 [],
-                [new ScreenCommand("rent", $"Thuê kho ({_warehouse.DefaultMonthlyRent} quan)")],
+                [new ScreenCommand(
+                    "rent",
+                    $"Thuê kho ({_warehouse.DefaultMonthlyRent} quan)",
+                    Cost: _actionTime.Quote(ActionCodes.MarketRent).ToString())],
                 [
                     new ScreenMetric("Sức chứa", Fmt(_warehouse.DefaultCapacity), "đơn vị"),
                     new ScreenMetric("Phí thuê", Fmt(_warehouse.DefaultMonthlyRent), "quan/tháng", MetricTone.Warning),

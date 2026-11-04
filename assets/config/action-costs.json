@@ -1,0 +1,19 @@
+{
+  "default": { "days": 1 },
+  "actions": {
+    "trade.buy": { "days": 2 },
+    "trade.sell": { "days": 2 },
+    "market.rent": { "days": 1 },
+    "market.warehouse_move": { "days": 0 },
+    "caravan.send": { "days": 1 },
+    "caravan.travel": { "days": 0 },
+    "profession.work": { "days": 0 },
+    "farm.rent": { "days": 1 },
+    "farm.plant": { "days": 2 },
+    "farm.harvest": { "days": 2 },
+    "farm.fertilise": { "days": 1 },
+    "lineage.marry": { "days": 1 },
+    "lineage.beget": { "days": 0 },
+    "politics.serve": { "days": 0 }
+  }
+}

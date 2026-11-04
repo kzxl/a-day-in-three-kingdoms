@@ -49,9 +49,10 @@ public sealed class CultivationTests : IDisposable
         var plot = HomePlot(kernel);
         Command(kernel, $"rent:{plot.Id}");
         var before = kernel.Ledger.Balance;
-        var planted = kernel.Today;
-
         var message = Command(kernel, $"plant:{plot.Id}");
+
+        // Sowing costs days, so the schedule starts from the date after the action.
+        var planted = kernel.Today;
 
         Assert.Contains("ngày nữa chín", message);
         Assert.Equal(before - (FarmService.SeedCostPerMu * plot.AreaMu), kernel.Ledger.Balance);

@@ -75,14 +75,14 @@ public sealed class MarketModule : ISimModule
         var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
         var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
 
-        var service = new MarketService(context.Db, context.Clock, wallet, bag, items, map, context.Log);
+        var service = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log);
         service.EnsureListings(items, map);
 
         context.Capabilities.Provide(CapabilityIds.MarketTrade, service);
         context.Capabilities.Provide(CapabilityIds.MarketWarehouse, service);
 
-        context.Ui.AddScreen(new StallScreen(service, items, map, bag, player, context.Clock, wallet));
-        context.Ui.AddScreen(new WarehouseScreen(service, items, map, bag, player));
+        context.Ui.AddScreen(new StallScreen(service, items, map, bag, player, context.Clock, wallet, context.ActionTime));
+        context.Ui.AddScreen(new WarehouseScreen(service, items, map, bag, player, context.ActionTime));
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.stall", service, player));
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.warehouse", service, player));
 

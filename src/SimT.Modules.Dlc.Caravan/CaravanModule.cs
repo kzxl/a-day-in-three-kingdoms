@@ -20,7 +20,7 @@ public sealed class CaravanModule : ISimModule
         var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
 
         var freightPerUnit = context.Config.GetLong("freightPerUnit", CaravanService.DefaultFreightPerUnit);
-        var service = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, context.Ids, context.Log, freightPerUnit);
+        var service = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, context.Ids, context.Log, context.ActionTime, freightPerUnit);
 
         context.Capabilities.Provide(CapabilityIds.CaravanGuild, service);
         context.Ui.AddScreen(new CaravanScreen(service, map, bag, player, context.Clock));

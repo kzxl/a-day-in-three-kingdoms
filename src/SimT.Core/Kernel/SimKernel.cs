@@ -89,6 +89,8 @@ public sealed class SimKernel : IDisposable
 
     public IGameClock Clock => _clock;
 
+    public IActionTime ActionTime { get; private init; } = null!;
+
     public IUiRegistry Ui => _ui;
 
     public ICapabilityBroker Capabilities => _broker;
@@ -123,6 +125,7 @@ public sealed class SimKernel : IDisposable
 
             var events = new EventPublisher();
             var clock = new SimClock(db, events, product.StartDate);
+            var actionTime = new ActionTime(clock, LoadActionCosts(options.ConstantsPath), events);
             var ledger = new SqliteLedger(db);
             var ids = new SequenceIdGenerator(db);
 
@@ -131,7 +134,10 @@ public sealed class SimKernel : IDisposable
 
             var broker = new CapabilityBroker();
             var ui = new UiRegistry();
-            var kernel = new SimKernel(db, rng, ui, broker, clock, ledger, constants, product, campaignLock);
+            var kernel = new SimKernel(db, rng, ui, broker, clock, ledger, constants, product, campaignLock)
+            {
+                ActionTime = actionTime
+            };
 
             var campaign = new CampaignStart(product.Seed, product.StartLocationCode, product.StartingCash);
 
@@ -148,6 +154,7 @@ public sealed class SimKernel : IDisposable
                     ids,
                     rng,
                     events,
+                    actionTime,
                     broker,
                     constants,
                     new TextLog(descriptor.Manifest.Id, options.LogSink),
@@ -238,6 +245,16 @@ public sealed class SimKernel : IDisposable
         Save();
         _db.Dispose();
         _lock.Dispose();
+    }
+
+    /// <summary>
+    /// The cost table lives beside the constants file. A missing table is a packaging error, not
+    /// a reason to let actions cost nothing.
+    /// </summary>
+    private static IActionCostPolicy LoadActionCosts(string constantsPath)
+    {
+        var directory = Path.GetDirectoryName(Path.GetFullPath(constantsPath)) ?? ".";
+        return ActionCostPolicy.Load(Path.Combine(directory, "action-costs.json"));
     }
 
     private static void BackupIfMigrationsPending(

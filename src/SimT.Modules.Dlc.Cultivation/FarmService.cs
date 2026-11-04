@@ -23,6 +23,7 @@ internal sealed class FarmService : ICultivationEstate
     private readonly IBag _bag;
     private readonly IItemCatalog _items;
     private readonly IIdGenerator _ids;
+    private readonly IActionTime _actionTime;
     private readonly ILog _log;
 
     public FarmService(
@@ -32,6 +33,7 @@ internal sealed class FarmService : ICultivationEstate
         IBag bag,
         IItemCatalog items,
         IIdGenerator ids,
+        IActionTime actionTime,
         ILog log)
     {
         _db = db;
@@ -40,6 +42,7 @@ internal sealed class FarmService : ICultivationEstate
         _bag = bag;
         _items = items;
         _ids = ids;
+        _actionTime = actionTime;
         _log = log;
     }
 
@@ -131,6 +134,7 @@ internal sealed class FarmService : ICultivationEstate
 
         _db.Transaction(() =>
         {
+            _actionTime.Charge(ActionCodes.FarmRent);
             _wallet.Charge(plot.MonthlyRent, JournalCodes.FarmRent, $"Thuê ruộng khu {plot.Id} tháng đầu");
             _db.Execute("UPDATE fm_plot SET rented = 1 WHERE id=@id", DbArgs.One("@id", plotId));
         });
@@ -173,14 +177,21 @@ internal sealed class FarmService : ICultivationEstate
             return FarmResult.Failure($"Cần {seedCost} Quan tiền giống, chỉ có {_wallet.Liquid}.");
         }
 
-        var month = _clock.Today.Month;
-        var growth = CropCalendar.GrowthDays(crop, month);
-        var yieldQuantity = CropCalendar.Yield(plot.AreaMu, crop, month, plot.Soil);
-        var plantedDay = _clock.Today.DayIndex;
         var name = _items.Find(crop.OutputItemId)?.NameVi ?? crop.Code;
+        var growth = 0;
+        var yieldQuantity = 0;
 
+        // The two days spent sowing are part of the crop's schedule: charge first, then read the
+        // calendar, or the harvest lands two days earlier than the player was told.
         _db.Transaction(() =>
         {
+            _actionTime.Charge(ActionCodes.FarmPlant);
+
+            var month = _clock.Today.Month;
+            growth = CropCalendar.GrowthDays(crop, month);
+            yieldQuantity = CropCalendar.Yield(plot.AreaMu, crop, month, plot.Soil);
+            var plantedDay = _clock.Today.DayIndex;
+
             _wallet.Charge(seedCost, JournalCodes.FarmSeed, $"Giống {name} cho khu {plot.Id}");
             _db.Execute(
                 """
@@ -237,6 +248,7 @@ internal sealed class FarmService : ICultivationEstate
 
         _db.Transaction(() =>
         {
+            _actionTime.Charge(ActionCodes.FarmHarvest);
             var updated = _db.Execute(
                 "UPDATE fm_crop SET status = 'HARVESTED' WHERE id=@id AND status = 'READY'",
                 DbArgs.One("@id", cropId));
@@ -286,6 +298,7 @@ internal sealed class FarmService : ICultivationEstate
 
         _db.Transaction(() =>
         {
+            _actionTime.Charge(ActionCodes.FarmFertilise);
             _wallet.Charge(CropCalendar.FertiliseCost, JournalCodes.FarmSeed, $"Phân bón khu {plot.Id}");
             _db.Execute("UPDATE fm_plot SET soil=@soil WHERE id=@id", new DbArgs().Add("@soil", soilAfter).Add("@id", plotId));
         });

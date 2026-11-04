@@ -25,6 +25,7 @@ internal sealed class CaravanService : ICaravanGuild
     private readonly IItemCatalog _items;
     private readonly IIdGenerator _ids;
     private readonly ILog _log;
+    private readonly IActionTime _actionTime;
     private readonly long _freightPerUnit;
 
     public CaravanService(
@@ -36,6 +37,7 @@ internal sealed class CaravanService : ICaravanGuild
         IItemCatalog items,
         IIdGenerator ids,
         ILog log,
+        IActionTime actionTime,
         long freightPerUnit = DefaultFreightPerUnit)
     {
         _db = db;
@@ -46,6 +48,7 @@ internal sealed class CaravanService : ICaravanGuild
         _items = items;
         _ids = ids;
         _log = log;
+        _actionTime = actionTime;
         _freightPerUnit = freightPerUnit > 0
             ? freightPerUnit
             : throw new SimException("caravan.config_invalid", $"freightPerUnit must be positive, got {freightPerUnit}.");
@@ -103,6 +106,7 @@ internal sealed class CaravanService : ICaravanGuild
 
         _db.Transaction(() =>
         {
+            _actionTime.Charge(ActionCodes.CaravanSend);
             _wallet.Charge(fee, JournalCodes.CaravanFreight, $"Cước {units} đơn vị về thành {toCity}");
 
             foreach (var row in rows)

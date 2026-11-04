@@ -18,16 +18,26 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
 
     private readonly IDbSession _db;
     private readonly IGameClock _clock;
+    private readonly IActionTime _actionTime;
     private readonly IWallet _wallet;
     private readonly IBag _bag;
     private readonly IItemCatalog _items;
     private readonly IWorldMap _map;
     private readonly ILog _log;
 
-    public MarketService(IDbSession db, IGameClock clock, IWallet wallet, IBag bag, IItemCatalog items, IWorldMap map, ILog log)
+    public MarketService(
+        IDbSession db,
+        IGameClock clock,
+        IActionTime actionTime,
+        IWallet wallet,
+        IBag bag,
+        IItemCatalog items,
+        IWorldMap map,
+        ILog log)
     {
         _db = db;
         _clock = clock;
+        _actionTime = actionTime;
         _wallet = wallet;
         _bag = bag;
         _items = items;
@@ -147,6 +157,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
 
         _db.Transaction(() =>
         {
+            _actionTime.Charge(ActionCodes.TradeBuy);
             _wallet.Charge(total, JournalCodes.MarketBuy, $"Mua {quantity} {item.NameVi}");
             _bag.Add(cityId, itemId, quantity);
             _db.Execute(
@@ -191,6 +202,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
         var moved = false;
         _db.Transaction(() =>
         {
+            _actionTime.Charge(ActionCodes.TradeSell);
             moved = _bag.Remove(cityId, itemId, quantity);
             if (!moved)
             {
@@ -345,6 +357,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
 
         _db.Transaction(() =>
         {
+            _actionTime.Charge(ActionCodes.MarketRent);
             _wallet.Charge(DefaultMonthlyRent, JournalCodes.WarehouseRent, "Thuê kho tháng đầu");
             _db.Execute(
                 "INSERT INTO mk_warehouse(citadel_id, capacity, monthly_rent) VALUES(@city, @capacity, @rent)",
