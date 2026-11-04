@@ -38,6 +38,9 @@ public partial class NpcDetailWindow : Window
     private readonly ProtagonistExtraData? _protagonistExtra;
     private readonly IReadOnlyList<MemoryEntry>? _memories;
     private readonly int _playerPrc;
+    private readonly bool _hasBaLac;
+    private readonly bool _hasNguyetDan;
+    private readonly bool _hasVongKhi;
 
     private string _selectedSkillCategory = "all";
 
@@ -59,7 +62,10 @@ public partial class NpcDetailWindow : Window
         CharacterAttributeExps? exps = null,
         ProtagonistExtraData? protagonistExtra = null,
         IReadOnlyList<MemoryEntry>? memories = null,
-        int playerPrc = 50)
+        int playerPrc = 50,
+        bool hasBaLac = false,
+        bool hasNguyetDan = false,
+        bool hasVongKhi = false)
     {
         InitializeComponent();
         DarkTitleBar.Apply(this);
@@ -81,6 +87,9 @@ public partial class NpcDetailWindow : Window
         _protagonistExtra = protagonistExtra;
         _memories = memories;
         _playerPrc = playerPrc;
+        _hasBaLac = hasBaLac;
+        _hasNguyetDan = hasNguyetDan;
+        _hasVongKhi = hasVongKhi;
 
         Populate();
     }
@@ -103,7 +112,10 @@ public partial class NpcDetailWindow : Window
         CharacterAttributeExps? exps = null,
         ProtagonistExtraData? protagonistExtra = null,
         IReadOnlyList<MemoryEntry>? memories = null,
-        int playerPrc = 50)
+        int playerPrc = 50,
+        bool hasBaLac = false,
+        bool hasNguyetDan = false,
+        bool hasVongKhi = false)
     {
         var window = new NpcDetailWindow(
             npc,
@@ -120,7 +132,10 @@ public partial class NpcDetailWindow : Window
             exps,
             protagonistExtra,
             memories,
-            playerPrc)
+            playerPrc,
+            hasBaLac,
+            hasNguyetDan,
+            hasVongKhi)
         {
             Owner = owner,
             OnChallengeDuel = onChallengeDuel,
@@ -217,8 +232,8 @@ public partial class NpcDetailWindow : Window
             HeaderQuickVitalsPanel.Visibility = Visibility.Collapsed;
         }
 
-        var isFullyRevealed = _hasMet || _isProtagonist || (sameCity && _playerPrc >= 85);
-        var isBehaviorRevealed = isFullyRevealed || (sameCity && _playerPrc >= 70);
+        var isFullyRevealed = _hasMet || _isProtagonist || (sameCity && _playerPrc >= 85) || _hasVongKhi;
+        var isBehaviorRevealed = isFullyRevealed || (sameCity && (_playerPrc >= 70 || _hasBaLac)) || _hasBaLac;
 
         if (_isProtagonist || _hasMet)
         {
@@ -227,7 +242,19 @@ public partial class NpcDetailWindow : Window
         else
         {
             UnmetStatsNotice.Visibility = Visibility.Visible;
-            if (_playerPrc >= 85)
+            if (_hasVongKhi)
+            {
+                UnmetStatsNoticeText.Text = $"👁️ THIÊN NHÃN TOÀN TRI [VỌNG KHÍ THIÊN CƠ]: Tuyệt kỹ tối thượng nhìn thấu toàn diện! Toàn bộ 12 chỉ số và căn cốt bản thể của {_npc.NameVi} đã giải mã 100%.";
+            }
+            else if (_hasBaLac)
+            {
+                UnmetStatsNoticeText.Text = $"👁️ BÁ LẠC THẦN NHÃN [TUYỆT KỸ TRANG BỊ]: Nhìn thấu tài năng quân sự võ nghiệp! 8 chỉ số hành vi cốt lõi của {_npc.NameVi} đã được giải mã 100%.";
+            }
+            else if (_hasNguyetDan)
+            {
+                UnmetStatsNoticeText.Text = $"👁️ NGUYỆT ĐÁN GIÁM ĐỊNH [TUYỆT KỸ TRANG BỊ]: Thấu suốt tâm tính và tiểu sử! Tính cách ẩn và lai lịch sâu kín đã mở khóa hoàn toàn.";
+            }
+            else if (_playerPrc >= 85)
             {
                 UnmetStatsNoticeText.Text = $"👁️ TUỆ NHÃN NHƯ ĐUỐC (PRC {_playerPrc}): Tuệ nhãn tuyệt đỉnh thấu triệt chân tướng! Toàn bộ 12 chỉ số của {_npc.NameVi} đã được giải mã chính xác 100%.";
             }

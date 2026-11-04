@@ -276,4 +276,72 @@ public sealed class NpcRegistryTests : IDisposable
         Assert.Contains(row85.Details!, d => d.Label == "Căn Cốt (CON)" && d.Value == unmetLocalNpc.Attributes.Con.ToString());
         Assert.DoesNotContain(row85.Details!, d => d.Value.Contains("Cơ mật bản thể"));
     }
+
+    [Fact]
+    public void NpcDirectoryScreen_perception_skills_hybrid_mechanics()
+    {
+        using var kernel = _host.Boot();
+        var screen = kernel.Ui.Screens.FirstOrDefault(s => s.ScreenId == "npc.directory");
+        Assert.NotNull(screen);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var playerAttrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+
+        // 1. Verify perception skills exist on master mentors
+        var tuMaHuy = registry.Find(229);
+        Assert.NotNull(tuMaHuy);
+        Assert.Contains(tuMaHuy.Skills, s => s.Code == "ba_lac_than_nhan");
+
+        var tuanUc = registry.Find(34);
+        Assert.NotNull(tuanUc);
+        Assert.Contains(tuanUc.Skills, s => s.Code == "nguyet_dan_giam_dinh");
+
+        var giaCatLuong = registry.Find(24);
+        Assert.NotNull(giaCatLuong);
+        Assert.Contains(giaCatLuong.Skills, s => s.Code == "vong_khi_thien_co");
+
+        // 2. Base PRC without skills
+        Assert.Equal(60, playerAttrs.Attributes.Prc);
+        Assert.Equal(60, playerAttrs.EffectivePrc);
+
+        // 3. Learn & Equip Ba Lac Than Nhan (+15 Effective PRC)
+        playerAttrs.LearnSkill("ba_lac_than_nhan");
+        playerAttrs.EquipSkill("ba_lac_than_nhan", 1, 3);
+        Assert.True(playerAttrs.IsSkillEquipped("ba_lac_than_nhan"));
+        Assert.Equal(75, playerAttrs.EffectivePrc);
+
+        // Model now shows Ba Lac enhanced insight (even on distant renowned NPCs)
+        var modelBaLac = screen.Render();
+        Assert.Contains(modelBaLac.Metrics!, m => m.Label == "Tuệ Nhãn" && m.Value.Contains("75 điểm (+15 Kỹ Năng)"));
+
+        var unmetLocalNpc = registry.All.First(n => n.CitadelId == 1 && n.Id != 1);
+        var localSec = modelBaLac.Sections.First(s => s.Heading.Contains("đồng thành"));
+        var localRow = localSec.Rows.First(r => r.Cells[0] == unmetLocalNpc.NameVi);
+        Assert.Equal(unmetLocalNpc.Attributes.War.ToString(), localRow.Cells[4]); // Exact WAR via Ba Lac
+
+        // 4. Learn & Equip Nguyet Dan Giam Dinh (+25 Effective PRC)
+        playerAttrs.LearnSkill("nguyet_dan_giam_dinh");
+        playerAttrs.EquipSkill("nguyet_dan_giam_dinh", 2, 4);
+        Assert.True(playerAttrs.IsSkillEquipped("nguyet_dan_giam_dinh"));
+        Assert.Equal(100, playerAttrs.EffectivePrc); // 60 + 15 + 25 = 100
+
+        // Chat with local NPC trains Nguyet Dan & gives extra affinity
+        var initialProf = playerAttrs.GetSkillProgress("nguyet_dan_giam_dinh")?.Proficiency ?? 0;
+        var chatResult = social.ChatWithNpc(unmetLocalNpc.Id);
+        Assert.Contains("Nguyệt Đán Giám Định", chatResult);
+        var updatedProf = playerAttrs.GetSkillProgress("nguyet_dan_giam_dinh")?.Proficiency ?? 0;
+        Assert.True(updatedProf > initialProf);
+
+        // 5. Learn & Equip Vong Khi Thien Co (+40 Effective PRC -> Full 100% reveal)
+        playerAttrs.LearnSkill("vong_khi_thien_co");
+        playerAttrs.EquipSkill("vong_khi_thien_co", 3, 5);
+        Assert.True(playerAttrs.IsSkillEquipped("vong_khi_thien_co"));
+        Assert.Equal(140, playerAttrs.EffectivePrc); // 60 + 15 + 25 + 40 = 140
+
+        var modelVongKhi = screen.Render();
+        Assert.Contains(modelVongKhi.Metrics!, m => m.Label == "Tuệ Nhãn" && (m.Hint?.Contains("Thiên Nhãn Toàn Tri") ?? false));
+        var localSecVongKhi = modelVongKhi.Sections.First(s => s.Heading.Contains("đồng thành"));
+        var localRowVongKhi = localSecVongKhi.Rows.First(r => r.Cells[0] == unmetLocalNpc.NameVi);
+        Assert.Contains(localRowVongKhi.Details!, d => d.Label == "Căn Cốt (CON)" && d.Value == unmetLocalNpc.Attributes.Con.ToString());
+    }
 }

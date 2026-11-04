@@ -411,6 +411,9 @@ public partial class MainWindow
         var playerFatigue = 0;
         var playerStamina = 100;
         var playerPrc = 50;
+        var hasBaLac = false;
+        var hasNguyetDan = false;
+        var hasVongKhi = false;
         if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) && playerState is not null)
         {
             playerCityId = playerState.CurrentCityId;
@@ -419,7 +422,10 @@ public partial class MainWindow
         {
             playerFatigue = playerAttrs.Vitals.Fatigue;
             playerStamina = playerAttrs.Vitals.CurrentStamina;
-            playerPrc = playerAttrs.Attributes.Prc;
+            playerPrc = playerAttrs.EffectivePrc;
+            hasBaLac = playerAttrs.IsSkillEquipped("ba_lac_than_nhan");
+            hasNguyetDan = playerAttrs.IsSkillEquipped("nguyet_dan_giam_dinh");
+            hasVongKhi = playerAttrs.IsSkillEquipped("vong_khi_thien_co");
         }
 
         NpcDetailWindow.ShowNpc(
@@ -438,7 +444,10 @@ public partial class MainWindow
             id => TryOpenDuelModal(id),
             id => MeetNpcFromModal(id),
             memories: memories,
-            playerPrc: playerPrc);
+            playerPrc: playerPrc,
+            hasBaLac: hasBaLac,
+            hasNguyetDan: hasNguyetDan,
+            hasVongKhi: hasVongKhi);
 
         StatusText.Text = $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role}).";
     }

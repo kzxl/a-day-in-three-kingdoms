@@ -266,6 +266,9 @@ public interface IPlayerAttributes
 
     CharacterSocial Social { get; }
 
+    /// <summary>Effective perception attribute including base PRC and equipped perception skills.</summary>
+    int EffectivePrc { get; }
+
     void AddExp(string attributeCode, int amount);
 
     void ApplyFatigue(int amount);

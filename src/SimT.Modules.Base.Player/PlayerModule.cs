@@ -489,6 +489,34 @@ public sealed class PlayerModule : ISimModule
 
         }
 
+        public int EffectivePrc
+        {
+            get
+            {
+                var basePrc = Attributes.Prc;
+                var bonus = 0;
+                var baLacLvl = GetEquippedSkillLevel("ba_lac_than_nhan");
+                if (baLacLvl > 0)
+                {
+                    bonus += 15 + (baLacLvl - 1) * 3;
+                }
+
+                var nguyetDanLvl = GetEquippedSkillLevel("nguyet_dan_giam_dinh");
+                if (nguyetDanLvl > 0)
+                {
+                    bonus += 25 + (nguyetDanLvl - 1) * 3;
+                }
+
+                var vongKhiLvl = GetEquippedSkillLevel("vong_khi_thien_co");
+                if (vongKhiLvl > 0)
+                {
+                    bonus += 40 + (vongKhiLvl - 1) * 5;
+                }
+
+                return Math.Clamp(basePrc + bonus, 1, 150);
+            }
+        }
+
         public void AddExp(string attributeCode, int amount)
 
         {

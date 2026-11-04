@@ -359,10 +359,15 @@ internal sealed class SocialService : ISocialNetwork
         if (pAttr.Dip >= 85 && currentRel.Affinity < 80) gain += 1;
         else if (pAttr.Dip >= 70 && currentRel.Affinity < 50) gain += 1;
 
+        var debateNotes = new List<string>();
+
         // Skill synergies
         if (npc.Skills.Any(s => s.Code == "nhan_duc") && currentRel.Affinity < 70) gain += 1;
-
-        var debateNotes = new List<string>();
+        if (_attributes.IsSkillEquipped("nguyet_dan_giam_dinh"))
+        {
+            gain += 2;
+            debateNotes.Add("tuyệt kỹ [Nguyệt Đán Giám Định] thấu hiểu tâm can (+2 Hảo cảm, +15 Độ thuần thục)");
+        }
 
         // Scholarly debate / strategy resonance
         if (nAttr.Int >= 75)
@@ -444,6 +449,19 @@ internal sealed class SocialService : ISocialNetwork
 
         _attributes.AddExp("DIP", 15);
         _attributes.AddExp("PRC", 5);
+
+        if (_attributes.IsSkillEquipped("nguyet_dan_giam_dinh"))
+        {
+            _attributes.TrainSkill("nguyet_dan_giam_dinh", 15);
+        }
+        if (_attributes.IsSkillEquipped("ba_lac_than_nhan"))
+        {
+            _attributes.TrainSkill("ba_lac_than_nhan", 10);
+        }
+        if (_attributes.IsSkillEquipped("vong_khi_thien_co"))
+        {
+            _attributes.TrainSkill("vong_khi_thien_co", 10);
+        }
 
         var skillHint = "";
         var unlearnedSkill = npc.Skills.FirstOrDefault(s => !_attributes.HasSkill(s.Code));
@@ -633,6 +651,11 @@ internal sealed class SocialService : ISocialNetwork
 
         var rank = EvaluateNpcRank(npc);
         var (reqAffinity, reqFame, recruitmentFee, minStipend) = GetRankRequirements(rank);
+        if (_attributes.IsSkillEquipped("ba_lac_than_nhan"))
+        {
+            reqAffinity = Math.Max(20, reqAffinity - 15);
+            reqFame = (int)(reqFame * 0.85);
+        }
         var rel = GetRelationship(npcId);
 
         if (rel.Affinity < reqAffinity)
@@ -673,7 +696,8 @@ internal sealed class SocialService : ISocialNetwork
         var virBonus = (pSocial.Virtue - 50) / 3;
         var affBonus = (rel.Affinity - reqAffinity) * 2;
         var stiBonus = Math.Min(15, (finalStipend - minStipend) / 5);
-        var totalPersuasionScore = baseScore + dipBonus + virBonus + affBonus + stiBonus;
+        var baLacBonus = _attributes.IsSkillEquipped("ba_lac_than_nhan") ? 15 : 0;
+        var totalPersuasionScore = baseScore + dipBonus + virBonus + affBonus + stiBonus + baLacBonus;
 
         if (totalPersuasionScore < 50)
         {
@@ -727,6 +751,11 @@ internal sealed class SocialService : ISocialNetwork
 
         _attributes.AddExp("DIP", 25);
         _attributes.GainFame(15, $"Chiêu mộ hiền tài phẩm {rank}: {npc.NameVi}");
+
+        if (_attributes.IsSkillEquipped("ba_lac_than_nhan"))
+        {
+            _attributes.TrainSkill("ba_lac_than_nhan", 25);
+        }
 
         if (assignedRole is "bodyguard" or "advisor")
         {

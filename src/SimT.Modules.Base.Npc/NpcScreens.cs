@@ -42,10 +42,19 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             }
         }
 
-        var playerPrc = 50;
+        var basePrc = 50;
+        var effectivePrc = 50;
+        var hasBaLac = false;
+        var hasNguyetDan = false;
+        var hasVongKhi = false;
+
         if (_capabilities is not null && _capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var playerAttrs) && playerAttrs is not null)
         {
-            playerPrc = playerAttrs.Attributes.Prc;
+            basePrc = playerAttrs.Attributes.Prc;
+            effectivePrc = playerAttrs.EffectivePrc;
+            hasBaLac = playerAttrs.IsSkillEquipped("ba_lac_than_nhan");
+            hasNguyetDan = playerAttrs.IsSkillEquipped("nguyet_dan_giam_dinh");
+            hasVongKhi = playerAttrs.IsSkillEquipped("vong_khi_thien_co");
         }
 
         var all = _registry.All;
@@ -65,7 +74,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             sections.Add(new ScreenSection(
                 $"Nhân sĩ đồng thành · {currentCitadelName} ({localNpcs.Count})",
                 Columns,
-                localNpcs.Select(npc => ToRow(npc, currentCitadelName, isLocal: true, hasMet: metNpcIds.Contains(npc.Id), playerPrc)).ToList()));
+                localNpcs.Select(npc => ToRow(npc, currentCitadelName, isLocal: true, hasMet: metNpcIds.Contains(npc.Id), effectivePrc, hasBaLac, hasNguyetDan, hasVongKhi)).ToList()));
         }
 
         if (distantMetNpcs.Count > 0)
@@ -76,7 +85,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
                 distantMetNpcs.Select(npc =>
                 {
                     var cit = _map.Find(npc.CitadelId);
-                    return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: true, playerPrc);
+                    return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: true, effectivePrc, hasBaLac, hasNguyetDan, hasVongKhi);
                 }).ToList()));
         }
 
@@ -86,20 +95,21 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             distantRenownedNpcs.Select(npc =>
             {
                 var cit = _map.Find(npc.CitadelId);
-                return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: false, playerPrc);
+                return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: false, effectivePrc, hasBaLac, hasNguyetDan, hasVongKhi);
             }).ToList()));
 
         var metCount = all.Count(n => metNpcIds.Contains(n.Id));
-        var prcTitle = playerPrc switch
+        var prcTitle = effectivePrc switch
         {
-            >= 85 => "Như Đuốc (Thấu Triệt)",
-            >= 70 => "Thông Tuệ (Thức Anh Hùng)",
+            >= 85 => hasVongKhi ? "Thiên Nhãn Toàn Tri (Vọng Khí)" : "Như Đuốc (Thấu Triệt)",
+            >= 70 => hasBaLac ? "Bá Lạc Tuệ Nhãn (Thức Anh Hùng)" : (hasNguyetDan ? "Nguyệt Đán Phẩm Định (Tri Kỷ)" : "Thông Tuệ (Thức Anh Hùng)"),
             >= 50 => "Mẫn Tiệp (Quan Sát)",
             _ => "Sơ Khai (Đại Cương)"
         };
+        var prcValue = effectivePrc > basePrc ? $"{effectivePrc} điểm (+{effectivePrc - basePrc} Kỹ Năng)" : $"{effectivePrc} điểm";
         var metrics = new List<ScreenMetric>
         {
-            new("Tuệ Nhãn", $"{playerPrc} điểm", prcTitle, playerPrc >= 70 ? MetricTone.Positive : MetricTone.Neutral),
+            new("Tuệ Nhãn", prcValue, prcTitle, effectivePrc >= 70 ? MetricTone.Positive : MetricTone.Neutral),
             new("Đồng thành", $"{localNpcs.Count} người", $"Tại {currentCitadelName}", MetricTone.Positive),
             new("Đã kết giao", $"{metCount} nhân sĩ", "Đã gặp gỡ / tri kỷ", MetricTone.Positive),
             new("Danh vang thiên hạ", $"{distantRenownedNpcs.Count} vị", "Tiếng tăm lẫy lừng", MetricTone.Neutral),
@@ -132,15 +142,24 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
         return r.Contains("chúa") || r.Contains("vương") || r.Contains("quân sư") || r.Contains("đại tướng");
     }
 
-    private static ScreenRow ToRow(NpcDef npc, string citadelName, bool isLocal, bool hasMet, int playerPrc = 50)
+    private static ScreenRow ToRow(
+        NpcDef npc,
+        string citadelName,
+        bool isLocal,
+        bool hasMet,
+        int playerPrc = 50,
+        bool hasBaLac = false,
+        bool hasNguyetDan = false,
+        bool hasVongKhi = false)
     {
         var a = npc.Attributes;
         var nameHan = string.IsNullOrWhiteSpace(npc.NameHan) ? "" : $" ({npc.NameHan})";
         var style = string.IsNullOrWhiteSpace(npc.StyleNameVi) ? "—" : npc.StyleNameVi;
 
-        // Tuệ Nhãn insight tiers
-        var fullReveal = hasMet || (isLocal && playerPrc >= 85);
-        var behaviorReveal = fullReveal || (isLocal && playerPrc >= 70);
+        // Tuệ Nhãn insight tiers & perception skills
+        var fullReveal = hasMet || (isLocal && playerPrc >= 85) || hasVongKhi;
+        var behaviorReveal = fullReveal || (isLocal && (playerPrc >= 70 || hasBaLac)) || hasBaLac;
+        var traitReveal = fullReveal || hasMet || hasNguyetDan;
 
         string warDisplay, ldrDisplay, intDisplay, comDisplay;
         string statusNote;
@@ -153,7 +172,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             comDisplay = a.Com.ToString();
             statusNote = hasMet
                 ? (isLocal ? "Đồng thành · Đã diện kiến" : $"Phương xa ({citadelName}) · Từng diện kiến")
-                : "Đồng thành · Tuệ Nhãn như đuốc 👁️";
+                : (hasVongKhi ? "Thiên Nhãn toàn tri [Vọng Khí] 👁️" : "Đồng thành · Tuệ Nhãn như đuốc 👁️");
         }
         else if (behaviorReveal)
         {
@@ -161,7 +180,9 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             ldrDisplay = a.Ldr.ToString();
             intDisplay = a.Int.ToString();
             comDisplay = a.Com.ToString();
-            statusNote = "Đồng thành · Tuệ Nhãn thông tuệ 👁️";
+            statusNote = hasMet
+                ? (isLocal ? "Đồng thành · Đã diện kiến" : $"Phương xa ({citadelName}) · Từng diện kiến")
+                : (hasBaLac ? "Bá Lạc thần nhãn (Võ Nghiệp) 👁️" : "Đồng thành · Tuệ Nhãn thông tuệ 👁️");
         }
         else if (isLocal)
         {
@@ -250,9 +271,9 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             details.Add(new("Thương Mại (COM)", a.Com.ToString()));
             details.Add(new("Hậu Cần (LOG)", a.Log.ToString()));
             details.Add(new("Kỹ Nghệ (CRA)", a.Cra.ToString()));
-            details.Add(new("Căn Cốt & Khí Vận", "🔒 Cơ mật bản thể (Tuệ Nhãn bậc 3: Cần đạt bậc 4 (PRC 85+) hoặc bái phỏng để giải mã)"));
-            details.Add(new("Tính Cách", npc.Personality ?? "Điềm đạm bình ổn"));
-            details.Add(new("Tiểu Sử", npc.BioVi ?? "Hành trạng chưa rõ trong thư tịch."));
+            details.Add(new("Căn Cốt & Khí Vận", "🔒 Cơ mật bản thể (Tuệ Nhãn bậc 3: Cần đạt bậc 4 (PRC 85+), tuyệt kỹ Vọng Khí hoặc bái phỏng để giải mã)"));
+            details.Add(new("Tính Cách", traitReveal ? (npc.Personality ?? "Điềm đạm bình ổn") : "🔒 Ẩn tàng (Cần Nguyệt Đán Giám Định hoặc bái phỏng)"));
+            details.Add(new("Tiểu Sử", traitReveal ? (npc.BioVi ?? "Hành trạng chưa rõ trong thư tịch.") : "🔒 Hành trạng cơ mật (Cần Nguyệt Đán Giám Định hoặc bái phỏng)"));
         }
         else
         {
@@ -262,7 +283,8 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             details.Add(new("Trí Tuệ (INT)", intDisplay));
             details.Add(new("Thương Mại (COM)", comDisplay));
             details.Add(new("Căn Cốt & Khí Vận", "🔒 Cơ mật bản thể (Gặp gỡ/Đồng hành để giải mã)"));
-            details.Add(new("Hành Trạng", npc.BioVi ?? "Hành trạng lưu truyền trong dân gian."));
+            details.Add(new("Tính Cách", traitReveal ? (npc.Personality ?? "Điềm đạm bình ổn") : "🔒 Ẩn tàng"));
+            details.Add(new("Tiểu Sử", traitReveal ? (npc.BioVi ?? "Hành trạng lưu truyền trong dân gian.") : (npc.BioVi ?? "Hành trạng lưu truyền trong dân gian.")));
         }
 
         return new ScreenRow(
