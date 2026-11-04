@@ -230,6 +230,7 @@ internal sealed class MilitaryService : IMilitaryCommand
 
             _attributes.AddExp("WAR", 30);
             _attributes.AddExp("LDR", 20);
+            _attributes.GainFame(stronghold.DangerLevel * 15, $"Tiễu phạt sào huyệt {stronghold.NameVi}, an định bờ cõi.", virtueDelta: 5);
         });
 
         var itemName = item?.NameVi ?? "Quân lương";
@@ -288,6 +289,7 @@ internal sealed class MilitaryService : IMilitaryCommand
 
             _attributes.AddExp("LOG", 20);
             _attributes.AddExp("DIP", 15);
+            _attributes.GainFame(15, $"Cung ứng quân nhu {req.TargetItemName} cho nghĩa quân.", credDelta: 5);
         });
 
         _log.Info($"Fulfilled supply requisition {req.TargetItemName} x{req.QuantityNeeded} for {totalReward} Quan.");

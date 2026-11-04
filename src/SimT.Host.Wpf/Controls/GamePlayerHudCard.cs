@@ -15,6 +15,7 @@ public sealed class GamePlayerHudCard : Border
 {
     private readonly TextBlock _nameText;
     private readonly TextBlock _locationText;
+    private readonly TextBlock _fameText;
     private readonly TextBlock _hpValText;
     private readonly GameGaugeBar _hpGauge;
     private readonly TextBlock _staminaValText;
@@ -85,6 +86,16 @@ public sealed class GamePlayerHudCard : Border
             Margin = new Thickness(0, 1, 0, 4)
         };
         stack.Children.Add(_locationText);
+
+        _fameText = new TextBlock
+        {
+            Style = (Style)Application.Current.FindResource("Caption"),
+            FontSize = 10.5,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0xD0, 0x61)),
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        stack.Children.Add(_fameText);
 
         // Vitals 1: HP
         var hpLine = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
@@ -178,10 +189,19 @@ public sealed class GamePlayerHudCard : Border
         MouseLeave += (_, _) => BorderBrush = (Brush)Application.Current.FindResource("Line");
     }
 
-    public void Configure(string name, string location, CharacterVitals? vitals)
+    public void Configure(string name, string location, CharacterVitals? vitals, string? fameStanding = null)
     {
         _nameText.Text = name;
         _locationText.Text = location;
+        if (!string.IsNullOrWhiteSpace(fameStanding))
+        {
+            _fameText.Text = fameStanding;
+            _fameText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            _fameText.Visibility = Visibility.Collapsed;
+        }
 
         if (vitals is null)
         {

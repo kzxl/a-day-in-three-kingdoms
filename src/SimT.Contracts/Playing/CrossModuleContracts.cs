@@ -12,6 +12,7 @@ public static class CapabilityIds
     public const string PlayerBag = "player.bag";
     public const string PlayerState = "player.state";
     public const string PlayerAttributes = "player.attributes";
+    public const string PlayerReputation = "player.reputation";
     public const string ItemCatalog = "content.items";
     public const string WorldMap = "world.map";
     public const string MarketTrade = "market.trade";
@@ -254,4 +255,6 @@ public interface IPlayerAttributes
     bool HasSkill(string skillCode);
 
     bool LearnSkill(string skillCode);
+
+    void GainFame(int amount, string reason, int virtueDelta = 0, int credDelta = 0);
 }

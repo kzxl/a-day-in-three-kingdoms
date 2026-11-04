@@ -86,6 +86,8 @@ public static class JournalCodes
     public const string FarmRent = "FM.RENT";
     public const string FarmSeed = "FM.SEED";
     public const string CourtStipend = "PO.STIPEND";
+    public const string ReputationCharity = "PL.CHARITY";
+    public const string ReputationBanquet = "PL.BANQUET";
 
     /// <summary>
     /// Which module a journal code belongs to. Attribution is by ownership of the code rather
@@ -112,6 +114,7 @@ public static class JournalCodes
             var code when code.StartsWith("LN.", StringComparison.Ordinal) => "dlc.lineage",
             var code when code.StartsWith("FM.", StringComparison.Ordinal) => "dlc.cultivation",
             var code when code.StartsWith("PO.", StringComparison.Ordinal) => "dlc.politics",
+            var code when code.StartsWith("PL.", StringComparison.Ordinal) => "base.player",
             _ => "core"
         };
     }

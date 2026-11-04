@@ -382,13 +382,15 @@ public partial class NpcDetailWindow : Window
                 var fame = s.Fame;
                 var fameTitle = fame switch
                 {
-                    >= 1000 => "Thiên Hạ Vô Song",
-                    >= 500 => "Danh Chấn Hoa Hạ",
-                    >= 250 => "Châu Huyện Chi Danh",
+                    >= 5000 => "Thiên Hạ Vô Song",
+                    >= 2500 => "Thiên Hạ Tri Danh",
+                    >= 1200 => "Danh Chấn Hoa Hạ",
+                    >= 600 => "Danh Chấn Một Vùng",
+                    >= 300 => "Châu Huyện Chi Danh",
                     >= 100 => "Hào Kiệt Mới Nổi",
                     _ => "Vô Danh Tiểu Tốt"
                 };
-                ProtagonistFameBadgeText.Text = $"★ {fame} ({fameTitle})";
+                ProtagonistFameBadgeText.Text = $"★ {fame:N0} ({fameTitle})";
             }
         }
         else
@@ -397,7 +399,16 @@ public partial class NpcDetailWindow : Window
             NpcLifestylePanel.Visibility = Visibility.Visible;
 
             LifestyleWealthText.Text = _activity is not null ? $"💰 {_activity.CurrentWealth:N0} Quan" : "Gia cảnh bình ổn";
-            LifestyleReputationText.Text = _activity is not null ? $"★ Uy danh {_activity.Reputation}" : "★ Uy danh 50";
+            var repVal = _activity?.Reputation ?? Math.Clamp((int)((_npc.Attributes.War + _npc.Attributes.Ldr + _npc.Attributes.Int + _npc.Attributes.Pol + _npc.Attributes.Dip + _npc.Attributes.Com) * 0.8), 50, 950);
+            var repTitle = repVal switch
+            {
+                >= 1200 => "Danh Chấn Hoa Hạ",
+                >= 600 => "Danh Chấn Một Vùng",
+                >= 300 => "Châu Huyện Chi Danh",
+                >= 100 => "Hào Kiệt Mới Nổi",
+                _ => "Vô Danh Tiểu Tốt"
+            };
+            LifestyleReputationText.Text = $"★ Uy danh {repVal:N0} ({repTitle})";
             LifestyleActionText.Text = _activity is not null ? $"⚡ {_activity.CurrentAction}" : "Tu tâm dưỡng tính";
             PersonalityDetailText.Text = string.IsNullOrWhiteSpace(_npc.Personality)
                 ? "Khí chất bình ổn, chưa bộc lộ dã tâm hay khuynh hướng đặc biệt."

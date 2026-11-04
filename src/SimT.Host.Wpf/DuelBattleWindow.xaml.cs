@@ -16,6 +16,7 @@ public partial class DuelBattleWindow : Window
     private readonly IPlayerState _playerState;
     private readonly IWallet _wallet;
     private readonly NpcDef _npc;
+    private readonly string _citadelName;
 
     private TroopBranch _playerBranch = TroopBranch.Infantry;
     private TroopBranch _opponentBranch = TroopBranch.Infantry;
@@ -41,6 +42,7 @@ public partial class DuelBattleWindow : Window
         _attributes = attributes;
         _playerState = playerState;
         _wallet = wallet;
+        _citadelName = citadelName;
 
         _npc = _registry.Find(npcId)
                ?? throw new ArgumentException($"Không tìm thấy võ sĩ mã {npcId}.");
@@ -337,7 +339,8 @@ public partial class DuelBattleWindow : Window
             ClashBannerBorder.Background = (Brush)FindResource("AccentSoft");
             ClashBannerBorder.BorderBrush = (Brush)FindResource("Gain");
 
-            FooterNoticeText.Text = $"🏆 ĐẠI THẮNG! Bạn nhận được {_duelResult.GoldReward} Quan tiền thưởng lôi đài (+30 Võ Lực EXP, +15 Thống Soái EXP)!";
+            FooterNoticeText.Text = $"🏆 ĐẠI THẮNG! Bạn nhận được {_duelResult.GoldReward} Quan (+35 Uy Danh, +30 Võ Lực EXP, +15 Thống Soái EXP)!";
+            _attributes.GainFame(35, $"Đại thắng võ tướng {_npc.NameVi} tại lôi đài {_citadelName}.");
             FooterNoticeText.Foreground = (Brush)FindResource("Gain");
 
             CloseButton.Content = "🏆 Hoàn Tất & Nhận Thưởng";
@@ -349,7 +352,8 @@ public partial class DuelBattleWindow : Window
             ClashBannerBorder.Background = (Brush)FindResource("SurfaceAlt");
             ClashBannerBorder.BorderBrush = (Brush)FindResource("Loss");
 
-            FooterNoticeText.Text = $"⚔️ BẠI TRẬN! Đã học hỏi được kinh nghiệm giao chiến (+15 Võ Lực EXP).";
+            FooterNoticeText.Text = $"⚔️ BẠI TRẬN! Đã học hỏi được kinh nghiệm giao chiến (+5 Uy Danh, +15 Võ Lực EXP).";
+            _attributes.GainFame(5, $"Kiên cường giao đấu cùng võ tướng {_npc.NameVi} tại lôi đài {_citadelName}.");
             FooterNoticeText.Foreground = (Brush)FindResource("Muted");
 
             CloseButton.Content = "🚪 Rời Lôi Đài";

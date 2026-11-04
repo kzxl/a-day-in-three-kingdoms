@@ -70,6 +70,7 @@ public partial class MainWindow : Window
 
     private static string GlyphFor(string screenId) => screenId switch
     {
+        "player.reputation" => "🏆",
         "world.map" => "🗺️",
         "market.stall" => "◈",
         "market.player_stall" => "🎪",
@@ -115,7 +116,14 @@ public partial class MainWindow : Window
                 vitals = attrs.Vitals;
             }
 
-            PlayerHudCard.Configure(playerState.Name, $"📍 {citadelName}", vitals);
+            string? fameStanding = null;
+            if (_kernel.Capabilities.TryGet<IPlayerReputation>(CapabilityIds.PlayerReputation, out var rep) && rep is not null)
+            {
+                var s = rep.Standing;
+                fameStanding = $"★ {s.TitleVi} · {s.Fame:N0} Uy Danh";
+            }
+
+            PlayerHudCard.Configure(playerState.Name, $"📍 {citadelName}", vitals, fameStanding);
         }
 
         RenderCalendar(today);

@@ -8,7 +8,8 @@
     "player.wallet",
     "player.bag",
     "player.state",
-    "player.attributes"
+    "player.attributes",
+    "player.reputation"
   ],
   "consumes": ["world.map"],
   "owns": {
@@ -18,9 +19,11 @@
       "pl_attribute",
       "pl_vitals",
       "pl_social",
-      "pl_skill"
+      "pl_skill",
+      "pl_reputation_deed",
+      "pl_reputation_region"
     ],
     "migrations": ["migrations"]
   },
-  "screens": []
+  "screens": ["player.reputation"]
 }

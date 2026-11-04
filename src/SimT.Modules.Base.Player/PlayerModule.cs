@@ -55,7 +55,9 @@ public sealed class PlayerModule : ISimModule
 
         var bag = new Bag(context.Db);
 
-        var attributes = new PlayerAttributesStore(context.Db, player.Id);
+        var reputation = new PlayerReputationService(context.Db, player.Id, context.Capabilities, context.Clock, context.Log);
+
+        var attributes = new PlayerAttributesStore(context.Db, player.Id, reputation);
 
         context.Capabilities.Provide(CapabilityIds.PlayerWallet, wallet);
 
@@ -64,6 +66,12 @@ public sealed class PlayerModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.PlayerState, new PlayerState(context.Db, player));
 
         context.Capabilities.Provide(CapabilityIds.PlayerAttributes, attributes);
+
+        context.Capabilities.Provide(CapabilityIds.PlayerReputation, reputation);
+
+        context.Ui.AddScreen(new PlayerReputationScreen(reputation));
+
+        context.Ui.AddCommandHandler(new PlayerReputationCommandHandler(reputation));
 
         context.Events.Subscribe<DayAdvanced>(_ => attributes.OnDayAdvanced());
 
@@ -105,6 +113,21 @@ public sealed class PlayerModule : ISimModule
                 @"INSERT OR IGNORE INTO pl_social
                   (player_id, fame, virtue, credibility)
                   VALUES(@id, 100, 50, 50)",
+                DbArgs.One("@id", existing.Id));
+
+            db.Execute(
+                @"INSERT OR IGNORE INTO pl_reputation_region (player_id, region_code, reputation) VALUES
+                  (@id, 'trung_nguyen', 60),
+                  (@id, 'ha_bac', 25),
+                  (@id, 'giang_dong', 20),
+                  (@id, 'kinh_so', 20),
+                  (@id, 'ba_thuc', 15)",
+                DbArgs.One("@id", existing.Id));
+
+            db.Execute(
+                @"INSERT OR IGNORE INTO pl_reputation_deed
+                  (id, player_id, day_index, date_text, category, fame_delta, virtue_delta, credibility_delta, title_vi, narrative_vi)
+                  VALUES (1, @id, 1, '184-05-01', 'milestone', 100, 0, 0, 'Khởi Sự Tam Quốc', 'Bắt đầu hành trình lập thân lập nghiệp giữa thời loạn thế.')",
                 DbArgs.One("@id", existing.Id));
 
             return existing;
@@ -306,17 +329,14 @@ public sealed class PlayerModule : ISimModule
     {
 
         private readonly IDbSession _db;
-
         private readonly long _playerId;
+        private readonly IPlayerReputation? _reputation;
 
-        public PlayerAttributesStore(IDbSession db, long playerId)
-
+        public PlayerAttributesStore(IDbSession db, long playerId, IPlayerReputation? reputation = null)
         {
-
             _db = db;
-
             _playerId = playerId;
-
+            _reputation = reputation;
         }
 
         public CharacterAttributes Attributes
@@ -580,6 +600,11 @@ public sealed class PlayerModule : ISimModule
                 new DbArgs().Add("@id", _playerId).Add("@code", skillCode));
 
             return true;
+        }
+
+        public void GainFame(int amount, string reason, int virtueDelta = 0, int credDelta = 0)
+        {
+            _reputation?.GainFame(amount, "deed", reason, reason, virtueDelta: virtueDelta, credDelta: credDelta);
         }
     }
 
