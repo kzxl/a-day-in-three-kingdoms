@@ -97,6 +97,9 @@ public partial class NpcDetailWindow : Window
         var total = a.War + a.Ldr + a.Int + a.Pol + a.Dip + a.Com + a.Log + a.Cra + a.Con + a.Wil + a.Prc + a.Lck + bonusTotal;
         TotalStatsText.Text = total.ToString();
 
+        StatRadarChart.SetCoreStats(a, deltas);
+        ArchetypeTagText.Text = StatRadarChart.ArchetypeTitle;
+
         // 8 Core Stats (with growth bonuses if available)
         CoreStatsGrid.Children.Clear();
         AddStatItem(CoreStatsGrid, "WAR · Võ Lực", a.War, deltas?.WarDelta ?? 0, "Khả năng chiến đấu, trảm tướng phá trận");
