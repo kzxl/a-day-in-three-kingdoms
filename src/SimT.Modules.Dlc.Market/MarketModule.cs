@@ -33,24 +33,27 @@ internal sealed class MarketCommandHandler : IScreenCommandHandler
             return rentMessage;
         }
 
-        var separator = commandId.IndexOf(':');
-        if (separator <= 0 || !long.TryParse(commandId[(separator + 1)..], out var itemId))
+        // Forms: verb:item  and  verb:item:quantity
+        var parts = commandId.Split(':');
+        if (parts.Length < 2 || !long.TryParse(parts[1], out var itemId))
         {
             return "Lệnh không hợp lệ.";
         }
 
-        var verb = commandId[..separator];
+        var verb = parts[0];
+        var quantity = parts.Length > 2 && int.TryParse(parts[2], out var parsed) && parsed > 0 ? parsed : 1;
+
         switch (verb)
         {
             case "buy":
-                return _service.Buy(cityId, itemId, 1).Message;
+                return _service.Buy(cityId, itemId, quantity).Message;
             case "sell":
-                return _service.Sell(cityId, itemId, 1).Message;
+                return _service.Sell(cityId, itemId, quantity).Message;
             case "store":
-                _service.Store(cityId, itemId, 1, out var storeMessage);
+                _service.Store(cityId, itemId, quantity, out var storeMessage);
                 return storeMessage;
             case "take":
-                _service.Take(cityId, itemId, 1, out var takeMessage);
+                _service.Take(cityId, itemId, quantity, out var takeMessage);
                 return takeMessage;
             default:
                 return $"Động từ '{verb}' không thuộc DLC market.";
@@ -78,7 +81,7 @@ public sealed class MarketModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.MarketTrade, service);
         context.Capabilities.Provide(CapabilityIds.MarketWarehouse, service);
 
-        context.Ui.AddScreen(new StallScreen(service, items, map, bag, player, context.Clock));
+        context.Ui.AddScreen(new StallScreen(service, items, map, bag, player, context.Clock, wallet));
         context.Ui.AddScreen(new WarehouseScreen(service, items, map, bag, player));
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.stall", service, player));
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.warehouse", service, player));

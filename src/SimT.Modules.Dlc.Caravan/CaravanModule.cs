@@ -23,7 +23,7 @@ public sealed class CaravanModule : ISimModule
         var service = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, context.Ids, context.Log, freightPerUnit);
 
         context.Capabilities.Provide(CapabilityIds.CaravanGuild, service);
-        context.Ui.AddScreen(new CaravanScreen(service, map, bag, player));
+        context.Ui.AddScreen(new CaravanScreen(service, map, bag, player, context.Clock));
         context.Ui.AddCommandHandler(new CaravanCommandHandler(service, player));
 
         context.Events.Subscribe<DayAdvanced>(day => service.OnDay(day.Date));

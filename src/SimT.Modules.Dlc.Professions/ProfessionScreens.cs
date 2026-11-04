@@ -41,14 +41,31 @@ internal sealed class ProfessionScreen : IScreenContribution
                     Fmt(trade.ToolFee),
                     $"bậc {tier} · {_service.PracticeCount(trade.Id)} lượt"
                 ],
-                [new ScreenCommand($"work:{trade.Id}", "Làm 1 lượt")]));
+                [new ScreenCommand($"work:{trade.Id}", "Làm 1 lượt")],
+                Title: trade.NameVi,
+                Details:
+                [
+                    new ScreenDetail("Mỗi lượt", $"{trade.DaysPerBatch} ngày · {trade.ToolFee} quan dụng cụ"),
+                    new ScreenDetail("Sản phẩm", output?.NameVi ?? "—"),
+                    new ScreenDetail("Sản lượng", $"{trade.BaseQuantity + tier} mỗi lượt"),
+                    new ScreenDetail("Tay nghề", $"bậc {tier}/5 · {_service.PracticeCount(trade.Id)} lượt")
+                ]));
         }
+
+        var totalPractice = _service.Trades.Sum(trade => _service.PracticeCount(trade.Id));
+        var bestTier = _service.Trades.Max(trade => _service.Tier(trade.Id));
 
         return new ScreenModel(
             ScreenId,
             Title,
             "Mỗi lượt tốn tiền dụng cụ và số ngày của nghề; tay nghề tăng sản lượng.",
             [new ScreenSection("Nghề đang làm được", Columns, rows)],
+            [],
+            [
+                new ScreenMetric("Nghề", Fmt(_service.Trades.Count), "loại"),
+                new ScreenMetric("Lượt đã làm", Fmt(totalPractice), "lượt"),
+                new ScreenMetric("Tay nghề cao nhất", $"bậc {bestTier}", "trên 5", bestTier > 0 ? MetricTone.Positive : MetricTone.Neutral)
+            ],
             []);
     }
 

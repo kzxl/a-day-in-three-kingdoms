@@ -73,20 +73,54 @@ internal sealed class FarmScreen : IScreenContribution
                         : GameDate.FromDayIndex(plot.ReadyDayIndex.Value).ToString(),
                     plot.YieldQuantity?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "—"
                 ],
-                commands));
+                commands,
+                Title: $"Khu {plot.Id} · {city?.NameVi}",
+                Details:
+                [
+                    new ScreenDetail("Diện tích", $"{plot.AreaMu} mẫu"),
+                    new ScreenDetail("Đất", $"{plot.Soil}/100"),
+                    new ScreenDetail("Thuê", $"{plot.MonthlyRent} quan/tháng"),
+                    new ScreenDetail("Trạng thái", Describe(plot)),
+                    new ScreenDetail("Ngày chín", plot.ReadyDayIndex is null
+                        ? "—"
+                        : GameDate.FromDayIndex(plot.ReadyDayIndex.Value).ToString()),
+                    new ScreenDetail("Dự thu", plot.YieldQuantity?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "—")
+                ]));
         }
 
-        var status = $"Đang thuê {_service.Plots.Count(plot => plot.Rented)} khu · "
-                     + $"phí ruộng {_service.MonthlyRentTotal} Quan/tháng · "
-                     + $"{_service.GrowingCount} cây đang lớn, {_service.ReadyCount} chờ gặt";
+        var rented = _service.Plots.Count(plot => plot.Rented);
+        var alerts = new List<ScreenAlert>();
+        if (_service.ReadyCount > 0)
+        {
+            alerts.Add(new ScreenAlert($"{_service.ReadyCount} khu đã chín, gặt ngay kẻo mất vụ.", AlertLevel.Warning));
+        }
+
+        foreach (var plot in _service.Plots.Where(plot => plot.Rented && plot.Soil < 30))
+        {
+            alerts.Add(new ScreenAlert($"Khu {plot.Id} bạc màu ({plot.Soil}/100), nên bón phân.", AlertLevel.Info));
+        }
+
+        var status = $"Đang thuê {rented} khu · "
+                     + $"phí ruộng {_service.MonthlyRentTotal} quan/tháng · "
+                     + $"{_service.GrowingCount} đang lớn, {_service.ReadyCount} chờ gặt";
 
         return new ScreenModel(
             ScreenId,
             Title,
             status,
             [new ScreenSection("Ruộng", Columns, rows)],
-            []);
+            [],
+            [
+                new ScreenMetric("Khu đang thuê", Fmt(rented), "khu"),
+                new ScreenMetric("Phí ruộng", Fmt(_service.MonthlyRentTotal), "quan/tháng"),
+                new ScreenMetric("Đang lớn", Fmt(_service.GrowingCount), "cây"),
+                new ScreenMetric("Chờ gặt", Fmt(_service.ReadyCount), "khu",
+                    _service.ReadyCount > 0 ? MetricTone.Warning : MetricTone.Neutral)
+            ],
+            alerts);
     }
+
+    private static string Fmt(long value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     private string Describe(PlotView plot)
     {

@@ -4,6 +4,8 @@ namespace SimT.Modules.Dlc.Politics;
 
 internal sealed class CourtScreen : IScreenContribution
 {
+    private static string Fmt(long value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     private static readonly string[] Columns = ["Chức vụ", "Phẩm", "Bổng/tháng", "Uy tín cần", "Trạng thái"];
 
     private readonly CourtService _service;
@@ -42,19 +44,39 @@ internal sealed class CourtScreen : IScreenContribution
 
         if (_service.OfficeId != 0)
         {
-            commands.Add(new ScreenCommand("resign", "Từ chức"));
+            commands.Add(new ScreenCommand("resign", "Từ chức", CommandKind.Danger));
         }
 
         var status = _service.OfficeId == 0
             ? $"Uy tín {_service.Reputation} · chưa tại chức"
             : $"Uy tín {_service.Reputation} · {_service.OfficeName} · bổng {_service.MonthlyStipend} Quan/tháng";
 
+        var alerts = new List<ScreenAlert>();
+        if (_service.OfficeId == 0)
+        {
+            var next = _service.Offices.FirstOrDefault(office => office.ReputationRequired > _service.Reputation);
+            if (next is not null)
+            {
+                alerts.Add(new ScreenAlert(
+                    $"Cần thêm {next.ReputationRequired - _service.Reputation} uy tín để nhận {next.NameVi}.",
+                    AlertLevel.Info));
+            }
+        }
+
         return new ScreenModel(
             ScreenId,
             Title,
             status,
             [new ScreenSection("Chức vụ", Columns, rows)],
-            commands);
+            commands,
+            [
+                new ScreenMetric("Uy tín", Fmt(_service.Reputation), "điểm"),
+                new ScreenMetric("Tại chức", _service.OfficeName ?? "—",
+                    _service.OfficeId == 0 ? "chưa nhận chức" : $"bổng {_service.MonthlyStipend} quan/tháng",
+                    _service.OfficeId == 0 ? MetricTone.Neutral : MetricTone.Positive),
+                new ScreenMetric("Bổng lộc", Fmt(_service.MonthlyStipend), "quan/tháng")
+            ],
+            alerts);
     }
 }
 

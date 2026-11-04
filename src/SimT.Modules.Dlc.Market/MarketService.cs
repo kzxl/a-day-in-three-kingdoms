@@ -178,6 +178,12 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
         return warehouse with { Used = used };
     }
 
+    public IReadOnlyList<WarehouseStockView> Stock(long cityId) =>
+        _db.Query(
+            "SELECT item_id, quantity, age_days FROM mk_warehouse_stock WHERE citadel_id=@city ORDER BY item_id",
+            row => new WarehouseStockView(row.GetInt64(0), row.GetInt32(1), row.GetInt32(2)),
+            DbArgs.One("@city", cityId));
+
     public int StockAt(long cityId, long itemId) =>
         (int)_db.ScalarLong(
             "SELECT COALESCE(quantity, 0) FROM mk_warehouse_stock WHERE citadel_id=@city AND item_id=@item",

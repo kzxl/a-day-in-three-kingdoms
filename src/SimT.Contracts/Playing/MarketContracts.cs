@@ -33,6 +33,9 @@ public interface IMarketWarehouse
 
     int StockAt(long cityId, long itemId);
 
+    /// <summary>Every stored line with its age, so the screen can show what is about to spoil.</summary>
+    IReadOnlyList<WarehouseStockView> Stock(long cityId);
+
     bool Store(long cityId, long itemId, int quantity, out string message);
 
     bool Take(long cityId, long itemId, int quantity, out string message);
@@ -41,3 +44,5 @@ public interface IMarketWarehouse
 }
 
 public sealed record WarehouseInfo(long CityId, int Capacity, long MonthlyRent, int Used);
+
+public sealed record WarehouseStockView(long ItemId, int Quantity, int AgeDays);

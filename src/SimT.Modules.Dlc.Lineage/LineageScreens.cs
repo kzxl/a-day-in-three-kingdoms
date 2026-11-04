@@ -33,7 +33,14 @@ internal sealed class FamilyScreen : IScreenContribution
                     GameDate.FromDayIndex(member.DayIndex).ToString(),
                     member.IsHeir ? "người kế vị" : "—"
                 ],
-                rowCommands));
+                rowCommands,
+                Title: member.Name,
+                Details:
+                [
+                    new ScreenDetail("Vai trò", member.Role),
+                    new ScreenDetail("Ngày", GameDate.FromDayIndex(member.DayIndex).ToString()),
+                    new ScreenDetail("Kế vị", member.IsHeir ? "đang là người kế vị" : "chưa")
+                ]));
         }
 
         var commands = new List<ScreenCommand>();
@@ -50,12 +57,30 @@ internal sealed class FamilyScreen : IScreenContribution
             ? $"Chính thất: {_service.SpouseName} · {_service.ChildCount} con · phí tháng {_service.MonthlyUpkeep} Quan"
             : "Chưa lập gia thất.";
 
+        var alerts = new List<ScreenAlert>();
+        if (!_service.IsMarried)
+        {
+            alerts.Add(new ScreenAlert("Chưa lập gia thất: chưa có người nối dõi.", AlertLevel.Info));
+        }
+        else if (_service.ChildCount > 0 && _service.HeirName is null)
+        {
+            alerts.Add(new ScreenAlert("Đã có con nhưng chưa lập người kế vị.", AlertLevel.Warning));
+        }
+
         return new ScreenModel(
             ScreenId,
             Title,
             status,
             [new ScreenSection("Gia phả", Columns, rows)],
-            commands);
+            commands,
+            [
+                new ScreenMetric("Chính thất", _service.SpouseName ?? "—", _service.IsMarried ? "đã thành hôn" : "chưa cưới",
+                    _service.IsMarried ? MetricTone.Positive : MetricTone.Neutral),
+                new ScreenMetric("Con", _service.ChildCount.ToString(System.Globalization.CultureInfo.InvariantCulture), "người"),
+                new ScreenMetric("Kế vị", _service.HeirName ?? "—", _service.HeirName is null ? "chưa lập" : "đã định"),
+                new ScreenMetric("Phí tháng", _service.MonthlyUpkeep.ToString(System.Globalization.CultureInfo.InvariantCulture), "quan/tháng")
+            ],
+            alerts);
     }
 }
 

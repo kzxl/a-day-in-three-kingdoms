@@ -14,14 +14,18 @@ internal sealed class CaravanScreen : IScreenContribution
     private readonly IWorldMap _map;
     private readonly IBag _bag;
     private readonly IPlayerState _player;
+    private readonly IGameClock _clock;
 
-    public CaravanScreen(CaravanService service, IWorldMap map, IBag bag, IPlayerState player)
+    public CaravanScreen(CaravanService service, IWorldMap map, IBag bag, IPlayerState player, IGameClock clock)
     {
         _service = service;
         _map = map;
         _bag = bag;
         _player = player;
+        _clock = clock;
     }
+
+    private static string Fmt(long value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     public string ScreenId => "caravan.routes";
 
@@ -78,6 +82,21 @@ internal sealed class CaravanScreen : IScreenContribution
             ]));
         }
 
+        var alerts = new List<ScreenAlert>();
+        foreach (var run in _service.Runs.Where(run => run.Status == "RUNNING"))
+        {
+            var daysLeft = run.ArriveDayIndex - _clock.Today.DayIndex;
+            if (daysLeft <= 2)
+            {
+                var destinationName = _map.Find(run.ToCityId)?.NameVi ?? "đích";
+                alerts.Add(new ScreenAlert(
+                    $"Đoàn {run.Id} tới {destinationName} sau {Math.Max(0, daysLeft)} ngày ({run.Units} đơn vị).",
+                    AlertLevel.Warning));
+            }
+        }
+
+        var running = _service.Runs.Count(run => run.Status == "RUNNING");
+
         return new ScreenModel(
             ScreenId,
             $"{Title} — {city.NameVi}",
@@ -86,7 +105,14 @@ internal sealed class CaravanScreen : IScreenContribution
                 new ScreenSection("Tuyến đường", RouteColumns, routeRows),
                 new ScreenSection("Đoàn hàng", RunColumns, runRows)
             ],
-            []);
+            [],
+            [
+                new ScreenMetric("Đang chở", Fmt(_service.UnitsInTransit), "đơn vị"),
+                new ScreenMetric("Đoàn đang đi", Fmt(running), "chuyến"),
+                new ScreenMetric("Cước", Fmt(_service.FeePerUnit), "quan/đơn vị"),
+                new ScreenMetric("Trong túi", Fmt(held), "đơn vị")
+            ],
+            alerts);
     }
 }
 
