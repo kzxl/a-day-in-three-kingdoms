@@ -7,11 +7,13 @@ internal sealed record CropSpec(string Code, long OutputItemId, int FixedGrowthD
 {
     public static readonly CropSpec Rice = new("gao", 1, 0, 6);
     public static readonly CropSpec Tea = new("tra", 3, 35, 2);
+    public static readonly CropSpec Mulberry = new("dau_tam", 4, 40, 2);
+    public static readonly CropSpec Herb = new("duoc_thao", 7, 30, 2);
 
-    public static readonly CropSpec[] All = [Rice, Tea];
+    public static readonly CropSpec[] All = [Rice, Tea, Mulberry, Herb];
 
     public static CropSpec? Find(string? code) =>
-        code is null ? Rice : All.FirstOrDefault(spec => spec.Code == code);
+        code is null ? Rice : All.FirstOrDefault(spec => spec.Code.Equals(code, StringComparison.OrdinalIgnoreCase) || spec.Code.StartsWith(code, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>

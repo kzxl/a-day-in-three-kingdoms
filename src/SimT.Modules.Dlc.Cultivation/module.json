@@ -7,7 +7,7 @@
   "provides": ["cultivation.estate"],
   "consumes": ["content.items", "world.map", "player.wallet", "player.bag", "player.state"],
   "owns": {
-    "tables": ["fm_plot", "fm_crop"],
+    "tables": ["fm_plot", "fm_crop", "fm_harvest_log"],
     "migrations": ["migrations"]
   },
   "screens": ["cultivation.farm"]

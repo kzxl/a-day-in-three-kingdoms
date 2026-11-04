@@ -9,13 +9,14 @@ using SimT.Contracts.Time;
 namespace SimT.Modules.Dlc.Cultivation;
 
 /// <summary>
-/// Rented land. Rent is charged on the month boundary, sowing costs seed money, the crop only
-/// becomes harvestable on its ready day, and every harvest wears the soil out — so a plot is a
-/// long-term commitment, not a button that prints grain.
+/// Rented land, multi-crop agriculture, irrigation systems, and harvest records.
+/// Rent is charged on the month boundary, sowing costs seed money, the crop only
+/// becomes harvestable on its ready day, and every harvest wears the soil out.
 /// </summary>
 internal sealed class FarmService : ICultivationEstate
 {
     public const long SeedCostPerMu = 5;
+    public const long IrrigationCost = 80;
 
     private readonly IDbSession _db;
     private readonly IGameClock _clock;
@@ -50,7 +51,7 @@ internal sealed class FarmService : ICultivationEstate
         _db.Query(
             """
             SELECT p.id, p.citadel_id, p.area_mu, p.monthly_rent, p.rented, p.soil,
-                   c.status, c.ready_day, c.yield_qty
+                   c.status, c.ready_day, c.yield_qty, p.irrigation_level
             FROM fm_plot p
             LEFT JOIN fm_crop c ON c.plot_id = p.id AND c.status IN ('GROWING', 'READY')
             ORDER BY p.citadel_id, p.id
@@ -67,8 +68,26 @@ internal sealed class FarmService : ICultivationEstate
                     row.GetInt32(5),
                     live ? row.GetString(6) : null,
                     live ? row.GetInt32(7) : null,
-                    live ? row.GetInt32(8) : null);
+                    live ? row.GetInt32(8) : null,
+                    row.GetInt32(9));
             });
+
+    public IReadOnlyList<HarvestLogDef> HarvestLogs =>
+        _db.Query(
+            """
+            SELECT id, plot_id, citadel_id, crop_code, yield_qty, harvest_day, soil_after
+            FROM fm_harvest_log
+            ORDER BY id DESC
+            LIMIT 20
+            """,
+            row => new HarvestLogDef(
+                row.GetInt64(0),
+                row.GetInt64(1),
+                row.GetInt64(2),
+                row.GetString(3),
+                row.GetInt32(4),
+                row.GetInt32(5),
+                row.GetInt32(6)));
 
     public long MonthlyRentTotal =>
         _db.ScalarLong("SELECT COALESCE(SUM(monthly_rent), 0) FROM fm_plot WHERE rented = 1");
@@ -181,8 +200,6 @@ internal sealed class FarmService : ICultivationEstate
         var growth = 0;
         var yieldQuantity = 0;
 
-        // The two days spent sowing are part of the crop's schedule: charge first, then read the
-        // calendar, or the harvest lands two days earlier than the player was told.
         _db.Transaction(() =>
         {
             _actionTime.Charge(ActionCodes.FarmPlant);
@@ -230,12 +247,12 @@ internal sealed class FarmService : ICultivationEstate
         }
 
         var yieldQuantity = plot.YieldQuantity ?? 0;
-        var itemId = CropSpec.All.FirstOrDefault(spec =>
+        var cropSpec = CropSpec.All.FirstOrDefault(spec =>
             _db.ScalarLong(
                 "SELECT COUNT(*) FROM fm_crop WHERE plot_id=@plot AND status='READY' AND item_id=@item",
-                new DbArgs().Add("@plot", plotId).Add("@item", spec.OutputItemId)) > 0)?.OutputItemId;
+                new DbArgs().Add("@plot", plotId).Add("@item", spec.OutputItemId)) > 0);
 
-        if (itemId is null)
+        if (cropSpec is null)
         {
             throw new SimException("cultivation.crop_unknown", $"Ready crop on plot {plotId} has no known item.");
         }
@@ -259,7 +276,22 @@ internal sealed class FarmService : ICultivationEstate
             }
 
             _db.Execute("UPDATE fm_plot SET soil=@soil WHERE id=@id", new DbArgs().Add("@soil", soilAfter).Add("@id", plotId));
-            _bag.Add(cityId, itemId.Value, yieldQuantity);
+            _bag.Add(cityId, cropSpec.OutputItemId, yieldQuantity);
+
+            // Log harvest history
+            _db.Execute(
+                """
+                INSERT INTO fm_harvest_log(id, plot_id, citadel_id, crop_code, yield_qty, harvest_day, soil_after)
+                VALUES(@id, @plot, @citadel, @crop, @yield, @day, @soil)
+                """,
+                new DbArgs()
+                    .Add("@id", _ids.Next("cultivation.harvest_log"))
+                    .Add("@plot", plotId)
+                    .Add("@citadel", cityId)
+                    .Add("@crop", cropSpec.Code)
+                    .Add("@yield", yieldQuantity)
+                    .Add("@day", _clock.Today.DayIndex)
+                    .Add("@soil", soilAfter));
         });
 
         _log.Info($"harvested plot {plotId}: +{yieldQuantity}, soil {plot.Soil} -> {soilAfter}");
@@ -306,6 +338,49 @@ internal sealed class FarmService : ICultivationEstate
         return FarmResult.Success($"Bón phân: đất {plot.Soil} -> {soilAfter}/100 ({CropCalendar.FertiliseCost} Quan).");
     }
 
+    public FarmResult Irrigate(long plotId, long cityId)
+    {
+        var plot = FindPlot(plotId);
+        if (plot is null)
+        {
+            return FarmResult.Failure("Không có khu ruộng này.");
+        }
+
+        if (plot.CitadelId != cityId)
+        {
+            return FarmResult.Failure("Phải ở đúng thành mới đào mương được.");
+        }
+
+        if (!plot.Rented)
+        {
+            return FarmResult.Failure("Chưa thuê khu ruộng này.");
+        }
+
+        var currentIrrigation = (int)_db.ScalarLong("SELECT COALESCE(irrigation_level, 0) FROM fm_plot WHERE id=@id", DbArgs.One("@id", plotId));
+        if (currentIrrigation >= 2)
+        {
+            return FarmResult.Failure("Hệ thống mương máng thủy lợi khu ruộng này đã hoàn thiện (cấp tối đa).");
+        }
+
+        if (_wallet.Liquid < IrrigationCost)
+        {
+            return FarmResult.Failure($"Cần {IrrigationCost} Quan chi phí xây dựng thủy lợi, chỉ có {_wallet.Liquid}.");
+        }
+
+        var newLevel = currentIrrigation + 1;
+        var soilBonus = Math.Min(CropCalendar.SoilCeiling, plot.Soil + 10);
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(IrrigationCost, JournalCodes.FarmRent, $"Đào mương thủy lợi khu {plot.Id}");
+            _db.Execute(
+                "UPDATE fm_plot SET irrigation_level = @lvl, soil = @soil WHERE id = @id",
+                new DbArgs().Add("@lvl", newLevel).Add("@soil", soilBonus).Add("@id", plotId));
+        });
+
+        return FarmResult.Success($"Đào mương thủy lợi thành công cho khu {plot.Id}! Nâng cấp lên bậc {newLevel}/2 (phí {IrrigationCost} Quan).");
+    }
+
     /// <summary>Daily flip: a crop becomes harvestable on its ready day, exactly once.</summary>
     public void OnDay(GameDate date)
     {
@@ -342,7 +417,7 @@ internal sealed class FarmService : ICultivationEstate
     {
         _db.Execute(
             """
-            UPDATE fm_plot SET soil = MIN(@ceiling, soil + @gain)
+            UPDATE fm_plot SET soil = MIN(@ceiling, soil + @gain + (irrigation_level * 2))
             WHERE rented = 1 AND soil < @ceiling
             """,
             new DbArgs().Add("@ceiling", CropCalendar.SoilCeiling).Add("@gain", CropCalendar.SoilRecoveryPerMonth));
@@ -350,7 +425,7 @@ internal sealed class FarmService : ICultivationEstate
 
     private void InsertPlot(long citadelId, int areaMu, long rent) =>
         _db.Execute(
-            "INSERT INTO fm_plot(id, citadel_id, area_mu, monthly_rent, rented, soil) VALUES(@id, @city, @area, @rent, 0, 100)",
+            "INSERT INTO fm_plot(id, citadel_id, area_mu, monthly_rent, rented, soil, irrigation_level) VALUES(@id, @city, @area, @rent, 0, 100, 0)",
             new DbArgs()
                 .Add("@id", _ids.Next("cultivation.plot"))
                 .Add("@city", citadelId)
@@ -358,11 +433,4 @@ internal sealed class FarmService : ICultivationEstate
                 .Add("@rent", rent));
 
     private PlotView? FindPlot(long plotId) => Plots.FirstOrDefault(plot => plot.Id == plotId);
-}
-
-public readonly record struct FarmResult(bool Ok, string Message)
-{
-    public static FarmResult Success(string message) => new(true, message);
-
-    public static FarmResult Failure(string message) => new(false, message);
 }

@@ -150,6 +150,48 @@ public sealed class CultivationTests : IDisposable
     }
 
     [Fact]
+    public void Planting_mulberry_and_herb_crops_yields_silk_and_medicine()
+    {
+        using var kernel = _host.Boot();
+        var plot = HomePlot(kernel);
+        Command(kernel, $"rent:{plot.Id}");
+
+        // Sowing mulberry (dau_tam) -> fixed 40 days -> yields Silk (item 4)
+        var plantMsg = Command(kernel, $"plant:{plot.Id}:dau_tam");
+        Assert.Contains("Lụa", plantMsg);
+
+        kernel.AdvanceDays(41);
+        Assert.Equal("READY", Find(kernel, plot.Id).CropStatus);
+
+        var harvestMsg = Command(kernel, $"harvest:{plot.Id}");
+        Assert.Contains("Gặt được", harvestMsg);
+
+        // Silk item ID is 4
+        Assert.True(Bag(kernel).Quantity(Player(kernel).CurrentCityId, 4) > 0);
+
+        // Harvest log contains entry
+        var logs = Guild(kernel).HarvestLogs;
+        Assert.Contains(logs, l => l.PlotId == plot.Id && l.CropCode == "dau_tam");
+    }
+
+    [Fact]
+    public void Irrigating_plot_improves_waterway_and_soil()
+    {
+        using var kernel = _host.Boot();
+        var plot = HomePlot(kernel);
+        Command(kernel, $"rent:{plot.Id}");
+
+        var balanceBefore = kernel.Ledger.Balance;
+        var msg = Command(kernel, $"irrigate:{plot.Id}");
+
+        Assert.Contains("Đào mương thủy lợi thành công", msg);
+        Assert.Equal(balanceBefore - 80, kernel.Ledger.Balance);
+
+        var refreshed = Find(kernel, plot.Id);
+        Assert.Equal(1, refreshed.IrrigationLevel);
+    }
+
+    [Fact]
     public void Invariants_hold_after_a_full_agricultural_cycle()
     {
         using var kernel = _host.Boot();

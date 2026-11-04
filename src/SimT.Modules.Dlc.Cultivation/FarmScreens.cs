@@ -7,7 +7,10 @@ namespace SimT.Modules.Dlc.Cultivation;
 internal sealed class FarmScreen : IScreenContribution
 {
     private static readonly string[] Columns =
-        ["Khu", "Thành", "Mẫu", "Đất", "Thuê/tháng", "Trạng thái", "Chín", "Dự thu"];
+        ["Khu", "Thành", "Mẫu", "Đất", "Thủy Lợi", "Thuê/tháng", "Trạng thái", "Chín", "Dự thu"];
+
+    private static readonly string[] HarvestColumns =
+        ["Khu", "Thành", "Cây Trồng", "Sản Lượng", "Ngày Gặt", "Đất Còn"];
 
     private readonly FarmService _service;
     private readonly IWorldMap _map;
@@ -48,6 +51,8 @@ internal sealed class FarmScreen : IScreenContribution
                 {
                     commands.Add(new ScreenCommand($"plant:{plot.Id}:gao", "Gieo lúa"));
                     commands.Add(new ScreenCommand($"plant:{plot.Id}:tra", "Gieo trà"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:dau_tam", "Gieo dâu"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:duoc_thao", "Gieo dược"));
                 }
                 else if (plot.CropStatus == "READY")
                 {
@@ -58,7 +63,14 @@ internal sealed class FarmScreen : IScreenContribution
                 {
                     commands.Add(new ScreenCommand($"fertilise:{plot.Id}", "Bón phân"));
                 }
+
+                if (plot.Rented && plot.IrrigationLevel < 2)
+                {
+                    commands.Add(new ScreenCommand($"irrigate:{plot.Id}", "Đào mương (80 Quan)"));
+                }
             }
+
+            var irrigationText = plot.IrrigationLevel > 0 ? $"Bậc {plot.IrrigationLevel}/2" : "Chưa có";
 
             rows.Add(new ScreenRow(
                 [
@@ -66,6 +78,7 @@ internal sealed class FarmScreen : IScreenContribution
                     city?.NameVi ?? plot.CitadelId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     plot.AreaMu.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     $"{plot.Soil}/100",
+                    irrigationText,
                     plot.MonthlyRent.ToString(System.Globalization.CultureInfo.InvariantCulture),
                     Describe(plot),
                     plot.ReadyDayIndex is null
@@ -79,6 +92,7 @@ internal sealed class FarmScreen : IScreenContribution
                 [
                     new ScreenDetail("Diện tích", $"{plot.AreaMu} mẫu"),
                     new ScreenDetail("Đất", $"{plot.Soil}/100"),
+                    new ScreenDetail("Thủy lợi", irrigationText),
                     new ScreenDetail("Thuê", $"{plot.MonthlyRent} quan/tháng"),
                     new ScreenDetail("Trạng thái", Describe(plot)),
                     new ScreenDetail("Ngày chín", plot.ReadyDayIndex is null
@@ -86,6 +100,20 @@ internal sealed class FarmScreen : IScreenContribution
                         : GameDateCodec.ShortVi(GameDate.FromDayIndex(plot.ReadyDayIndex.Value))),
                     new ScreenDetail("Dự thu", plot.YieldQuantity?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "—")
                 ]));
+        }
+
+        var harvestRows = new List<ScreenRow>();
+        foreach (var h in _service.HarvestLogs)
+        {
+            var city = _map.Find(h.CitadelId)?.NameVi ?? h.CitadelId.ToString();
+            harvestRows.Add(ScreenRow.Of([
+                h.PlotId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                city,
+                h.CropCode,
+                h.YieldQty.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                GameDateCodec.ShortVi(GameDate.FromDayIndex(h.HarvestDayIndex)),
+                $"{h.SoilAfter}/100"
+            ]));
         }
 
         var rented = _service.Plots.Count(plot => plot.Rented);
@@ -108,7 +136,10 @@ internal sealed class FarmScreen : IScreenContribution
             ScreenId,
             Title,
             status,
-            [new ScreenSection("Ruộng", Columns, rows)],
+            [
+                new ScreenSection("Điền Trang Đang Quản Lý", Columns, rows),
+                new ScreenSection("Lịch Sử Mùa Vụ (Gặt Gần Đây)", HarvestColumns, harvestRows)
+            ],
             [],
             [
                 new ScreenMetric("Khu đang thuê", Fmt(rented), "khu"),
@@ -168,6 +199,7 @@ internal sealed class FarmCommandHandler : IScreenCommandHandler
             "plant" => _service.Plant(plotId, city, parts.Length > 2 ? parts[2] : null).Message,
             "harvest" => _service.Harvest(plotId, city).Message,
             "fertilise" => _service.Fertilise(plotId, city).Message,
+            "irrigate" => _service.Irrigate(plotId, city).Message,
             var verb => $"Động từ '{verb}' không thuộc DLC cultivation."
         };
     }

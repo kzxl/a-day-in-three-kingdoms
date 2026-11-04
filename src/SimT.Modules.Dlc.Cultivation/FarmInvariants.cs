@@ -57,11 +57,37 @@ internal static class FarmInvariants
         }
     }
 
+    public sealed class IrrigationWithinRange : IInvariant
+    {
+        public string Id => "cultivation.plot.irrigation_within_range";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM fm_plot WHERE irrigation_level < 0 OR irrigation_level > 2");
+            return bad == 0 ? null : $"{bad} plot(s) have irrigation_level outside 0..2";
+        }
+    }
+
+    public sealed class HarvestLogValid : IInvariant
+    {
+        public string Id => "cultivation.harvest_log.valid";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong(
+                "SELECT COUNT(*) FROM fm_harvest_log WHERE yield_qty <= 0 OR soil_after < 0 OR soil_after > 100");
+
+            return bad == 0 ? null : $"{bad} harvest log row(s) have invalid yields or soil values";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new CropDatesOrdered();
         yield return new OneLiveCropPerPlot();
         yield return new HarvestedCropsHaveYield();
         yield return new SoilWithinRange();
+        yield return new IrrigationWithinRange();
+        yield return new HarvestLogValid();
     }
 }
