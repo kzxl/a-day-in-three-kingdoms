@@ -79,6 +79,7 @@ public partial class MainWindow : Window
         "cultivation.farm" => "❖",
         "lineage.family" => "⚭",
         "politics.court" => "⌂",
+        "npc.directory" => "👤",
         _ => "•"
     };
 
@@ -658,6 +659,12 @@ public partial class MainWindow : Window
             if (grid.SelectedItem is RowVm selected)
             {
                 ShowInspector(section, selected.Row);
+
+                var modalCmd = selected.Row.Commands.FirstOrDefault(c => c.Id.StartsWith("npc:modal:"));
+                if (modalCmd is not null && long.TryParse(modalCmd.Id["npc:modal:".Length..], out var id))
+                {
+                    TryOpenNpcModal(id);
+                }
             }
         };
 
@@ -772,6 +779,20 @@ public partial class MainWindow : Window
             foreach (var command in row.Commands.Where(command => command.RequiresQuantity))
             {
                 InspectorBody.Children.Add(BuildQuantityAction(command));
+            }
+
+            var modalCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("npc:modal:"));
+            if (modalCmd is not null && long.TryParse(modalCmd.Id["npc:modal:".Length..], out var inspectorNpcId))
+            {
+                var modalBtn = new Button
+                {
+                    Content = "🔍 Xem Toàn Bộ Hồ Sơ Nhân Sĩ (Modal)",
+                    Style = (Style)FindResource("PrimaryButton"),
+                    Margin = new Thickness(0, 8, 0, 8),
+                    HorizontalAlignment = HorizontalAlignment.Stretch
+                };
+                modalBtn.Click += (_, _) => TryOpenNpcModal(inspectorNpcId);
+                InspectorBody.Children.Add(modalBtn);
             }
         }
 
@@ -1007,6 +1028,12 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (commandId.StartsWith("npc:modal:") && long.TryParse(commandId["npc:modal:".Length..], out var npcId))
+        {
+            TryOpenNpcModal(npcId);
+            return;
+        }
+
         var screenId = ScreenForCommand();
         if (!_kernel.TryGetCommandHandler(screenId, out var handler) || handler is null)
         {
@@ -1042,6 +1069,35 @@ public partial class MainWindow : Window
     /// Turns any failure into a line the player can read: a coded simulation error keeps its
     /// code, anything else is reported as an internal fault instead of a crash.
     /// </summary>
+    private void TryOpenNpcModal(long npcId)
+    {
+        if (!_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var registry) || registry is null)
+        {
+            StatusText.Text = "Hệ thống nhân sĩ chưa sẵn sàng.";
+            return;
+        }
+
+        var npc = registry.Find(npcId);
+        if (npc is null)
+        {
+            StatusText.Text = $"Không tìm thấy nhân sĩ mã {npcId}.";
+            return;
+        }
+
+        var citadelName = "Ẩn sĩ";
+        if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
+        {
+            var cit = map.Find(npc.CitadelId);
+            if (cit is not null)
+            {
+                citadelName = cit.NameVi;
+            }
+        }
+
+        NpcDetailWindow.ShowNpc(this, npc, citadelName);
+        StatusText.Text = $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role}).";
+    }
+
     private static string Describe(Exception error) => error switch
     {
         SimException sim => $"[{sim.Code}] {sim.Message}",

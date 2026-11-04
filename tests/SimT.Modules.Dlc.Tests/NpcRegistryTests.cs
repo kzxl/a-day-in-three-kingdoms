@@ -77,4 +77,29 @@ public sealed class NpcRegistryTests : IDisposable
         Assert.Contains(zhuoNpcs, n => n.NameVi.Contains("Trương Phi"));
         Assert.Contains(zhuoNpcs, n => n.NameVi.Contains("Quan Vũ"));
     }
+
+    [Fact]
+    public void NpcDirectoryScreen_is_registered_and_renders_properly()
+    {
+        using var kernel = _host.Boot();
+        var screen = kernel.Ui.Screens.FirstOrDefault(s => s.ScreenId == "npc.directory");
+        Assert.NotNull(screen);
+        Assert.Equal("Nhân Sĩ", screen.Title);
+
+        var model = screen.Render();
+        Assert.NotEmpty(model.Sections);
+        Assert.NotEmpty(model.Headline);
+
+        var allRows = model.Sections.SelectMany(s => s.Rows).ToList();
+        Assert.NotEmpty(allRows);
+        Assert.Contains(allRows, r => r.Commands.Any(c => c.Id.StartsWith("npc:modal:")));
+
+        Assert.True(kernel.TryGetCommandHandler("npc.directory", out var handler));
+        Assert.NotNull(handler);
+
+        var sampleCommand = allRows.First().Commands.First(c => c.Id.StartsWith("npc:modal:"));
+        var result = handler.Execute(sampleCommand.Id);
+        Assert.NotNull(result);
+        Assert.Contains("Đang xem hồ sơ:", result);
+    }
 }

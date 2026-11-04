@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "apiVersion": "1",
   "kind": "base",
-  "requires": ["base.world"],
-  "provides": [],
-  "consumes": ["world.map"],
+  "requires": ["base.world", "base.player"],
+  "provides": ["npc.registry"],
+  "consumes": ["world.map", "player.state"],
   "owns": {
-    "tables": ["np_npc"],
+    "tables": ["np_npc", "np_attribute"],
     "migrations": ["migrations"]
   },
-  "screens": []
+  "screens": ["npc.directory"]
 }
