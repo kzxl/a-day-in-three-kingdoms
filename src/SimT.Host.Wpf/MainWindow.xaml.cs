@@ -141,23 +141,12 @@ public partial class MainWindow : Window
     /// </summary>
     private void RenderCalendar(GameDate today)
     {
-        var cells = new List<DayVm>(GameDate.DaysPerMonth);
-        for (var day = 1; day <= GameDate.DaysPerMonth; day++)
-        {
-            var isToday = day == today.Day;
-            var isClose = day == GameDate.DaysPerMonth;
-            var isPast = day < today.Day;
+        CalendarBar.SetDate(today, _kernel.Turn);
+    }
 
-            cells.Add(new DayVm(
-                day.ToString(Vietnamese),
-                isToday ? "#D9A441" : isPast ? "#1A212C" : isClose ? "#2E2617" : "#171E28",
-                isToday ? "#1A1408" : isPast ? "#4C5666" : isClose ? "#D9A441" : "#8A97A8",
-                isToday ? $"Hôm nay · ngày {day}" : isClose ? "Ngày cuối tháng · chốt tháng" : $"Ngày {day}"));
-        }
-
-        CalendarStrip.ItemsSource = cells;
-        var remaining = GameDate.DaysPerMonth - today.Day + 1;
-        MonthLabel.Text = $"Tháng {GameDateCodec.MonthNameVi(today.Month)} · Lượt {_kernel.Turn} · còn {remaining} ngày";
+    private void UpdateHeaderDateOnly(GameDate today)
+    {
+        ChronoCard.Configure(today, _kernel.Turn, _kernel.Product.StartDate);
     }
 
     // ---------------------------------------------------------- rail badges
@@ -244,7 +233,7 @@ public partial class MainWindow : Window
         RowCommand_Click(new Button { Tag = commandId }, new RoutedEventArgs());
 
     /// <summary>Runs one day through the real button path; used by the demo launcher.</summary>
-    public void AdvanceOneDayForDemo() => Advance(1);
+    public void AdvanceOneDayForDemo() => AdvanceSync(1);
 
     public int RenderAllScreens()
     {
@@ -288,11 +277,11 @@ public partial class MainWindow : Window
         switch (e.Key)
         {
             case System.Windows.Input.Key.Space:
-                Advance(1);
+                _ = AdvanceAsync(1);
                 e.Handled = true;
                 break;
             case System.Windows.Input.Key.W:
-                Advance(7);
+                _ = AdvanceAsync(7);
                 e.Handled = true;
                 break;
             case System.Windows.Input.Key.Enter:

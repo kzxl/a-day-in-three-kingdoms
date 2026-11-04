@@ -10,37 +10,77 @@ namespace SimT.Host.Wpf;
 
 public partial class MainWindow
 {
-    private void Advance_Click(object sender, RoutedEventArgs e) => Advance(1);
+    private bool _isAdvancing;
 
-    private void Rest_Click(object sender, RoutedEventArgs e)
+    private async void Advance_Click(object sender, RoutedEventArgs e) => await AdvanceAsync(1);
+
+    private async void Rest_Click(object sender, RoutedEventArgs e)
     {
+        if (_isAdvancing) return;
+
         if (_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)
         {
             attrs.Rest(1);
         }
 
-        Advance(1);
-        StatusText.Text = "Đã nghỉ ngơi tĩnh dưỡng 1 ngày: Thể lực hồi phục trọn vẹn, tinh thần sảng khoái.";
+        await AdvanceAsync(1, "Đã nghỉ ngơi tĩnh dưỡng 1 ngày: Thể lực hồi phục trọn vẹn, tinh thần sảng khoái.");
     }
 
-    private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
+    private async void AdvanceWeek_Click(object sender, RoutedEventArgs e) => await AdvanceAsync(7);
 
-    private void Advance(int days)
+    public void AdvanceSync(int days)
     {
+        var from = _kernel.Today;
+        _kernel.AdvanceDays(days);
+        _kernel.Save();
+        UpdateHeader();
+        RenderSelected();
+        ShowReport(from, _kernel.Today);
+    }
+
+    private async Task AdvanceAsync(int days, string? customStatus = null)
+    {
+        if (_isAdvancing) return;
+        _isAdvancing = true;
+
         try
         {
+            SetAdvancingState(true);
             var from = _kernel.Today;
-            _kernel.AdvanceDays(days);
+
+            for (var step = 1; step <= days; step++)
+            {
+                var prev = _kernel.Today;
+                _kernel.AdvanceDays(1);
+                var curr = _kernel.Today;
+
+                await CalendarBar.StepToDateAsync(prev, curr, step, days);
+                UpdateHeaderDateOnly(curr);
+            }
+
             _kernel.Save();
             UpdateHeader();
             RenderSelected();
             ShowReport(from, _kernel.Today);
-            StatusText.Text = $"Đã sang {GameDateCodec.DescribeVi(_kernel.Today)}.";
+            StatusText.Text = customStatus ?? $"Đã sang {GameDateCodec.DescribeVi(_kernel.Today)} (+{days} ngày).";
         }
         catch (Exception error)
         {
             StatusText.Text = Describe(error);
         }
+        finally
+        {
+            SetAdvancingState(false);
+            _isAdvancing = false;
+        }
+    }
+
+    private void SetAdvancingState(bool busy)
+    {
+        AdvanceButton.IsEnabled = !busy;
+        RestButton.IsEnabled = !busy;
+        AdvanceWeekButton.IsEnabled = !busy;
+        Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
     }
 
     /// <summary>
@@ -90,8 +130,10 @@ public partial class MainWindow
         });
     }
 
-    private void RowCommand_Click(object sender, RoutedEventArgs e)
+    private async void RowCommand_Click(object sender, RoutedEventArgs e)
     {
+        if (_isAdvancing) return;
+
         if (sender is not Button { Tag: string commandId })
         {
             return;
@@ -116,13 +158,33 @@ public partial class MainWindow
             return;
         }
 
+        var fromDate = _kernel.Today;
+        string? resultMsg = null;
         try
         {
-            StatusText.Text = handler.Execute(commandId) ?? "Xong.";
+            resultMsg = handler.Execute(commandId) ?? "Xong.";
+            StatusText.Text = resultMsg;
         }
         catch (Exception error)
         {
             StatusText.Text = Describe(error);
+        }
+
+        var toDate = _kernel.Today;
+        if (toDate != fromDate)
+        {
+            _isAdvancing = true;
+            SetAdvancingState(true);
+            try
+            {
+                var daysDiff = (toDate.Year - fromDate.Year) * 360 + (toDate.Month - fromDate.Month) * 30 + (toDate.Day - fromDate.Day);
+                await CalendarBar.AnimateCatchUpAsync(fromDate, toDate, $"Hoàn thành công việc (+{daysDiff} ngày)");
+            }
+            finally
+            {
+                SetAdvancingState(false);
+                _isAdvancing = false;
+            }
         }
 
         _kernel.Save();
