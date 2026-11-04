@@ -40,9 +40,38 @@ internal static class CourtInvariants
         public string? Check(IInvariantContext context)
         {
             var count = context.Db.ScalarLong(
-                "SELECT COUNT(*) FROM po_state WHERE key IN ('reputation', 'office_id')");
+                "SELECT COUNT(*) FROM po_state WHERE key IN ('reputation', 'office_id', 'allegiance_faction_id')");
 
-            return count == 2 ? null : $"expected 2 state rows, found {count}";
+            return count == 3 ? null : $"expected 3 state rows, found {count}";
+        }
+    }
+
+    public sealed class FactionsValid : IInvariant
+    {
+        public string Id => "politics.factions.valid";
+
+        public string? Check(IInvariantContext context)
+        {
+            var count = context.Db.ScalarLong("SELECT COUNT(*) FROM po_faction");
+            if (count != 12)
+            {
+                return $"expected 12 factions, found {count}";
+            }
+
+            var invalid = context.Db.ScalarLong("SELECT COUNT(*) FROM po_faction WHERE troop_count < 0 OR treasury_copper < 0");
+            return invalid == 0 ? null : $"found {invalid} factions with negative troops or treasury";
+        }
+    }
+
+    public sealed class CityUnrestValid : IInvariant
+    {
+        public string Id => "politics.unrest.within_range";
+
+        public string? Check(IInvariantContext context)
+        {
+            var invalid = context.Db.ScalarLong(
+                "SELECT COUNT(*) FROM po_city_governance WHERE unrest_level < 0 OR unrest_level > 100");
+            return invalid == 0 ? null : $"found {invalid} citadels with unrest outside [0, 100]";
         }
     }
 
@@ -51,5 +80,7 @@ internal static class CourtInvariants
         yield return new OfficeExists();
         yield return new ReputationNonNegative();
         yield return new StateKeysPresent();
+        yield return new FactionsValid();
+        yield return new CityUnrestValid();
     }
 }

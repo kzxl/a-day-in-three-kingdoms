@@ -7,7 +7,7 @@
   "provides": ["politics.court"],
   "consumes": ["world.map", "player.wallet", "player.state"],
   "owns": {
-    "tables": ["po_office", "po_state"],
+    "tables": ["po_office", "po_state", "po_faction", "po_city_governance", "po_decree_log"],
     "migrations": ["migrations"]
   },
   "screens": ["politics.court"]
