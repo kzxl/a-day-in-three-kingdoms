@@ -137,19 +137,20 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
         }
         else if (isLocal)
         {
-            warDisplay = a.War >= 80 ? $"~{a.War / 5 * 5}" : "???";
-            ldrDisplay = a.Ldr >= 80 ? $"~{a.Ldr / 5 * 5}" : "???";
-            intDisplay = a.Int >= 80 ? $"~{a.Int / 5 * 5}" : "???";
-            comDisplay = a.Com >= 80 ? $"~{a.Com / 5 * 5}" : "???";
-            statusNote = "Đồng thành · Chưa diện kiến (Bấm 'Hồ Sơ 🔍' để bái phỏng)";
+            // In the same citadel: capabilities can be evaluated through local observation and reputation
+            warDisplay = a.War >= 80 ? $"~{a.War / 5 * 5}" : $"~{Math.Max(30, a.War / 10 * 10)}";
+            ldrDisplay = a.Ldr >= 80 ? $"~{a.Ldr / 5 * 5}" : $"~{Math.Max(30, a.Ldr / 10 * 10)}";
+            intDisplay = a.Int >= 80 ? $"~{a.Int / 5 * 5}" : $"~{Math.Max(30, a.Int / 10 * 10)}";
+            comDisplay = a.Com >= 80 ? $"~{a.Com / 5 * 5}" : $"~{Math.Max(30, a.Com / 10 * 10)}";
+            statusNote = "Đồng thành · Có thể bái phỏng & chiêu mộ";
         }
         else
         {
-            warDisplay = a.War >= 95 ? "95+ (Tuyệt Đỉnh)" : a.War >= 80 ? $"~{a.War / 5 * 5}" : "???";
-            ldrDisplay = a.Ldr >= 90 ? "90+ (Danh Tướng)" : a.Ldr >= 80 ? $"~{a.Ldr / 5 * 5}" : "???";
-            intDisplay = a.Int >= 90 ? "90+ (Kỳ Mưu)" : a.Int >= 80 ? $"~{a.Int / 5 * 5}" : "???";
-            comDisplay = a.Com >= 80 ? $"~{a.Com / 5 * 5}" : "???";
-            statusNote = $"Phương xa · Danh vang thiên hạ (Ngụ tại {citadelName})";
+            warDisplay = a.War >= 95 ? "95+ (Tuyệt Đỉnh)" : a.War >= 80 ? $"~{a.War / 5 * 5}" : a.War >= 65 ? "6x (Khá)" : "???";
+            ldrDisplay = a.Ldr >= 90 ? "90+ (Danh Tướng)" : a.Ldr >= 80 ? $"~{a.Ldr / 5 * 5}" : a.Ldr >= 65 ? "6x (Khá)" : "???";
+            intDisplay = a.Int >= 90 ? "90+ (Kỳ Mưu)" : a.Int >= 80 ? $"~{a.Int / 5 * 5}" : a.Int >= 65 ? "6x (Khá)" : "???";
+            comDisplay = a.Com >= 80 ? $"~{a.Com / 5 * 5}" : a.Com >= 65 ? "6x (Khá)" : "???";
+            statusNote = $"Phương xa · Ngụ tại {citadelName}";
         }
 
         var details = new List<ScreenDetail>
@@ -186,7 +187,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             details.Add(new("Thống Soái (LDR)", ldrDisplay));
             details.Add(new("Trí Tuệ (INT)", intDisplay));
             details.Add(new("Thương Mại (COM)", comDisplay));
-            details.Add(new("Căn Cốt & Khí Vận", "🔒 Cơ mật bản thể (Cần gặp gỡ đàm đạo để thấu hiểu)"));
+            details.Add(new("Căn Cốt & Khí Vận", "🔒 Cơ mật bản thể (Gặp gỡ/Đồng hành để giải mã)"));
             details.Add(new("Hành Trạng", npc.BioVi ?? "Hành trạng lưu truyền trong dân gian."));
         }
 

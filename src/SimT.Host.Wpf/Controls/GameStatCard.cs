@@ -158,7 +158,7 @@ public sealed class GameStatCard : Border
         var accentBrush = (Brush)Application.Current.FindResource("Accent");
 
         _labelText.Text = label;
-        _valueText.Text = verified ? effective.ToString() : (effective >= 80 ? $"~{(effective / 5) * 5}" : "???");
+        _valueText.Text = verified ? effective.ToString() : $"~{Math.Max(30, (effective / 5) * 5)}";
         _valueText.Foreground = barBrush;
 
         if (bonus > 0 && verified)
@@ -171,7 +171,7 @@ public sealed class GameStatCard : Border
             _bonusText.Visibility = Visibility.Collapsed;
         }
 
-        _rankText.Text = verified ? rank : (effective >= 80 ? rank : "?");
+        _rankText.Text = verified ? rank : (effective >= 70 ? rank : "?");
         _rankText.Foreground = barBrush;
 
         if (exp.HasValue)
