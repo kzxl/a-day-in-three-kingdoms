@@ -7,7 +7,7 @@
   "provides": ["professions.guild"],
   "consumes": ["content.items", "world.map", "player.wallet", "player.bag", "player.state"],
   "owns": {
-    "tables": ["pf_trade", "pf_skill"],
+    "tables": ["pf_trade", "pf_skill", "pf_recipe", "pf_equipment"],
     "migrations": ["migrations"]
   },
   "screens": ["professions.trades"]

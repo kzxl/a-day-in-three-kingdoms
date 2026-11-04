@@ -8,6 +8,12 @@ internal sealed class ProfessionScreen : IScreenContribution
     private static readonly string[] Columns =
         ["Nghề", "Ngày/lượt", "Sản phẩm", "Sản lượng", "Dụng cụ", "Tay nghề"];
 
+    private static readonly string[] RecipeColumns =
+        ["Bản Vẽ", "Yêu Cầu", "Nguyên Liệu", "Phí Đúc", "Thời Gian", "Thành Phẩm"];
+
+    private static readonly string[] EquipmentColumns =
+        ["Khí Cụ", "Thuộc Tính", "Độ Bền", "Phẩm Cấp"];
+
     private readonly ProfessionService _service;
     private readonly IItemCatalog _items;
     private readonly IPlayerState _player;
@@ -27,6 +33,7 @@ internal sealed class ProfessionScreen : IScreenContribution
 
     public ScreenModel Render()
     {
+        var cityId = _player.CurrentCityId;
         var rows = new List<ScreenRow>(_service.Trades.Count);
         foreach (var trade in _service.Trades)
         {
@@ -52,17 +59,64 @@ internal sealed class ProfessionScreen : IScreenContribution
                 ]));
         }
 
+        var recipeRows = new List<ScreenRow>();
+        foreach (var r in _service.Recipes)
+        {
+            var mat = _items.Find(r.MaterialItemId)?.NameVi ?? $"Vật phẩm #{r.MaterialItemId}";
+            var output = _items.Find(r.OutputItemId)?.NameVi ?? r.NameVi;
+            var currentTier = _service.Tier(r.TradeId);
+            var canCraft = currentTier >= r.RequiredTier;
+
+            var commands = canCraft
+                ? new List<ScreenCommand> { new ScreenCommand($"craft:{r.Id}", "Rèn đúc") }
+                : new List<ScreenCommand>();
+
+            recipeRows.Add(new ScreenRow(
+                [
+                    r.NameVi,
+                    $"Cần bậc {r.RequiredTier} (hiện {currentTier})",
+                    $"{r.MaterialQuantity}x {mat}",
+                    $"{r.CraftFee} Quan",
+                    $"{r.CraftDays} ngày",
+                    $"{r.OutputQuantity}x {output}"
+                ],
+                commands));
+        }
+
+        var equipRows = new List<ScreenRow>();
+        var equipments = _service.Equipments(cityId);
+        foreach (var eq in equipments)
+        {
+            var commands = eq.Durability < eq.MaxDurability
+                ? new List<ScreenCommand> { new ScreenCommand($"repair:{eq.Id}", "Tu sửa (15 Quan)") }
+                : new List<ScreenCommand>();
+
+            equipRows.Add(new ScreenRow(
+                [
+                    eq.NameVi,
+                    $"+{eq.BonusValue} {eq.BonusStat}",
+                    $"{eq.Durability}/{eq.MaxDurability}",
+                    eq.QualityRank
+                ],
+                commands));
+        }
+
         var totalPractice = _service.Trades.Sum(trade => _service.PracticeCount(trade.Id));
         var bestTier = _service.Trades.Max(trade => _service.Tier(trade.Id));
 
         return new ScreenModel(
             ScreenId,
             Title,
-            "Mỗi lượt tốn tiền dụng cụ và số ngày của nghề; tay nghề tăng sản lượng.",
-            [new ScreenSection("Nghề đang làm được", Columns, rows)],
+            "Mỗi lượt tốn tiền dụng cụ và số ngày của nghề; tay nghề tăng sản lượng và mở khóa chế tác khí cụ.",
+            [
+                new ScreenSection("Nghề Lao Tác Cơ Bản", Columns, rows),
+                new ScreenSection("Bản Vẽ Chế Tác Khí Cụ", RecipeColumns, recipeRows),
+                new ScreenSection("Khí Cụ & Binh Khí Đang Có", EquipmentColumns, equipRows)
+            ],
             [],
             [
                 new ScreenMetric("Nghề", Fmt(_service.Trades.Count), "loại"),
+                new ScreenMetric("Bản vẽ rèn", Fmt(_service.Recipes.Count), "bản"),
                 new ScreenMetric("Lượt đã làm", Fmt(totalPractice), "lượt"),
                 new ScreenMetric("Tay nghề cao nhất", $"bậc {bestTier}", "trên 5", bestTier > 0 ? MetricTone.Positive : MetricTone.Neutral)
             ],
@@ -88,16 +142,20 @@ internal sealed class ProfessionCommandHandler : IScreenCommandHandler
     public string? Execute(string commandId)
     {
         var separator = commandId.IndexOf(':');
-        if (separator <= 0 || !long.TryParse(commandId[(separator + 1)..], out var tradeId))
+        if (separator <= 0 || !long.TryParse(commandId[(separator + 1)..], out var targetId))
         {
             return "Lệnh không hợp lệ.";
         }
 
-        if (commandId[..separator] != "work")
-        {
-            return $"Động từ '{commandId[..separator]}' không thuộc DLC professions.";
-        }
+        var verb = commandId[..separator];
+        var cityId = _player.CurrentCityId;
 
-        return _service.Work(_player.CurrentCityId, tradeId).Message;
+        return verb switch
+        {
+            "work" => _service.Work(cityId, targetId).Message,
+            "craft" => _service.Craft(cityId, targetId).Message,
+            "repair" => _service.Repair(cityId, targetId).Message,
+            _ => $"Động từ '{verb}' không thuộc DLC professions."
+        };
     }
 }

@@ -88,6 +88,62 @@ public sealed class ProfessionTests : IDisposable
     }
 
     [Fact]
+    public void Crafting_equipment_consumes_materials_and_produces_gear()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+
+        // Seed 4 wood (item 6) for Recipe 1 (needs 2 wood, fee 10)
+        bag.Add(player.CurrentCityId, 6, 4);
+
+        var balanceBefore = kernel.Ledger.Balance;
+        var msg = Command(kernel, "craft:1");
+
+        Assert.Contains("Chế tác thành công", msg);
+        Assert.Equal(2, bag.Quantity(player.CurrentCityId, 6)); // 4 - 2 = 2
+        Assert.Equal(balanceBefore - 10, kernel.Ledger.Balance);
+
+        var equips = Guild(kernel).Equipments(player.CurrentCityId);
+        Assert.Contains(equips, e => e.NameVi == "Chế Tác Nông Cụ Gỗ");
+    }
+
+    [Fact]
+    public void Crafting_requires_tier_level()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        Bag(kernel).Add(player.CurrentCityId, 6, 10);
+        Bag(kernel).Add(player.CurrentCityId, 5, 10);
+
+        // Recipe 5 requires tier 2 of trade 3 (carpenter), current tier is 0
+        var msg = Command(kernel, "craft:5");
+
+        Assert.Contains("Chưa đủ tay nghề", msg);
+    }
+
+    [Fact]
+    public void Repairing_damaged_equipment_restores_durability()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var equips = Guild(kernel).Equipments(player.CurrentCityId);
+
+        // Equipment 2 has durability 80/100
+        var equip2 = equips.First(e => e.Id == 2);
+        Assert.Equal(80, equip2.Durability);
+
+        var balanceBefore = kernel.Ledger.Balance;
+        var msg = Command(kernel, "repair:2");
+
+        Assert.Contains("tu sửa", msg);
+        Assert.Equal(balanceBefore - 15, kernel.Ledger.Balance);
+
+        var refreshed = Guild(kernel).Equipments(player.CurrentCityId).First(e => e.Id == 2);
+        Assert.Equal(100, refreshed.Durability);
+    }
+
+    [Fact]
     public void Invariants_hold_after_many_batches()
     {
         using var kernel = _host.Boot();

@@ -47,10 +47,38 @@ internal static class ProfessionInvariants
         }
     }
 
+    public sealed class RecipeValid : IInvariant
+    {
+        public string Id => "professions.recipe.valid";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong(
+                "SELECT COUNT(*) FROM pf_recipe WHERE material_quantity <= 0 OR output_quantity <= 0 OR craft_days <= 0 OR craft_fee < 0");
+
+            return bad == 0 ? null : $"{bad} crafting recipe(s) have invalid quantities or costs";
+        }
+    }
+
+    public sealed class EquipmentDurabilityValid : IInvariant
+    {
+        public string Id => "professions.equipment.durability_valid";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong(
+                "SELECT COUNT(*) FROM pf_equipment WHERE durability < 0 OR durability > max_durability OR max_durability <= 0");
+
+            return bad == 0 ? null : $"{bad} equipment item(s) have invalid durability values";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new TierMatchesPractice();
         yield return new PracticeNonNegative();
         yield return new OutputRegistered();
+        yield return new RecipeValid();
+        yield return new EquipmentDurabilityValid();
     }
 }
