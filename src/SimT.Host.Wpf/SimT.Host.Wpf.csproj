@@ -37,6 +37,15 @@
     <Copy SourceFiles="@(ModuleArtifact)" DestinationFolder="$(OutDir)Modules" SkipUnchangedFiles="true" />
   </Target>
 
+  <!-- Publish needs the same artefacts: the DLC DLLs stay outside the single-file bundle so a
+       module can be added or removed without rebuilding the host. -->
+  <Target Name="CopyModulesOnPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishModuleArtifact Include="@(ModuleProject->'%(RootDir)%(Directory)bin\$(Configuration)\net8.0\%(Filename).dll')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PublishModuleArtifact)" DestinationFolder="$(PublishDir)Modules" SkipUnchangedFiles="true" />
+  </Target>
+
   <ItemGroup>
     <None Include="..\..\assets\**\*" LinkBase="assets" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

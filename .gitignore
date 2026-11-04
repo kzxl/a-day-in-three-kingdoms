@@ -15,3 +15,9 @@ saves/
 .vs/
 .idea/
 *.user
+
+## Release artifacts
+
+publish/
+dist/
+*.zip

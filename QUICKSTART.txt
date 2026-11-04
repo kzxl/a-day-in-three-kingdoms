@@ -1,0 +1,42 @@
+SimT 0.1.0 — first release
+=========================
+
+A single-player, offline merchant simulation for Windows.
+
+Requirements
+------------
+* Windows 10/11 x64
+* .NET 8 Desktop Runtime (x64): https://dotnet.microsoft.com/download/dotnet/8.0
+  (the game ships framework-dependent on purpose — the download stays a few megabytes)
+
+Run
+---
+Double-click SimT.Host.Wpf.exe.
+Pick a campaign on the title screen, or type a name and press "Tạo ván" for a new one.
+
+Controls
+--------
+* "Ngày tiếp" advances one day; the month closes automatically on day 30.
+* Tabs are contributed by the enabled DLCs: Sạp Chợ, Kho Hàng, Bách Nghệ,
+  Thương Đội, Nông Tang, Gia Đạo, Quan Lộ, plus the Sổ Cái ledger.
+* Every button on a row acts on that row. The status bar at the bottom echoes the result.
+
+Where things live
+-----------------
+* Saves: %APPDATA%\SimT\saves\<campaign-id>\campaign.db (one file per campaign)
+* Snapshots taken before a schema upgrade: %APPDATA%\SimT\saves\<campaign-id>\backups\
+* A campaign can only be open in one window at a time (a lock file enforces it).
+
+Files
+-----
+* SimT.Host.Wpf.exe  — the game
+* Modules\           — game modules (base + DLC). Removing a DLC here or from
+                       assets\products\merchant-slice.json disables it; save data is kept.
+* assets\config\     — calendar, currency and grain constants
+* assets\products\   — which modules a build enables, seed, starting cash
+
+Troubleshooting
+---------------
+* "You must install .NET Desktop Runtime" → install the x64 .NET 8 Desktop Runtime above.
+* [save.locked] … → the campaign is open in another window. Close it and retry.
+* The game writes nothing outside %APPDATA%\SimT.

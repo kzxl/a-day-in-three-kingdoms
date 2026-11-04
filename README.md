@@ -46,6 +46,16 @@ dotnet run --project src/SimT.Cli -- info     # where modules and assets resolve
 
 `verify.cmd` runs the whole gate: Release build, all tests, then the golden replay.
 
+## Release
+
+```bash
+release.cmd
+```
+
+Builds, tests, publishes the framework-dependent single-file Windows build, smoke-runs it and
+writes `dist/SimT-<version>-win-x64.zip` with a SHA-256. The player needs the .NET 8 Desktop
+Runtime; save data lives in `%APPDATA%\SimT`. Details: [docs/release.md](docs/release.md).
+
 ## Golden replay
 
 ```bash
