@@ -1,4 +1,4 @@
-SimT 0.1.0 — first release
+SimT 0.2.0
 =========================
 
 A single-player, offline merchant simulation for Windows.
@@ -16,10 +16,13 @@ Pick a campaign on the title screen, or type a name and press "Tạo ván" for a
 
 Controls
 --------
-* "Ngày tiếp" advances one day; the month closes automatically on day 30.
-* Tabs are contributed by the enabled DLCs: Sạp Chợ, Kho Hàng, Bách Nghệ,
-  Thương Đội, Nông Tang, Gia Đạo, Quan Lộ, plus the Sổ Cái ledger.
-* Every button on a row acts on that row. The status bar at the bottom echoes the result.
+* "Ngày tiếp" advances one day, "Tuần +7" a week; the month closes automatically on day 30.
+  The strip above the numbers shows the month day by day.
+* Screens are contributed by the enabled DLCs: Sạp Chợ, Kho Hàng, Bách Nghệ,
+  Thương Đội, Nông Tang, Gia Đạo, Quan Lộ, plus the Sổ Cái ledger. A badge on a screen name
+  means it has something that needs attention.
+* Click a row to open its details on the right; quantity actions there show the cost before you
+  commit. Small buttons in the table act on one unit immediately.
 
 Where things live
 -----------------

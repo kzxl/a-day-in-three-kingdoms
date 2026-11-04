@@ -65,7 +65,7 @@ a fix commit and the next PATCH; the faulty artifact is quarantined, not rewritt
 | --- | --- | --- |
 | WPF client, lite single-file | 2–6 MB exe | 8 MB |
 
-0.1.0: 2.5 MB across 14 files, 1.3 MB zipped. If the exe crosses 8 MB, the usual cause is
+0.2.0: 2.6 MB across 14 files, 1.4 MB zipped. If the exe crosses 8 MB, the usual cause is
 `--self-contained true` slipping in, which bundles the whole desktop runtime.
 
 ## Verifying a downloaded build
@@ -76,6 +76,18 @@ Get-FileHash SimT-0.1.0-win-x64.zip -Algorithm SHA256
 
 Compare with the checksum published next to the artifact (also printed by `release.cmd`). Then
 run `SimT.Host.Wpf.exe` — the title screen lists campaigns and shows the version in the header.
+
+## Developer preview
+
+The same binary can open the play screen directly, with a little seeded activity, for UI work:
+
+```bash
+SimT.Host.Wpf.exe --demo                          # play screen on a throwaway campaign
+SimT.Host.Wpf.exe --demo --screen cultivation.farm # a specific screen
+SimT.Host.Wpf.exe --demo --screen market.stall --row # with the first row selected (inspector)
+```
+
+Demo data lives in the temp folder and is replaced on every launch.
 
 ## What a release does not include
 
