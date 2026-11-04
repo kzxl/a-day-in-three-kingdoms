@@ -104,17 +104,21 @@ internal sealed class WorldMapScreen : IScreenContribution
                         ? $"Xuất khẩu +{((c.PriceFactorPermille - currentCity.PriceFactorPermille) * 100.0 / currentCity.PriceFactorPermille):0.#}% 💰"
                         : $"Nhập khẩu -{((currentCity.PriceFactorPermille - c.PriceFactorPermille) * 100.0 / currentCity.PriceFactorPermille):0.#}% 📦");
 
-                // Local NPCs
+                // Local NPCs & Ecosystem
                 var localNpcs = npcs?.FindByCitadel(c.Id) ?? Array.Empty<NpcDef>();
                 var notableNames = localNpcs.Count > 0
                     ? string.Join(", ", localNpcs.Take(3).Select(n => n.NameVi)) + (localNpcs.Count > 3 ? $" (+{localNpcs.Count - 3})" : "")
                     : "Ẩn cư chưa rõ";
+
+                var eco = _map.GetEcosystem(c.Id);
 
                 // Commands
                 var commands = new List<ScreenCommand>();
                 if (!isCurrent)
                 {
                     commands.Add(new ScreenCommand($"travel:{c.Id}", directDays > 0 ? "Lên Đường 🐎" : "Viễn Hành 🐎", CommandKind.Primary));
+                    commands.Add(new ScreenCommand($"travel:{c.Id}:horse", "Dịch Mã ⚡"));
+                    commands.Add(new ScreenCommand($"travel:{c.Id}:caravan", "Tiêu Cục 🛡️"));
                 }
                 commands.Add(new ScreenCommand($"inspect:{c.Id}", "Khảo Sát 🔍"));
 
@@ -126,10 +130,16 @@ internal sealed class WorldMapScreen : IScreenContribution
 
                 var heldGoods = bag?.TotalQuantity(c.Id) ?? 0;
 
+                var dangerStars = new string('★', Math.Min(3, eco.DangerLevel)) + new string('☆', Math.Max(0, 3 - eco.DangerLevel));
+
                 var details = new List<ScreenDetail>
                 {
                     new("Thành Trì", $"{c.NameVi} ({c.NameEn})"),
                     new("Châu Quận", c.Region.Replace('_', ' ').ToUpperInvariant()),
+                    new("Hệ Sinh Thái", $"{eco.BiomeNameVi} · {eco.ClimateVi}"),
+                    new("Địa Thế Vùng", eco.TopographyVi),
+                    new("Sản Vật Bản Địa", $"{eco.PrimarySpecialtyVi} & {eco.SecondarySpecialtyVi}"),
+                    new("Hiểm Trở / Thổ Phỉ", $"{dangerStars} (Cấp {eco.DangerLevel})"),
                     new("Khoảng Cách", isCurrent ? "Bản thành" : $"{shortestDays} ngày đường"),
                     new("Chỉ Số Vật Giá", $"{c.PriceFactorPermille / 10.0:0.0}% ({factorText})"),
                     new("Chiến Lược Buôn", arbitrageTip),

@@ -6,6 +6,7 @@ using System.Windows.Data;
 using System.Windows.Media;
 using SimT.Contracts;
 using SimT.Contracts.Ledger;
+using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 
@@ -49,6 +50,13 @@ public partial class MainWindow
         }
 
         var model = contribution.Render();
+
+        if (entry.ScreenId == "world.map")
+        {
+            RenderWorldMapScreen(model);
+            RefreshBadges();
+            return;
+        }
 
         ScreenTitle.Text = model.Title;
         ScreenStatus.Text = model.StatusLine;
@@ -143,6 +151,61 @@ public partial class MainWindow
         {
             CloseInspector();
         }
+    }
+
+    private void RenderWorldMapScreen(ScreenModel model)
+    {
+        ScreenTitle.Text = model.Title;
+        ScreenStatus.Text = model.StatusLine;
+
+        KpiStrip.Children.Clear();
+        foreach (var metric in model.Headline)
+        {
+            KpiStrip.Children.Add(BuildMetric(metric));
+        }
+
+        AlertFeed.ItemsSource = model.Attention.Count == 0
+            ? null
+            : model.Attention.Select(alert => new AlertVm(alert)).ToList();
+
+        GlobalCommands.Children.Clear();
+        foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
+        {
+            GlobalCommands.Children.Add(CommandButton(command, command.Id));
+        }
+
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+
+        ContentPanel.Children.Clear();
+
+        // 1. Interactive Three Kingdoms Map Canvas & Departure Console
+        if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
+            _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
+        {
+            var mapCtrl = new Controls.GameWorldMapControl(map, player.CurrentCityId);
+            mapCtrl.TravelRequested += async (targetId, mode) =>
+            {
+                var modeStr = mode switch
+                {
+                    TravelMode.Horse => "horse",
+                    TravelMode.Caravan => "caravan",
+                    _ => "walk"
+                };
+                await ExecuteScreenCommandAsync($"travel:{targetId}:{modeStr}", "world.map");
+            };
+            ContentPanel.Children.Add(mapCtrl);
+        }
+
+        // 2. Tabular Citadel Sections below the map
+        foreach (var section in model.Sections)
+        {
+            ContentPanel.Children.Add(BuildCard(Filtered(section)));
+        }
+
+        ContentPanel.Children.Add(MonthFooter());
+        RestoreDetail(model);
+        RefreshBadges();
     }
 
     private Border BuildMetric(ScreenMetric metric)

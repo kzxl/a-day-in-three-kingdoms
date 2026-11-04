@@ -68,6 +68,45 @@ public sealed record CitadelDef(
     string Region,
     int PriceFactorPermille);
 
+/// <summary>Detailed ecological, climatic, and regional specialties of a citadel.</summary>
+public sealed record CitadelEcosystemDef(
+    long CitadelId,
+    string BiomeNameVi,
+    string ClimateVi,
+    string TopographyVi,
+    string PrimarySpecialtyVi,
+    string SecondarySpecialtyVi,
+    int DangerLevel,
+    double MapX,
+    double MapY);
+
+/// <summary>Inter-city route link connecting two citadels.</summary>
+public sealed record RouteLinkDef(
+    long FromCitadelId,
+    long ToCitadelId,
+    int Days,
+    string RoadTypeVi = "Quan Đạo");
+
+/// <summary>Travel style between citadels.</summary>
+public enum TravelMode
+{
+    Walk = 0,
+    Horse = 1,
+    Caravan = 2
+}
+
+/// <summary>Cost, duration and route itinerary for inter-city travel.</summary>
+public sealed record TravelQuote(
+    long FromCitadelId,
+    long ToCitadelId,
+    int BaseDays,
+    int ActualDays,
+    long TravelFee,
+    int RationsNeeded,
+    int FatigueExpected,
+    IReadOnlyList<long> PathNodeIds,
+    string ModeNameVi);
+
 /// <summary>Sublocation / Point of Interest owned by a citadel.</summary>
 public sealed record SublocationDef(
     long Id,
@@ -194,6 +233,15 @@ public interface IWorldMap
 
     /// <summary>Sub-locations / POIs inside or around the citadel.</summary>
     IReadOnlyList<SublocationDef> Sublocations(long citadelId);
+
+    /// <summary>All interconnected route connections on the map.</summary>
+    IReadOnlyList<RouteLinkDef> Routes { get; }
+
+    /// <summary>Ecological profile, coordinates, and regional specialties of a citadel.</summary>
+    CitadelEcosystemDef GetEcosystem(long citadelId);
+
+    /// <summary>Calculates travel itinerary, days, provisions, and fee for journey between two citadels.</summary>
+    TravelQuote QuoteTravel(long fromCitadelId, long toCitadelId, TravelMode mode);
 }
 
 /// <summary>NPC registry owned by <c>base.npc</c>.</summary>

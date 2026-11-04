@@ -120,4 +120,84 @@ public sealed class WorldExpansionTests : IDisposable
         var duplicateResult = handler.Execute("travel:7");
         Assert.Contains("đã đang ở", duplicateResult);
     }
+
+    [Fact]
+    public void WorldMap_exposes_ecosystems_and_routes_for_all_citadels()
+    {
+        using var kernel = _host.Boot();
+        var map = Map(kernel);
+
+        Assert.NotEmpty(map.Routes);
+
+        foreach (var c in map.Citadels)
+        {
+            var eco = map.GetEcosystem(c.Id);
+            Assert.NotNull(eco);
+            Assert.Equal(c.Id, eco.CitadelId);
+            Assert.False(string.IsNullOrWhiteSpace(eco.BiomeNameVi));
+            Assert.False(string.IsNullOrWhiteSpace(eco.ClimateVi));
+            Assert.False(string.IsNullOrWhiteSpace(eco.PrimarySpecialtyVi));
+            Assert.True(eco.DangerLevel >= 1 && eco.DangerLevel <= 5);
+            Assert.True(eco.MapX > 0 && eco.MapY > 0);
+        }
+
+        // Verify specific historical cities
+        var luoyang = map.GetEcosystem(1);
+        Assert.Contains("Đế Đô", luoyang.BiomeNameVi);
+
+        var chengdu = map.GetEcosystem(15);
+        Assert.Contains("Ba Thục", chengdu.BiomeNameVi);
+        Assert.Contains("Thục Cẩm", chengdu.PrimarySpecialtyVi);
+
+        var jianye = map.GetEcosystem(13);
+        Assert.Contains("Thủy Quốc", jianye.BiomeNameVi);
+        Assert.Contains("Trà", jianye.PrimarySpecialtyVi);
+    }
+
+    [Fact]
+    public void WorldMap_quote_travel_calculates_itinerary_and_modes()
+    {
+        using var kernel = _host.Boot();
+        var map = Map(kernel);
+
+        // Lạc Dương (1) to Tương Dương (10)
+        var walkQuote = map.QuoteTravel(1, 10, TravelMode.Walk);
+        Assert.True(walkQuote.BaseDays > 0);
+        Assert.Equal(walkQuote.BaseDays, walkQuote.ActualDays);
+        Assert.Equal(0, walkQuote.TravelFee);
+        Assert.Equal(walkQuote.BaseDays, walkQuote.RationsNeeded);
+        Assert.NotEmpty(walkQuote.PathNodeIds);
+
+        var horseQuote = map.QuoteTravel(1, 10, TravelMode.Horse);
+        Assert.True(horseQuote.ActualDays <= walkQuote.ActualDays);
+        Assert.True(horseQuote.TravelFee > 0);
+
+        var caravanQuote = map.QuoteTravel(1, 10, TravelMode.Caravan);
+        Assert.True(caravanQuote.TravelFee > horseQuote.TravelFee);
+    }
+
+    [Fact]
+    public void WorldMap_command_handler_supports_horse_and_caravan_travel()
+    {
+        using var kernel = _host.Boot();
+        var handler = kernel.Ui.TryGetCommandHandler("world.map", out var h) ? h : null;
+        Assert.NotNull(handler);
+
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+
+        // Add provisions in start city
+        bag.Add(player.CurrentCityId, 1, 10); // 1 = gao
+
+        var startDate = kernel.Today;
+        // Travel to Hứa Xương (7) with horse
+        var result = handler.Execute("travel:7:horse");
+        Assert.NotNull(result);
+        Assert.Contains("Dịch Mã", result);
+        Assert.Contains("Hứa Xương", result);
+        Assert.Equal(7, player.CurrentCityId);
+        Assert.True(kernel.Today.DayIndex > startDate.DayIndex);
+        Assert.True(attrs.Vitals.Fatigue > 0);
+    }
 }

@@ -166,12 +166,19 @@ public partial class MainWindow
             return;
         }
 
+        await ExecuteScreenCommandAsync(commandId);
+    }
+
+    public async Task ExecuteScreenCommandAsync(string commandId, string? targetScreenId = null)
+    {
+        if (_isAdvancing) return;
+
         if (_kernel.Ui.TryPresentModal(commandId))
         {
             return;
         }
 
-        var screenId = ScreenForCommand();
+        var screenId = targetScreenId ?? ScreenForCommand();
         if (!_kernel.TryGetCommandHandler(screenId, out var handler) || handler is null)
         {
             StatusText.Text = $"Màn hình '{screenId}' không nhận lệnh.";
