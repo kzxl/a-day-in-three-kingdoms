@@ -11,6 +11,7 @@ public sealed class UiRegistry : IUiRegistry
 {
     private readonly List<IScreenContribution> _screens = new();
     private readonly Dictionary<string, IScreenCommandHandler> _handlers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Action<string>> _modalPresenters = new(StringComparer.Ordinal);
 
     public IReadOnlyList<IScreenContribution> Screens => _screens;
 
@@ -39,4 +40,23 @@ public sealed class UiRegistry : IUiRegistry
 
     public bool TryGetCommandHandler(string screenId, out IScreenCommandHandler? handler) =>
         _handlers.TryGetValue(screenId, out handler);
+
+    public void RegisterModalPresenter(string commandPrefix, Action<string> presenter)
+    {
+        _modalPresenters[commandPrefix] = presenter;
+    }
+
+    public bool TryPresentModal(string commandId)
+    {
+        foreach (var (prefix, presenter) in _modalPresenters)
+        {
+            if (commandId.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                presenter(commandId);
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

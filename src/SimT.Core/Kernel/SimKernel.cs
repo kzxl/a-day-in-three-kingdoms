@@ -1,4 +1,10 @@
 using SimT.Contracts;
+using SimT.Contracts.Commands;
+using SimT.Contracts.Localization;
+using SimT.Contracts.Simulation;
+using SimT.Core.Commands;
+using SimT.Core.Localization;
+using SimT.Core.Simulation;
 using SimT.Contracts.Config;
 using SimT.Contracts.Data;
 using SimT.Contracts.Diagnostics;
@@ -49,6 +55,10 @@ public sealed class SimKernel : IDisposable
     private readonly List<ModuleContext> _contexts = new();
     private readonly List<ISimModule> _started = new();
     private readonly CampaignLock _lock;
+    private readonly CommandDispatcher _commands = new();
+    private readonly SimulationRunner _simulation;
+    private readonly CheckpointManager _checkpoints;
+    private readonly LocalizationService _localization = new();
     private bool _disposed;
 
     private SimKernel(
@@ -71,6 +81,10 @@ public sealed class SimKernel : IDisposable
         Constants = constants;
         Product = product;
         _lock = campaignLock;
+        var dbPath = db.DatabasePath;
+        var baseDir = Path.GetDirectoryName(Path.GetFullPath(string.IsNullOrEmpty(dbPath) ? "campaign.db" : dbPath)) ?? string.Empty;
+        _checkpoints = new CheckpointManager(db, dbPath, Path.Combine(baseDir, "checkpoints"));
+        _simulation = new SimulationRunner(this);
 
         _invariants = new InvariantRunner(new KernelInvariantContext(db, clock, ledger));
         foreach (var invariant in KernelInvariants.All())
@@ -98,6 +112,14 @@ public sealed class SimKernel : IDisposable
     public IReadOnlyList<ModuleContext> Modules => _contexts;
 
     public IReadOnlyList<IInvariant> Invariants => _invariants.Invariants;
+
+    public ICommandDispatcher Commands => _commands;
+
+    public ISimulationRunner Simulation => _simulation;
+
+    public ICheckpointManager Checkpoints => _checkpoints;
+
+    public ILocalizationService Localization => _localization;
 
     public GameDate Today => _clock.Today;
 

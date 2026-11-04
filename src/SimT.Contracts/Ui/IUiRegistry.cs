@@ -15,6 +15,16 @@ public interface IUiRegistry
     IReadOnlyList<IScreenContribution> Screens { get; }
 
     bool TryGetCommandHandler(string screenId, out IScreenCommandHandler? handler);
+
+    /// <summary>
+    /// Registers a presenter for interactive modals/dialogs matching a command prefix (e.g. "npc:modal:", "duel:").
+    /// </summary>
+    void RegisterModalPresenter(string commandPrefix, Action<string> presenter);
+
+    /// <summary>
+    /// Attempts to route a command to a registered modal presenter. Returns true if consumed.
+    /// </summary>
+    bool TryPresentModal(string commandId);
 }
 
 /// <summary>A screen is a pure read model plus commands. No WPF types cross this boundary.</summary>
