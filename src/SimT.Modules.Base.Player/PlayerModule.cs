@@ -59,6 +59,8 @@ public sealed class PlayerModule : ISimModule
 
         var attributes = new PlayerAttributesStore(context.Db, player.Id, reputation, context.Capabilities);
 
+        var destiny = new PlayerDestinyService(context.Db, player.Id, context.Capabilities, context.Clock, context.Log);
+
         context.Capabilities.Provide(CapabilityIds.PlayerWallet, wallet);
 
         context.Capabilities.Provide(CapabilityIds.PlayerBag, bag);
@@ -69,11 +71,21 @@ public sealed class PlayerModule : ISimModule
 
         context.Capabilities.Provide(CapabilityIds.PlayerReputation, reputation);
 
+        context.Capabilities.Provide(CapabilityIds.PlayerDestiny, destiny);
+
         context.Ui.AddScreen(new PlayerReputationScreen(reputation));
+
+        context.Ui.AddScreen(new PlayerDestinyScreen(destiny));
 
         context.Ui.AddCommandHandler(new PlayerReputationCommandHandler(reputation));
 
-        context.Events.Subscribe<DayAdvanced>(_ => attributes.OnDayAdvanced());
+        context.Ui.AddCommandHandler(new PlayerDestinyCommandHandler(destiny));
+
+        context.Events.Subscribe<DayAdvanced>(_ =>
+        {
+            attributes.OnDayAdvanced();
+            destiny.EvaluateMilestones();
+        });
 
         context.Log.Info($"protagonist '{player.Name}' at citadel {player.CityId}, wallet {wallet.Balance}");
 

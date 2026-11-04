@@ -9,7 +9,8 @@
     "player.bag",
     "player.state",
     "player.attributes",
-    "player.reputation"
+    "player.reputation",
+    "player.destiny"
   ],
   "consumes": ["world.map"],
   "owns": {
@@ -21,9 +22,15 @@
       "pl_social",
       "pl_skill",
       "pl_reputation_deed",
-      "pl_reputation_region"
+      "pl_reputation_region",
+      "pl_destiny_node",
+      "pl_destiny_talent",
+      "pl_destiny_milestone"
     ],
     "migrations": ["migrations"]
   },
-  "screens": ["player.reputation"]
+  "screens": [
+    "player.reputation",
+    "player.destiny"
+  ]
 }

@@ -30,6 +30,7 @@ public static class CapabilityIds
     public const string SocietyChronicle = "society.chronicle";
     public const string SocialNetwork = "social.network";
     public const string MilitaryCommand = "military.command";
+    public const string PlayerDestiny = "player.destiny";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>
