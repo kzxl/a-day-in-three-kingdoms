@@ -982,7 +982,19 @@ public partial class MainWindow : Window
 
     private void Advance_Click(object sender, RoutedEventArgs e) => Advance(1);
 
-    private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
+    
+    private void Rest_Click(object sender, RoutedEventArgs e)
+    {
+        if (_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)
+        {
+            attrs.Rest(1);
+        }
+
+        Advance(1);
+        StatusText.Text = "Đã nghỉ ngơi tĩnh dưỡng 1 ngày: Thể lực hồi phục trọn vẹn, tinh thần sảng khoái.";
+    }
+
+private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
 
     private void Advance(int days)
     {

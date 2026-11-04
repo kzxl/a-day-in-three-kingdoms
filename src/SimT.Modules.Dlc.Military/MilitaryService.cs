@@ -100,10 +100,21 @@ internal sealed class MilitaryService : IMilitaryCommand
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("military.npc_not_found", $"Không tìm thấy võ sĩ mã {npcId}.");
 
+        if (_attributes.Vitals.CurrentStamina < 10 || _attributes.Vitals.Fatigue >= 95)
+        {
+            return new DuelResult(
+                false,
+                0,
+                0,
+                npc.NameVi,
+                $"Thể lực đã cạn kiệt (mệt mỏi {_attributes.Vitals.Fatigue}/100). Hãy bấm 'Nghỉ ngơi 💤' hoặc 'Ngày tiếp ▸' để hồi phục thể lực trước khi lên đài!");
+        }
+
+        _attributes.ApplyFatigue(18);
+        _clock.Advance(1);
+
         var today = _clock.Today;
         var formattedDate = GameDateCodec.Format(today);
-
-        _attributes.ApplyFatigue(10);
 
         var pAttr = _attributes.Attributes;
         var nAttr = npc.Attributes;
@@ -169,10 +180,16 @@ internal sealed class MilitaryService : IMilitaryCommand
             DbArgs.One("@id", strongholdId))
             ?? throw new SimException("military.stronghold_not_found", $"Không tìm thấy sào huyệt mã {strongholdId}.");
 
+        if (_attributes.Vitals.CurrentStamina < 15 || _attributes.Vitals.Fatigue >= 95)
+        {
+            return $"Thể lực đã cạn kiệt (mệt mỏi {_attributes.Vitals.Fatigue}/100). Không đủ sức dẫn binh tiến đánh sào huyệt hiểm trở. Hãy tĩnh dưỡng nghỉ ngơi!";
+        }
+
+        _attributes.ApplyFatigue(25);
+        _clock.Advance(1);
+
         var today = _clock.Today;
         var formattedDate = GameDateCodec.Format(today);
-
-        _attributes.ApplyFatigue(15);
 
         var pAttr = _attributes.Attributes;
         var playerPower = pAttr.War + (pAttr.Con / 3) + (pAttr.Ldr / 3);

@@ -72,6 +72,30 @@ public sealed class PlayerAttributesTests : IDisposable
     }
 
     [Fact]
+    public void Advancing_days_automatically_recovers_stamina_and_lowers_fatigue()
+    {
+        using var kernel = _host.Boot();
+        var attrs = PlayerAttrs(kernel);
+
+        // Exhaust player by 50 fatigue
+        attrs.ApplyFatigue(50);
+        Assert.Equal(50, attrs.Vitals.Fatigue);
+
+        // Advance 1 day -> DayAdvanced event fires -> recovers 3 + Con*0.05 + War*0.02 = 3 + 3 + 1 = 7
+        kernel.AdvanceDays(1);
+
+        var v = attrs.Vitals;
+        Assert.True(v.Fatigue < 50);
+        Assert.Equal(50 - 7, v.Fatigue);
+        Assert.Equal(v.MaxStamina - 43, v.CurrentStamina);
+
+        // Advance 7 more days (total 8 days) -> fatigue clears to 0
+        kernel.AdvanceDays(7);
+        Assert.Equal(0, attrs.Vitals.Fatigue);
+        Assert.Equal(attrs.Vitals.MaxStamina, attrs.Vitals.CurrentStamina);
+    }
+
+    [Fact]
     public void Gaining_exp_levels_up_stat_when_crossing_hundred()
     {
         using var kernel = _host.Boot();

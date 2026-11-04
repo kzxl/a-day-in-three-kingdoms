@@ -110,4 +110,43 @@ public sealed class MilitaryTests : IDisposable
         var failures = kernel.RunInvariants();
         Assert.Empty(failures);
     }
+    [Fact]
+    public void Exhaustion_gate_blocks_arena_and_assault_until_rested()
+    {
+        using var kernel = _host.Boot();
+        var military = kernel.Capabilities.Get<IMilitaryCommand>(CapabilityIds.MilitaryCommand);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var attributes = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        var opponent = registry.All.First(n => n.CitadelId == 1);
+        var dateBefore = kernel.Today;
+
+        // Challenge arena advances 1 day and consumes fatigue
+        var firstDuel = military.ChallengeArena(opponent.Id);
+        Assert.NotNull(firstDuel);
+        Assert.Equal(dateBefore.AddDays(1), kernel.Today);
+
+        // Exhaust player to limit (95+ fatigue)
+        attributes.ApplyFatigue(95);
+        Assert.True(attributes.Vitals.Fatigue >= 95);
+
+        // Arena is blocked by exhaustion gate
+        var blockedDuel = military.ChallengeArena(opponent.Id);
+        Assert.False(blockedDuel.Won);
+        Assert.Contains("Thể lực đã cạn kiệt", blockedDuel.CombatSummaryVi);
+
+        // Stronghold assault is blocked
+        var localStrongholds = military.StrongholdsAt(1);
+        var blockedAssault = military.AssaultStronghold(localStrongholds[0].Id);
+        Assert.Contains("Thể lực đã cạn kiệt", blockedAssault);
+
+        // Resting restores vitals
+        attributes.Rest(2);
+        kernel.AdvanceDays(2);
+        Assert.True(attributes.Vitals.Fatigue < 95);
+
+        // Arena duel can be performed again
+        var restedDuel = military.ChallengeArena(opponent.Id);
+        Assert.True(restedDuel.Rounds >= 1);
+    }
 }

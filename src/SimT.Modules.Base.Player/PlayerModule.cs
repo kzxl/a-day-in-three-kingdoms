@@ -7,6 +7,7 @@ using SimT.Contracts.Ledger;
 using SimT.Contracts.Modules;
 
 using SimT.Contracts.Playing;
+using SimT.Contracts.Time;
 
 namespace SimT.Modules.Base.Player;
 
@@ -63,6 +64,8 @@ public sealed class PlayerModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.PlayerState, new PlayerState(context.Db, player));
 
         context.Capabilities.Provide(CapabilityIds.PlayerAttributes, attributes);
+
+        context.Events.Subscribe<DayAdvanced>(_ => attributes.OnDayAdvanced());
 
         context.Log.Info($"protagonist '{player.Name}' at citadel {player.CityId}, wallet {wallet.Balance}");
 
@@ -479,37 +482,46 @@ public sealed class PlayerModule : ISimModule
         }
 
         public void Rest(int days)
-
         {
-
-            var recovery = days * 20;
-
-            var stressRelief = days * 5;
+            // Canonical deep rest formula: +30 fatigue recovery / day, -10 stress, +2 HP
+            var recovery = days * 30;
+            var stressRelief = days * 10;
+            var healthGain = days * 2;
 
             _db.Execute(
-
                 @"UPDATE pl_vitals
-
                   SET fatigue = MAX(0, fatigue - @rec),
-
                       stress = MAX(0, stress - @st),
-
                       health = MIN(100, health + @hp)
-
                   WHERE player_id = @id",
-
                 new DbArgs()
-
                     .Add("@rec", recovery)
-
                     .Add("@st", stressRelief)
-
-                    .Add("@hp", days * 2)
-
+                    .Add("@hp", healthGain)
                     .Add("@id", _playerId));
-
         }
 
+        public void OnDayAdvanced()
+        {
+            var attrs = Attributes;
+            // Canonical passive daily stamina & vitals recovery from simulator:
+            // Modest passive recovery per elapsed calendar day (3 + Con*0.05 + War*0.02)
+            var dailyRecovery = 3 + (int)(attrs.Con * 0.05) + (int)(attrs.War * 0.02);
+            var dailyStressRelief = 2 + (int)(attrs.Wil * 0.05);
+            const int dailyHealthRecovery = 1;
+
+            _db.Execute(
+                @"UPDATE pl_vitals
+                  SET fatigue = MAX(0, fatigue - @rec),
+                      stress = MAX(0, stress - @st),
+                      health = MIN(100, health + @hp)
+                  WHERE player_id = @id",
+                new DbArgs()
+                    .Add("@rec", dailyRecovery)
+                    .Add("@st", dailyStressRelief)
+                    .Add("@hp", dailyHealthRecovery)
+                    .Add("@id", _playerId));
+        }
     }
 
 }

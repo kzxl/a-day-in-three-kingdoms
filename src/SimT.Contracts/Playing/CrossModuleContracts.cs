@@ -196,4 +196,6 @@ public interface IPlayerAttributes
     void ApplyFatigue(int amount);
 
     void Rest(int days);
+
+    void OnDayAdvanced();
 }

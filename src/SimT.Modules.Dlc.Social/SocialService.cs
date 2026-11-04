@@ -124,6 +124,11 @@ internal sealed class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
+        if (_attributes.Vitals.CurrentStamina < 5 || _attributes.Vitals.Fatigue >= 95)
+        {
+            return $"Thân thể mệt mỏi, tinh thần uể oải ({_attributes.Vitals.Fatigue}/100 mệt). Hãy nghỉ ngơi hoặc chuyển ngày để hồi phục thể lực trước khi đàm đạo.";
+        }
+
         var today = _clock.Today;
         var formattedDate = GameDateCodec.Format(today);
 
