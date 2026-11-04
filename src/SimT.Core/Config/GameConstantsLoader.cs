@@ -36,7 +36,9 @@ public static class GameConstantsLoader
             FatigueCap: Integer(fatigue, "max"),
             GrainPerDay: Number(calendar, "grainPerDay"),
             DailyFatigueRecovery: Integer(calendar, "dailyFatigueRecovery"),
-            FallbackDate: Text(calendar, "fallbackDate"));
+            FallbackDate: Text(calendar, "fallbackDate"),
+            EraStartYear: OptionalInteger(calendar, "eraStartYear", 180),
+            EraEndYear: OptionalInteger(calendar, "eraEndYear", 300));
 
         Validate(constants);
         return constants;
@@ -68,6 +70,13 @@ public static class GameConstantsLoader
             throw new SimException("config.invalid_value", "fatigue and grain values cannot be negative.");
         }
 
+        if (constants.EraStartYear < 1 || constants.EraEndYear < constants.EraStartYear)
+        {
+            throw new SimException(
+                "config.invalid_value",
+                $"era years must be a valid range, got {constants.EraStartYear}..{constants.EraEndYear}.");
+        }
+
         if (string.IsNullOrWhiteSpace(constants.CurrencyNameVi) || string.IsNullOrWhiteSpace(constants.GrainNameVi))
         {
             throw new SimException("config.invalid_value", "currency and grain names are required.");
@@ -84,6 +93,9 @@ public static class GameConstantsLoader
         var value = Require(parent, name);
         return value.GetString() ?? throw new SimException("config.invalid_value", $"'{name}' must be a string.");
     }
+
+    private static int OptionalInteger(JsonElement parent, string name, int fallback) =>
+        parent.TryGetProperty(name, out var value) && value.TryGetInt32(out var number) ? number : fallback;
 
     private static int Integer(JsonElement parent, string name)
     {

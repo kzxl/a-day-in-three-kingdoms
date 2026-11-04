@@ -115,8 +115,15 @@ public sealed class SaveManager
         File.WriteAllText(Path.Combine(_root, "index.json"), JsonSerializer.Serialize(items, Json));
     }
 
-    private static ProductManifest Product() =>
-        ProductManifestLoader.Load(Path.Combine(AppContext.BaseDirectory, "assets", "products", "merchant-slice.json"));
+    private static ProductManifest Product()
+    {
+        var constants = SimT.Core.Config.GameConstantsLoader.Load(
+            Path.Combine(AppContext.BaseDirectory, "assets", "config", "game-constants.json"));
+
+        return ProductManifestLoader.Load(
+            Path.Combine(AppContext.BaseDirectory, "assets", "products", "merchant-slice.json"),
+            SimT.Contracts.Time.GameDateCodec.Parse(constants.FallbackDate));
+    }
 
     private static KernelOptions Options(string campaignDirectory) => new(
         DatabasePath: Path.Combine(campaignDirectory, "campaign.db"),

@@ -7,7 +7,7 @@ namespace SimT.Core.Config;
 /// <summary>Reads <c>assets/products/*.json</c>: which modules a build ships and how a campaign starts.</summary>
 public static class ProductManifestLoader
 {
-    public static ProductManifest Load(string path)
+    public static ProductManifest Load(string path, SimT.Contracts.Time.GameDate fallbackStart)
     {
         if (!File.Exists(path))
         {
@@ -24,7 +24,8 @@ public static class ProductManifestLoader
             Seed: root.TryGetProperty("seed", out var seed) ? seed.GetInt64() : 1L,
             StartLocationCode: Text(root, "startLocation"),
             StartingCash: root.TryGetProperty("startingCash", out var cash) ? cash.GetInt64() : 0L,
-            StartDate: SimT.Contracts.Time.GameDateCodec.Parse(TextOr(root, "startDate", "0001-01-01")));
+            StartDate: SimT.Contracts.Time.GameDateCodec.Parse(
+                TextOr(root, "startDate", SimT.Contracts.Time.GameDateCodec.Format(fallbackStart))));
     }
 
     private static string Text(JsonElement root, string name) =>

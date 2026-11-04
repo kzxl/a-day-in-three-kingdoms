@@ -101,6 +101,20 @@ public sealed class SimKernel : IDisposable
 
     public GameDate Today => _clock.Today;
 
+    /// <summary>
+    /// Month index since the campaign started, 1-based: the "lượt" the old game showed. Turn 1 is
+    /// the month the campaign opens in, and it ticks once per closed month.
+    /// </summary>
+    public int Turn
+    {
+        get
+        {
+            var start = Product.StartDate;
+            var today = _clock.Today;
+            return ((today.Year - start.Year) * GameDate.MonthsPerYear) + (today.Month - start.Month) + 1;
+        }
+    }
+
     public static SimKernel Open(KernelOptions options)
     {
         var existedBefore = File.Exists(Path.GetFullPath(options.DatabasePath));
@@ -114,7 +128,9 @@ public sealed class SimKernel : IDisposable
             var log = new TextLog("kernel", options.LogSink);
 
             var constants = GameConstantsLoader.Load(options.ConstantsPath);
-            var product = ProductManifestLoader.Load(options.ProductPath);
+            var product = ProductManifestLoader.Load(
+                options.ProductPath,
+                GameDateCodec.Parse(constants.FallbackDate));
             var discovered = ModuleLoader.Discover(options.ModulesDirectory);
             var ordered = ModuleGraph.Resolve(discovered, product.Modules);
 
@@ -124,7 +140,7 @@ public sealed class SimKernel : IDisposable
             EnsureSchemaVersion(db);
 
             var events = new EventPublisher();
-            var clock = new SimClock(db, events, product.StartDate);
+            var clock = new SimClock(db, events, product.StartDate, constants.EraEndYear);
             var actionTime = new ActionTime(clock, LoadActionCosts(options.ConstantsPath), events);
             var ledger = new SqliteLedger(db);
             var ids = new SequenceIdGenerator(db);

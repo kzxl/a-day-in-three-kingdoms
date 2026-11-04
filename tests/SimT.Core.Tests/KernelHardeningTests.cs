@@ -117,6 +117,40 @@ public sealed class KernelHardeningTests : IDisposable
     }
 
     [Fact]
+    public void The_campaign_opens_on_the_shared_fallback_date()
+    {
+        using var kernel = Boot();
+
+        Assert.Equal(new GameDate(184, 5, 2), kernel.Today);
+        Assert.Equal(1, kernel.Turn);
+    }
+
+    [Fact]
+    public void A_month_closed_moves_the_turn()
+    {
+        using var kernel = Boot();
+
+        kernel.AdvanceDays(GameDate.DaysPerMonth - kernel.Today.Day + 1);
+
+        Assert.Equal(2, kernel.Turn);
+        Assert.Equal(6, kernel.Today.Month);
+    }
+
+    [Fact]
+    public void The_clock_refuses_to_leave_the_era()
+    {
+        using var kernel = Boot();
+
+        // Jump to the last month of the era, then try to step past it.
+        var toEraEnd = new GameDate(300, 12, 30).DayIndex - kernel.Today.DayIndex;
+        kernel.AdvanceDays((int)toEraEnd);
+
+        var error = Assert.Throws<SimException>(() => kernel.AdvanceDays(1));
+        Assert.Equal("time.era", error.Code);
+        Assert.Equal(new GameDate(300, 12, 30), kernel.Today);
+    }
+
+    [Fact]
     public void Module_states_are_recorded_for_every_started_module()
     {
         using var kernel = Boot();

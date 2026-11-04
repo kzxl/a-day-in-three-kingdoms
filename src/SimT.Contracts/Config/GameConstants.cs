@@ -16,4 +16,6 @@ public sealed record GameConstants(
     int FatigueCap,
     double GrainPerDay,
     int DailyFatigueRecovery,
-    string FallbackDate);
+    string FallbackDate,
+    int EraStartYear,
+    int EraEndYear);

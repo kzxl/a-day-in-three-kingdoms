@@ -16,12 +16,14 @@ public sealed class SimClock : IGameClock
 
     private readonly IDbSession _db;
     private readonly IEventPublisher _events;
+    private readonly int _eraEndYear;
     private GameDate _today;
 
-    public SimClock(IDbSession db, IEventPublisher events, GameDate? campaignStart = null)
+    public SimClock(IDbSession db, IEventPublisher events, GameDate? campaignStart = null, int eraEndYear = 300)
     {
         _db = db;
         _events = events;
+        _eraEndYear = eraEndYear;
 
         var stored = db.ScalarString("SELECT value FROM core_state WHERE key=@key", DbArgs.One("@key", DateKey));
         _today = stored is null
@@ -41,7 +43,15 @@ public sealed class SimClock : IGameClock
         for (var i = 0; i < days; i++)
         {
             var previous = _today;
-            _today = _today.AddDays(1);
+            var next = _today.AddDays(1);
+            if (next.Year > _eraEndYear)
+            {
+                throw new SimException(
+                    "time.era",
+                    $"Lịch chỉ chạy tới năm {_eraEndYear}; {next} nằm ngoài thời đại của game.");
+            }
+
+            _today = next;
             _events.Publish(new DayAdvanced(_today));
 
             if (_today.Day == 1)

@@ -199,7 +199,9 @@ public sealed class BoundaryTests
     [Fact]
     public void Product_manifest_enables_every_module_and_satisfies_dependencies()
     {
-        var product = ProductManifestLoader.Load(Path.Combine(RepoLayout.Root, "assets", "products", "merchant-slice.json"));
+        var product = ProductManifestLoader.Load(
+            Path.Combine(RepoLayout.Root, "assets", "products", "merchant-slice.json"),
+            GameDate.Start);
         var manifests = RepoLayout.ModuleAssemblies().Select(Manifest).ToDictionary(manifest => manifest.Id, StringComparer.Ordinal);
 
         foreach (var enabled in product.Modules)

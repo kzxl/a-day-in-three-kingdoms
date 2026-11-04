@@ -13,7 +13,9 @@
     "monthsPerYear": 12,
     "grainPerDay": 0.02,
     "dailyFatigueRecovery": 1,
-    "fallbackDate": "184-05-02"
+    "fallbackDate": "184-05-02",
+    "eraStartYear": 180,
+    "eraEndYear": 300
   },
   "fatigue": {
     "max": 100
