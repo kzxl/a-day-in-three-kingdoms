@@ -1074,6 +1074,12 @@ private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
             return;
         }
 
+        if (commandId.StartsWith("duel:") && long.TryParse(commandId["duel:".Length..], out var duelNpcId))
+        {
+            TryOpenDuelModal(duelNpcId);
+            return;
+        }
+
         var screenId = ScreenForCommand();
         if (!_kernel.TryGetCommandHandler(screenId, out var handler) || handler is null)
         {
@@ -1217,6 +1223,55 @@ private void AdvanceWeek_Click(object sender, RoutedEventArgs e) => Advance(7);
 
         NpcDetailWindow.ShowNpc(this, npc, citadelName, deltas, activity, relationship, retainer);
         StatusText.Text = $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role}).";
+    }
+
+    private void TryOpenDuelModal(long npcId)
+    {
+        if (!_kernel.Capabilities.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var military) || military is null ||
+            !_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var registry) || registry is null ||
+            !_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attributes) || attributes is null ||
+            !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null ||
+            !_kernel.Capabilities.TryGet<IWallet>(CapabilityIds.PlayerWallet, out var wallet) || wallet is null ||
+            !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var worldMap) || worldMap is null)
+        {
+            StatusText.Text = "Hệ thống quân cơ tỷ võ chưa sẵn sàng.";
+            return;
+        }
+
+        var npc = registry.Find(npcId);
+        if (npc is null)
+        {
+            StatusText.Text = $"Không tìm thấy võ sĩ mã {npcId}.";
+            return;
+        }
+
+        if (attributes.Vitals.CurrentStamina < 10 || attributes.Vitals.Fatigue >= 95)
+        {
+            StatusText.Text = $"Thể lực đã cạn kiệt (mệt mỏi {attributes.Vitals.Fatigue}/100). Hãy nghỉ ngơi trước khi lên đài!";
+            return;
+        }
+
+        var citadel = worldMap.Find(playerState.CurrentCityId);
+        var citadelName = citadel?.NameVi ?? "Châu quận";
+
+        var duelWindow = new DuelBattleWindow(
+            military,
+            registry,
+            attributes,
+            playerState,
+            wallet,
+            npcId,
+            citadelName)
+        {
+            Owner = this
+        };
+
+        duelWindow.ShowDialog();
+
+        _kernel.Save();
+        UpdateHeader();
+        RenderSelected();
+        StatusText.Text = $"Trận tỷ võ với {npc.NameVi} đã hoàn tất.";
     }
 
     private static string Describe(Exception error) => error switch

@@ -3,6 +3,130 @@ using SimT.Contracts.Time;
 namespace SimT.Contracts.Playing;
 
 /// <summary>
+/// The three iconic military troop branches forming the rock-paper-scissors counter system.
+/// </summary>
+public enum TroopBranch
+{
+    /// <summary>Infantry (Bộ Binh) — High defense and shield formations. Counters Archers (+25% dmg); vulnerable to Cavalry.</summary>
+    Infantry = 0,
+
+    /// <summary>Cavalry (Kỵ Binh) — High speed and charge momentum. Counters Infantry (+25% dmg); vulnerable to Archers.</summary>
+    Cavalry = 1,
+
+    /// <summary>Archers (Cung Binh) — Long-range precision volleys. Counters Cavalry (+25% dmg); vulnerable to Infantry.</summary>
+    Archers = 2
+}
+
+/// <summary>
+/// Helper methods and descriptions for troop branches and affinity counter mechanics.
+/// </summary>
+public static class TroopBranchHelper
+{
+    public static string NameVi(TroopBranch branch) => branch switch
+    {
+        TroopBranch.Infantry => "Bộ Binh",
+        TroopBranch.Cavalry => "Kỵ Binh",
+        TroopBranch.Archers => "Cung Binh",
+        _ => "Bộ Binh"
+    };
+
+    public static string Icon(TroopBranch branch) => branch switch
+    {
+        TroopBranch.Infantry => "🛡️",
+        TroopBranch.Cavalry => "🐎",
+        TroopBranch.Archers => "🏹",
+        _ => "🛡️"
+    };
+
+    /// <summary>
+    /// Checks if <paramref name="attacker"/> holds counter-advantage over <paramref name="defender"/>.
+    /// Cavalry beats Infantry, Infantry beats Archers, Archers beat Cavalry.
+    /// </summary>
+    public static bool Counters(TroopBranch attacker, TroopBranch defender) =>
+        (attacker == TroopBranch.Cavalry && defender == TroopBranch.Infantry) ||
+        (attacker == TroopBranch.Infantry && defender == TroopBranch.Archers) ||
+        (attacker == TroopBranch.Archers && defender == TroopBranch.Cavalry);
+
+    public static string MatchupSummaryVi(TroopBranch player, TroopBranch opponent)
+    {
+        if (Counters(player, opponent))
+        {
+            return $"{Icon(player)} {NameVi(player)} KHẮC CHẾ {Icon(opponent)} {NameVi(opponent)} (+25% Sát Thương!)";
+        }
+        if (Counters(opponent, player))
+        {
+            return $"{Icon(opponent)} {NameVi(opponent)} BỊ KHẮC BỞI {Icon(player)} {NameVi(player)} (-15% Giảm Thủ!)";
+        }
+        return $"{Icon(player)} {NameVi(player)} ngang sức ngang tài {Icon(opponent)} {NameVi(opponent)}";
+    }
+}
+
+/// <summary>
+/// 4 asymmetric tactical combat commands for single-combat duels.
+/// </summary>
+public enum TacticalDuelAction
+{
+    /// <summary>Fierce offensive strike, interrupts Focus Spirit (+30% crush damage).</summary>
+    Attack = 0,
+
+    /// <summary>Defensive parry, negates 75% attack damage, parry-counters Special Strike.</summary>
+    Defend = 1,
+
+    /// <summary>Devastating signature martial technique, consumes 30 Spirit.</summary>
+    SpecialStrike = 2,
+
+    /// <summary>Channels inner qi (+35 Spirit, +30% damage buff on subsequent round).</summary>
+    FocusSpirit = 3
+}
+
+public static class TacticalDuelActionHelper
+{
+    public static string NameVi(TacticalDuelAction action) => action switch
+    {
+        TacticalDuelAction.Attack => "CÔNG",
+        TacticalDuelAction.Defend => "THỦ",
+        TacticalDuelAction.SpecialStrike => "SÁT",
+        TacticalDuelAction.FocusSpirit => "KHÍ",
+        _ => "CÔNG"
+    };
+
+    public static string Icon(TacticalDuelAction action) => action switch
+    {
+        TacticalDuelAction.Attack => "⚔️",
+        TacticalDuelAction.Defend => "🛡️",
+        TacticalDuelAction.SpecialStrike => "💥",
+        TacticalDuelAction.FocusSpirit => "🧘",
+        _ => "⚔️"
+    };
+
+    public static string DescriptionVi(TacticalDuelAction action) => action switch
+    {
+        TacticalDuelAction.Attack => "Công: Tấn công dũng mãnh, phá chiêu Tụ Khí (+30% Sát thương)",
+        TacticalDuelAction.Defend => "Thủ: Phòng ngự đỡ gạt, hóa giải và phản kích Tuyệt Kỹ (-75% sát thương)",
+        TacticalDuelAction.SpecialStrike => "Sát: Tuyệt kỹ võ tướng uy lực kinh hoàng (tiêu hao 30 Khí lực)",
+        TacticalDuelAction.FocusSpirit => "Khí: Tụ khí quy nguyên (+35 Khí lực, buff +30% sát thương hiệp sau)",
+        _ => ""
+    };
+}
+
+/// <summary>
+/// Record of a single tactical round clash between duelists.
+/// </summary>
+public sealed record DuelRoundLog(
+    int RoundNumber,
+    TacticalDuelAction PlayerAction,
+    TacticalDuelAction OpponentAction,
+    int PlayerDamageDealt,
+    int OpponentDamageDealt,
+    int PlayerHpAfter,
+    int OpponentHpAfter,
+    int PlayerSpiritAfter,
+    int OpponentSpiritAfter,
+    bool IsCritical,
+    bool IsParried,
+    string NarrativeVi);
+
+/// <summary>
 /// A hostile bandit stronghold or outlaw encampment menacing a settlement.
 /// </summary>
 public sealed record StrongholdDef(
@@ -14,7 +138,8 @@ public sealed record StrongholdDef(
     int LootGold,
     string ItemRewardCode,
     int ClearedCount,
-    GameDate? LastClearedDate);
+    GameDate? LastClearedDate,
+    TroopBranch Branch = TroopBranch.Infantry);
 
 /// <summary>
 /// The outcome of an arena duel between the player and an NPC.
@@ -24,7 +149,17 @@ public sealed record DuelResult(
     int Rounds,
     int GoldReward,
     string OpponentName,
-    string CombatSummaryVi);
+    string CombatSummaryVi,
+    TroopBranch PlayerBranch = TroopBranch.Infantry,
+    TroopBranch OpponentBranch = TroopBranch.Infantry,
+    int PlayerMaxHp = 100,
+    int OpponentMaxHp = 100,
+    int FinalPlayerHp = 100,
+    int FinalOpponentHp = 0,
+    IReadOnlyList<DuelRoundLog>? RoundLogs = null,
+    string OpponentAvatarChar = "武",
+    string OpponentRole = "Võ tướng",
+    int OpponentWar = 60);
 
 /// <summary>
 /// A military commissary requisition for supplies (grain, iron, copper, etc.).
@@ -50,8 +185,14 @@ public interface IMilitaryCommand
 
     IReadOnlyList<SupplyRequisitionDef> ActiveRequisitions(long citadelId);
 
-    /// <summary>Challenges an NPC warrior to a duel in the local arena.</summary>
+    /// <summary>Challenges an NPC warrior to a duel in the local arena with default branch.</summary>
     DuelResult ChallengeArena(long npcId);
+
+    /// <summary>Challenges an NPC warrior to a duel in the local arena with chosen troop branch.</summary>
+    DuelResult ChallengeArena(long npcId, TroopBranch playerBranch);
+
+    /// <summary>Resolves the martial troop branch preferred by an NPC.</summary>
+    TroopBranch ResolveNpcBranch(long npcId);
 
     /// <summary>Leads an expedition against an outlaw stronghold.</summary>
     string AssaultStronghold(long strongholdId);

@@ -57,14 +57,16 @@ internal sealed class MilitaryScreen : IScreenContribution
         var sections = new List<ScreenSection>();
 
         // 1. Martial Arena Section
-        var arenaColumns = new[] { "Võ Tướng / Hảo Thủ", "Thân Phận", "Võ Lực", "Căn Cốt", "Định Lực", "Thách Đấu" };
+        var arenaColumns = new[] { "Võ Tướng / Hảo Thủ", "Thân Phận", "Binh Chủng", "Võ Lực", "Căn Cốt", "Định Lực", "Thách Đấu" };
         var arenaRows = localWarriors.Select(w =>
         {
             var a = w.Attributes;
+            var branch = _military.ResolveNpcBranch(w.Id);
             return new ScreenRow(
                 [
                     w.NameVi,
                     w.Role,
+                    $"{TroopBranchHelper.Icon(branch)} {TroopBranchHelper.NameVi(branch)}",
                     a.War.ToString(),
                     a.Con.ToString(),
                     a.Wil.ToString(),
@@ -79,6 +81,14 @@ internal sealed class MilitaryScreen : IScreenContribution
                 [
                     new ScreenDetail("Họ Tên", w.NameVi),
                     new ScreenDetail("Thân Phận", w.Role),
+                    new ScreenDetail("Binh Chủng Sở Trường", $"{TroopBranchHelper.Icon(branch)} {TroopBranchHelper.NameVi(branch)}"),
+                    new ScreenDetail("Tương Khắc Quân Cơ", branch switch
+                    {
+                        TroopBranch.Infantry => "Khắc Cung Binh (+25% sát thương), sợ Kỵ Binh (-15% phòng thủ)",
+                        TroopBranch.Cavalry => "Khắc Bộ Binh (+25% sát thương), sợ Cung Binh (-15% phòng thủ)",
+                        TroopBranch.Archers => "Khắc Kỵ Binh (+25% sát thương), sợ Bộ Binh (-15% phòng thủ)",
+                        _ => ""
+                    }),
                     new ScreenDetail("Võ Lực", a.War.ToString()),
                     new ScreenDetail("Căn Cốt", a.Con.ToString()),
                     new ScreenDetail("Định Lực", a.Wil.ToString()),
@@ -89,7 +99,7 @@ internal sealed class MilitaryScreen : IScreenContribution
         sections.Add(new ScreenSection($"🥋 Lôi Đài Tỷ Võ · {currentCitadelName} ({localWarriors.Count} danh sĩ)", arenaColumns, arenaRows));
 
         // 2. Strongholds Section
-        var shColumns = new[] { "Cứ Điểm Ngoại Thành", "Thế Lực Thổ Phỉ", "Độ Nguy Hiểm", "Bạc Thu Hoạch", "Vật Phẩm", "Đã Phạt" };
+        var shColumns = new[] { "Cứ Điểm Ngoại Thành", "Thế Lực Thổ Phỉ", "Binh Chủng Trấn Thủ", "Độ Nguy Hiểm", "Bạc Thu Hoạch", "Vật Phẩm", "Đã Phạt" };
         var shRows = strongholds.Select(sh =>
         {
             var item = _items.FindByCode(sh.ItemRewardCode);
@@ -100,6 +110,7 @@ internal sealed class MilitaryScreen : IScreenContribution
                 [
                     sh.NameVi,
                     FactionVi(sh.BanditFaction),
+                    $"{TroopBranchHelper.Icon(sh.Branch)} {TroopBranchHelper.NameVi(sh.Branch)}",
                     dangerStars,
                     $"{sh.LootGold} Quan",
                     $"2 x {itemName}",
@@ -113,6 +124,7 @@ internal sealed class MilitaryScreen : IScreenContribution
                 [
                     new ScreenDetail("Căn Cứ", sh.NameVi),
                     new ScreenDetail("Phe Phái", FactionVi(sh.BanditFaction)),
+                    new ScreenDetail("Binh Chủng Sào Huyệt", $"{TroopBranchHelper.Icon(sh.Branch)} {TroopBranchHelper.NameVi(sh.Branch)}"),
                     new ScreenDetail("Cấp Độ Nguy Hiểm", $"Cấp {sh.DangerLevel}/10"),
                     new ScreenDetail("Chiến Lợi Phẩm Bạc", $"{sh.LootGold} Quan"),
                     new ScreenDetail("Vật Phẩm Thu Được", $"2 x {itemName}"),
@@ -205,9 +217,12 @@ internal sealed class MilitaryCommandHandler : IScreenCommandHandler
     {
         if (commandId.StartsWith("duel:"))
         {
-            if (long.TryParse(commandId["duel:".Length..], out var npcId))
+            var raw = commandId["duel:".Length..];
+            var parts = raw.Split(':');
+            if (long.TryParse(parts[0], out var npcId))
             {
-                var duel = _military.ChallengeArena(npcId);
+                var branch = parts.Length > 1 && Enum.TryParse<TroopBranch>(parts[1], true, out var b) ? b : TroopBranch.Infantry;
+                var duel = _military.ChallengeArena(npcId, branch);
                 return duel.CombatSummaryVi;
             }
         }
