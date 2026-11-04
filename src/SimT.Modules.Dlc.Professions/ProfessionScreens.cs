@@ -5,14 +5,20 @@ namespace SimT.Modules.Dlc.Professions;
 
 internal sealed class ProfessionScreen : IScreenContribution
 {
-    private static readonly string[] Columns =
-        ["Nghề", "Ngày/lượt", "Sản phẩm", "Sản lượng", "Dụng cụ", "Tay nghề"];
+    private static readonly string[] SlotColumns =
+        ["Vị Trí", "Khí Cụ", "Thuộc Tính", "Độ Bền", "Phẩm Cấp"];
+
+    private static readonly string[] EquipmentColumns =
+        ["Khí Cụ", "Thuộc Tính", "Độ Bền", "Phẩm Cấp"];
+
+    private static readonly string[] OrderColumns =
+        ["Bên Ủy Thác", "Loại", "Vật Phẩm Cần", "Số Lượng", "Thù Lao", "Danh Vọng", "Hạn Chót", "Trạng Thái"];
 
     private static readonly string[] RecipeColumns =
         ["Bản Vẽ", "Yêu Cầu", "Nguyên Liệu", "Phí Đúc", "Thời Gian", "Thành Phẩm"];
 
-    private static readonly string[] EquipmentColumns =
-        ["Khí Cụ", "Thuộc Tính", "Độ Bền", "Phẩm Cấp"];
+    private static readonly string[] Columns =
+        ["Nghề", "Danh Hiệu", "Ngày/lượt", "Sản phẩm", "Sản lượng", "Dụng cụ", "Tay nghề"];
 
     private readonly ProfessionService _service;
     private readonly IItemCatalog _items;
@@ -34,31 +40,161 @@ internal sealed class ProfessionScreen : IScreenContribution
     public ScreenModel Render()
     {
         var cityId = _player.CurrentCityId;
-        var rows = new List<ScreenRow>(_service.Trades.Count);
-        foreach (var trade in _service.Trades)
+
+        // 1. Equipped slots
+        var slotRows = new List<ScreenRow>();
+        foreach (var slot in _service.Slots)
         {
-            var output = _items.Find(trade.OutputItemId);
-            var tier = _service.Tier(trade.Id);
-            rows.Add(new ScreenRow(
+            var equip = slot.Equipment;
+            var commands = equip is not null
+                ? new List<ScreenCommand> { new ScreenCommand($"unequip:{slot.SlotCode}", "Tháo ra") }
+                : new List<ScreenCommand>();
+
+            slotRows.Add(new ScreenRow(
                 [
-                    $"{trade.NameVi} ({trade.NameEn})",
-                    Fmt(trade.DaysPerBatch),
-                    output?.NameVi ?? trade.OutputItemId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    Fmt(trade.BaseQuantity + tier),
-                    Fmt(trade.ToolFee),
-                    $"bậc {tier} · {_service.PracticeCount(trade.Id)} lượt"
+                    slot.SlotNameVi,
+                    equip?.NameVi ?? "(Để trống)",
+                    equip != null ? $"+{equip.BonusValue} {equip.BonusStat}" : "—",
+                    equip != null ? $"{equip.Durability}/{equip.MaxDurability}" : "—",
+                    equip?.QualityRank ?? "—"
                 ],
-                [new ScreenCommand($"work:{trade.Id}", "Làm 1 lượt")],
-                Title: trade.NameVi,
-                Details:
-                [
-                    new ScreenDetail("Mỗi lượt", $"{trade.DaysPerBatch} ngày · {trade.ToolFee} quan dụng cụ"),
-                    new ScreenDetail("Sản phẩm", output?.NameVi ?? "—"),
-                    new ScreenDetail("Sản lượng", $"{trade.BaseQuantity + tier} mỗi lượt"),
-                    new ScreenDetail("Tay nghề", $"bậc {tier}/5 · {_service.PracticeCount(trade.Id)} lượt")
-                ]));
+                commands,
+                Title: slot.SlotNameVi));
         }
 
+        // 2. Equipments in citadel
+        var equipRows = new List<ScreenRow>();
+        var equipments = _service.Equipments(cityId);
+        foreach (var eq in equipments)
+        {
+            var isEquipped = _service.Slots.Any(s => s.EquipmentId == eq.Id);
+            var commands = new List<ScreenCommand>();
+
+            if (!isEquipped)
+            {
+                commands.Add(new ScreenCommand($"equip:{eq.Id}", "Mặc"));
+            }
+
+            if (eq.Durability < eq.MaxDurability)
+            {
+                commands.Add(new ScreenCommand($"repair:{eq.Id}", "Tu sửa (15 Quan)"));
+            }
+
+            equipRows.Add(new ScreenRow(
+                [
+                    eq.NameVi + (isEquipped ? " [Đang mặc]" : string.Empty),
+                    $"+{eq.BonusValue} {eq.BonusStat}",
+                    $"{eq.Durability}/{eq.MaxDurability}",
+                    eq.QualityRank
+                ],
+                commands));
+        }
+
+        // 3. Workshop in citadel
+        var workshop = _service.GetWorkshop(cityId);
+        var workshopRows = new List<ScreenRow>();
+        if (workshop is not null)
+        {
+            var trade = _service.Trades.FirstOrDefault(t => t.Id == workshop.TradeId);
+            var commands = new List<ScreenCommand>();
+
+            if (workshop.HiredArtisans < 5)
+            {
+                commands.Add(new ScreenCommand("workshop:hire:0", "Tuyển thợ phụ (20 Quan)"));
+            }
+            if (workshop.HiredArtisans > 0)
+            {
+                commands.Add(new ScreenCommand("workshop:dismiss:0", "Bớt thợ phụ"));
+            }
+            if (workshop.FurnaceLevel < 5)
+            {
+                commands.Add(new ScreenCommand("workshop:upgrade:0", $"Nâng lò cấp {workshop.FurnaceLevel + 1} ({workshop.FurnaceLevel * 80} Quan)"));
+            }
+
+            workshopRows.Add(new ScreenRow(
+                [
+                    workshop.NameVi,
+                    trade?.NameVi ?? "Chế tác",
+                    $"Cấp {workshop.FurnaceLevel}/5",
+                    $"{workshop.HiredArtisans}/5 thợ (Lương {workshop.HiredArtisans * ProfessionService.ArtisanMonthlySalary} Quan/tháng)",
+                    $"{workshop.MonthlyRent} Quan/tháng",
+                    workshop.IsActive ? "Đang mở cửa" : "Đình chỉ"
+                ],
+                commands,
+                Title: workshop.NameVi,
+                Details:
+                [
+                    new ScreenDetail("Lò luyện", $"Cấp {workshop.FurnaceLevel} (+{workshop.FurnaceLevel * 5}% tỷ lệ Tuyệt phẩm)"),
+                    new ScreenDetail("Thợ phụ", $"{workshop.HiredArtisans} người tự động gia công hàng tháng"),
+                    new ScreenDetail("Tiền thuê", $"{workshop.MonthlyRent} Quan khấu trừ ngày đầu tháng")
+                ]));
+        }
+        else
+        {
+            // Option to open workshop for each trade
+            foreach (var trade in _service.Trades)
+            {
+                workshopRows.Add(new ScreenRow(
+                    [
+                        $"Mở Xưởng {trade.NameVi}",
+                        trade.NameVi,
+                        "Cấp 1",
+                        "0 thợ",
+                        $"{ProfessionService.WorkshopBaseRent} Quan/tháng",
+                        "Chưa thuê"
+                    ],
+                    [new ScreenCommand($"workshop:open:{trade.Id}", $"Thuê mặt bằng ({ProfessionService.WorkshopOpenCost} Quan)")]));
+            }
+        }
+
+        // 4. Guild Orders & Commissions
+        var orderRows = new List<ScreenRow>();
+        var orders = _service.AvailableOrders(cityId).Concat(_service.ActiveOrders()).DistinctBy(o => o.Id);
+        foreach (var ord in orders)
+        {
+            var targetItem = _items.Find(ord.TargetItemId);
+            var commands = new List<ScreenCommand>();
+
+            if (ord.Status == "AVAILABLE")
+            {
+                commands.Add(new ScreenCommand($"order:accept:{ord.Id}", "Nhận đơn"));
+            }
+            else if (ord.Status == "ACCEPTED")
+            {
+                commands.Add(new ScreenCommand($"order:fulfill:{ord.Id}", "Giao nộp"));
+            }
+
+            var typeVi = ord.ClientType switch
+            {
+                "MILITARY" => "Quân Nhu",
+                "COMMERCE" => "Thương Hội",
+                "COURT" => "Triều Đình",
+                _ => "Gia Tộc"
+            };
+
+            var statusVi = ord.Status switch
+            {
+                "AVAILABLE" => "Chờ nhận",
+                "ACCEPTED" => "Đang thực hiện",
+                "COMPLETED" => "Hoàn thành",
+                _ => "Hết hạn"
+            };
+
+            orderRows.Add(new ScreenRow(
+                [
+                    ord.ClientNameVi,
+                    typeVi,
+                    targetItem?.NameVi ?? $"Vật phẩm #{ord.TargetItemId}",
+                    Fmt(ord.QuantityNeeded),
+                    $"{ord.RewardCopper} Quan",
+                    $"+{ord.FameReward}",
+                    $"Ngày {ord.DeadlineDay}",
+                    statusVi
+                ],
+                commands));
+        }
+
+        // 5. Crafting recipes
         var recipeRows = new List<ScreenRow>();
         foreach (var r in _service.Recipes)
         {
@@ -83,22 +219,33 @@ internal sealed class ProfessionScreen : IScreenContribution
                 commands));
         }
 
-        var equipRows = new List<ScreenRow>();
-        var equipments = _service.Equipments(cityId);
-        foreach (var eq in equipments)
+        // 6. Basic trades
+        var rows = new List<ScreenRow>(_service.Trades.Count);
+        foreach (var trade in _service.Trades)
         {
-            var commands = eq.Durability < eq.MaxDurability
-                ? new List<ScreenCommand> { new ScreenCommand($"repair:{eq.Id}", "Tu sửa (15 Quan)") }
-                : new List<ScreenCommand>();
-
-            equipRows.Add(new ScreenRow(
+            var output = _items.Find(trade.OutputItemId);
+            var tier = _service.Tier(trade.Id);
+            var rank = _service.GetCraftsmanRank(trade.Id);
+            rows.Add(new ScreenRow(
                 [
-                    eq.NameVi,
-                    $"+{eq.BonusValue} {eq.BonusStat}",
-                    $"{eq.Durability}/{eq.MaxDurability}",
-                    eq.QualityRank
+                    $"{trade.NameVi} ({trade.NameEn})",
+                    rank,
+                    Fmt(trade.DaysPerBatch),
+                    output?.NameVi ?? trade.OutputItemId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    Fmt(trade.BaseQuantity + tier),
+                    Fmt(trade.ToolFee),
+                    $"bậc {tier} · {_service.PracticeCount(trade.Id)} lượt"
                 ],
-                commands));
+                [new ScreenCommand($"work:{trade.Id}", "Làm 1 lượt")],
+                Title: trade.NameVi,
+                Details:
+                [
+                    new ScreenDetail("Danh vị", rank),
+                    new ScreenDetail("Mỗi lượt", $"{trade.DaysPerBatch} ngày · {trade.ToolFee} quan dụng cụ"),
+                    new ScreenDetail("Sản phẩm", output?.NameVi ?? "—"),
+                    new ScreenDetail("Sản lượng", $"{trade.BaseQuantity + tier} mỗi lượt"),
+                    new ScreenDetail("Tay nghề", $"bậc {tier}/5 · {_service.PracticeCount(trade.Id)} lượt")
+                ]));
         }
 
         var totalPractice = _service.Trades.Sum(trade => _service.PracticeCount(trade.Id));
@@ -107,17 +254,20 @@ internal sealed class ProfessionScreen : IScreenContribution
         return new ScreenModel(
             ScreenId,
             Title,
-            "Mỗi lượt tốn tiền dụng cụ và số ngày của nghề; tay nghề tăng sản lượng và mở khóa chế tác khí cụ.",
+            "Quản lý xưởng chế tác tự động, trang bị binh khí hộ giáp lên nhân vật, và hoàn thành các đơn đặt hàng quân nhu thương hội.",
             [
-                new ScreenSection("Nghề Lao Tác Cơ Bản", Columns, rows),
+                new ScreenSection("Trang Bị Cá Nhân & Chỉ Số Cộng", SlotColumns, slotRows),
+                new ScreenSection("Xưởng Chế Tác Tại Thành", ["Tên Xưởng", "Chuyên Môn", "Lò Luyện", "Thợ Phụ", "Tiền Thuê", "Trạng Thái"], workshopRows),
+                new ScreenSection("Ủy Thác & Đơn Đặt Hàng Phường Hội", OrderColumns, orderRows),
+                new ScreenSection("Khí Cụ Trong Thành", EquipmentColumns, equipRows),
                 new ScreenSection("Bản Vẽ Chế Tác Khí Cụ", RecipeColumns, recipeRows),
-                new ScreenSection("Khí Cụ & Binh Khí Đang Có", EquipmentColumns, equipRows)
+                new ScreenSection("Nghề Lao Tác Cơ Bản", Columns, rows)
             ],
             [],
             [
-                new ScreenMetric("Nghề", Fmt(_service.Trades.Count), "loại"),
-                new ScreenMetric("Bản vẽ rèn", Fmt(_service.Recipes.Count), "bản"),
-                new ScreenMetric("Lượt đã làm", Fmt(totalPractice), "lượt"),
+                new ScreenMetric("Danh vọng phường nghề", Fmt(_service.TotalGuildFame), "điểm", MetricTone.Positive),
+                new ScreenMetric("Vũ khí trang bị", _service.Slots.FirstOrDefault(s => s.SlotCode == "WEAPON")?.Equipment?.NameVi ?? "Tay không", "Binh khí"),
+                new ScreenMetric("Xưởng nghề", workshop is not null ? $"Cấp {workshop.FurnaceLevel}" : "Chưa có", "Cơ sở"),
                 new ScreenMetric("Tay nghề cao nhất", $"bậc {bestTier}", "trên 5", bestTier > 0 ? MetricTone.Positive : MetricTone.Neutral)
             ],
             []);
@@ -141,21 +291,78 @@ internal sealed class ProfessionCommandHandler : IScreenCommandHandler
 
     public string? Execute(string commandId)
     {
-        var separator = commandId.IndexOf(':');
-        if (separator <= 0 || !long.TryParse(commandId[(separator + 1)..], out var targetId))
+        var cityId = _player.CurrentCityId;
+        var parts = commandId.Split(':');
+        if (parts.Length < 2)
         {
             return "Lệnh không hợp lệ.";
         }
 
-        var verb = commandId[..separator];
-        var cityId = _player.CurrentCityId;
+        var verb = parts[0];
 
-        return verb switch
+        switch (verb)
         {
-            "work" => _service.Work(cityId, targetId).Message,
-            "craft" => _service.Craft(cityId, targetId).Message,
-            "repair" => _service.Repair(cityId, targetId).Message,
-            _ => $"Động từ '{verb}' không thuộc DLC professions."
-        };
+            case "work":
+                if (long.TryParse(parts[1], out var tradeId))
+                    return _service.Work(cityId, tradeId).Message;
+                break;
+
+            case "craft":
+                if (long.TryParse(parts[1], out var recipeId))
+                    return _service.Craft(cityId, recipeId).Message;
+                break;
+
+            case "repair":
+                if (long.TryParse(parts[1], out var eqId))
+                    return _service.Repair(cityId, eqId).Message;
+                break;
+
+            case "equip":
+                if (long.TryParse(parts[1], out var equipId))
+                    return _service.Equip(equipId).Message;
+                break;
+
+            case "unequip":
+                return _service.Unequip(parts[1]).Message;
+
+            case "workshop":
+                if (parts.Length >= 3)
+                {
+                    var sub = parts[1];
+                    if (sub == "open" && long.TryParse(parts[2], out var wsTradeId))
+                    {
+                        return _service.OpenWorkshop(cityId, wsTradeId).Message;
+                    }
+                    if (sub == "hire")
+                    {
+                        return _service.HireArtisan(cityId).Message;
+                    }
+                    if (sub == "dismiss")
+                    {
+                        return _service.DismissArtisan(cityId).Message;
+                    }
+                    if (sub == "upgrade")
+                    {
+                        return _service.UpgradeFurnace(cityId).Message;
+                    }
+                }
+                break;
+
+            case "order":
+                if (parts.Length >= 3)
+                {
+                    var orderVerb = parts[1];
+                    if (long.TryParse(parts[2], out var ordId))
+                    {
+                        if (orderVerb == "accept")
+                            return _service.AcceptOrder(ordId).Message;
+                        if (orderVerb == "fulfill")
+                            return _service.FulfillOrder(cityId, ordId).Message;
+                    }
+                }
+                break;
+        }
+
+        return $"Lệnh không hợp lệ: {commandId}";
     }
 }

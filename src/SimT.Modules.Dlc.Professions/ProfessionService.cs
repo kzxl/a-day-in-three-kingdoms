@@ -8,13 +8,17 @@ using SimT.Contracts.Time;
 namespace SimT.Modules.Dlc.Professions;
 
 /// <summary>
-/// Day labour, trades, equipment crafting, and tool maintenance.
+/// Day labour, trades, equipment crafting, workshop automation, and guild commissions.
 /// Working a trade raises the skill tier, unlocking recipes and boosting output.
 /// </summary>
-internal sealed class ProfessionService : IProfessionGuild
+internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
 {
     public const int PracticesPerTier = 4;
     public const int MaxTier = 5;
+    public const long WorkshopOpenCost = 120;
+    public const long WorkshopBaseRent = 25;
+    public const long ArtisanHireCost = 20;
+    public const long ArtisanMonthlySalary = 15;
 
     private readonly IDbSession _db;
     private readonly IGameClock _clock;
@@ -22,8 +26,16 @@ internal sealed class ProfessionService : IProfessionGuild
     private readonly IBag _bag;
     private readonly IItemCatalog _items;
     private readonly ILog _log;
+    private readonly IPlayerAttributes? _attributes;
 
-    public ProfessionService(IDbSession db, IGameClock clock, IWallet wallet, IBag bag, IItemCatalog items, ILog log)
+    public ProfessionService(
+        IDbSession db,
+        IGameClock clock,
+        IWallet wallet,
+        IBag bag,
+        IItemCatalog items,
+        ILog log,
+        IPlayerAttributes? attributes = null)
     {
         _db = db;
         _clock = clock;
@@ -31,6 +43,7 @@ internal sealed class ProfessionService : IProfessionGuild
         _bag = bag;
         _items = items;
         _log = log;
+        _attributes = attributes;
         Trades = LoadTrades(db);
     }
 
@@ -77,7 +90,25 @@ internal sealed class ProfessionService : IProfessionGuild
                 row.GetInt32(8)),
             DbArgs.One("@citadel", citadelId));
 
-    /// <summary>Boot-time validation: every output must exist in the shared catalog.</summary>
+    public EquipmentDef? FindEquipment(long equipmentId) =>
+        _db.QueryOne(
+            """
+            SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value
+            FROM pf_equipment
+            WHERE id = @id
+            """,
+            row => new EquipmentDef(
+                row.GetInt64(0),
+                row.GetString(1),
+                row.GetInt64(2),
+                row.GetInt64(3),
+                row.GetInt32(4),
+                row.GetInt32(5),
+                row.GetString(6),
+                row.GetString(7),
+                row.GetInt32(8)),
+            DbArgs.One("@id", equipmentId));
+
     public void ValidateCatalog()
     {
         foreach (var trade in Trades)
@@ -96,6 +127,19 @@ internal sealed class ProfessionService : IProfessionGuild
 
     public int PracticeCount(long tradeId) =>
         (int)_db.ScalarLong("SELECT COALESCE(practice_count, 0) FROM pf_skill WHERE trade_id=@trade", DbArgs.One("@trade", tradeId));
+
+    public string GetCraftsmanRank(long tradeId) => Tier(tradeId) switch
+    {
+        0 => "Học Đồ",
+        1 => "Thợ Phụ",
+        2 => "Thợ Nghề",
+        3 => "Thợ Cả",
+        4 => "Đại Sư",
+        _ => "Tông Sư"
+    };
+
+    public int TotalGuildFame =>
+        (int)_db.ScalarLong("SELECT COALESCE((SELECT total_fame FROM pf_guild_fame WHERE id = 1), 0)");
 
     public WorkResult Work(long cityId, long tradeId)
     {
@@ -135,11 +179,13 @@ internal sealed class ProfessionService : IProfessionGuild
                 ON CONFLICT(trade_id) DO UPDATE SET practice_count = excluded.practice_count, tier = excluded.tier
                 """,
                 new DbArgs().Add("@trade", tradeId).Add("@practice", practice).Add("@tier", tierAfter));
+
+            _attributes?.AddExp("CRA", 15);
         });
 
         _log.Info($"worked {trade.Code}: +{quantity} {output.Code}, tier {tierBefore} -> {tierAfter}");
 
-        var tierNote = tierAfter > tierBefore ? $", tay nghề lên bậc {tierAfter}" : string.Empty;
+        var tierNote = tierAfter > tierBefore ? $", tay nghề thăng lên '{GetCraftsmanRank(tradeId)}' (bậc {tierAfter})" : string.Empty;
         return WorkResult.Success(
             $"{trade.DaysPerBatch} ngày làm {trade.NameVi}: +{quantity} {output.NameVi} (phí {trade.ToolFee} Quan){tierNote}.",
             quantity,
@@ -185,6 +231,10 @@ internal sealed class ProfessionService : IProfessionGuild
         var output = _items.Find(recipe.OutputItemId);
         var outputName = output?.NameVi ?? recipe.NameVi;
 
+        // Workshop furnace quality boost
+        var ws = GetWorkshop(cityId);
+        var furnaceBonus = ws != null && ws.IsActive ? ws.FurnaceLevel * 0.05 : 0.0;
+
         _db.Transaction(() =>
         {
             _wallet.Charge(recipe.CraftFee, JournalCodes.ToolFee, $"Chi phí chế tác {recipe.NameVi}");
@@ -208,11 +258,12 @@ internal sealed class ProfessionService : IProfessionGuild
                 """,
                 new DbArgs().Add("@trade", recipe.TradeId).Add("@practice", practice).Add("@tier", tierAfter));
 
-            // Roll equipment quality rank & stats based on player's trade skill tier
+            _attributes?.AddExp("CRA", 25);
+
             var playerTier = Tier(recipe.TradeId);
             var seed = (int)(recipe.Id * 37 + playerTier * 19 + _clock.Today.DayIndex);
             var rng = new Random(seed);
-            var roll = rng.NextDouble();
+            var roll = Math.Max(0.0, rng.NextDouble() - furnaceBonus);
 
             string qualityRank;
             int bonusValue;
@@ -220,13 +271,13 @@ internal sealed class ProfessionService : IProfessionGuild
 
             if (playerTier >= 4)
             {
-                if (roll < 0.25)
+                if (roll < 0.35)
                 {
                     qualityRank = "LEGENDARY";
                     bonusValue = 10;
                     maxDura = 150;
                 }
-                else if (roll < 0.70)
+                else if (roll < 0.75)
                 {
                     qualityRank = "MASTER";
                     bonusValue = 6;
@@ -241,13 +292,13 @@ internal sealed class ProfessionService : IProfessionGuild
             }
             else if (playerTier >= 2)
             {
-                if (roll < 0.10)
+                if (roll < 0.15)
                 {
                     qualityRank = "LEGENDARY";
                     bonusValue = 8;
                     maxDura = 140;
                 }
-                else if (roll < 0.40)
+                else if (roll < 0.50)
                 {
                     qualityRank = "MASTER";
                     bonusValue = 5;
@@ -268,13 +319,13 @@ internal sealed class ProfessionService : IProfessionGuild
             }
             else
             {
-                if (roll < 0.15)
+                if (roll < 0.20)
                 {
                     qualityRank = "MASTER";
                     bonusValue = 4;
                     maxDura = 110;
                 }
-                else if (roll < 0.65)
+                else if (roll < 0.70)
                 {
                     qualityRank = "FINE";
                     bonusValue = 3;
@@ -296,7 +347,6 @@ internal sealed class ProfessionService : IProfessionGuild
                 _ => "POL"  // Nông phu, Ngư dân
             };
 
-            // Create piece of equipment in citadel
             _db.Execute(
                 """
                 INSERT INTO pf_equipment(name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value)
@@ -323,7 +373,12 @@ internal sealed class ProfessionService : IProfessionGuild
         var equip = Equipments(cityId).FirstOrDefault(e => e.Id == equipmentId);
         if (equip is null)
         {
-            return WorkResult.Failure("Không tìm thấy trang bị tại thành này.");
+            equip = FindEquipment(equipmentId);
+        }
+
+        if (equip is null)
+        {
+            return WorkResult.Failure("Không tìm thấy trang bị.");
         }
 
         if (equip.Durability >= equip.MaxDurability)
@@ -345,7 +400,503 @@ internal sealed class ProfessionService : IProfessionGuild
                 DbArgs.One("@id", equipmentId));
         });
 
-        return WorkResult.Success($"Đã tu sửa {equip.NameVi} phục hồi toàn bộ độ bền {equip.MaxDurability}/100.", 1, 0);
+        return WorkResult.Success($"Đã tu sửa {equip.NameVi} phục hồi toàn bộ độ bền {equip.MaxDurability}/{equip.MaxDurability}.", 1, 0);
+    }
+
+    // =========================================================================
+    // WORKSHOP AUTOMATION & ATELIER MANAGEMENT
+    // =========================================================================
+
+    public WorkshopDef? GetWorkshop(long citadelId) =>
+        _db.QueryOne(
+            """
+            SELECT id, citadel_id, trade_id, name_vi, monthly_rent, furnace_level, hired_artisans, is_active, created_day_index
+            FROM pf_workshop
+            WHERE citadel_id = @citadel
+            """,
+            row => new WorkshopDef(
+                row.GetInt64(0),
+                row.GetInt64(1),
+                row.GetInt64(2),
+                row.GetString(3),
+                row.GetInt64(4),
+                row.GetInt32(5),
+                row.GetInt32(6),
+                row.GetInt64(7) != 0,
+                row.GetInt32(8)),
+            DbArgs.One("@citadel", citadelId));
+
+    public IReadOnlyList<WorkshopDef> AllWorkshops() =>
+        _db.Query(
+            """
+            SELECT id, citadel_id, trade_id, name_vi, monthly_rent, furnace_level, hired_artisans, is_active, created_day_index
+            FROM pf_workshop
+            ORDER BY citadel_id ASC
+            """,
+            row => new WorkshopDef(
+                row.GetInt64(0),
+                row.GetInt64(1),
+                row.GetInt64(2),
+                row.GetString(3),
+                row.GetInt64(4),
+                row.GetInt32(5),
+                row.GetInt32(6),
+                row.GetInt64(7) != 0,
+                row.GetInt32(8)));
+
+    public WorkResult OpenWorkshop(long citadelId, long tradeId)
+    {
+        var existing = GetWorkshop(citadelId);
+        if (existing is not null)
+        {
+            return WorkResult.Failure("Đã có xưởng chế tác tại thành trì này.");
+        }
+
+        var trade = Trades.FirstOrDefault(t => t.Id == tradeId);
+        if (trade is null)
+        {
+            return WorkResult.Failure("Nghề nghiệp không hợp lệ.");
+        }
+
+        if (_wallet.Liquid < WorkshopOpenCost)
+        {
+            return WorkResult.Failure($"Cần {WorkshopOpenCost} Quan tiền thuê mặt bằng mở xưởng, chỉ có {_wallet.Liquid}.");
+        }
+
+        var workshopName = $"Phường Nghề {trade.NameVi}";
+        var day = _clock.Today.DayIndex;
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(WorkshopOpenCost, JournalCodes.ToolFee, $"Mở {workshopName}");
+            _db.Execute(
+                """
+                INSERT INTO pf_workshop(citadel_id, trade_id, name_vi, monthly_rent, furnace_level, hired_artisans, is_active, created_day_index)
+                VALUES(@citadel, @trade, @name, @rent, 1, 0, 1, @day)
+                """,
+                new DbArgs()
+                    .Add("@citadel", citadelId)
+                    .Add("@trade", tradeId)
+                    .Add("@name", workshopName)
+                    .Add("@rent", WorkshopBaseRent)
+                    .Add("@day", day));
+        });
+
+        return WorkResult.Success($"Mở thành công {workshopName} tại thành! Tiền thuê cơ sở {WorkshopBaseRent} Quan/tháng.", 1, 0);
+    }
+
+    public WorkResult HireArtisan(long citadelId)
+    {
+        var ws = GetWorkshop(citadelId);
+        if (ws is null)
+        {
+            return WorkResult.Failure("Chưa có xưởng chế tác tại thành này.");
+        }
+
+        if (ws.HiredArtisans >= 5)
+        {
+            return WorkResult.Failure("Xưởng đã đạt giới hạn thợ phụ tối đa (5 người).");
+        }
+
+        if (_wallet.Liquid < ArtisanHireCost)
+        {
+            return WorkResult.Failure($"Cần {ArtisanHireCost} Quan tiền chiêu mộ thợ phụ, chỉ có {_wallet.Liquid}.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(ArtisanHireCost, JournalCodes.ToolFee, "Chiêu mộ thợ phụ gia công");
+            _db.Execute(
+                "UPDATE pf_workshop SET hired_artisans = hired_artisans + 1 WHERE citadel_id = @citadel",
+                DbArgs.One("@citadel", citadelId));
+        });
+
+        return WorkResult.Success($"Đã tuyển thêm 1 thợ phụ (hiện có {ws.HiredArtisans + 1} người). Lương tháng {ArtisanMonthlySalary} Quan/người.", 1, 0);
+    }
+
+    public WorkResult DismissArtisan(long citadelId)
+    {
+        var ws = GetWorkshop(citadelId);
+        if (ws is null || ws.HiredArtisans <= 0)
+        {
+            return WorkResult.Failure("Không có thợ phụ nào để cho nghỉ việc.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "UPDATE pf_workshop SET hired_artisans = hired_artisans - 1 WHERE citadel_id = @citadel",
+                DbArgs.One("@citadel", citadelId));
+        });
+
+        return WorkResult.Success($"Đã cho 1 thợ phụ thôi việc. Còn lại {ws.HiredArtisans - 1} người.", 1, 0);
+    }
+
+    public WorkResult UpgradeFurnace(long citadelId)
+    {
+        var ws = GetWorkshop(citadelId);
+        if (ws is null)
+        {
+            return WorkResult.Failure("Chưa có xưởng chế tác tại thành này.");
+        }
+
+        if (ws.FurnaceLevel >= 5)
+        {
+            return WorkResult.Failure("Lò rèn/cơ sở vật chất xưởng đã đạt cấp tối đa (cấp 5).");
+        }
+
+        var cost = ws.FurnaceLevel * 80;
+        if (_wallet.Liquid < cost)
+        {
+            return WorkResult.Failure($"Cần {cost} Quan để nâng cấp cơ sở xưởng, chỉ có {_wallet.Liquid}.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(cost, JournalCodes.ToolFee, "Nâng cấp cơ sở vật chất xưởng");
+            _db.Execute(
+                "UPDATE pf_workshop SET furnace_level = furnace_level + 1 WHERE citadel_id = @citadel",
+                DbArgs.One("@citadel", citadelId));
+        });
+
+        return WorkResult.Success($"Nâng cấp cơ sở xưởng lên cấp {ws.FurnaceLevel + 1}! Tăng mạnh tỷ lệ tạo tác Thần Binh/Tuyệt Phẩm.", 1, 0);
+    }
+
+    // =========================================================================
+    // GUILD COMMISSIONS & CRAFTING ORDERS
+    // =========================================================================
+
+    public IReadOnlyList<CraftOrderDef> AvailableOrders(long citadelId) =>
+        _db.Query(
+            """
+            SELECT id, client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, accepted_day
+            FROM pf_order
+            WHERE citadel_id = @citadel AND status = 'AVAILABLE' AND deadline_day >= @today
+            ORDER BY id ASC
+            """,
+            row => new CraftOrderDef(
+                row.GetInt64(0),
+                row.GetString(1),
+                row.GetString(2),
+                row.GetInt64(3),
+                row.GetInt64(4),
+                row.GetInt32(5),
+                row.GetInt32(6),
+                row.GetInt32(7),
+                row.GetInt32(8),
+                row.GetString(9),
+                row.IsDbNull(10) ? null : row.GetInt32(10)),
+            new DbArgs().Add("@citadel", citadelId).Add("@today", _clock.Today.DayIndex));
+
+    public IReadOnlyList<CraftOrderDef> ActiveOrders() =>
+        _db.Query(
+            """
+            SELECT id, client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, accepted_day
+            FROM pf_order
+            WHERE status = 'ACCEPTED' AND deadline_day >= @today
+            ORDER BY deadline_day ASC
+            """,
+            row => new CraftOrderDef(
+                row.GetInt64(0),
+                row.GetString(1),
+                row.GetString(2),
+                row.GetInt64(3),
+                row.GetInt64(4),
+                row.GetInt32(5),
+                row.GetInt32(6),
+                row.GetInt32(7),
+                row.GetInt32(8),
+                row.GetString(9),
+                row.IsDbNull(10) ? null : row.GetInt32(10)),
+            DbArgs.One("@today", _clock.Today.DayIndex));
+
+    private sealed record OrderAcceptInfo(long Id, string Status, string Name);
+
+    public WorkResult AcceptOrder(long orderId)
+    {
+        var order = _db.QueryOne(
+            "SELECT id, status, client_name_vi FROM pf_order WHERE id = @id",
+            row => new OrderAcceptInfo(row.GetInt64(0), row.GetString(1), row.GetString(2)),
+            DbArgs.One("@id", orderId));
+
+        if (order is null)
+        {
+            return WorkResult.Failure("Không tìm thấy đơn đặt hàng.");
+        }
+
+        if (order.Status != "AVAILABLE")
+        {
+            return WorkResult.Failure("Đơn hàng này không ở trạng thái có thể tiếp nhận.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "UPDATE pf_order SET status = 'ACCEPTED', accepted_day = @day WHERE id = @id",
+                new DbArgs().Add("@day", _clock.Today.DayIndex).Add("@id", orderId));
+        });
+
+        return WorkResult.Success($"Đã tiếp nhận đơn đặt hàng từ {order.Name}.", 1, 0);
+    }
+
+    public WorkResult FulfillOrder(long citadelId, long orderId)
+    {
+        var order = _db.QueryOne(
+            """
+            SELECT id, client_name_vi, target_item_id, quantity_needed, reward_copper, fame_reward, status, citadel_id
+            FROM pf_order
+            WHERE id = @id
+            """,
+            row => new
+            {
+                Id = row.GetInt64(0),
+                ClientName = row.GetString(1),
+                TargetItemId = row.GetInt64(2),
+                QuantityNeeded = row.GetInt32(3),
+                RewardCopper = row.GetInt32(4),
+                FameReward = row.GetInt32(5),
+                Status = row.GetString(6),
+                CitadelId = row.GetInt64(7)
+            },
+            DbArgs.One("@id", orderId));
+
+        if (order is null)
+        {
+            return WorkResult.Failure("Không tìm thấy đơn hàng.");
+        }
+
+        if (order.Status != "ACCEPTED" && order.Status != "AVAILABLE")
+        {
+            return WorkResult.Failure("Đơn hàng này đã hoàn thành hoặc hết hạn.");
+        }
+
+        var currentQty = _bag.Quantity(citadelId, order.TargetItemId);
+        if (currentQty < order.QuantityNeeded)
+        {
+            var itemName = _items.Find(order.TargetItemId)?.NameVi ?? "vật phẩm";
+            return WorkResult.Failure($"Chưa đủ số lượng giao nộp: cần {order.QuantityNeeded} {itemName}, chỉ có {currentQty} trong tay nải tại thành này.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _bag.Remove(citadelId, order.TargetItemId, order.QuantityNeeded);
+            _wallet.Pay(order.RewardCopper, JournalCodes.CourtStipend, $"Thù lao đơn đặt hàng {order.ClientName}");
+
+            _db.Execute(
+                "UPDATE pf_guild_fame SET total_fame = total_fame + @fame WHERE id = 1",
+                DbArgs.One("@fame", order.FameReward));
+
+            _db.Execute(
+                "UPDATE pf_order SET status = 'COMPLETED' WHERE id = @id",
+                DbArgs.One("@id", orderId));
+
+            _attributes?.AddExp("CRA", 30);
+        });
+
+        return WorkResult.Success(
+            $"Giao nộp thành công cho {order.ClientName}! Nhận {order.RewardCopper} Quan và +{order.FameReward} Danh vọng phường nghề.",
+            order.QuantityNeeded,
+            0);
+    }
+
+    // =========================================================================
+    // PLAYER EQUIPMENT & COMBAT SLOTS
+    // =========================================================================
+
+    public IReadOnlyList<EquippedSlotDef> EquippedSlots => Slots;
+
+    public IReadOnlyList<EquippedSlotDef> Slots =>
+        _db.Query(
+            """
+            SELECT s.slot_code, s.equipment_id, e.name_vi, e.item_id, e.citadel_id, e.durability, e.max_durability, e.quality_rank, e.bonus_stat, e.bonus_value
+            FROM pf_equipped_slot s
+            LEFT JOIN pf_equipment e ON e.id = s.equipment_id
+            ORDER BY s.slot_code DESC
+            """,
+            row =>
+            {
+                var slotCode = row.GetString(0);
+                var slotName = slotCode switch
+                {
+                    "WEAPON" => "Binh Khí",
+                    "ARMOR" => "Hộ Giáp",
+                    _ => "Khí Cụ"
+                };
+
+                EquipmentDef? equip = null;
+                if (!row.IsDbNull(1))
+                {
+                    equip = new EquipmentDef(
+                        row.GetInt64(1),
+                        row.GetString(2),
+                        row.GetInt64(3),
+                        row.GetInt64(4),
+                        row.GetInt32(5),
+                        row.GetInt32(6),
+                        row.GetString(7),
+                        row.GetString(8),
+                        row.GetInt32(9));
+                }
+
+                return new EquippedSlotDef(slotCode, slotName, row.IsDbNull(1) ? null : row.GetInt64(1), equip);
+            });
+
+    public EquippedSlotDef? GetSlot(string slotCode) =>
+        Slots.FirstOrDefault(s => s.SlotCode.Equals(slotCode, StringComparison.OrdinalIgnoreCase));
+
+    public int GetTotalBonus(string statCode)
+    {
+        var total = 0;
+        foreach (var slot in Slots)
+        {
+            if (slot.Equipment is not null && slot.Equipment.Durability > 0)
+            {
+                if (slot.Equipment.BonusStat.Equals(statCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    total += slot.Equipment.BonusValue;
+                }
+            }
+        }
+        return total;
+    }
+
+    public int GetEquippedStatBonus(string statCode) => GetTotalBonus(statCode);
+
+    public WorkResult Equip(long equipmentId)
+    {
+        var equip = FindEquipment(equipmentId);
+        if (equip is null)
+        {
+            return WorkResult.Failure("Không tìm thấy trang bị này.");
+        }
+
+        var slotCode = ResolveSlotForEquipment(equip);
+        var slotName = slotCode switch
+        {
+            "WEAPON" => "Binh Khí",
+            "ARMOR" => "Hộ Giáp",
+            _ => "Khí Cụ"
+        };
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                """
+                INSERT INTO pf_equipped_slot(slot_code, equipment_id, equipped_at_day)
+                VALUES(@slot, @id, @day)
+                ON CONFLICT(slot_code) DO UPDATE SET equipment_id = excluded.equipment_id, equipped_at_day = excluded.equipped_at_day
+                """,
+                new DbArgs().Add("@slot", slotCode).Add("@id", equipmentId).Add("@day", _clock.Today.DayIndex));
+        });
+
+        return WorkResult.Success($"Đã trang bị {equip.NameVi} vào vị trí {slotName} (+{equip.BonusValue} {equip.BonusStat}).", 1, 0);
+    }
+
+    public WorkResult Unequip(string slotCode)
+    {
+        var slot = GetSlot(slotCode);
+        if (slot is null || slot.EquipmentId is null)
+        {
+            return WorkResult.Failure("Vị trí này hiện đang để trống.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "UPDATE pf_equipped_slot SET equipment_id = NULL WHERE slot_code = @slot",
+                DbArgs.One("@slot", slot.SlotCode));
+        });
+
+        return WorkResult.Success($"Đã gỡ trang bị ở vị trí {slot.SlotNameVi}.", 1, 0);
+    }
+
+    public void DegradeEquipped(string slotCode, int loss)
+    {
+        if (loss <= 0) return;
+        var slot = GetSlot(slotCode);
+        if (slot is not null && slot.EquipmentId.HasValue)
+        {
+            _db.Execute(
+                "UPDATE pf_equipment SET durability = MAX(0, durability - @loss) WHERE id = @id",
+                new DbArgs().Add("@loss", loss).Add("@id", slot.EquipmentId.Value));
+        }
+    }
+
+    private static string ResolveSlotForEquipment(EquipmentDef equip)
+    {
+        if (equip.BonusStat == "WAR")
+        {
+            var name = equip.NameVi.ToLowerInvariant();
+            if (name.Contains("giáp") || name.Contains("tháp") || name.Contains("khôi"))
+            {
+                return "ARMOR";
+            }
+            return "WEAPON";
+        }
+        return "TOOL";
+    }
+
+    // =========================================================================
+    // MONTHLY TICK (WORKSHOP RENT & ARTISAN LABOUR)
+    // =========================================================================
+
+    public void OnMonth(GameDate date)
+    {
+        var workshops = AllWorkshops();
+        foreach (var ws in workshops)
+        {
+            if (!ws.IsActive) continue;
+
+            // Workshop rent
+            if (_wallet.Liquid >= ws.MonthlyRent)
+            {
+                _wallet.Charge(ws.MonthlyRent, JournalCodes.ToolFee, $"Tiền thuê {ws.NameVi} tháng {date.Month:00}/{date.Year}");
+            }
+            else
+            {
+                _log.Warn($"Không đủ tiền trả thuê xưởng {ws.NameVi} tháng {date}.");
+            }
+
+            // Artisan salaries & production
+            if (ws.HiredArtisans > 0)
+            {
+                var totalSalary = ws.HiredArtisans * ArtisanMonthlySalary;
+                if (_wallet.Liquid >= totalSalary)
+                {
+                    _wallet.Charge(totalSalary, JournalCodes.ToolFee, $"Lương thợ phụ {ws.NameVi} ({ws.HiredArtisans} người)");
+
+                    var trade = Trades.FirstOrDefault(t => t.Id == ws.TradeId);
+                    if (trade is not null)
+                    {
+                        var yieldPerWorker = trade.BaseQuantity;
+                        var totalYield = ws.HiredArtisans * yieldPerWorker;
+                        _bag.Add(ws.CitadelId, trade.OutputItemId, totalYield);
+
+                        var currentPractice = PracticeCount(trade.Id);
+                        var newPractice = currentPractice + ws.HiredArtisans;
+                        var newTier = Math.Min(MaxTier, newPractice / PracticesPerTier);
+
+                        _db.Execute(
+                            """
+                            INSERT INTO pf_skill(trade_id, practice_count, tier) VALUES(@trade, @practice, @tier)
+                            ON CONFLICT(trade_id) DO UPDATE SET practice_count = excluded.practice_count, tier = excluded.tier
+                            """,
+                            new DbArgs().Add("@trade", trade.Id).Add("@practice", newPractice).Add("@tier", newTier));
+
+                        _log.Info($"Workshop {ws.NameVi} produced +{totalYield} items via {ws.HiredArtisans} artisans.");
+                    }
+                }
+                else
+                {
+                    _log.Warn($"Không đủ trả lương {totalSalary} Quan cho thợ phụ {ws.NameVi}.");
+                }
+            }
+        }
+
+        // Expire overdue orders
+        _db.Execute(
+            "UPDATE pf_order SET status = 'EXPIRED' WHERE deadline_day < @day AND status IN ('AVAILABLE', 'ACCEPTED')",
+            DbArgs.One("@day", date.DayIndex));
     }
 
     private static IReadOnlyList<TradeDefinition> LoadTrades(IDbSession db) =>

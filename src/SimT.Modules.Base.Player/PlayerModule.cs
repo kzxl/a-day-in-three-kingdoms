@@ -353,7 +353,7 @@ public sealed class PlayerModule : ISimModule
 
             {
 
-                return _db.QueryOne<CharacterAttributes>(
+                var baseAttrs = _db.QueryOne<CharacterAttributes>(
 
                     @"SELECT war_attr, ldr_attr, int_attr, pol_attr, dip_attr, com_attr, log_attr, cra_attr,
 
@@ -390,6 +390,25 @@ public sealed class PlayerModule : ISimModule
                     DbArgs.One("@id", _playerId))
 
                     ?? new CharacterAttributes(50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50);
+
+                if (_capabilities != null && _capabilities.TryGet<IPlayerEquipment>(CapabilityIds.PlayerEquipment, out var eq) && eq != null)
+                {
+                    return new CharacterAttributes(
+                        baseAttrs.War + eq.GetTotalBonus("WAR"),
+                        baseAttrs.Ldr + eq.GetTotalBonus("LDR"),
+                        baseAttrs.Int + eq.GetTotalBonus("INT"),
+                        baseAttrs.Pol + eq.GetTotalBonus("POL"),
+                        baseAttrs.Dip + eq.GetTotalBonus("DIP"),
+                        baseAttrs.Com + eq.GetTotalBonus("COM"),
+                        baseAttrs.Log + eq.GetTotalBonus("LOG"),
+                        baseAttrs.Cra + eq.GetTotalBonus("CRA"),
+                        baseAttrs.Con + eq.GetTotalBonus("CON"),
+                        baseAttrs.Wil + eq.GetTotalBonus("WIL"),
+                        baseAttrs.Prc + eq.GetTotalBonus("PRC"),
+                        baseAttrs.Lck + eq.GetTotalBonus("LCK"));
+                }
+
+                return baseAttrs;
 
             }
 

@@ -18,6 +18,7 @@ internal sealed class MilitaryService : IMilitaryCommand
     private readonly IPlayerAttributes _attributes;
     private readonly IItemCatalog _items;
     private readonly ILog _log;
+    private readonly IPlayerEquipment? _equipment;
 
     public MilitaryService(
         IDbSession db,
@@ -29,7 +30,8 @@ internal sealed class MilitaryService : IMilitaryCommand
         IPlayerState player,
         IPlayerAttributes attributes,
         IItemCatalog items,
-        ILog log)
+        ILog log,
+        IPlayerEquipment? equipment = null)
     {
         _db = db;
         _clock = clock;
@@ -41,6 +43,7 @@ internal sealed class MilitaryService : IMilitaryCommand
         _attributes = attributes;
         _items = items;
         _log = log;
+        _equipment = equipment;
     }
 
     public IReadOnlyList<StrongholdDef> StrongholdsAt(long citadelId)
@@ -167,6 +170,9 @@ internal sealed class MilitaryService : IMilitaryCommand
                     .Add("@prize", duel.GoldReward));
         });
 
+        _equipment?.DegradeEquipped("WEAPON", 3);
+        _equipment?.DegradeEquipped("ARMOR", 3);
+
         _log.Info($"Arena duel against {npc.NameVi} ({TroopBranchHelper.NameVi(duel.OpponentBranch)}): won={duel.Won}, rounds={duel.Rounds}, prize={duel.GoldReward}.");
         return duel;
     }
@@ -242,6 +248,9 @@ internal sealed class MilitaryService : IMilitaryCommand
             _attributes.AddExp("LDR", 20);
             _attributes.GainFame(stronghold.DangerLevel * 15, $"Tiễu phạt sào huyệt {stronghold.NameVi}, an định bờ cõi.", virtueDelta: 5);
         });
+
+        _equipment?.DegradeEquipped("WEAPON", 5);
+        _equipment?.DegradeEquipped("ARMOR", 5);
 
         var itemName = item?.NameVi ?? "Quân lương";
         _log.Info($"Assaulted stronghold {stronghold.NameVi}: victory, loot={stronghold.LootGold}, item={itemName}.");

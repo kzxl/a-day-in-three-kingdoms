@@ -17,6 +17,7 @@ public sealed class MilitaryModule : ISimModule
         var wallet = context.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
         var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
         var items = context.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
+        var equipment = context.Capabilities.TryGet<IPlayerEquipment>(CapabilityIds.PlayerEquipment, out var pe) ? pe : null;
 
         var service = new MilitaryService(
             context.Db,
@@ -28,7 +29,8 @@ public sealed class MilitaryModule : ISimModule
             player,
             attributes,
             items,
-            context.Log);
+            context.Log,
+            equipment);
 
         context.Capabilities.Provide(CapabilityIds.MilitaryCommand, service);
 

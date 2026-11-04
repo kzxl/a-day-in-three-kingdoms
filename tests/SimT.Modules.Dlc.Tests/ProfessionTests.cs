@@ -223,6 +223,119 @@ public sealed class ProfessionTests : IDisposable
         Assert.True(craftedDao.MaxDurability >= 100);
     }
 
+    [Fact]
+    public void Equip_and_unequip_item_changes_slots_and_player_bonus()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var eq = kernel.Capabilities.Get<IPlayerEquipment>(CapabilityIds.PlayerEquipment);
+        var attr = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        // Verify initial empty slots
+        var weaponSlot = eq.GetSlot("WEAPON");
+        Assert.NotNull(weaponSlot);
+        Assert.Null(weaponSlot.EquipmentId);
+        Assert.Equal(0, eq.GetTotalBonus("WAR"));
+
+        var baseWar = attr.Attributes.War;
+
+        // Equip weapon 1 (Đao Sắt Thao Diễn, +3 WAR)
+        var equipMsg = Command(kernel, "equip:1");
+        Assert.Contains("Đã trang bị", equipMsg);
+        Assert.Equal(3, eq.GetTotalBonus("WAR"));
+        Assert.Equal(baseWar + 3, attr.Attributes.War);
+
+        // Unequip weapon
+        var unequipMsg = Command(kernel, "unequip:WEAPON");
+        Assert.Contains("Đã gỡ trang bị", unequipMsg);
+        Assert.Equal(0, eq.GetTotalBonus("WAR"));
+        Assert.Equal(baseWar, attr.Attributes.War);
+    }
+
+    [Fact]
+    public void Opening_workshop_and_hiring_artisans_produces_monthly_yield()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+        var guild = Guild(kernel);
+
+        // Open woodcraft workshop at city 1 (trade 3: Thợ mộc)
+        var openMsg = Command(kernel, "workshop:open:3");
+        Assert.Contains("Mở thành công", openMsg);
+
+        var ws = guild.GetWorkshop(player.CurrentCityId);
+        Assert.NotNull(ws);
+        Assert.Equal(3, ws.TradeId);
+        Assert.Equal(0, ws.HiredArtisans);
+
+        // Hire 2 artisans
+        Command(kernel, "workshop:hire:0");
+        Command(kernel, "workshop:hire:0");
+
+        var wsAfterHire = guild.GetWorkshop(player.CurrentCityId);
+        Assert.Equal(2, wsAfterHire!.HiredArtisans);
+
+        var woodBefore = bag.Quantity(player.CurrentCityId, 6); // Item 6: Gỗ
+
+        // Advance 30 days to trigger month close
+        for (var day = 0; day < 30; day++)
+        {
+            kernel.Clock.Advance(1);
+        }
+
+        var woodAfter = bag.Quantity(player.CurrentCityId, 6);
+        Assert.True(woodAfter > woodBefore, "Artisans must automatically produce goods on month close.");
+    }
+
+    [Fact]
+    public void Accepting_and_fulfilling_crafting_order_grants_copper_and_fame()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+        var guild = Guild(kernel);
+
+        // Order 1 needs 10 iron items (item 5), gives 350 copper + 15 fame
+        var acceptMsg = Command(kernel, "order:accept:1");
+        Assert.Contains("Đã tiếp nhận", acceptMsg);
+
+        // Seed 10 iron items into bag
+        bag.Add(player.CurrentCityId, 5, 10);
+
+        var initialBalance = kernel.Ledger.Balance;
+        var initialFame = guild.TotalGuildFame;
+
+        var fulfillMsg = Command(kernel, "order:fulfill:1");
+        Assert.Contains("Giao nộp thành công", fulfillMsg);
+        Assert.Equal(initialBalance + 350, kernel.Ledger.Balance);
+        Assert.Equal(initialFame + 15, guild.TotalGuildFame);
+        Assert.Equal(0, bag.Quantity(player.CurrentCityId, 5));
+    }
+
+    [Fact]
+    public void Craftsman_rank_and_titles_upgrade_with_practice()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+
+        Assert.Equal("Học Đồ", guild.GetCraftsmanRank(1));
+
+        // 4 batches = tier 1 (Thợ Phụ)
+        for (var i = 0; i < 4; i++)
+        {
+            Command(kernel, "work:1");
+        }
+        Assert.Equal("Thợ Phụ", guild.GetCraftsmanRank(1));
+
+        // 4 more batches = tier 2 (Thợ Nghề)
+        for (var i = 0; i < 4; i++)
+        {
+            Command(kernel, "work:1");
+        }
+        Assert.Equal("Thợ Nghề", guild.GetCraftsmanRank(1));
+    }
+
     private static string Command(SimKernel kernel, string commandId)
     {
         Assert.True(kernel.TryGetCommandHandler("professions.trades", out var handler), "professions screen is not registered");
