@@ -75,6 +75,8 @@ public static class JournalCodes
     public const string MarketBuy = "MKT.BUY";
     public const string MarketSell = "MKT.SELL";
     public const string WarehouseRent = "MKT.WH_LEASE";
+    public const string StallRent = "MKT.STALL_RENT";
+    public const string StallSale = "MKT.STALL_SALE";
     public const string CaravanFreight = "CV.FREIGHT";
     public const string ToolFee = "PF.TOOL_FEE";
     public const string Dowry = "LN.DOWRY";

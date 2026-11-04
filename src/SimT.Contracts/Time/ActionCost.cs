@@ -9,6 +9,8 @@ public static class ActionCodes
     public const string TradeBuy = "trade.buy";
     public const string TradeSell = "trade.sell";
     public const string MarketRent = "market.rent";
+    public const string StallRent = "market.stall_rent";
+    public const string StallStock = "market.stall_stock";
     public const string WarehouseMove = "market.warehouse_move";
     public const string CaravanSend = "caravan.send";
     public const string CaravanTravel = "caravan.travel";

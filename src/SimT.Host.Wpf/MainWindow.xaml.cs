@@ -72,6 +72,7 @@ public partial class MainWindow : Window
     private static string GlyphFor(string screenId) => screenId switch
     {
         "market.stall" => "◈",
+        "market.player_stall" => "🎪",
         "market.warehouse" => "▤",
         "caravan.routes" => "⇢",
         "professions.trades" => "⚒",

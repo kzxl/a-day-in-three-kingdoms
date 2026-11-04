@@ -57,3 +57,27 @@ public interface IMarketPortfolio
 }
 
 public sealed record WarehouseStockView(long ItemId, int Quantity, int AgeDays);
+
+/// <summary>Player-owned retail stall surface provided by <c>dlc.market</c>.</summary>
+public interface IPlayerStall
+{
+    long DefaultStallRent { get; }
+
+    PlayerStallInfo? StallInfo(long cityId);
+
+    IReadOnlyList<PlayerShelfItem> Shelves(long cityId);
+
+    bool RentStall(long cityId, out string message);
+
+    bool Stock(long cityId, long itemId, int quantity, out string message);
+
+    bool Unstock(long cityId, long itemId, int quantity, out string message);
+
+    bool SetPrice(long cityId, long itemId, long newPrice, out string message);
+
+    bool StockAll(long cityId, out string message);
+}
+
+public sealed record PlayerStallInfo(long CityId, long MonthlyRent, int HiredClerks, bool IsOpen);
+
+public sealed record PlayerShelfItem(long ItemId, int Quantity, long SellingPrice);

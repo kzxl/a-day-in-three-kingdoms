@@ -7,8 +7,15 @@
   "provides": ["market.trade", "market.warehouse"],
   "consumes": ["content.items", "world.map", "player.wallet", "player.bag", "player.state"],
   "owns": {
-    "tables": ["mk_stall_listing", "mk_warehouse", "mk_warehouse_stock", "mk_price_sample"],
+    "tables": [
+      "mk_stall_listing",
+      "mk_warehouse",
+      "mk_warehouse_stock",
+      "mk_price_sample",
+      "mk_player_stall",
+      "mk_player_stall_shelf"
+    ],
     "migrations": ["migrations"]
   },
-  "screens": ["market.stall", "market.warehouse"]
+  "screens": ["market.stall", "market.player_stall", "market.warehouse"]
 }

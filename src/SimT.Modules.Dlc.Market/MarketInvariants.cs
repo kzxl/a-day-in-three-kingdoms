@@ -81,6 +81,33 @@ internal static class MarketInvariants
         }
     }
 
+    public sealed class NonNegativeShelfQuantity : IInvariant
+    {
+        public string Id => "market.player_stall.non_negative_shelf";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM mk_player_stall_shelf WHERE quantity < 0");
+            return bad == 0 ? null : $"{bad} shelf item(s) have negative quantity";
+        }
+    }
+
+    public sealed class ShelfRowsRequireStall : IInvariant
+    {
+        public string Id => "market.player_stall.shelf_requires_stall";
+
+        public string? Check(IInvariantContext context)
+        {
+            var orphans = context.Db.ScalarLong(
+                """
+                SELECT COUNT(*) FROM mk_player_stall_shelf s
+                WHERE NOT EXISTS (SELECT 1 FROM mk_player_stall st WHERE st.citadel_id = s.citadel_id)
+                """);
+
+            return orphans == 0 ? null : $"{orphans} shelf row(s) exist without an active player stall";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new NonNegativeStallStock();
@@ -88,5 +115,7 @@ internal static class MarketInvariants
         yield return new StockRowsRequireWarehouse();
         yield return new StockWithinBuyBackCapacity();
         yield return new BaselinePositive();
+        yield return new NonNegativeShelfQuantity();
+        yield return new ShelfRowsRequireStall();
     }
 }

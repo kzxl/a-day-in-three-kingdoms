@@ -4,6 +4,8 @@
     "trade.buy": { "days": 2 },
     "trade.sell": { "days": 2 },
     "market.rent": { "days": 1 },
+    "market.stall_rent": { "days": 1 },
+    "market.stall_stock": { "days": 0 },
     "market.warehouse_move": { "days": 0 },
     "caravan.send": { "days": 1 },
     "caravan.travel": { "days": 0 },

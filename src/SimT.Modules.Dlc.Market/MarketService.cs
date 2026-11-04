@@ -11,10 +11,13 @@ namespace SimT.Modules.Dlc.Market;
 /// Trade + warehouse rules for <c>dlc.market</c>. Everything it touches is reached through a
 /// capability, never through another module's assembly.
 /// </summary>
-internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPortfolio
+internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPortfolio, IPlayerStall
 {
     public const int DefaultCapacity = 200;
     public const long DefaultMonthlyRent = 150;
+    public const long DefaultStallRentAmount = 80;
+
+    public long DefaultStallRent => DefaultStallRentAmount;
 
     private readonly IDbSession _db;
     private readonly IGameClock _clock;
@@ -512,12 +515,6 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
     /// <summary>Seeds stall supply from the catalog and the map. No foreign table is read here.</summary>
     public void EnsureListings(IItemCatalog items, IWorldMap map)
     {
-        var existing = _db.ScalarLong("SELECT COUNT(*) FROM mk_stall_listing");
-        if (existing > 0)
-        {
-            return;
-        }
-
         _db.Transaction(() =>
         {
             foreach (var citadel in map.Citadels)
@@ -540,4 +537,290 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
 
     private CitadelDef RequireCitadel(long cityId) =>
         _map.Find(cityId) ?? throw new SimException("market.citadel_missing", $"Citadel {cityId} is not on the map.");
+
+
+    // -------------------------------------------------------- player stall
+
+    public PlayerStallInfo? StallInfo(long cityId)
+    {
+        return _db.Query(
+            "SELECT citadel_id, rent_per_month, hired_clerks, is_open FROM mk_player_stall WHERE citadel_id = @city",
+            row => new PlayerStallInfo(row.GetInt64(0), row.GetInt64(1), row.GetInt32(2), row.GetInt32(3) == 1),
+            DbArgs.One("@city", cityId))
+            .FirstOrDefault();
+    }
+
+    public IReadOnlyList<PlayerShelfItem> Shelves(long cityId)
+    {
+        return _db.Query(
+            "SELECT item_id, quantity, selling_price FROM mk_player_stall_shelf WHERE citadel_id = @city ORDER BY item_id",
+            row => new PlayerShelfItem(row.GetInt64(0), row.GetInt32(1), row.GetInt64(2)),
+            DbArgs.One("@city", cityId));
+    }
+
+    public bool RentStall(long cityId, out string message)
+    {
+        var city = _map.Find(cityId);
+        if (city is null)
+        {
+            message = "Không tìm thấy thành này.";
+            return false;
+        }
+
+        var existing = StallInfo(cityId);
+        if (existing is not null)
+        {
+            message = $"Ngươi đã có sạp tại {city.NameVi}.";
+            return false;
+        }
+
+        if (_wallet.Liquid < DefaultStallRentAmount)
+        {
+            message = $"Không đủ {DefaultStallRentAmount} quan để thuê sạp.";
+            return false;
+        }
+
+        _actionTime.Charge(ActionCodes.StallRent);
+        _wallet.Charge(DefaultStallRentAmount, JournalCodes.StallRent, $"Thuê sạp tại {city.NameVi} tháng đầu");
+
+        _db.Execute(
+            """
+            INSERT INTO mk_player_stall (citadel_id, rent_per_month, hired_clerks, is_open, created_day)
+            VALUES (@city, @rent, 1, 1, @day)
+            """,
+            new DbArgs().Add("@city", cityId).Add("@rent", DefaultStallRentAmount).Add("@day", _clock.Today.DayIndex));
+
+        message = $"Thuê sạp tại {city.NameVi} thành công! Tiền thuê {DefaultStallRentAmount} quan/tháng, 1 tiểu nhị trông coi.";
+        return true;
+    }
+
+    public bool Stock(long cityId, long itemId, int quantity, out string message)
+    {
+        if (quantity <= 0)
+        {
+            message = "Số lượng phải lớn hơn 0.";
+            return false;
+        }
+
+        var stall = StallInfo(cityId);
+        if (stall is null)
+        {
+            message = "Ngươi chưa có sạp tại thành này.";
+            return false;
+        }
+
+        var item = RequireItem(itemId);
+        var held = _bag.Quantity(cityId, itemId);
+        if (held < quantity)
+        {
+            message = $"Trong túi chỉ có {held} {item.NameVi}.";
+            return false;
+        }
+
+        _bag.Remove(cityId, itemId, quantity);
+
+        var marketPrice = QuoteBuy(cityId, itemId);
+        var defaultPrice = Math.Max(1L, (long)Math.Ceiling(marketPrice * 1.2));
+
+        _db.Execute(
+            """
+            INSERT INTO mk_player_stall_shelf (citadel_id, item_id, quantity, selling_price)
+            VALUES (@city, @item, @qty, @price)
+            ON CONFLICT (citadel_id, item_id) DO UPDATE SET quantity = quantity + @qty
+            """,
+            new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@qty", quantity).Add("@price", defaultPrice));
+
+        message = $"Đã bày {quantity} {item.NameVi} lên quầy (giá bán {defaultPrice} quan).";
+        return true;
+    }
+
+    public bool Unstock(long cityId, long itemId, int quantity, out string message)
+    {
+        if (quantity <= 0)
+        {
+            message = "Số lượng phải lớn hơn 0.";
+            return false;
+        }
+
+        var shelf = _db.Query(
+            "SELECT quantity, selling_price FROM mk_player_stall_shelf WHERE citadel_id = @city AND item_id = @item",
+            row => (Quantity: row.GetInt32(0), Price: row.GetInt64(1)),
+            new DbArgs().Add("@city", cityId).Add("@item", itemId))
+            .FirstOrDefault();
+
+        if (shelf.Quantity <= 0)
+        {
+            message = "Trên quầy không có món này.";
+            return false;
+        }
+
+        var actual = Math.Min(quantity, shelf.Quantity);
+        var item = RequireItem(itemId);
+
+        if (actual >= shelf.Quantity)
+        {
+            _db.Execute(
+                "DELETE FROM mk_player_stall_shelf WHERE citadel_id = @city AND item_id = @item",
+                new DbArgs().Add("@city", cityId).Add("@item", itemId));
+        }
+        else
+        {
+            _db.Execute(
+                "UPDATE mk_player_stall_shelf SET quantity = quantity - @actual WHERE citadel_id = @city AND item_id = @item",
+                new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@actual", actual));
+        }
+
+        _bag.Add(cityId, itemId, actual);
+        message = $"Đã thu hồi {actual} {item.NameVi} về túi.";
+        return true;
+    }
+
+    public bool SetPrice(long cityId, long itemId, long newPrice, out string message)
+    {
+        if (newPrice <= 0)
+        {
+            message = "Giá bán phải lớn hơn 0.";
+            return false;
+        }
+
+        var item = RequireItem(itemId);
+        var affected = _db.Execute(
+            "UPDATE mk_player_stall_shelf SET selling_price = @price WHERE citadel_id = @city AND item_id = @item",
+            new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@price", newPrice));
+
+        if (affected == 0)
+        {
+            message = $"Không có {item.NameVi} trên quầy.";
+            return false;
+        }
+
+        message = $"Đã chỉnh giá {item.NameVi} thành {newPrice} quan.";
+        return true;
+    }
+
+    public bool StockAll(long cityId, out string message)
+    {
+        var stall = StallInfo(cityId);
+        if (stall is null)
+        {
+            message = "Ngươi chưa có sạp tại thành này.";
+            return false;
+        }
+
+        var stockedCount = 0;
+        foreach (var item in _items.All)
+        {
+            var held = _bag.Quantity(cityId, item.Id);
+            if (held > 0 && Stock(cityId, item.Id, held, out _))
+            {
+                stockedCount++;
+            }
+        }
+
+        message = stockedCount > 0
+            ? $"Đã bày {stockedCount} mặt hàng từ túi lên quầy!"
+            : "Túi đồ rỗng, không có hàng để bày.";
+        return stockedCount > 0;
+    }
+
+    public void DailyRetailSales(GameDate date)
+    {
+        var stalls = _db.Query("SELECT citadel_id FROM mk_player_stall WHERE is_open = 1", row => row.GetInt64(0));
+        if (stalls.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var cityId in stalls)
+        {
+            var city = _map.Find(cityId);
+            var shelves = Shelves(cityId);
+            var totalRevenue = 0L;
+            var soldLines = new List<string>();
+
+            foreach (var shelf in shelves)
+            {
+                if (shelf.Quantity <= 0) continue;
+
+                var item = _items.Find(shelf.ItemId);
+                if (item is null) continue;
+
+                var marketPrice = QuoteBuy(cityId, item.Id);
+                var ratio = marketPrice > 0 ? (shelf.SellingPrice * 100 / marketPrice) : 100;
+
+                int sold;
+                if (ratio <= 100)
+                {
+                    sold = Math.Min(shelf.Quantity, 3);
+                }
+                else if (ratio <= 125)
+                {
+                    sold = Math.Min(shelf.Quantity, 2);
+                }
+                else if (ratio <= 150)
+                {
+                    sold = Math.Min(shelf.Quantity, 1);
+                }
+                else
+                {
+                    sold = (date.DayIndex % 3 == 0) ? Math.Min(shelf.Quantity, 1) : 0;
+                }
+
+                if (sold > 0)
+                {
+                    if (sold >= shelf.Quantity)
+                    {
+                        _db.Execute(
+                            "DELETE FROM mk_player_stall_shelf WHERE citadel_id = @city AND item_id = @item",
+                            new DbArgs().Add("@city", cityId).Add("@item", item.Id));
+                    }
+                    else
+                    {
+                        _db.Execute(
+                            "UPDATE mk_player_stall_shelf SET quantity = quantity - @sold WHERE citadel_id = @city AND item_id = @item",
+                            new DbArgs().Add("@city", cityId).Add("@item", item.Id).Add("@sold", sold));
+                    }
+
+                    var revenue = sold * shelf.SellingPrice;
+                    totalRevenue += revenue;
+                    soldLines.Add($"{sold} {item.NameVi}");
+                }
+            }
+
+            if (totalRevenue > 0)
+            {
+                _wallet.Pay(totalRevenue, JournalCodes.StallSale, $"Doanh thu tiệm buôn tại {city?.NameVi ?? cityId.ToString()} ({string.Join(", ", soldLines)})");
+                _log.Info($"stall in {cityId} sold {string.Join(", ", soldLines)}: +{totalRevenue} quan on {date}");
+            }
+        }
+    }
+
+    public void ChargeMonthlyStallRent(GameDate date)
+    {
+        var stalls = _db.Query(
+            "SELECT citadel_id, rent_per_month FROM mk_player_stall",
+            row => (CityId: row.GetInt64(0), Rent: row.GetInt64(1)));
+
+        foreach (var stall in stalls)
+        {
+            var city = _map.Find(stall.CityId);
+            var cityName = city?.NameVi ?? stall.CityId.ToString();
+            var key = $"mkt.stall_lease:{stall.CityId}:{date.Year}:{date.Month}";
+
+            try
+            {
+                _wallet.Charge(
+                    stall.Rent,
+                    JournalCodes.StallRent,
+                    $"Thuê sạp {cityName} tháng {date.Month}/{date.Year}",
+                    idempotencyKey: key);
+
+                _log.Info($"charged monthly stall rent {stall.Rent} in {cityName} on {date}");
+            }
+            catch (SimException error) when (error.Code == "wallet.short")
+            {
+                _log.Info($"stall in {cityName} missed rent on {date}: short of cash");
+            }
+        }
+    }
 }
