@@ -14,6 +14,7 @@ internal sealed class StallScreen : IScreenContribution
         ["Vật phẩm", "Giá mua", "Giá bán", "Tồn sạp", "Mức cung", "Trong túi"];
 
     private readonly IMarketTrade _trade;
+    private readonly INpcMarket _npcMarket;
     private readonly IItemCatalog _items;
     private readonly IWorldMap _map;
     private readonly IBag _bag;
@@ -21,18 +22,22 @@ internal sealed class StallScreen : IScreenContribution
     private readonly IGameClock _clock;
     private readonly IWallet _wallet;
     private readonly IActionTime _actionTime;
+    private readonly INpcRegistry? _npcRegistry;
 
     public StallScreen(
         IMarketTrade trade,
+        INpcMarket npcMarket,
         IItemCatalog items,
         IWorldMap map,
         IBag bag,
         IPlayerState player,
         IGameClock clock,
         IWallet wallet,
-        IActionTime actionTime)
+        IActionTime actionTime,
+        INpcRegistry? npcRegistry = null)
     {
         _trade = trade;
+        _npcMarket = npcMarket;
         _items = items;
         _map = map;
         _bag = bag;
@@ -40,6 +45,7 @@ internal sealed class StallScreen : IScreenContribution
         _clock = clock;
         _wallet = wallet;
         _actionTime = actionTime;
+        _npcRegistry = npcRegistry;
     }
 
     public string ScreenId => "market.stall";
@@ -150,6 +156,58 @@ internal sealed class StallScreen : IScreenContribution
                 pair.Value))
             .ToList();
 
+        var npcOffers = _npcMarket.OffersAt(city.Id);
+        if (npcOffers.Count > 0)
+        {
+            var stalls = _npcMarket.StallsAt(city.Id);
+            var npcColumns = new[] { "Vật phẩm", "Sạp hàng", "Chủ sạp", "Giá gốc", "Ưu đãi", "Còn lại" };
+            var npcRows = new List<ScreenRow>();
+
+            foreach (var offer in npcOffers)
+            {
+                var item = _items.Find(offer.ItemId);
+                if (item is null) continue;
+
+                var stall = stalls.FirstOrDefault(s => s.Id == offer.StallId);
+                var stallName = stall?.NameVi ?? "Sạp Chợ";
+                var npc = _npcRegistry?.Find(offer.NpcId);
+                var npcName = npc?.NameVi ?? "Thương Gia";
+
+                var effectivePrice = offer.UnitPrice * (1000 - offer.DiscountPermille) / 1000;
+                var discountText = offer.DiscountPermille > 0 ? $"-{offer.DiscountPermille / 10}%" : "Chuẩn";
+
+                npcRows.Add(new ScreenRow(
+                    [
+                        item.NameVi,
+                        stallName,
+                        npcName,
+                        Fmt(offer.UnitPrice) + " q",
+                        $"{Fmt(effectivePrice)} q ({discountText})",
+                        offer.Quantity.ToString()
+                    ],
+                    [
+                        new ScreenCommand($"npc_buy:{offer.Id}", "Mua 1", Cost: buyCost),
+                        new ScreenCommand($"npc_buy:{offer.Id}", "Mua…", RequiresQuantity: true,
+                            Preview: BuyOfferPreview(effectivePrice, offer.Quantity), Cost: buyCost),
+                        new ScreenCommand($"npc:modal:{offer.NpcId}", "Hồ Sơ NPC 🔍", CommandKind.Secondary)
+                    ],
+                    Title: $"{item.NameVi} — {stallName}",
+                    Details:
+                    [
+                        new ScreenDetail("Mặt hàng", item.NameVi),
+                        new ScreenDetail("Sạp hàng", stallName),
+                        new ScreenDetail("Chủ sạp", npcName),
+                        new ScreenDetail("Đơn giá gốc", Fmt(offer.UnitPrice) + " quan"),
+                        new ScreenDetail("Ưu đãi giảm giá", discountText),
+                        new ScreenDetail("Giá thực mua", Fmt(effectivePrice) + " quan"),
+                        new ScreenDetail("Tồn kho sạp", $"{offer.Quantity}/{offer.MaxQuantity}"),
+                        new ScreenDetail("Ngành hàng", stall?.Sector ?? "Tổng hợp")
+                    ]));
+            }
+
+            sections.Insert(0, new ScreenSection("🎪 Sạp Chuyên Doanh & Hàng NPC Giảm Giá", npcColumns, npcRows));
+        }
+
         return new ScreenModel(
             ScreenId,
             $"{Title} — {city.NameVi}",
@@ -159,6 +217,19 @@ internal sealed class StallScreen : IScreenContribution
             metrics,
             alerts);
     }
+
+    private Func<int, string> BuyOfferPreview(long unitPrice, int stock) => quantity =>
+    {
+        if (quantity > stock)
+        {
+            return $"Sạp NPC chỉ còn {stock} đơn vị.";
+        }
+
+        var total = unitPrice * quantity;
+        return total > _wallet.Liquid
+            ? $"Thiếu {Fmt(total - _wallet.Liquid)} quan cho {quantity} đơn vị."
+            : $"{quantity} × {Fmt(unitPrice)} = {Fmt(total)} quan · còn {Fmt(_wallet.Liquid - total)}";
+    };
 
     private Func<int, string> BuyPreview(long unitPrice, int stock) => quantity =>
     {

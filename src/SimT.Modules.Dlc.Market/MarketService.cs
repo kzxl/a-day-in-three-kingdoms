@@ -11,7 +11,7 @@ namespace SimT.Modules.Dlc.Market;
 /// Trade + warehouse rules for <c>dlc.market</c>. Everything it touches is reached through a
 /// capability, never through another module's assembly.
 /// </summary>
-internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPortfolio, IPlayerStall
+internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPortfolio, IPlayerStall, INpcMarket
 {
     public const int DefaultCapacity = 200;
     public const long DefaultMonthlyRent = 150;
@@ -510,6 +510,8 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         {
             _log.Info($"restocked {rows.Count} stall listing(s) on {date}");
         }
+
+        _db.Execute("UPDATE mk_npc_offer SET quantity = max_quantity WHERE quantity < max_quantity");
     }
 
     /// <summary>Seeds stall supply from the catalog and the map. No foreign table is read here.</summary>
@@ -822,5 +824,139 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
                 _log.Info($"stall in {cityName} missed rent on {date}: short of cash");
             }
         }
+    }
+
+    // ------------------------------------------------------------- INpcMarket (Phase 2)
+
+    public IReadOnlyList<MarketStallDef> StallsAt(long cityId)
+    {
+        return _db.Query(
+            @"SELECT id, citadel_id, sector, name_vi, owner_kind, npc_id, reputation
+              FROM mk_stall WHERE citadel_id = @city ORDER BY id",
+            row => new MarketStallDef(
+                row.GetInt64(0),
+                row.GetInt64(1),
+                row.GetString(2),
+                row.GetString(3),
+                row.GetString(4),
+                row.IsDbNull(5) ? null : row.GetInt64(5),
+                row.GetInt32(6)),
+            DbArgs.One("@city", cityId));
+    }
+
+    public IReadOnlyList<NpcMarketOffer> OffersAt(long cityId)
+    {
+        return _db.Query(
+            @"SELECT o.id, o.stall_id, o.npc_id, o.item_id, o.quantity, o.max_quantity, o.unit_price, o.discount_permille
+              FROM mk_npc_offer o
+              JOIN mk_stall s ON s.id = o.stall_id
+              WHERE s.citadel_id = @city AND o.quantity > 0
+              ORDER BY o.id",
+            row => new NpcMarketOffer(
+                row.GetInt64(0),
+                row.GetInt64(1),
+                row.GetInt64(2),
+                row.GetInt64(3),
+                row.GetInt32(4),
+                row.GetInt32(5),
+                row.GetInt64(6),
+                row.GetInt32(7)),
+            DbArgs.One("@city", cityId));
+    }
+
+    public IReadOnlyList<NpcMarketOffer> OffersByStall(long stallId)
+    {
+        return _db.Query(
+            @"SELECT id, stall_id, npc_id, item_id, quantity, max_quantity, unit_price, discount_permille
+              FROM mk_npc_offer WHERE stall_id = @stall AND quantity > 0
+              ORDER BY id",
+            row => new NpcMarketOffer(
+                row.GetInt64(0),
+                row.GetInt64(1),
+                row.GetInt64(2),
+                row.GetInt64(3),
+                row.GetInt32(4),
+                row.GetInt32(5),
+                row.GetInt64(6),
+                row.GetInt32(7)),
+            DbArgs.One("@stall", stallId));
+    }
+
+    private sealed record NpcOfferDetailRow(
+        long Id,
+        long StallId,
+        long NpcId,
+        long ItemId,
+        int Quantity,
+        int MaxQuantity,
+        long UnitPrice,
+        int Discount,
+        long CitadelId,
+        string StallName);
+
+    public TradeResult BuyFromNpcOffer(long cityId, long offerId, int quantity)
+    {
+        if (quantity <= 0)
+        {
+            return TradeResult.Fail("Số lượng mua phải lớn hơn 0.");
+        }
+
+        var offer = _db.QueryOne(
+            @"SELECT o.id, o.stall_id, o.npc_id, o.item_id, o.quantity, o.max_quantity, o.unit_price, o.discount_permille, s.citadel_id, s.name_vi
+              FROM mk_npc_offer o
+              JOIN mk_stall s ON s.id = o.stall_id
+              WHERE o.id = @id",
+            row => new NpcOfferDetailRow(
+                row.GetInt64(0),
+                row.GetInt64(1),
+                row.GetInt64(2),
+                row.GetInt64(3),
+                row.GetInt32(4),
+                row.GetInt32(5),
+                row.GetInt64(6),
+                row.GetInt32(7),
+                row.GetInt64(8),
+                row.GetString(9)),
+            DbArgs.One("@id", offerId));
+
+        if (offer is null)
+        {
+            return TradeResult.Fail("Mặt hàng chào bán của NPC không tồn tại.");
+        }
+
+        if (offer.CitadelId != cityId)
+        {
+            return TradeResult.Fail("Sạp hàng này không ở thành trì hiện tại.");
+        }
+
+        if (offer.Quantity < quantity)
+        {
+            return TradeResult.Fail($"Sạp chỉ còn {offer.Quantity} đơn vị hàng.");
+        }
+
+        var item = _items.Find(offer.ItemId);
+        if (item is null)
+        {
+            return TradeResult.Fail($"Hàng hóa mã {offer.ItemId} không tồn tại trong danh mục.");
+        }
+
+        var effectiveUnit = offer.UnitPrice * (1000 - offer.Discount) / 1000;
+        if (effectiveUnit < 1) effectiveUnit = 1;
+        var total = effectiveUnit * quantity;
+
+        if (_wallet.Liquid < total)
+        {
+            return TradeResult.Fail($"Cần {total} Quan nhưng chỉ có {_wallet.Liquid} Quan tiền mặt.");
+        }
+
+        _wallet.Charge(total, "mk.npc_buy", $"Mua {quantity} {item.NameVi} từ {offer.StallName}");
+
+        _db.Execute(
+            "UPDATE mk_npc_offer SET quantity = quantity - @qty WHERE id = @id",
+            new DbArgs().Add("@qty", quantity).Add("@id", offerId));
+
+        _bag.Add(cityId, offer.ItemId, quantity);
+
+        return new TradeResult(true, effectiveUnit, total, $"Đã mua {quantity} {item.NameVi} tại '{offer.StallName}' hết {total} Quan.");
     }
 }

@@ -81,3 +81,42 @@ public interface IPlayerStall
 public sealed record PlayerStallInfo(long CityId, long MonthlyRent, int HiredClerks, bool IsOpen);
 
 public sealed record PlayerShelfItem(long ItemId, int Quantity, long SellingPrice);
+
+/// <summary>A specialized industry stall in a citadel (official or NPC owned).</summary>
+public sealed record MarketStallDef(
+    long Id,
+    long CitadelId,
+    string Sector,
+    string NameVi,
+    string OwnerKind,
+    long? NpcId,
+    int Reputation);
+
+/// <summary>Surplus goods listed by an NPC for sale at a specialized stall.</summary>
+public sealed record NpcMarketOffer(
+    long Id,
+    long StallId,
+    long NpcId,
+    long ItemId,
+    int Quantity,
+    int MaxQuantity,
+    long UnitPrice,
+    int DiscountPermille);
+
+/// <summary>Trade preference of an NPC indicating willingness to buy specific goods.</summary>
+public sealed record NpcTradePreference(
+    long NpcId,
+    string Category,
+    int BidMarkupPermille);
+
+/// <summary>NPC market and specialized stall surface provided by <c>dlc.market</c>.</summary>
+public interface INpcMarket
+{
+    IReadOnlyList<MarketStallDef> StallsAt(long cityId);
+
+    IReadOnlyList<NpcMarketOffer> OffersAt(long cityId);
+
+    IReadOnlyList<NpcMarketOffer> OffersByStall(long stallId);
+
+    TradeResult BuyFromNpcOffer(long cityId, long offerId, int quantity);
+}

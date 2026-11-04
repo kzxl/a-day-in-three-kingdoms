@@ -74,6 +74,12 @@ internal sealed class MarketCommandHandler : IScreenCommandHandler
             }
         }
 
+        if (parts.Length >= 2 && string.Equals(parts[0], "npc_buy", StringComparison.Ordinal) && long.TryParse(parts[1], out var offerId))
+        {
+            var qty = parts.Length >= 3 && int.TryParse(parts[2], out var parsedQty) && parsedQty > 0 ? parsedQty : 1;
+            return _service.BuyFromNpcOffer(cityId, offerId, qty).Message;
+        }
+
         if (parts.Length < 2 || !long.TryParse(parts[1], out var itemId))
         {
             return "Lệnh không hợp lệ.";
@@ -121,8 +127,10 @@ public sealed class MarketModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.MarketPortfolio, service);
         context.Capabilities.Provide(CapabilityIds.MarketWarehouse, service);
         context.Capabilities.Provide(CapabilityIds.PlayerStall, service);
+        context.Capabilities.Provide(CapabilityIds.NpcMarket, service);
 
-        context.Ui.AddScreen(new StallScreen(service, items, map, bag, player, context.Clock, wallet, context.ActionTime));
+        var npcs = context.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var nr) ? nr : null;
+        context.Ui.AddScreen(new StallScreen(service, service, items, map, bag, player, context.Clock, wallet, context.ActionTime, npcs));
         context.Ui.AddScreen(new PlayerStallScreen(service, service, items, map, bag, player, context.Clock, wallet, context.ActionTime));
         context.Ui.AddScreen(new WarehouseScreen(service, items, map, bag, player, context.ActionTime));
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.stall", service, player));
