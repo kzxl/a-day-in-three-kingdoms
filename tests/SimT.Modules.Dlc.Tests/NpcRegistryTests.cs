@@ -42,6 +42,43 @@ public sealed class NpcRegistryTests : IDisposable
     }
 
     [Fact]
+    public void NpcRegistry_all_characters_have_unique_names_and_expanded_cast()
+    {
+        using var kernel = _host.Boot();
+        var registry = Registry(kernel);
+
+        // Verify zero duplicate names across all 127 NPCs
+        var duplicateNames = registry.All
+            .GroupBy(n => n.NameVi)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+        Assert.Empty(duplicateNames);
+
+        // Verify newly added historical figures and their unique skills
+        var huangYueYing = registry.FindByCode("npc_0137");
+        Assert.NotNull(huangYueYing);
+        Assert.Equal("Hoàng Nguyệt Anh", huangYueYing.NameVi);
+        Assert.Equal(99, huangYueYing.Attributes.Cra);
+        Assert.Equal(95, huangYueYing.Attributes.Int);
+        Assert.Equal(12, huangYueYing.CitadelId); // Giang Lăng
+        Assert.Contains(huangYueYing.Skills, s => s.Code == "co_quan");
+
+        var zhangChunHua = registry.FindByCode("npc_0142");
+        Assert.NotNull(zhangChunHua);
+        Assert.Equal("Trương Xuân Hoa", zhangChunHua.NameVi);
+        Assert.Equal(90, zhangChunHua.Attributes.Int);
+        Assert.Equal(95, zhangChunHua.Attributes.Wil);
+        Assert.Contains(zhangChunHua.Skills, s => s.Code == "quyet_doan");
+
+        var gaoShun = registry.FindByCode("npc_0133");
+        Assert.NotNull(gaoShun);
+        Assert.Equal("Cao Thuận", gaoShun.NameVi);
+        Assert.Equal(9, gaoShun.CitadelId); // Hạ Phì
+        Assert.Contains(gaoShun.Skills, s => s.Code == "ham_tran_doanh");
+    }
+
+    [Fact]
     public void NpcRegistry_preserves_canonical_twelve_attributes()
     {
         using var kernel = _host.Boot();

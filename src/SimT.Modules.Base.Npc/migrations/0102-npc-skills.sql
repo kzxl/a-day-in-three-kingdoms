@@ -144,18 +144,18 @@ INSERT OR IGNORE INTO np_skill (npc_id, code, name_vi, category, tier, descripti
     (94, 'thi_hoa',      'Thi Họa',       'special',    4, 'Tuyệt đại tài nữ uyên bác thi từ chương cú.', 'Tăng nhanh điểm danh vọng và thiện cảm'),
     (95, 'huyen_thuat',  'Huyền Thuật',   'special',    5, 'Độn Giáp Thiên Thư biến ảo khôn lường ngao du càn khôn.', 'Biến hóa kỳ ảo né tránh toàn bộ công kích'),
     (95, 'dan_dao',      'Đan Đạo',       'special',    4, 'Luyện chế tiên đan kéo dài thọ mạng.', 'Gia tăng thể lực tối đa và căn cốt'),
-    (96, 'hoa_than',     'Hỏa Thần',      'strategist', 5, 'Hỏa công Xích Bích thiêu rụi chiến thuyền Tào Doanh.', 'Gia tăng sát thương chiến thuật diện rộng'),
-    (97, 'lien_doanh',   'Liên Doanh',    'strategist', 5, 'Hỏa thiêu bảy trăm dặm liên doanh trại Di Lăng.', 'Sát thương hỏa công liên hoàn cực mạnh'),
-    (98, 'bach_y',       'Bạch Y',        'strategist', 5, 'Bạch y độ giang bí mật đoạt Kinh Châu.', 'Đột nhập bất ngờ qua mọi phòng tuyến'),
-    (99, 'xa_kich',      'Xạ Kích',       'martial',    4, 'Song kích thần xạ danh vang Giang Nam.', '+16% chiến lực đơn đấu lôi đài'),
-    (100, 'phuong_so',   'Phượng Sồ',     'strategist', 5, 'Phượng sồ kỳ tài mưu kế kinh người.', 'Tăng cơ hội xuất kỳ bất ý trong chiến lược'),
-    (101, 'ky_muu',      'Kỳ Mưu',        'strategist', 4, 'Ích Châu kỳ mưu sĩ biến hóa sách lược.', 'Gia tăng sát thương đòn mai phục'),
-    (102, 'thiet_ky',    'Thiết Kỵ',      'martial',    5, 'Tây Lương thiết kỵ Cẩm Mã Siêu dũng mãnh.', '+20% sát thương kỵ binh xung trận'),
-    (103, 'cung_than',   'Cung Thần',     'martial',    5, 'Bách bộ xuyên dương Định Quân Sơn trảm tướng.', '+20% sát thương tầm xa và bạo kích'),
-    (104, 'tien_phong',  'Tiên Phong',    'martial',    4, 'Hán Trung đô đốc tiên phong hãm trận.', '+15% sức tấn công trực diện'),
-    (105, 'khuynh_quoc', 'Khuynh Quốc',   'special',    5, 'Tứ đại mỹ nhân dùng liên hoàn mỹ nhân kế ly gián anh hùng.', 'Hóa giải toàn bộ sát khí của đối phương'),
-    (106, 'phu_hao',     'Phú Hào',       'commerce',   4, 'Từ Châu cự phú hào hiệp trợ giúp anh tài.', 'Tăng 15% lợi nhuận buôn bán và giảm thuế'),
-    (107, 'khuynh_thanh', 'Khuynh Thành', 'special',    4, 'Lạc Thần tuyệt sắc làm say đắm lòng người.', 'Tăng thiện cảm và xoa dịu áp lực stress');
+    (96, 'nghiem_minh',   'Nghiêm Minh',   'governance', 4, 'Quân pháp nghiêm minh như núi, ba quân phục tùng.', 'Tăng mạnh kỷ luật quân đội và độ ổn định thành trì'),
+    (97, 'ham_tran',      'Hãm Trận',      'martial',    4, 'Mỗi trận xông pha dẫn đầu, trèo thành đoạt cờ kích phá quân địch.', '+18% sát thương công thành và phá vỡ phòng ngự'),
+    (98, 'ham_tran_doanh','Hãm Trận Doanh','martial',    5, 'Thống lĩnh giáp sĩ bách chiến bách thắng, công phá mọi chiến lũy.', '+22% sát thương và miễn nhiễm hoảng loạn khi công trận'),
+    (99, 'kieu_dung',     'Kiêu Dũng',     'martial',    4, 'Đao pháp dũng liệt áp chế hàng ngũ tiền quân đối phương.', '+18% sát thương cận chiến và bạo kích hiệp đầu'),
+    (100, 'dung_liet',    'Dũng Liệt',     'martial',    4, 'Dũng khí xung thiên, áp đảo chiến trận lôi đài.', '+16% chiến lực đơn đấu và giảm sĩ khí đối thủ'),
+    (101, 'bien_cuong',   'Biên Cương',    'governance', 4, 'Kinh lược biên ải, vỗ về dị tộc và bảo hộ thương đạo.', 'Giảm 25% tỷ lệ gặp thảo khấu trên thương lộ phương bắc'),
+    (102, 'co_quan',      'Cơ Quan',       'special',    5, 'Sáng chế Mộc Ngưu Lưu Mã và nỏ liên châu thần diệu.', '+30% tải trọng xe vận tải và tăng 25% phẩm chất khí cụ'),
+    (103, 'on_duc',       'Ôn Đức',        'special',    4, 'Ôn hòa đoan chính, xoa dịu tranh chấp và thu phục nhân tâm.', 'Tăng mạnh tốc độ phát triển hảo cảm và giảm áp lực tinh thần'),
+    (104, 'can_quac',     'Cân Quắc',      'martial',    4, 'Nữ trung hào kiệt, thương pháp biến ảo tung hoành sa trường.', '+16% chiến lực kỵ binh và tỷ lệ bạo kích lôi đài'),
+    (105, 'khuynh_quoc',  'Khuynh Quốc',   'special',    5, 'Tứ đại mỹ nhân dùng liên hoàn mỹ nhân kế ly gián anh hùng.', 'Hóa giải toàn bộ sát khí của đối phương'),
+    (106, 'bach_mi',      'Bạch Mi',       'governance', 4, 'Đức tài vẹn toàn, đàm phán ngoại giao uyển chuyển hữu hảo.', 'Tăng 20% thiện cảm ngoại giao và giảm chi phí bang giao'),
+    (107, 'quyet_doan',   'Quyết Đoán',    'strategist', 4, 'Tâm tư thâm trầm quyết đoán, trù hoạch đại sự không chút do dự.', 'Hóa giải mưu kế ly gián và tăng phòng vệ bí mật');
 
 -- Master Artisans & Local Hireable Professionals (108 to 127)
 INSERT OR IGNORE INTO np_skill (npc_id, code, name_vi, category, tier, description, effect_summary) VALUES
