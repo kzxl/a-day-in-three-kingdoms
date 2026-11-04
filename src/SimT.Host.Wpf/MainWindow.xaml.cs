@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private readonly CampaignMeta _meta;
     private bool _loaded;
     private string _screenId = string.Empty;
+    private string? _detailKey;
     private DataGrid? _firstGrid;
     private ScreenSection? _firstSection;
     private string _filter = string.Empty;
@@ -192,6 +193,10 @@ public partial class MainWindow : Window
         return true;
     }
 
+    /// <summary>Runs a command through the normal path; used by the demo launcher.</summary>
+    public void RunCommandForDemo(string commandId) =>
+        RowCommand_Click(new Button { Tag = commandId }, new RoutedEventArgs());
+
     /// <summary>Runs one day through the real button path; used by the demo launcher.</summary>
     public void AdvanceOneDayForDemo() => Advance(1);
 
@@ -215,10 +220,14 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!string.Equals(_screenId, entry.ScreenId, StringComparison.Ordinal))
+        {
+            _detailKey = null;
+        }
+
         _screenId = entry.ScreenId;
         _firstGrid = null;
         _firstSection = null;
-        CloseInspector();
 
         if (entry.ScreenId == LedgerScreenId)
         {
@@ -284,6 +293,7 @@ public partial class MainWindow : Window
         }
 
         ContentPanel.Children.Add(MonthFooter());
+        RestoreDetail(model);
         RefreshBadges();
     }
 
@@ -329,6 +339,10 @@ public partial class MainWindow : Window
             wideColumn: 6));
 
         ContentPanel.Children.Add(MonthFooter());
+        if (_detailKey is null)
+        {
+            CloseInspector();
+        }
     }
 
     // -------------------------------------------------------------- widgets
@@ -468,6 +482,14 @@ public partial class MainWindow : Window
                 Advance(7);
                 e.Handled = true;
                 break;
+            case System.Windows.Input.Key.Enter:
+                if (_firstGrid?.SelectedItem is RowVm selectedRow)
+                {
+                    ShowInspector(selectedRow.Section, selectedRow.Row);
+                    e.Handled = true;
+                }
+
+                break;
             case System.Windows.Input.Key.Escape:
                 CloseInspector();
                 e.Handled = true;
@@ -530,7 +552,7 @@ public partial class MainWindow : Window
 
     private DataGrid BuildGrid(ScreenSection section, int wideColumn)
     {
-        var rows = section.Rows.Select(row => new RowVm(row, this)).ToList();
+        var rows = section.Rows.Select(row => new RowVm(section, row, this)).ToList();
         var columns = section.Columns;
 
         if (rows.Count == 0)
@@ -622,13 +644,22 @@ public partial class MainWindow : Window
             });
         }
 
+        grid.Columns.Add(new DataGridTemplateColumn
+        {
+            Header = string.Empty,
+            CellTemplate = (DataTemplate)FindResource("DetailCell"),
+            Width = DataGridLength.Auto
+        });
+
         if (_firstGrid is null)
         {
             _firstGrid = grid;
             _firstSection = section;
         }
 
-        grid.SelectionChanged += (_, _) =>
+        // A click selects a row for quick work. Opening the drawer is an explicit act:
+        // double-click, the ⋯ button, or Enter — otherwise every click would reflow the page.
+        grid.MouseDoubleClick += (_, _) =>
         {
             if (grid.SelectedItem is RowVm selected)
             {
@@ -678,6 +709,7 @@ public partial class MainWindow : Window
     private void ShowInspector(ScreenSection section, ScreenRow row)
     {
         var title = row.Title ?? (row.Cells.Count > 0 ? row.Cells[0] : section.Heading);
+        _detailKey = DetailKey(row);
 
         InspectorBody.Children.Clear();
         InspectorBody.Children.Add(new TextBlock
@@ -750,6 +782,7 @@ public partial class MainWindow : Window
         }
 
         InspectorPanel.Visibility = Visibility.Visible;
+        InspectorScrim.Visibility = Visibility.Visible;
     }
 
     /// <summary>
@@ -830,10 +863,50 @@ public partial class MainWindow : Window
 
     private void CloseInspector_Click(object sender, RoutedEventArgs e) => CloseInspector();
 
+    private void Scrim_Click(object sender, System.Windows.Input.MouseButtonEventArgs e) => CloseInspector();
+
+    /// <summary>The ⋯ button on a row: open the drawer for that row.</summary>
+    private void OpenDetail_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: RowVm row })
+        {
+            ShowInspector(row.Section, row.Row);
+        }
+    }
+
     private void CloseInspector()
     {
+        _detailKey = null;
         InspectorPanel.Visibility = Visibility.Collapsed;
+        InspectorScrim.Visibility = Visibility.Collapsed;
         InspectorBody.Children.Clear();
+    }
+
+    /// <summary>Identity of a row across refreshes: the module's title, or its first cell.</summary>
+    private static string DetailKey(ScreenRow row) =>
+        row.Title ?? (row.Cells.Count > 0 ? row.Cells[0] : string.Empty);
+
+    /// <summary>Re-opens the drawer on the same row after an action re-rendered the page.</summary>
+    private void RestoreDetail(ScreenModel model)
+    {
+        if (_detailKey is null)
+        {
+            InspectorPanel.Visibility = Visibility.Collapsed;
+            InspectorScrim.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        foreach (var section in model.Sections)
+        {
+            var row = section.Rows.FirstOrDefault(candidate => DetailKey(candidate) == _detailKey);
+            if (row is not null)
+            {
+                ShowInspector(section, row);
+                return;
+            }
+        }
+
+        CloseInspector();
     }
 
     // ---------------------------------------------------------- rail badges
@@ -1053,8 +1126,9 @@ public partial class MainWindow : Window
     /// <summary>Row shape the DataGrid binds to: cells, chip buttons and the model behind it.</summary>
     private sealed class RowVm
     {
-        public RowVm(ScreenRow row, MainWindow owner)
+        public RowVm(ScreenSection section, ScreenRow row, MainWindow owner)
         {
+            Section = section;
             Row = row;
             Cells = row.Cells.ToArray();
             Chips = row.Commands
@@ -1064,6 +1138,8 @@ public partial class MainWindow : Window
                     (Style)owner.FindResource(command.Kind == CommandKind.Danger ? "DangerButton" : "ChipButton")))
                 .ToList();
         }
+
+        public ScreenSection Section { get; }
 
         public ScreenRow Row { get; }
 

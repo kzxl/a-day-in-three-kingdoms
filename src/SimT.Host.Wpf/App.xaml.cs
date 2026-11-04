@@ -37,7 +37,10 @@ public partial class App : Application
                 ShowDemo(
                     screenIndex >= 0 && screenIndex + 1 < e.Args.Length ? e.Args[screenIndex + 1] : null,
                     e.Args.Contains("--row"),
-                    e.Args.Contains("--advance"));
+                    e.Args.Contains("--advance"),
+                    Array.FindIndex(e.Args, arg => arg == "--act") is var actAt && actAt >= 0 && actAt + 1 < e.Args.Length
+                        ? e.Args[actAt + 1]
+                        : null);
             }
             catch (Exception error)
             {
@@ -131,7 +134,7 @@ public partial class App : Application
     /// activity on it, so the shell can be inspected (or screenshotted) without clicking
     /// through the title screen. Data lives in the temp folder and is replaced each time.
     /// </summary>
-    private void ShowDemo(string? screenId, bool selectRow, bool advance)
+    private void ShowDemo(string? screenId, bool selectRow, bool advance, string? act)
     {
         var root = Path.Combine(Path.GetTempPath(), DemoSaves);
         if (Directory.Exists(root))
@@ -164,6 +167,11 @@ public partial class App : Application
         if (advance)
         {
             window.AdvanceOneDayForDemo();
+        }
+
+        if (act is not null)
+        {
+            window.RunCommandForDemo(act);
         }
 
 
