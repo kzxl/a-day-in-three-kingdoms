@@ -27,6 +27,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
     private readonly IItemCatalog _items;
     private readonly IWorldMap _map;
     private readonly ILog _log;
+    private readonly INpcRegistry? _npcs;
 
     public MarketService(
         IDbSession db,
@@ -36,7 +37,8 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         IBag bag,
         IItemCatalog items,
         IWorldMap map,
-        ILog log)
+        ILog log,
+        INpcRegistry? npcs = null)
     {
         _db = db;
         _clock = clock;
@@ -46,6 +48,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         _items = items;
         _map = map;
         _log = log;
+        _npcs = npcs;
     }
 
     long IMarketWarehouse.DefaultCapacity => DefaultCapacity;
@@ -840,7 +843,18 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
 
                     var revenue = sold * shelf.SellingPrice;
                     totalRevenue += revenue;
-                    soldLines.Add($"{sold} {item.NameVi}");
+
+                    var prefRows = _db.Query(
+                        "SELECT npc_id, bid_markup_permille FROM mk_npc_preference WHERE category = @cat",
+                        row => (NpcId: row.GetInt64(0), Markup: row.GetInt32(1)),
+                        DbArgs.One("@cat", item.Category));
+
+                    var localNpcs = _npcs?.FindByCitadel(cityId);
+                    var matchedNpc = localNpcs?.FirstOrDefault(n => prefRows.Any(p => p.NpcId == n.Id))
+                                  ?? (localNpcs != null && localNpcs.Count > 0 ? localNpcs[(int)(date.DayIndex % (uint)localNpcs.Count)] : null);
+
+                    var buyerSuffix = matchedNpc != null ? $" (khách mua: {matchedNpc.NameVi})" : string.Empty;
+                    soldLines.Add($"{sold} {item.NameVi}{buyerSuffix}");
                 }
             }
 

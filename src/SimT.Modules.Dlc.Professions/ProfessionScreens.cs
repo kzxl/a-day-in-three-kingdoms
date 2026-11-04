@@ -88,6 +88,9 @@ internal sealed class ProfessionScreen : IScreenContribution
                 commands.Add(new ScreenCommand($"temper:{eq.Id}", $"Tôi luyện (+{eq.TemperLevel + 1})"));
             }
 
+            var eqSellVal = _service.CalculateEquipmentSellValue(eq);
+            commands.Add(new ScreenCommand($"sell:eq:{eq.Id}", $"Bán ({eqSellVal} Quan)"));
+
             equipRows.Add(new ScreenRow(
                 [
                     $"{eq.NameVi} [+{eq.TemperLevel}]" + (isEquipped ? " [Đang mặc]" : string.Empty),
@@ -304,6 +307,8 @@ internal sealed class ProfessionScreen : IScreenContribution
             if (d.InInventory > 0)
             {
                 commands.Add(new ScreenCommand($"dish:eat:{d.Id}", "Dùng bữa"));
+                var dishSellVal = _service.CalculateDishSellValue(d);
+                commands.Add(new ScreenCommand($"dish:sell:{d.Id}", $"Bán ({dishSellVal} Quan)"));
             }
 
             dishRows.Add(new ScreenRow(
@@ -494,6 +499,18 @@ internal sealed class ProfessionCommandHandler : IScreenCommandHandler
                         return _service.Cook(cityId, cookDishId).Message;
                     if (parts[1] == "eat" && long.TryParse(parts[2], out var eatDishId))
                         return _service.Eat(eatDishId).Message;
+                    if (parts[1] == "sell" && long.TryParse(parts[2], out var sellDishId))
+                    {
+                        var qty = parts.Length >= 4 && int.TryParse(parts[3], out var q) ? q : 1;
+                        return _service.SellDish(cityId, sellDishId, qty).Message;
+                    }
+                }
+                break;
+
+            case "sell":
+                if (parts.Length >= 3 && parts[1] == "eq" && long.TryParse(parts[2], out var sellEqId))
+                {
+                    return _service.SellEquipment(cityId, sellEqId).Message;
                 }
                 break;
 

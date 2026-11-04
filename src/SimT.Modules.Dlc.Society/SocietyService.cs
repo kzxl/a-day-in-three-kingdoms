@@ -512,13 +512,94 @@ internal sealed class SocietyService : ISocietyChronicle
 
     private void ExecuteWandererAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, SimpleRng rng)
     {
-        var roll = rng.Next(2);
-        string headline, detail, impact, actionText;
-        int deltaCra = 0, repGain = 0, goldDelta = 0;
+        var lifeSkill = npc.Skills.FirstOrDefault(s => s.Code is "am_thuc" or "tam_duoc" or "dieu_ngu" or "thu_liep" or "che_tac" or "khai_khoang" or "det_may" or "u_men" or "luyen_dan");
 
-        switch (roll)
+        string headline, detail, impact, actionText;
+        int deltaCra = 0, deltaWar = 0, repGain = 0, goldDelta = 0;
+
+        if (lifeSkill != null)
         {
-            case 0:
+            switch (lifeSkill.Code)
+            {
+                case "am_thuc":
+                case "u_men":
+                    headline = $"[Ẩm Thực] {npc.NameVi} chế biến tiệc rượu mỹ vị danh chấn {citName}";
+                    detail = $"{npc.NameVi} kết hợp ngũ vị điều hòa, chế biến đặc sản bồi bổ khí huyết khiến thực khách khắp nơi tấm tắc ngợi khen.";
+                    deltaCra = 1;
+                    repGain = 8;
+                    goldDelta = 95;
+                    impact = "+1 Kỹ Nghệ, +95 Quan";
+                    actionText = "Nấu nướng và ủ men danh tửu";
+                    break;
+
+                case "tam_duoc":
+                case "luyen_dan":
+                    headline = $"[Dược Đạo] {npc.NameVi} tầm dược luyện đan cứu người tại {citName}";
+                    detail = $"{npc.NameVi} tìm được thảo dược ngàn năm nơi rừng thẳm, tôi luyện đan dược bổ khí dưỡng huyết cứu chữa dân nghèo.";
+                    deltaCra = 1;
+                    repGain = 12;
+                    goldDelta = 110;
+                    impact = "+1 Kỹ Nghệ, +110 Quan";
+                    actionText = "Hái thuốc và luyện đan cứu nhân độ thế";
+                    break;
+
+                case "che_tac":
+                case "khai_khoang":
+                    headline = $"[Chế Tác] {npc.NameVi} rèn đúc thần binh và công cụ tại lò rèn {citName}";
+                    detail = $"{npc.NameVi} chọn thép tốt tôi rèn trăm mẻ, rèn nên khí cụ sắc bén bền chắc cung ứng cho thương lái.";
+                    deltaCra = 1;
+                    repGain = 9;
+                    goldDelta = 125;
+                    impact = "+1 Kỹ Nghệ, +125 Quan";
+                    actionText = "Rèn khí cụ và tinh luyện khoáng sản";
+                    break;
+
+                case "dieu_ngu":
+                    headline = $"[Điếu Ngư] {npc.NameVi} buông cần câu cá lớn trên sông tại {citName}";
+                    detail = $"{npc.NameVi} kiên nhẫn đợi nước triều, vớt được loài ngư sản quý hiếm mang bán cho thương điếm.";
+                    deltaCra = 1;
+                    repGain = 6;
+                    goldDelta = 80;
+                    impact = "+1 Kỹ Nghệ, +80 Quan";
+                    actionText = "Buông cần câu cá bên bến nước";
+                    break;
+
+                case "thu_liep":
+                    headline = $"[Thú Liệp] {npc.NameVi} giương cung săn mãnh thú ngoại ô {citName}";
+                    detail = $"{npc.NameVi} dấn thân vào chốn rừng thiêng nước độc, hạ gục ác thú thu hoạch da lông và thịt săn dồi dào.";
+                    deltaWar = 1;
+                    repGain = 10;
+                    goldDelta = 115;
+                    impact = "+1 Võ Lực, +115 Quan";
+                    actionText = "Săn bắn thú rừng dã ngoại";
+                    break;
+
+                case "det_may":
+                    headline = $"[Dệt May] {npc.NameVi} dệt gấm thêu hoa tại xưởng dệt {citName}";
+                    detail = $"{npc.NameVi} khéo tay dệt nên tấm lụa óng ả mềm mại, các phú thương tranh nhau trả giá cao.";
+                    deltaCra = 1;
+                    repGain = 7;
+                    goldDelta = 105;
+                    impact = "+1 Kỹ Nghệ, +105 Quan";
+                    actionText = "Canh cửi dệt lụa may y phục";
+                    break;
+
+                default:
+                    headline = $"{npc.NameVi} chế tác khí nghệ thủ công tại {citName}";
+                    detail = $"{npc.NameVi} gia công sản vật tinh xảo, giao dịch cùng phường thợ trong vùng.";
+                    deltaCra = 1;
+                    repGain = 6;
+                    goldDelta = 75;
+                    impact = "+1 Kỹ Nghệ, +75 Quan";
+                    actionText = "Chế tác thủ công nghệ";
+                    break;
+            }
+        }
+        else
+        {
+            var roll = rng.Next(2);
+            if (roll == 0)
+            {
                 headline = $"{npc.NameVi} hái thuốc cứu người tại thôn xóm {citName}";
                 detail = $"{npc.NameVi} lên non hái thuốc chế phương tễ cứu sống người bệnh hiểm nghèo, nghĩa cử lưu truyền muôn phương.";
                 deltaCra = 1;
@@ -526,18 +607,19 @@ internal sealed class SocietyService : ISocietyChronicle
                 goldDelta = 70;
                 impact = "+1 Kỹ Nghệ, +70 Quan";
                 actionText = "Bốc thuốc chữa bệnh cho người nghèo";
-                break;
-            default:
+            }
+            else
+            {
                 headline = $"{npc.NameVi} rèn đúc bảo kiếm tại danh quán {citName}";
                 detail = $"{npc.NameVi} chọn thép tốt tôi rèn thần binh, thanh kiếm sắc bén chém sắt như chém bùn.";
                 deltaCra = 1;
                 goldDelta = 110;
                 impact = "+1 Kỹ Nghệ, +110 Quan";
                 actionText = "Chế tác khí cụ và điêu khắc";
-                break;
+            }
         }
 
-        ApplyNpcGrowth(npc.Id, date, 0, 0, 0, 0, 0, 0, 0, deltaCra);
+        ApplyNpcGrowth(npc.Id, date, deltaWar, 0, 0, 0, 0, 0, 0, deltaCra);
         UpdateActivity(npc.Id, date, actionText, goldDelta, repGain, act.CurrentWealth);
         LogEvent(date, npc.Id, npc.NameVi, act.CurrentCitadelId, citName, "scholarly", headline, detail, impact, tick);
     }

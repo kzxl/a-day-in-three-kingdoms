@@ -120,7 +120,8 @@ public sealed class MarketModule : ISimModule
         var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
         var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
 
-        var service = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log);
+        var npcs = context.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var nr) ? nr : null;
+        var service = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log, npcs);
         service.EnsureListings(items, map);
 
         context.Capabilities.Provide(CapabilityIds.MarketTrade, service);
@@ -129,7 +130,6 @@ public sealed class MarketModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.PlayerStall, service);
         context.Capabilities.Provide(CapabilityIds.NpcMarket, service);
 
-        var npcs = context.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var nr) ? nr : null;
         context.Ui.AddScreen(new StallScreen(service, service, items, map, bag, player, context.Clock, wallet, context.ActionTime, npcs));
         context.Ui.AddScreen(new PlayerStallScreen(service, service, items, map, bag, player, context.Clock, wallet, context.ActionTime));
         context.Ui.AddScreen(new WarehouseScreen(service, items, map, bag, player, context.ActionTime));

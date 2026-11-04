@@ -28,6 +28,9 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     private readonly ILog _log;
     private readonly IPlayerAttributes? _attributes;
     private readonly IWorldMap? _map;
+    private readonly INpcRegistry? _npcs;
+    private readonly ISocialNetwork? _social;
+    private readonly ISocietyChronicle? _chronicle;
 
     public ProfessionService(
         IDbSession db,
@@ -37,7 +40,10 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         IItemCatalog items,
         ILog log,
         IPlayerAttributes? attributes = null,
-        IWorldMap? map = null)
+        IWorldMap? map = null,
+        INpcRegistry? npcs = null,
+        ISocialNetwork? social = null,
+        ISocietyChronicle? chronicle = null)
     {
         _db = db;
         _clock = clock;
@@ -47,6 +53,9 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _log = log;
         _attributes = attributes;
         _map = map;
+        _npcs = npcs;
+        _social = social;
+        _chronicle = chronicle;
         Trades = LoadTrades(db);
     }
 
@@ -935,6 +944,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _db.Execute(
             "UPDATE pf_order SET status = 'EXPIRED' WHERE deadline_day < @day AND status IN ('AVAILABLE', 'ACCEPTED')",
             DbArgs.One("@day", date.DayIndex));
+
+        EnsureNpcOrders(date);
     }
 
     // =========================================================================
@@ -1330,6 +1341,183 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         var milestoneMsg = FormatSkillProgressMessage("Chế Tác", practice);
         _log.Info($"dlc.professions: tempered equipment {eq.Id} to +{nextLevel}");
         return WorkResult.Success($"Tôi luyện thành công {eq.NameVi} lên cấp +{nextLevel}! Chỉ số tăng lên +{newBonus} {eq.BonusStat}, độ bền tối đa đạt {newMaxDur}.{milestoneMsg}", 1, 1);
+    }
+
+    public long CalculateEquipmentSellValue(EquipmentDef equipment)
+    {
+        var baseItem = _items.Find(equipment.ItemId);
+        var basePrice = baseItem?.BasePrice ?? 50;
+
+        var qualityMultiplier = equipment.QualityRank switch
+        {
+            "LEGENDARY" => 4.0,
+            "MASTER" => 2.5,
+            "FINE" => 1.5,
+            _ => 1.0
+        };
+
+        var temperBonus = 1.0 + (equipment.TemperLevel * 0.25);
+        var duraRatio = equipment.MaxDurability > 0
+            ? (double)equipment.Durability / equipment.MaxDurability
+            : 1.0;
+
+        var value = (long)(basePrice * qualityMultiplier * temperBonus * duraRatio) + 15;
+        return Math.Max(10, value);
+    }
+
+    public WorkResult SellEquipment(long citadelId, long equipmentId)
+    {
+        var eq = FindEquipment(equipmentId);
+        if (eq is null)
+            return WorkResult.Failure("Không tìm thấy khí cụ để bán.");
+
+        if (eq.CitadelId != citadelId)
+            return WorkResult.Failure("Khí cụ không có ở thành này.");
+
+        // If equipped, unequip first
+        var slot = Slots.FirstOrDefault(s => s.EquipmentId == equipmentId);
+        if (slot != null)
+        {
+            Unequip(slot.SlotCode);
+        }
+
+        var price = CalculateEquipmentSellValue(eq);
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "DELETE FROM pf_equipment WHERE id = @id",
+                DbArgs.One("@id", equipmentId));
+
+            _wallet.Pay(price, JournalCodes.MarketSell, $"Bán khí cụ {eq.NameVi}");
+        });
+
+        _log.Info($"dlc.professions: sold equipment {eq.NameVi} (#{equipmentId}) at citadel {citadelId} for {price} copper");
+        return WorkResult.Success($"Đã bán {eq.NameVi} cho phường rèn thương nhân, thu được {price} Quan tiền đồng.", 1, 0);
+    }
+
+    public long CalculateDishSellValue(DishRecipeDef dish) => dish.Code switch
+    {
+        "com_nam" => 35,
+        "canh_ca" => 75,
+        "thit_nuong" => 90,
+        "ruou_am" => 80,
+        "dan_duoc" => 180,
+        _ => Math.Max(25, dish.CookFee * 3)
+    };
+
+    public WorkResult SellDish(long citadelId, long dishId, int quantity = 1)
+    {
+        if (quantity <= 0) quantity = 1;
+
+        var dish = Dishes.FirstOrDefault(d => d.Id == dishId);
+        if (dish is null)
+            return WorkResult.Failure("Không tìm thấy món ăn này.");
+
+        var count = _db.Query(
+            "SELECT quantity FROM pf_dish_inventory WHERE dish_id = @id",
+            row => row.GetInt32(0),
+            DbArgs.One("@id", dishId)).FirstOrDefault();
+
+        if (count < quantity)
+            return WorkResult.Failure($"Trong kho chỉ còn {count} phần {dish.NameVi}, không đủ {quantity} phần để bán.");
+
+        var unitPrice = CalculateDishSellValue(dish);
+        var total = unitPrice * quantity;
+
+        _db.Transaction(() =>
+        {
+            if (count == quantity)
+            {
+                _db.Execute("DELETE FROM pf_dish_inventory WHERE dish_id = @id", DbArgs.One("@id", dishId));
+            }
+            else
+            {
+                _db.Execute("UPDATE pf_dish_inventory SET quantity = quantity - @qty WHERE dish_id = @id",
+                    new DbArgs().Add("@qty", quantity).Add("@id", dishId));
+            }
+
+            _wallet.Pay(total, JournalCodes.MarketSell, $"Bán {quantity} phần {dish.NameVi}");
+        });
+
+        _log.Info($"dlc.professions: sold {quantity} {dish.Code} for {total} copper");
+        return WorkResult.Success($"Đã bán {quantity} phần {dish.NameVi} cho tửu lâu/khách quán, thu về {total} Quan.", quantity, 0);
+    }
+
+    private void EnsureNpcOrders(GameDate date)
+    {
+        var activeCount = _db.Query(
+            "SELECT COUNT(*) FROM pf_order WHERE status IN ('AVAILABLE', 'ACCEPTED')",
+            row => row.GetInt32(0)).FirstOrDefault();
+
+        if (activeCount >= 6) return;
+
+        var needed = 6 - activeCount;
+        var npcs = _npcs?.All;
+        if (npcs is null || npcs.Count == 0) return;
+
+        var seed = (uint)(date.DayIndex * 179 + activeCount * 31);
+        var rng = new Random((int)seed);
+
+        for (int i = 0; i < needed; i++)
+        {
+            var npc = npcs[rng.Next(npcs.Count)];
+            long targetItem;
+            int qty;
+            int reward;
+            int fame;
+            string clientType;
+
+            var role = npc.Role;
+            if (role.Contains("Tướng") || role.Contains("Võ") || role.Contains("Hiệp"))
+            {
+                clientType = "MILITARY";
+                var roll = rng.Next(3);
+                if (roll == 0) { targetItem = 5; qty = 6 + rng.Next(6); reward = qty * 45; fame = 15; }
+                else if (roll == 1) { targetItem = 8; qty = 8 + rng.Next(10); reward = qty * 30; fame = 12; }
+                else { targetItem = 11; qty = 5 + rng.Next(5); reward = qty * 28; fame = 10; }
+            }
+            else if (role.Contains("Y") || role.Contains("Dược") || npc.Skills.Any(s => s.Code == "tam_duoc"))
+            {
+                clientType = "COMMERCE";
+                if (rng.Next(2) == 0) { targetItem = 7; qty = 3 + rng.Next(4); reward = qty * 150; fame = 20; }
+                else { targetItem = 13; qty = 2 + rng.Next(3); reward = qty * 260; fame = 25; }
+            }
+            else if (role.Contains("Mưu") || role.Contains("Sĩ") || role.Contains("Chủ") || role.Contains("Đế") || role.Contains("Thái"))
+            {
+                clientType = "COURT";
+                var roll = rng.Next(4);
+                if (roll == 0) { targetItem = 3; qty = 5 + rng.Next(6); reward = qty * 50; fame = 15; }
+                else if (roll == 1) { targetItem = 4; qty = 3 + rng.Next(4); reward = qty * 120; fame = 20; }
+                else if (roll == 2) { targetItem = 12; qty = 2 + rng.Next(3); reward = qty * 190; fame = 25; }
+                else { targetItem = 14; qty = 2 + rng.Next(2); reward = qty * 230; fame = 30; }
+            }
+            else
+            {
+                clientType = "NOBLE";
+                var roll = rng.Next(3);
+                if (roll == 0) { targetItem = 1; qty = 10 + rng.Next(15); reward = qty * 18; fame = 8; }
+                else if (roll == 1) { targetItem = 6; qty = 6 + rng.Next(8); reward = qty * 25; fame = 10; }
+                else { targetItem = 2; qty = 8 + rng.Next(10); reward = qty * 12; fame = 8; }
+            }
+
+            var deadline = date.DayIndex + 45 + rng.Next(30);
+
+            _db.Execute(
+                """
+                INSERT INTO pf_order (client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status)
+                VALUES (@client, @type, @citadel, @item, @qty, @reward, @fame, @deadline, 'AVAILABLE')
+                """,
+                new DbArgs()
+                    .Add("@client", npc.NameVi)
+                    .Add("@type", clientType)
+                    .Add("@citadel", npc.CitadelId)
+                    .Add("@item", targetItem)
+                    .Add("@qty", qty)
+                    .Add("@reward", reward)
+                    .Add("@fame", fame)
+                    .Add("@deadline", deadline));
+        }
     }
 
     private static string FormatSkillProgressMessage(string skillNameVi, (bool Awakened, bool LeveledUp, int Level) progress)

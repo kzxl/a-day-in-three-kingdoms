@@ -122,6 +122,15 @@ public interface IProfessionGuild
     WorkResult Hunt(long citadelId);
 
     WorkResult Temper(long citadelId, long equipmentId);
+
+    // Economic circulation & commerce for crafted goods
+    long CalculateEquipmentSellValue(EquipmentDef equipment);
+
+    WorkResult SellEquipment(long citadelId, long equipmentId);
+
+    long CalculateDishSellValue(DishRecipeDef dish);
+
+    WorkResult SellDish(long citadelId, long dishId, int quantity = 1);
 }
 
 public sealed record DishRecipeDef(

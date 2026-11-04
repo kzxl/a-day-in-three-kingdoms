@@ -152,5 +152,29 @@ public sealed class PlayerStallTests : IDisposable
         Assert.True(totalSoldInOneDay > 0, "Expected at least some items to be sold");
     }
 
+    [Fact]
+    public void DailyRetailSales_identifies_npc_customers_in_sale_notifications()
+    {
+        using var kernel = Boot();
+        var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
+        var stall = kernel.Capabilities.Get<IPlayerStall>(CapabilityIds.PlayerStall);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var cityId = player.CurrentCityId;
+
+        stall.RentStall(cityId, out _);
+
+        // Buy and stock rice (food/grain category)
+        trade.Buy(cityId, 1, 5);
+        stall.Stock(cityId, 1, 5, out _);
+        stall.SetPrice(cityId, 1, trade.QuoteBuy(cityId, 1), out _);
+
+        // Advance 1 day
+        kernel.AdvanceDays(1);
+
+        var sales = kernel.Ledger.Recent(10).Where(e => e.JournalCode == JournalCodes.StallSale).ToList();
+        Assert.NotEmpty(sales);
+        Assert.Contains(sales, s => s.Description.Contains("khách mua:") || s.Description.Contains("Gạo"));
+    }
+
     private SimKernel Boot() => _host.Boot();
 }

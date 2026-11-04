@@ -15,8 +15,11 @@ public sealed class ProfessionModule : ISimModule
         var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
         var attributes = context.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attr) ? attr : null;
         var map = context.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var wm) ? wm : null;
+        var npcs = context.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var nr) ? nr : null;
+        var social = context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var sn) ? sn : null;
+        var chronicle = context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var sc) ? sc : null;
 
-        var service = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes, map);
+        var service = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes, map, npcs, social, chronicle);
         service.ValidateCatalog();
 
         context.Capabilities.Provide(CapabilityIds.ProfessionGuild, service);

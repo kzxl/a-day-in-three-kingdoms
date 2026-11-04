@@ -580,6 +580,92 @@ public sealed class ProfessionTests : IDisposable
         Assert.Contains("Hóa Cảnh", SkillRankTitles.ForLevel(prog.Level));
     }
 
+    [Fact]
+    public void Player_can_sell_crafted_equipment_for_copper_coins()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+
+        var eqs = guild.Equipments(1);
+        Assert.NotEmpty(eqs);
+        var targetEq = eqs.First(e => e.Id == 2); // Cuốc Sắt Khai Điền
+
+        var sellValue = guild.CalculateEquipmentSellValue(targetEq);
+        Assert.True(sellValue >= 10);
+
+        var balanceBefore = wallet.Liquid;
+        var result = guild.SellEquipment(1, targetEq.Id);
+
+        Assert.True(result.Ok);
+        Assert.Equal(balanceBefore + sellValue, wallet.Liquid);
+
+        var eqsAfter = guild.Equipments(1);
+        Assert.DoesNotContain(eqsAfter, e => e.Id == targetEq.Id);
+    }
+
+    [Fact]
+    public void Player_can_cook_and_sell_dishes_to_local_market()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var bag = Bag(kernel);
+
+        // Seed ingredients for com_nam (Id 1: 2 gao, 1 muoi)
+        bag.Add(1, 1, 10); // 10 Gạo
+        bag.Add(1, 2, 10); // 10 Muối
+
+        var cookRes = guild.Cook(1, 1);
+        Assert.True(cookRes.Ok);
+
+        var dish = guild.Dishes.First(d => d.Id == 1);
+        Assert.True(dish.InInventory >= 1);
+
+        var sellValue = guild.CalculateDishSellValue(dish);
+        Assert.True(sellValue >= 25);
+
+        var balanceBefore = wallet.Liquid;
+        var sellRes = guild.SellDish(1, 1, 1);
+
+        Assert.True(sellRes.Ok);
+        Assert.Equal(balanceBefore + sellValue, wallet.Liquid);
+
+        var dishAfter = guild.Dishes.First(d => d.Id == 1);
+        Assert.Equal(dish.InInventory - 1, dishAfter.InInventory);
+    }
+
+    [Fact]
+    public void Dynamic_npc_orders_generate_on_month_and_can_be_fulfilled()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var bag = Bag(kernel);
+
+        // Advance 30 days to trigger MonthClosed and dynamic NPC orders
+        kernel.AdvanceDays(31);
+
+        var orders = guild.AvailableOrders(1);
+        Assert.NotEmpty(orders);
+
+        var order = orders.First();
+        var acceptRes = guild.AcceptOrder(order.Id);
+        Assert.True(acceptRes.Ok);
+
+        // Provide target items to bag
+        bag.Add(order.CitadelId, order.TargetItemId, order.QuantityNeeded);
+
+        var fameBefore = guild.TotalGuildFame;
+        var balanceBefore = wallet.Liquid;
+
+        var fulfillRes = guild.FulfillOrder(order.CitadelId, order.Id);
+        Assert.True(fulfillRes.Ok);
+
+        Assert.True(wallet.Liquid >= balanceBefore + order.RewardCopper);
+        Assert.Equal(fameBefore + order.FameReward, guild.TotalGuildFame);
+    }
+
     private static string Command(SimKernel kernel, string commandId)
     {
         Assert.True(kernel.TryGetCommandHandler("professions.trades", out var handler), "professions screen is not registered");
