@@ -37,6 +37,15 @@ public sealed record RetainerDef(
     GameDate RecruitedDate);
 
 /// <summary>
+/// A sworn brother or sister bound by the sacred Peach Garden oath (Kết Nghĩa Kim Lan).
+/// </summary>
+public sealed record SwornBrotherDef(
+    long NpcId,
+    GameDate OathDate,
+    string BondTitle,
+    int AssistCount);
+
+/// <summary>
 /// Social network, relationship matrix, and retainer management surface owned by <c>dlc.social</c>.
 /// </summary>
 public interface ISocialNetwork
@@ -50,6 +59,9 @@ public interface ISocialNetwork
     IReadOnlyList<RetainerDef> GetRetainers();
 
     RetainerDef? GetRetainer(long npcId);
+
+    /// <summary>Gets the list of active sworn brothers.</summary>
+    IReadOnlyList<SwornBrotherDef> GetSwornBrothers();
 
     /// <summary>Engages in dialogue with an NPC in the same settlement.</summary>
     string ChatWithNpc(long npcId);
@@ -65,4 +77,10 @@ public interface ISocialNetwork
 
     /// <summary>Requests mentorship/skill training from a friendly NPC.</summary>
     string LearnSkillFromNpc(long npcId, string skillCode);
+
+    /// <summary>Performs the sworn brotherhood oath (Kết Nghĩa Kim Lan) with an eligible NPC.</summary>
+    string SwearBrotherhood(long npcId);
+
+    /// <summary>Hosts a grand banquet in the player's current city, inviting local figures.</summary>
+    string HostBanquet();
 }

@@ -10,7 +10,9 @@
     "tables": [
       "kz_relationship",
       "kz_memory",
-      "kz_retainer"
+      "kz_retainer",
+      "kz_sworn_brother",
+      "kz_banquet"
     ],
     "migrations": ["migrations"]
   },

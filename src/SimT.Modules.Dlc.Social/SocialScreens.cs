@@ -52,7 +52,41 @@ internal sealed class SocialScreen : IScreenContribution
 
         var sections = new List<ScreenSection>();
 
-        // 1. Retainers section
+        // 1. Sworn Brothers Section
+        var swornBrothers = _social.GetSwornBrothers();
+        if (swornBrothers.Count > 0)
+        {
+            var swornColumns = new[] { "Nghĩa Huynh Đệ", "Danh Phận", "Ngày Thề Ước", "Tương Trợ", "Hồ Sơ" };
+            var swornRows = swornBrothers.Select(sw =>
+            {
+                var npc = _registry.Find(sw.NpcId);
+                var name = npc?.NameVi ?? $"Mã {sw.NpcId}";
+                return new ScreenRow(
+                    [
+                        name,
+                        sw.BondTitle,
+                        GameDateCodec.Format(sw.OathDate),
+                        $"{sw.AssistCount} trận",
+                        "Kim Lan Tri Kỷ"
+                    ],
+                    [
+                        new ScreenCommand($"npc:modal:{sw.NpcId}", "Hồ Sơ 🔍", CommandKind.Primary)
+                    ],
+                    Title: $"{name} ({sw.BondTitle})",
+                    Details:
+                    [
+                        new ScreenDetail("Họ Tên", name),
+                        new ScreenDetail("Danh Phận", sw.BondTitle),
+                        new ScreenDetail("Ngày Cắt Máu Ăn Thề", GameDateCodec.Format(sw.OathDate)),
+                        new ScreenDetail("Số Trận Trợ Chiến", $"{sw.AssistCount} lần"),
+                        new ScreenDetail("Tình Nghĩa", "Sinh tử chi giao, hoạn nạn có nhau")
+                    ]);
+            }).ToList();
+
+            sections.Add(new ScreenSection($"🌸 Kim Lan Huynh Đệ · Đào Viên Thề Ước ({swornBrothers.Count}/2)", swornColumns, swornRows));
+        }
+
+        // 2. Retainers section
         if (retainers.Count > 0)
         {
             var retainerColumns = new[] { "Tên Danh Tướng/Mưu Sĩ", "Chức Vụ", "Bổng Lộc", "Trung Thành", "Ngày Đầu Quân" };
@@ -110,6 +144,11 @@ internal sealed class SocialScreen : IScreenContribution
                 commands.Insert(1, new ScreenCommand($"learn:{npc.Id}:{npc.Skills[0].Code}", $"Thỉnh Giáo 📜 [{npc.Skills[0].NameVi}]", CommandKind.Primary));
             }
 
+            if (!swornBrothers.Any(s => s.NpcId == npc.Id) && swornBrothers.Count < 2 && affinity >= 80)
+            {
+                commands.Insert(1, new ScreenCommand($"swear:{npc.Id}", "Kết Nghĩa 🤝", CommandKind.Primary));
+            }
+
             if (!isRetainer && affinity >= 35)
             {
                 commands.Insert(commands.Count - 1, new ScreenCommand($"recruit:{npc.Id}", "Chiêu Mộ 🤝", CommandKind.Primary));
@@ -145,9 +184,9 @@ internal sealed class SocialScreen : IScreenContribution
 
         var metrics = new List<ScreenMetric>
         {
+            new("Nghĩa huynh đệ", $"{swornBrothers.Count}/2 vị", "Đào Viên thề ước", MetricTone.Positive),
             new("Gia thần dưới trướng", $"{retainers.Count} vị", "Lĩnh bổng hàng tháng", MetricTone.Positive),
             new("Hảo hữu tâm giao", $"{allRelationships.Count(r => r.Affinity >= 20)} người", "Hảo cảm ≥ 20", MetricTone.Neutral),
-            new("Sinh tử tri kỷ", $"{allRelationships.Count(r => r.Affinity >= 70)} vị", "Hảo cảm ≥ 70", MetricTone.Positive),
             new("Tại đồng thành", $"{localNpcs.Count} danh sĩ", currentCitadelName, MetricTone.Neutral)
         };
 
@@ -157,6 +196,11 @@ internal sealed class SocialScreen : IScreenContribution
             alerts.Add(new ScreenAlert("Hiện tại chưa có gia thần phò tá. Hãy đàm đạo và tặng quà để chiêu mộ hiền tài!", AlertLevel.Info));
         }
 
+        var screenActions = new List<ScreenCommand>
+        {
+            new("host_banquet", "Mở Đại Yến Quần Hiền 🍶 (150 Quan)", CommandKind.Primary)
+        };
+
         var status = $"Đang tại {currentCitadelName} · Gặp gỡ {localNpcs.Count} nhân sĩ · Đàm đạo tăng hảo cảm & điểm kỹ năng.";
 
         return new ScreenModel(
@@ -164,7 +208,7 @@ internal sealed class SocialScreen : IScreenContribution
             Title,
             status,
             sections,
-            Array.Empty<ScreenCommand>(),
+            screenActions,
             metrics,
             alerts);
     }
@@ -244,6 +288,17 @@ internal sealed class SocialCommandHandler : IScreenCommandHandler
                 var skillCode = parts[1];
                 return _social.LearnSkillFromNpc(npcId, skillCode);
             }
+        }
+        else if (commandId.StartsWith("swear:"))
+        {
+            if (long.TryParse(commandId["swear:".Length..], out var npcId))
+            {
+                return _social.SwearBrotherhood(npcId);
+            }
+        }
+        else if (commandId == "host_banquet")
+        {
+            return _social.HostBanquet();
         }
 
         return null;

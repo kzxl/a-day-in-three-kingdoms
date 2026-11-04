@@ -59,6 +59,17 @@ internal static class SocialInvariants
         }
     }
 
+    public sealed class SwornBrotherMaxTwo : IInvariant
+    {
+        public string Id => "social.sworn_brother.max_two";
+
+        public string? Check(IInvariantContext context)
+        {
+            var count = context.Db.ScalarLong("SELECT COUNT(*) FROM kz_sworn_brother");
+            return count <= 2 ? null : $"Exceeded max 2 sworn brothers: found {count}";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new AffinityBounded();
@@ -66,5 +77,6 @@ internal static class SocialInvariants
         yield return new StipendNonNegative();
         yield return new LoyaltyBounded();
         yield return new MemorySummariesPresent();
+        yield return new SwornBrotherMaxTwo();
     }
 }

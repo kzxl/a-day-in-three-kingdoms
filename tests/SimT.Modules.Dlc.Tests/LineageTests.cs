@@ -139,6 +139,78 @@ public sealed class LineageTests : IDisposable
     }
 
     [Fact]
+    public void Shrine_defaults_to_level_1_and_can_be_upgraded()
+    {
+        using var kernel = _host.Boot();
+        var house = House(kernel);
+
+        Assert.Equal(1, house.ShrineLevel);
+        Assert.Equal(10, house.ClanPrestige);
+
+        var balanceBefore = kernel.Ledger.Balance;
+        var msg = Command(kernel, "upgrade_shrine");
+
+        Assert.Contains("Đại công cáo thành", msg);
+        Assert.Equal(2, house.ShrineLevel);
+        Assert.Equal(60, house.ClanPrestige);
+        Assert.Equal(balanceBefore - 500, kernel.Ledger.Balance);
+
+        Assert.Empty(kernel.RunInvariants());
+    }
+
+    [Fact]
+    public void Hold_offering_charges_fee_and_increases_clan_prestige()
+    {
+        using var kernel = _host.Boot();
+        var house = House(kernel);
+        var initialPrestige = house.ClanPrestige;
+        var balanceBefore = kernel.Ledger.Balance;
+
+        var msg = Command(kernel, "hold_offering");
+        Assert.Contains("tế tổ trang nghiêm", msg);
+        Assert.Equal(initialPrestige + 15, house.ClanPrestige);
+        Assert.Equal(balanceBefore - 80, kernel.Ledger.Balance);
+
+        // Immediate repeat is refused
+        var repeatMsg = Command(kernel, "hold_offering");
+        Assert.Contains("cách quãng", repeatMsg);
+
+        Assert.Empty(kernel.RunInvariants());
+    }
+
+    [Fact]
+    public void Child_tutoring_and_teaching_boosts_stats()
+    {
+        using var kernel = _host.Boot();
+        Command(kernel, "marry");
+        Command(kernel, "beget");
+
+        var house = House(kernel);
+        var child = house.Children.First();
+
+        // Assign tutor
+        var tutorMsg = Command(kernel, $"tutor:{child.Id}:WAR");
+        Assert.Contains("giáo dưỡng (WAR)", tutorMsg);
+
+        var balanceBefore = kernel.Ledger.Balance;
+        // Teach 3 times to gain +1 stat bonus
+        for (var i = 0; i < 3; i++)
+        {
+            var teachMsg = Command(kernel, $"teach:{child.Id}");
+            Assert.Contains("chuyên cần học tập", teachMsg);
+        }
+
+        Assert.Equal(balanceBefore - (25 * 3), kernel.Ledger.Balance);
+
+        var updatedChild = house.Children.First(c => c.Id == child.Id);
+        Assert.NotNull(updatedChild.MentorName);
+        Assert.Equal("WAR", updatedChild.FocusStat);
+        Assert.Equal(1, updatedChild.StatBonus);
+
+        Assert.Empty(kernel.RunInvariants());
+    }
+
+    [Fact]
     public void The_same_seed_produces_the_same_spouse()
     {
         using var first = new TestHost("simt-lineage-a");

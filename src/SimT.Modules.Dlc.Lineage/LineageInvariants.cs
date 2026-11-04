@@ -51,10 +51,34 @@ internal static class LineageInvariants
         }
     }
 
+    public sealed class ShrineLevelBounded : IInvariant
+    {
+        public string Id => "lineage.shrine.level_bounded";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM ln_shrine WHERE level < 1 OR level > 5 OR clan_prestige < 0");
+            return bad == 0 ? null : $"{bad} shrine row(s) have invalid level or negative prestige";
+        }
+    }
+
+    public sealed class TutoringBonusBounded : IInvariant
+    {
+        public string Id => "lineage.tutoring.bonus_bounded";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM ln_tutoring WHERE stat_bonus < 0 OR progress < 0");
+            return bad == 0 ? null : $"{bad} tutoring row(s) have negative bonus or progress";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new SingleSpouse();
         yield return new SingleHeir();
         yield return new ChildrenBornAfterMarriage();
+        yield return new ShrineLevelBounded();
+        yield return new TutoringBonusBounded();
     }
 }

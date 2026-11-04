@@ -7,7 +7,7 @@
   "provides": ["lineage.house"],
   "consumes": ["world.map", "player.wallet", "player.state"],
   "owns": {
-    "tables": ["ln_spouse", "ln_child"],
+    "tables": ["ln_spouse", "ln_child", "ln_shrine", "ln_tutoring"],
     "migrations": ["migrations"]
   },
   "screens": ["lineage.family"]

@@ -1,5 +1,6 @@
 using SimT.Contracts;
 using SimT.Contracts.Data;
+using SimT.Contracts.Ledger;
 using SimT.Contracts.Logging;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
@@ -483,6 +484,172 @@ internal sealed class SocialService : ISocialNetwork
         >= -40 => "Lạnh nhạt xa cách",
         _ => "Tử thù đối địch"
     };
+
+    public IReadOnlyList<SwornBrotherDef> GetSwornBrothers() =>
+        _db.Query(
+            "SELECT npc_id, oath_date, bond_title, assist_count FROM kz_sworn_brother ORDER BY rowid",
+            row => new SwornBrotherDef(
+                row.GetInt64(0),
+                GameDateCodec.Parse(row.GetString(1)),
+                row.GetString(2),
+                row.GetInt32(3)));
+
+    public string SwearBrotherhood(long npcId)
+    {
+        var npc = _registry.Find(npcId)
+                  ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        if (npc.CitadelId != _player.CurrentCityId)
+        {
+            return $"{npc.NameVi} hiện đang ở thành khác, không thể cùng cắt máu ăn thề tại đây.";
+        }
+
+        var existingSworn = GetSwornBrothers();
+        if (existingSworn.Any(s => s.NpcId == npcId))
+        {
+            return $"{npc.NameVi} đã là nghĩa huynh đệ kim lan của bạn rồi!";
+        }
+
+        if (existingSworn.Count >= 2)
+        {
+            return "Bạn đã có đủ 2 nghĩa huynh đệ kim lan (theo điển cố Đào Viên Tam Kết Nghĩa), không thể kết bái thêm.";
+        }
+
+        var rel = GetRelationship(npcId);
+        if (rel.Affinity < 80 || rel.Trust < 60)
+        {
+            return $"{npc.NameVi} chưa đủ tin cậy (cần Hảo Cảm ≥ 80 và Tín Nhiệm ≥ 60, hiện tại {rel.Affinity}/100 hảo cảm, {rel.Trust}/100 tín nhiệm) để cùng thề ước sinh tử.";
+        }
+
+        const int oathCost = 100;
+        if (_wallet.Liquid < oathCost)
+        {
+            return $"Cần {oathCost} Quan sắm sửa lễ vật trâu rượu tế cáo trời đất, hiện chỉ có {_wallet.Liquid} Quan.";
+        }
+
+        var today = _clock.Today;
+        var formattedDate = GameDateCodec.Format(today);
+        var bondTitle = existingSworn.Count == 0 ? "Nghĩa Huynh" : "Nghĩa Đệ";
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(oathCost, JournalCodes.CaravanFreight, $"Lễ vật tế cáo trời đất kết nghĩa kim lan cùng {npc.NameVi}");
+            _clock.Advance(1);
+
+            _db.Execute(
+                """
+                INSERT INTO kz_sworn_brother (npc_id, oath_date, bond_title, assist_count)
+                VALUES (@npcId, @oathDate, @bondTitle, 0)
+                """,
+                new DbArgs()
+                    .Add("@npcId", npcId)
+                    .Add("@oathDate", formattedDate)
+                    .Add("@bondTitle", bondTitle));
+
+            // Lock affinity & trust to 100, impression to Sworn Brother
+            _db.Execute(
+                """
+                INSERT INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date)
+                VALUES (@npcId, 100, 100, 'Kết Nghĩa Huynh Đệ', 0, @date)
+                ON CONFLICT(npc_id) DO UPDATE SET
+                    affinity = 100,
+                    trust = 100,
+                    impression = 'Kết Nghĩa Huynh Đệ',
+                    last_interaction_date = excluded.last_interaction_date
+                """,
+                new DbArgs().Add("@npcId", npcId).Add("@date", formattedDate));
+
+            _db.Execute(
+                """
+                INSERT INTO kz_memory (npc_id, date, topic, sentiment, affinity_delta, summary_vi)
+                VALUES (@npcId, @date, 'oath', 'positive', 20, @summary)
+                """,
+                new DbArgs()
+                    .Add("@npcId", npcId)
+                    .Add("@date", formattedDate)
+                    .Add("@summary", $"Cùng {npc.NameVi} cắt máu ăn thề, kết nghĩa huynh đệ kim lan tại Đào Viên, nguyện đồng tâm hiệp lực, hoạn nạn có nhau, sinh tử không rời!"));
+        });
+
+        return $"Trời đất chứng giám! Bạn cùng {npc.NameVi} đã chính thức kết nghĩa huynh đệ kim lan ({bondTitle})! Tình nghĩa keo sơn, hoạn nạn có nhau.";
+    }
+
+    public string HostBanquet()
+    {
+        const int banquetCost = 150;
+        if (_wallet.Liquid < banquetCost)
+        {
+            return $"Cần {banquetCost} Quan để mở yến tiệc chiêu đãi quần hiền, hiện chỉ có {_wallet.Liquid} Quan.";
+        }
+
+        var cityId = _player.CurrentCityId;
+        var localNpcs = _registry.FindByCitadel(cityId)
+            .Take(6)
+            .ToList();
+
+        if (localNpcs.Count == 0)
+        {
+            return "Không có danh sĩ nào tại thành này để cùng nâng chén thưởng nguyệt.";
+        }
+
+        var today = _clock.Today;
+        var formattedDate = GameDateCodec.Format(today);
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(banquetCost, JournalCodes.CaravanFreight, "Mở đại yến tiệc kết giao hào kiệt");
+            _clock.Advance(1);
+
+            foreach (var npc in localNpcs)
+            {
+                var rel = GetRelationship(npc.Id);
+                var newAffinity = Math.Min(100, rel.Affinity + 12);
+                var newTrust = Math.Min(100, rel.Trust + 5);
+                var impression = CalculateImpression(newAffinity);
+
+                _db.Execute(
+                    """
+                    INSERT INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date)
+                    VALUES (@npcId, @aff, @trust, @imp, 0, @date)
+                    ON CONFLICT(npc_id) DO UPDATE SET
+                        affinity = excluded.affinity,
+                        trust = excluded.trust,
+                        impression = excluded.impression,
+                        last_interaction_date = excluded.last_interaction_date
+                    """,
+                    new DbArgs()
+                        .Add("@npcId", npc.Id)
+                        .Add("@aff", newAffinity)
+                        .Add("@trust", newTrust)
+                        .Add("@imp", impression)
+                        .Add("@date", formattedDate));
+
+                _db.Execute(
+                    """
+                    INSERT INTO kz_memory (npc_id, date, topic, sentiment, affinity_delta, summary_vi)
+                    VALUES (@npcId, @date, 'banquet', 'positive', 12, @summary)
+                    """,
+                    new DbArgs()
+                        .Add("@npcId", npc.Id)
+                        .Add("@date", formattedDate)
+                        .Add("@summary", $"Dự đại yến do bạn chủ trì, cùng nâng chén thưởng nguyệt, đàm luận thế sự thiên hạ."));
+            }
+
+            var summary = $"Đại yến quy tụ {localNpcs.Count} danh sĩ ({string.Join(", ", localNpcs.Select(n => n.NameVi))}). Hảo cảm đồng loạt gia tăng!";
+            _db.Execute(
+                """
+                INSERT INTO kz_banquet (citadel_id, date, cost_copper, attendee_count, summary_vi)
+                VALUES (@city, @date, @cost, @count, @summary)
+                """,
+                new DbArgs()
+                    .Add("@city", cityId)
+                    .Add("@date", formattedDate)
+                    .Add("@cost", banquetCost)
+                    .Add("@count", localNpcs.Count)
+                    .Add("@summary", summary));
+        });
+
+        return $"Đại yến thành công rực rỡ! {localNpcs.Count} danh sĩ ({string.Join(", ", localNpcs.Select(n => n.NameVi))}) tề tựu nâng chén, hảo cảm đồng loạt tăng +12 và tín nhiệm +5!";
+    }
 
     private static string AutoAssignRole(CharacterAttributes a)
     {
