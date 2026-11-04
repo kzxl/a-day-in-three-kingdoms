@@ -101,18 +101,26 @@ internal sealed class StallScreen : IScreenContribution
                     new ScreenDetail("Mức cung", supply),
                     new ScreenDetail("Trong túi", Fmt(held)),
                     new ScreenDetail("Hạn sử dụng", item.ShelfLifeDays <= 0 ? "bền" : $"{item.ShelfLifeDays} ngày"),
-                    new ScreenDetail("Hệ số vùng", $"{city.PriceFactorPermille / 1000.0:0.00}")
+                    new ScreenDetail("Hệ số vùng", $"{city.PriceFactorPermille / 1000.0:0.00}"),
+                    new ScreenDetail("Giá 10 ngày", Trend(_trade.PriceHistory(city.Id, item.Id)))
                 ]));
         }
 
         var season = GameDateCodec.SeasonVi(_clock.Today.Month);
+        var tracked = _items.All.FirstOrDefault();
+        var trackedHistory = tracked is null ? Array.Empty<long>() : _trade.PriceHistory(city.Id, tracked.Id);
+
         var metrics = new List<ScreenMetric>
         {
             new("Tiền mặt", Fmt(_wallet.Liquid), "quan", MetricTone.Neutral),
+            new(
+                tracked is null ? "Xu hướng" : $"Giá {tracked.NameVi}",
+                tracked is null ? "—" : Trend(trackedHistory),
+                tracked is null ? null : $"10 ngày · {trackedHistory.DefaultIfEmpty(0).Min()}–{trackedHistory.DefaultIfEmpty(0).Max()} quan",
+                MetricTone.Neutral),
             new("Hàng trong túi", Fmt(_bag.TotalQuantity(city.Id)), "đơn vị", MetricTone.Neutral),
             new("Sạp cạn", Fmt(emptyShelves), $"trên {_items.All.Count} mặt hàng",
-                emptyShelves > 0 ? MetricTone.Warning : MetricTone.Neutral),
-            new("Mặt hàng", Fmt(_items.All.Count), "loại", MetricTone.Neutral)
+                emptyShelves > 0 ? MetricTone.Warning : MetricTone.Neutral)
         };
 
         return new ScreenModel(
@@ -142,6 +150,41 @@ internal sealed class StallScreen : IScreenContribution
         quantity > held
             ? $"Trong túi chỉ có {held} đơn vị."
             : $"Bán {quantity}: +{Fmt(unitPrice * quantity)} quan";
+
+    /// <summary>
+    /// A text sparkline: the game is read, not watched, so a trend can be a handful of characters
+    /// wide. The ladder is ASCII on purpose — block glyphs render as tofu in Consolas.
+    /// </summary>
+    private static string Trend(IReadOnlyList<long> values)
+    {
+        const string blocks = ".:-=+*#@";
+
+        if (values.Count == 0)
+        {
+            return "—";
+        }
+
+        if (values.Count == 1)
+        {
+            return Fmt(values[0]) + " quan";
+        }
+
+        var min = values.Min();
+        var max = values.Max();
+        if (max == min)
+        {
+            return new string(blocks[3], values.Count) + $" {Fmt(min)}";
+        }
+
+        var chars = new char[values.Count];
+        for (var index = 0; index < values.Count; index++)
+        {
+            var level = (int)((values[index] - min) * 7 / (max - min));
+            chars[index] = blocks[Math.Clamp(level, 0, 7)];
+        }
+
+        return new string(chars) + $" {Fmt(min)}–{Fmt(max)}";
+    }
 
     private static string SupplyLabel(int stock, int baseline)
     {

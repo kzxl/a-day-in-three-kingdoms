@@ -49,6 +49,61 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse
             "SELECT COALESCE((SELECT baseline_stock FROM mk_stall_listing WHERE citadel_id=@city AND item_id=@item), 40)",
             new DbArgs().Add("@city", cityId).Add("@item", itemId));
 
+    public IReadOnlyList<long> PriceHistory(long cityId, long itemId, int days = 10) =>
+        _db.Query(
+            """
+            SELECT buy_price FROM mk_price_sample
+            WHERE citadel_id=@city AND item_id=@item
+            ORDER BY day_index DESC
+            LIMIT @days
+            """,
+            row => row.GetInt64(0),
+            new DbArgs().Add("@city", cityId).Add("@item", itemId).Add("@days", Math.Clamp(days, 1, 60)))
+        .AsEnumerable()
+        .Reverse()
+        .ToList();
+
+    /// <summary>
+    /// One row per citadel and item per day. Prices are a function of stock, so the sample is
+    /// also the record of how scarce the market was.
+    /// </summary>
+    public void RecordDailyPrices(GameDate date)
+    {
+        var rows = _db.Query(
+            "SELECT citadel_id, item_id, stock, baseline_stock FROM mk_stall_listing",
+            row => (City: row.GetInt64(0), Item: row.GetInt64(1), Stock: row.GetInt32(2), Baseline: row.GetInt32(3)));
+
+        _db.Transaction(() =>
+        {
+            foreach (var row in rows)
+            {
+                var item = _items.Find(row.Item);
+                var city = _map.Find(row.City);
+                if (item is null || city is null)
+                {
+                    continue;
+                }
+
+                var price = MarketPricing.Quote(item, city, date.Month, row.Stock, row.Baseline);
+                _db.Execute(
+                    """
+                    INSERT OR IGNORE INTO mk_price_sample(citadel_id, item_id, day_index, buy_price)
+                    VALUES(@city, @item, @day, @price)
+                    """,
+                    new DbArgs()
+                        .Add("@city", row.City)
+                        .Add("@item", row.Item)
+                        .Add("@day", date.DayIndex)
+                        .Add("@price", price));
+            }
+
+            // Sixty days is the whole window the screen ever reads.
+            _db.Execute(
+                "DELETE FROM mk_price_sample WHERE day_index < @cutoff",
+                DbArgs.One("@cutoff", date.DayIndex - 60));
+        });
+    }
+
     public long QuoteBuy(long cityId, long itemId)
     {
         var item = RequireItem(itemId);

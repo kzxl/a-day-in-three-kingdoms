@@ -5,6 +5,7 @@
         MinHeight="660" MinWidth="1120"
         Background="{StaticResource Bg}"
         WindowStartupLocation="CenterScreen"
+        PreviewKeyDown="Window_PreviewKeyDown"
         Closing="Window_Closing">
 
     <Window.Resources>
@@ -138,10 +139,24 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0">
-                <TextBlock x:Name="ScreenTitle" Style="{StaticResource H1}" />
-                <TextBlock x:Name="ScreenStatus" Style="{StaticResource Caption}" Margin="0,4,0,0" />
-            </StackPanel>
+            <DockPanel Grid.Row="0" LastChildFill="False">
+                <StackPanel DockPanel.Dock="Right" Width="220" Margin="16,0,0,0" VerticalAlignment="Top">
+                    <TextBlock Text="LỌC DÒNG" Style="{StaticResource Overline}" Margin="0,0,0,4" />
+                    <Grid>
+                        <TextBox x:Name="FilterBox" Visibility="Collapsed"
+                                 ToolTip="Gõ để lọc các dòng của màn này (Ctrl+F)"
+                                 TextChanged="Filter_TextChanged" />
+                        <TextBlock x:Name="FilterHint" Text="tên vật phẩm, thành, trạng thái…"
+                                   Foreground="{StaticResource Faint}" FontSize="11.5"
+                                   Margin="10,0,0,0" VerticalAlignment="Center"
+                                   IsHitTestVisible="False" Visibility="Collapsed" />
+                    </Grid>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Left">
+                    <TextBlock x:Name="ScreenTitle" Style="{StaticResource H1}" />
+                    <TextBlock x:Name="ScreenStatus" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                </StackPanel>
+            </DockPanel>
 
             <StackPanel Grid.Row="1" Margin="0,14,0,0">
                 <DockPanel>

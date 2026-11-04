@@ -65,7 +65,7 @@ a fix commit and the next PATCH; the faulty artifact is quarantined, not rewritt
 | --- | --- | --- |
 | WPF client, lite single-file | 2–6 MB exe | 8 MB |
 
-0.2.0: 2.6 MB across 14 files, 1.4 MB zipped. If the exe crosses 8 MB, the usual cause is
+0.2.x: 2.6 MB across 14 files, 1.4 MB zipped. If the exe crosses 8 MB, the usual cause is
 `--self-contained true` slipping in, which bundles the whole desktop runtime.
 
 ## Verifying a downloaded build

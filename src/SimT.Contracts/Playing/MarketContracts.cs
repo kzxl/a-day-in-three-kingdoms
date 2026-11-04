@@ -15,6 +15,9 @@ public interface IMarketTrade
 
     /// <summary>Stock level the stall restocks toward; also the reference for the price curve.</summary>
     int StallBaseline(long cityId, long itemId);
+
+    /// <summary>Daily buy prices, oldest first: the data behind a price trend.</summary>
+    IReadOnlyList<long> PriceHistory(long cityId, long itemId, int days = 10);
 }
 
 public readonly record struct TradeResult(bool Ok, long UnitPrice, long Total, string Message)

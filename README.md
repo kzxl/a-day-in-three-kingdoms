@@ -108,8 +108,9 @@ only through capabilities, and registers its own screens. Disabling one in
 - Every cash movement posted by one ledger writer; spending draws on liquid cash, not the vault.
 - Multiple independent campaigns, each one SQLite file, with duplicate/delete.
 - Eight screens contributed by DLCs plus a kernel ledger view, rendered by a generic host.
-- Shell: 30-cell month strip, headline numbers per screen, an alert feed with rail badges, and an
-  inspector that shows the selected row's numbers with quantity actions and a cost preview.
+- Shell: 30-cell month strip, headline numbers per screen, an alert feed with rail badges, an
+  inspector with quantity actions and cost previews, a text sparkline of the last ten days of
+  prices, row filtering (Ctrl+F) and keyboard shortcuts (Space day, W week, 1–8 screens).
 
 ## Verification snapshot
 
@@ -117,7 +118,7 @@ only through capabilities, and registers its own screens. Disabling one in
 | --- | --- | --- |
 | Architecture rules | 33 | `dotnet test tests/SimT.Architecture.Tests` |
 | Kernel primitives, contracts and hardening | 49 | `dotnet test tests/SimT.Core.Tests` |
-| Market slice + pricing budget | 26 | `dotnet test tests/SimT.Modules.Market.Tests` |
+| Market slice, pricing budget, price history | 31 | `dotnet test tests/SimT.Modules.Market.Tests` |
 | DLC behaviour (6 DLCs) | 60 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
 | Invariants at end of every replay | 26 | printed by `SimT.Cli` |

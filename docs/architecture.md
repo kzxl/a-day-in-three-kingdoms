@@ -127,6 +127,9 @@ costs to hold goods:
 | Transit loss | `quantity × transitDays / shelfLife`, rounded down, at least one unit survives | `CaravanService.Spoilage` |
 | Soil | yield × (600 + soil×4)/1000, −25 per harvest, +5 per month, +30 for 30 Quan | `CropCalendar` |
 
+Prices are also sampled once per day per settlement and item (`mk_price_sample`, sixty-day
+window), which is enough for the screen to show a trend as text: the game is read, not watched.
+
 All of them are integer functions of state that the save already holds. That is what keeps the
 golden hash meaningful: two runs of the same script produce the same prices, the same spoil and
 the same ledger.

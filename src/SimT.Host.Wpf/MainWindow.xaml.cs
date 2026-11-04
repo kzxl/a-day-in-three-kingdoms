@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     private string _screenId = string.Empty;
     private DataGrid? _firstGrid;
     private ScreenSection? _firstSection;
+    private string _filter = string.Empty;
 
     public MainWindow(SimKernel kernel, SaveManager saves, CampaignMeta meta)
     {
@@ -238,10 +239,22 @@ public partial class MainWindow : Window
             GlobalCommands.Children.Add(CommandButton(command, command.Id));
         }
 
+        var longest = model.Sections.Count == 0 ? 0 : model.Sections.Max(section => section.Rows.Count);
+        FilterBox.Visibility = longest > 6 ? Visibility.Visible : Visibility.Collapsed;
+        if (longest <= 6)
+        {
+            _filter = string.Empty;
+            FilterBox.Text = string.Empty;
+        }
+
+        FilterHint.Visibility = FilterBox.Visibility == Visibility.Visible && string.IsNullOrEmpty(FilterBox.Text)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
         ContentPanel.Children.Clear();
         foreach (var section in model.Sections)
         {
-            ContentPanel.Children.Add(BuildCard(section));
+            ContentPanel.Children.Add(BuildCard(Filtered(section)));
         }
 
         if (model.Sections.Count == 0)
@@ -340,7 +353,10 @@ public partial class MainWindow : Window
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(13, 10, 16, 10),
             Margin = new Thickness(0, 0, 10, 10),
-            Child = stack
+            Child = stack,
+            ToolTip = string.IsNullOrWhiteSpace(metric.Hint)
+                ? $"{metric.Label}: {metric.Value}"
+                : $"{metric.Label}: {metric.Value} — {metric.Hint}"
         };
     }
 
@@ -364,6 +380,95 @@ public partial class MainWindow : Window
         CommandKind.Danger => "DangerButton",
         _ => "GhostButton"
     };
+
+    /// <summary>Rows matching the search box; a cell hit is enough, case-insensitive.</summary>
+    private ScreenSection Filtered(ScreenSection section)
+    {
+        if (string.IsNullOrWhiteSpace(_filter))
+        {
+            return section;
+        }
+
+        var needle = _filter.Trim();
+        var rows = section.Rows
+            .Where(row => row.Cells.Any(cell => cell.Contains(needle, StringComparison.CurrentCultureIgnoreCase)))
+            .ToList();
+
+        return section with { Rows = rows };
+    }
+
+    private void Filter_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        var text = FilterBox.Text ?? string.Empty;
+        if (string.Equals(text, _filter, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _filter = text;
+        FilterHint.Visibility = string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
+        RenderSelected();
+    }
+
+    /// <summary>Space advances a day, W a week, digits jump between screens, Esc closes the inspector.</summary>
+    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.OriginalSource is TextBox && e.Key != System.Windows.Input.Key.Escape)
+        {
+            return;
+        }
+
+        if (e.OriginalSource is ButtonBase && e.Key is System.Windows.Input.Key.Space or System.Windows.Input.Key.Enter)
+        {
+            return;
+        }
+
+        if (System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control
+            && e.Key == System.Windows.Input.Key.F)
+        {
+            if (FilterBox.Visibility == Visibility.Visible)
+            {
+                FilterBox.Focus();
+                FilterBox.SelectAll();
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case System.Windows.Input.Key.Space:
+                Advance(1);
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.W:
+                Advance(7);
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.Escape:
+                CloseInspector();
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.D1:
+            case System.Windows.Input.Key.D2:
+            case System.Windows.Input.Key.D3:
+            case System.Windows.Input.Key.D4:
+            case System.Windows.Input.Key.D5:
+            case System.Windows.Input.Key.D6:
+            case System.Windows.Input.Key.D7:
+            case System.Windows.Input.Key.D8:
+            case System.Windows.Input.Key.D9:
+                var index = e.Key - System.Windows.Input.Key.D1;
+                if (index < NavList.Items.Count)
+                {
+                    NavList.SelectedIndex = index;
+                    e.Handled = true;
+                }
+
+                break;
+        }
+    }
 
     private Border BuildCard(ScreenSection section, int wideColumn = -1)
     {
