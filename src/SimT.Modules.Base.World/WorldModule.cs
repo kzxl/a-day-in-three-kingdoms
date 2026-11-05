@@ -11,9 +11,11 @@ public sealed class WorldModule : ISimModule
     {
         var map = new WorldMap(context.Db);
         context.Capabilities.Provide(CapabilityIds.WorldMap, map);
+        var stroll = new CityStrollService(map, context.Capabilities, context.Clock, context.Log);
+        context.Capabilities.Provide(CapabilityIds.CityStroll, stroll);
         context.Ui.AddScreen(new WorldMapScreen(map, context.Capabilities, context.Clock));
         context.Ui.AddCommandHandler(new WorldMapCommandHandler(map, context.Capabilities, context.Clock));
-        context.Log.Info($"map ready with {map.Citadels.Count} citadels and WorldMapScreen registered");
+        context.Log.Info($"map ready with {map.Citadels.Count} citadels, CityStroll registered");
     }
 
     private sealed class WorldMap : IWorldMap

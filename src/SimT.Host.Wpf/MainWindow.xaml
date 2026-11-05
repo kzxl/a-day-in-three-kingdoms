@@ -153,6 +153,9 @@
                         <Button x:Name="AdvanceWeekButton" Grid.Column="2" Content="Tuần +7" Click="AdvanceWeek_Click"
                                 Style="{StaticResource GhostButton}" HorizontalContentAlignment="Center" />
                     </Grid>
+                    <Button x:Name="StrollButton" Margin="0,6,0,0" Content="Du ngoạn phố 🚶" Click="Stroll_Click"
+                            Style="{StaticResource GhostButton}" HorizontalContentAlignment="Center"
+                            ToolTip="Tản bộ ngắm cảnh thành trì, tìm kiếm kỳ ngộ, tao ngộ danh sĩ và sự kiện ngẫu nhiên (-12 Căng thẳng, +5 Thể lực)" />
                     <TextBlock x:Name="VersionText" Style="{StaticResource Caption}" Margin="0,10,0,0"
                                Foreground="{StaticResource Faint}" FontSize="10.5" />
                 </StackPanel>

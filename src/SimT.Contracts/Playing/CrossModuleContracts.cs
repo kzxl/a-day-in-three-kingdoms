@@ -31,6 +31,7 @@ public static class CapabilityIds
     public const string SocialNetwork = "social.network";
     public const string MilitaryCommand = "military.command";
     public const string PlayerDestiny = "player.destiny";
+    public const string CityStroll = "world.stroll";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>
@@ -396,4 +397,32 @@ public interface IPlayerAttributes
     string UnequipSkill(int slot);
 
     void GainFame(int amount, string reason, int virtueDelta = 0, int credDelta = 0);
+}
+
+/// <summary>Types of random encounters that can be triggered while strolling a citadel.</summary>
+public enum StrollEventType
+{
+    Peaceful,
+    NpcEncounter,
+    MarketBargain,
+    RighteousDeed,
+    Epiphany,
+    TeahouseRumor
+}
+
+/// <summary>Outcome of a city stroll exploration action.</summary>
+public sealed record StrollResult(
+    bool Ok,
+    string Title,
+    string LocationName,
+    string Narrative,
+    string RewardSummary,
+    StrollEventType EventType,
+    int FatigueDelta,
+    int StressRelief);
+
+/// <summary>City stroll and urban random encounter capability (<c>world.stroll</c>).</summary>
+public interface ICityStroll
+{
+    StrollResult Stroll(long cityId);
 }

@@ -28,6 +28,32 @@ public partial class MainWindow
 
     private async void AdvanceWeek_Click(object sender, RoutedEventArgs e) => await AdvanceAsync(7);
 
+    private void Stroll_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isAdvancing) return;
+
+        if (_kernel.Capabilities.TryGet<ICityStroll>(CapabilityIds.CityStroll, out var stroll) && stroll is not null &&
+            _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
+        {
+            var result = stroll.Stroll(player.CurrentCityId);
+            if (result.Ok)
+            {
+                _kernel.Save();
+                UpdateHeader();
+                RenderSelected();
+                StatusText.Text = $"🚶 [{result.LocationName} · {result.Title}] {result.Narrative} » {result.RewardSummary}";
+            }
+            else
+            {
+                StatusText.Text = result.Narrative;
+            }
+        }
+        else
+        {
+            StatusText.Text = "Tính năng du ngoạn thành trì chưa khả dụng.";
+        }
+    }
+
     public void AdvanceSync(int days)
     {
         var from = _kernel.Today;
@@ -80,6 +106,7 @@ public partial class MainWindow
         AdvanceButton.IsEnabled = !busy;
         RestButton.IsEnabled = !busy;
         AdvanceWeekButton.IsEnabled = !busy;
+        StrollButton.IsEnabled = !busy;
         Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
     }
 

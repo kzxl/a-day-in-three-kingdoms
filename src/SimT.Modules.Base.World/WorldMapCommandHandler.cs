@@ -25,6 +25,24 @@ internal sealed class WorldMapCommandHandler : IScreenCommandHandler
 
     public string? Execute(string commandId)
     {
+        if (commandId.StartsWith("stroll", StringComparison.Ordinal))
+        {
+            if (!_broker.TryGet<ICityStroll>(CapabilityIds.CityStroll, out var stroll) || stroll is null)
+            {
+                return "Tính năng du ngoạn chưa sẵn sàng.";
+            }
+
+            if (!_broker.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) || player is null)
+            {
+                return "Không xác định được trạng thái người chơi.";
+            }
+
+            var result = stroll.Stroll(player.CurrentCityId);
+            return result.Ok
+                ? $"[Du Ngoạn - {result.Title}] {result.Narrative} ({result.RewardSummary})"
+                : result.Narrative;
+        }
+
         if (commandId.StartsWith("inspect:", StringComparison.Ordinal))
         {
             if (long.TryParse(commandId["inspect:".Length..], out var cityId))
