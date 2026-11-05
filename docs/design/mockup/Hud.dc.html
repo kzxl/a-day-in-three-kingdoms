@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Thanh HUD</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&amp;family=Noto+Serif:wght@600;700&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<header style="width: 1440px; height: 60px; box-sizing: border-box; background: rgba(18,14,11,.94); border-bottom: 1px solid #c4a06266; display: flex; align-items: center; gap: 18px; padding: 0 20px; white-space: nowrap; font-family: 'Be Vietnam Pro', sans-serif; color: #eadfc6">
+  <div style="display: flex; align-items: center; gap: 10px">
+    <div style="width: 36px; height: 36px; background: #a8321f; color: #f3e6cc; font-family: 'Ma Shan Zheng', serif; font-size: 24px; display: flex; align-items: center; justify-content: center; border-radius: 3px">梁</div>
+    <span style="font-family: 'Noto Serif', serif; font-weight: 600; font-size: 14px; color: #f3e6cc">Lương Nhan</span>
+    <span style="font-size: 13px; color: #c4a062">Xuân · 3/184</span>
+  </div>
+  <div style="display: flex; gap: 16px; font-size: 13px; align-items: center">
+    <span style="display: flex; align-items: center; gap: 5px"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="#c4a062" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="9" r="7"/><rect x="6.5" y="6.5" width="5" height="5"/></svg><b style="color: #f3e6cc">1.070</b></span>
+    <span style="display: flex; align-items: center; gap: 5px"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="#c4a062" stroke-width="1.5" aria-hidden="true"><path d="M9 16V6M9 6c0-3 2-4 4-4 0 3-2 4-4 4zM9 6C9 3 7 2 5 2c0 3 2 4 4 4zM9 10c0-2 2-3 4-3 0 2-2 3-4 3zM9 10c0-2-2-3-4-3 0 2 2 3 4 3z"/></svg><b style="color: #f3e6cc">20</b></span>
+    <span style="display: flex; align-items: center; gap: 5px"><svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="#c4a062" stroke-width="1.5" aria-hidden="true"><path d="M3 15L14 4M11 3l4 0 0 4M5 11l2 2"/></svg><b style="color: #f3e6cc">500</b></span>
+    <span style="width: 1px; height: 24px; background: #3a2c20"></span>
+    <span title="Danh vọng" style="display: flex; align-items: center; gap: 5px"><span style="font-family: 'Ma Shan Zheng', serif; color: #c4a062; font-size: 16px">名</span><b style="color: #f3e6cc">12</b><span style="color: #b9aa8c">danh vọng</span></span>
+    <span title="Độ lệch sử sách" style="display: flex; align-items: center; gap: 5px"><span style="font-family: 'Ma Shan Zheng', serif; color: #8fb8c8; font-size: 16px">史</span><b style="color: #f3e6cc">8%</b><span style="color: #b9aa8c">lệch sử</span></span>
+    <span title="Nghi ngờ — từ 60 sẽ bị coi là yêu nhân" style="display: flex; align-items: center; gap: 6px"><span style="font-family: 'Ma Shan Zheng', serif; color: #e6a08f; font-size: 16px">疑</span><span style="position: relative; width: 56px; height: 6px; background: #3a2c20; border-radius: 3px"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: 24%; background: #e6a08f; border-radius: 3px"></span><span style="position: absolute; left: 60%; top: -3px; width: 1px; height: 12px; background: #e6a08f"></span></span><b style="color: #f3e6cc">24</b></span>
+  </div>
+  <nav style="margin-left: auto; display: flex; gap: 3px; background: #1f1813; padding: 4px; border-radius: 6px; border: 1px solid #3a2c20">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+      <a href="{{t.href}}" style="{{t.style}}">{{t.label}}</a>
+    </sc-for>
+  </nav>
+  <a href="MonthPlan.dc.html" style="text-decoration: none; height: 40px; padding: 0 14px; display: flex; align-items: center; background: #a8321f; color: #f8eedb; font-family: 'Noto Serif', serif; font-weight: 600; font-size: 14px; border-radius: 4px">Qua tháng</a>
+</header>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["dialogue","map","dossier","memory","ledger","none"],"default":"dialogue"},"$preview":{"width":1440,"height":60}}'>
+class Component extends DCLogic {
+renderVals() {
+const active = this.props.active ?? 'dialogue';
+const T = [['dialogue','Hội thoại','Dialogue.dc.html'],['map','Bản đồ','Map.dc.html'],['dossier','Tướng lĩnh','Dossier.dc.html'],['memory','Ký ức','#'],['ledger','Sổ sách','#']];
+return { tabs: T.map(t => ({ label: t[1], href: t[2],
+  style: 'text-decoration:none;padding:8px 12px;border-radius:4px;font-size:13px;' + (t[0] === active ? 'background:#c4a062;color:#15110d;font-weight:600' : 'color:#eadfc6') })) };
+}
+}
+</script>
+</body>
+</html>

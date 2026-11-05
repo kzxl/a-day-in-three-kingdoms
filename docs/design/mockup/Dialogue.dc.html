@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Hội thoại</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&amp;family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#15110d}
+a{color:#c4a062}a:hover{color:#eadfc6}
+.tk-one{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@keyframes tkBreath{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-5px) scaleY(1.012)}}
+@keyframes tkSway{0%,100%{transform:rotate(-.6deg)}50%{transform:rotate(.6deg)}}
+@keyframes tkMist{0%{transform:translateX(-6%)}100%{transform:translateX(6%)}}
+@keyframes tkPetal{0%{transform:translate(0,-60px) rotate(0);opacity:0}10%{opacity:.9}100%{transform:translate(-220px,960px) rotate(540deg);opacity:0}}
+@keyframes tkGlow{0%,100%{opacity:.55}50%{opacity:.8}}
+.tk-breath{animation:tkBreath 4.6s ease-in-out infinite;transform-origin:50% 100%}
+.tk-sway{animation:tkSway 7s ease-in-out infinite;transform-origin:50% 100%}
+.tk-mist{animation:tkMist 16s ease-in-out infinite alternate}
+.tk-glow{animation:tkGlow 4.6s ease-in-out infinite}
+.tk-petal{position:absolute;top:0;width:14px;height:10px;border-radius:70% 0 70% 0;background:#f0a9a0;animation:tkPetal linear infinite}
+</style>
+</helmet>
+<div onMouseMove="{{move}}" style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #15110d; color: #eadfc6; font-family: 'Be Vietnam Pro', sans-serif; perspective: 1400px">
+
+  <div style="position: absolute; inset: 0; background: linear-gradient(180deg, #2b1d2a 0%, #6b3b3a 38%, #c97a4e 62%, #e7b071 74%, #3a2a22 100%)" aria-hidden="true"></div>
+  <div style="position: absolute; left: 980px; top: 210px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, #ffe2b0 0%, #f4b678 45%, rgba(244,182,120,0) 70%); transform: {{l0}}" aria-hidden="true"></div>
+  <svg width="1520" height="900" viewBox="0 0 1520 900" style="position: absolute; left: -40px; top: 0; transform: {{l0}}" aria-hidden="true">
+    <path d="M0 560 L120 470 L210 520 L340 400 L470 500 L560 450 L700 380 L820 470 L960 420 L1080 480 L1220 390 L1360 470 L1520 430 L1520 900 L0 900 Z" fill="#8f5a52" opacity=".55"/>
+  </svg>
+  <svg width="1600" height="900" viewBox="0 0 1600 900" style="position: absolute; left: -80px; top: 0; transform: {{l1}}" aria-hidden="true">
+    <path d="M0 640 C140 560 220 600 330 540 C430 490 520 600 640 570 C760 540 820 470 960 520 C1080 560 1180 500 1300 540 C1420 580 1500 540 1600 560 L1600 900 L0 900 Z" fill="#4a2c2a"/>
+    <g fill="#5d3530"><circle cx="1180" cy="520" r="34"/><circle cx="1215" cy="505" r="28"/><circle cx="1245" cy="525" r="30"/><rect x="1206" y="530" width="8" height="40"/></g>
+    <g fill="#3a2120"><path d="M1290 560 l40 -50 l40 50 z"/><rect x="1300" y="560" width="60" height="26"/><path d="M1280 562 h100" stroke="#3a2120" stroke-width="6"/></g>
+  </svg>
+  <div class="tk-mist" style="position: absolute; left: -10%; right: -10%; top: 470px; height: 220px; background: radial-gradient(ellipse at 30% 50%, rgba(255,226,190,.22), transparent 60%), radial-gradient(ellipse at 75% 40%, rgba(255,226,190,.14), transparent 55%)" aria-hidden="true"></div>
+
+  <div style="position: absolute; left: 150px; bottom: 0; width: 620px; height: 860px; transform: {{l2}}; transform-style: preserve-3d" aria-hidden="true">
+    <div class="tk-glow" style="position: absolute; left: 40px; right: 40px; top: 120px; bottom: 120px; background: radial-gradient(ellipse at 50% 40%, rgba(212,150,70,.35), transparent 65%)"></div>
+    <div style="position: absolute; left: 90px; right: 90px; bottom: 150px; height: 60px; background: radial-gradient(ellipse, rgba(0,0,0,.7), transparent 70%)"></div>
+    <div class="tk-sway" style="position: absolute; inset: 0">
+      <div class="tk-breath" style="position: absolute; inset: 0">
+        <img src="/assets/characters/zhang_fei/full.webp" alt="" style="position: absolute; left: 0; bottom: -60px; width: 620px; height: 860px; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(0 0 2px rgba(255,214,150,.75)) drop-shadow(-16px 6px 30px rgba(0,0,0,.55))">
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; inset: 0; transform: {{l3}}; pointer-events: none" aria-hidden="true">
+    <svg width="560" height="300" viewBox="0 0 560 300" style="position: absolute; right: -40px; top: 40px">
+      <path d="M560 30 C470 50 400 40 330 90 C280 125 240 120 190 150 M400 60 C380 110 350 140 300 170 M470 46 C470 100 440 130 420 160" fill="none" stroke="#2a1712" stroke-width="9" stroke-linecap="round"/>
+      <g fill="#f3a7a4"><circle cx="190" cy="150" r="9"/><circle cx="215" cy="140" r="7"/><circle cx="300" cy="170" r="10"/><circle cx="325" cy="160" r="7"/><circle cx="330" cy="95" r="8"/><circle cx="360" cy="78" r="6"/><circle cx="420" cy="160" r="9"/><circle cx="445" cy="150" r="7"/><circle cx="400" cy="60" r="8"/><circle cx="470" cy="46" r="7"/><circle cx="380" cy="120" r="6"/><circle cx="252" cy="128" r="7"/></g>
+      <g fill="#ffd6d0"><circle cx="193" cy="147" r="3"/><circle cx="303" cy="166" r="4"/><circle cx="423" cy="157" r="3"/><circle cx="332" cy="92" r="3"/></g>
+    </svg>
+    <i class="tk-petal" style="left: 980px; animation-duration: 11s; animation-delay: 0s"></i>
+    <i class="tk-petal" style="left: 1180px; animation-duration: 13s; animation-delay: -4s; width: 10px; height: 8px"></i>
+    <i class="tk-petal" style="left: 760px; animation-duration: 9s; animation-delay: -2s"></i>
+    <i class="tk-petal" style="left: 1320px; animation-duration: 12s; animation-delay: -7s; width: 18px; height: 12px; filter: blur(1.5px)"></i>
+    <i class="tk-petal" style="left: 560px; animation-duration: 14s; animation-delay: -9s; width: 9px; height: 7px"></i>
+    <i class="tk-petal" style="left: 1060px; animation-duration: 10s; animation-delay: -5s; width: 20px; height: 14px; filter: blur(2px)"></i>
+    <i class="tk-petal" style="left: 420px; animation-duration: 12s; animation-delay: -3s"></i>
+  </div>
+  <div style="position: absolute; inset: 0; background: radial-gradient(ellipse at 40% 45%, transparent 45%, rgba(10,8,6,.75) 100%), linear-gradient(180deg, rgba(10,8,6,0) 60%, rgba(10,8,6,.92) 82%)" aria-hidden="true"></div>
+
+  <div style="position: absolute; left: 0; top: 0; z-index: 3"><dc-import name="Hud" active="dialogue" hint-size="1440px,60px"></dc-import></div>
+
+  <div style="position: absolute; left: 20px; top: 84px; display: flex; flex-direction: column; gap: 12px; align-items: center; padding: 10px 8px; background: rgba(18,14,11,.8); border: 1px solid #3a2c20; border-radius: 40px">
+    <button aria-label="Lưu Bị" style="width: 52px; height: 52px; padding: 0; border-radius: 50%; border: 1px solid #4a3a2a; overflow: hidden; background: #2a2019; cursor: pointer"><img src="/assets/characters/liu_bei/face.webp" alt="" style="width: 100%; height: 100%; object-fit: cover; filter: grayscale(.4)"></button>
+    <button aria-label="Quan Vũ" style="width: 52px; height: 52px; padding: 0; border-radius: 50%; border: 1px solid #4a3a2a; overflow: hidden; background: #2a2019; cursor: pointer"><img src="/assets/characters/guan_yu/face.webp" alt="" style="width: 100%; height: 100%; object-fit: cover; filter: grayscale(.4)"></button>
+    <button aria-label="Trương Phi — đang nói" style="width: 60px; height: 60px; padding: 0; border-radius: 50%; border: 2px solid #c4a062; box-shadow: 0 0 0 3px #a8321f; overflow: hidden; background: #2a2019; cursor: pointer"><img src="/assets/characters/zhang_fei/face.webp" alt="" style="width: 100%; height: 100%; object-fit: cover"></button>
+    <button aria-label="Gia Cát Lượng" style="width: 52px; height: 52px; padding: 0; border-radius: 50%; border: 1px solid #4a3a2a; overflow: hidden; background: #2a2019; cursor: pointer"><img src="/assets/characters/zhuge_liang/face.webp" alt="" style="width: 100%; height: 100%; object-fit: cover; filter: grayscale(.4)"></button>
+  </div>
+
+  <div style="position: absolute; left: 50%; top: 80px; transform: translateX(-50%); padding: 8px 18px; background: rgba(18,14,11,.85); border: 1px solid #c4a06266; border-radius: 3px; font-family: 'Noto Serif', serif; font-size: 14px; color: #eadfc6; display: flex; gap: 10px; align-items: center; white-space: nowrap">
+    <span style="font-family: 'Ma Shan Zheng', serif; color: #c4a062; font-size: 18px">涿</span>
+    Vườn đào họ Trương · Huyện Trạc
+  </div>
+
+  <div style="position: absolute; left: 700px; top: 150px; font-family: 'Ma Shan Zheng', serif; font-size: 64px; color: rgba(243,230,204,.9); writing-mode: vertical-rl; text-shadow: 0 2px 14px #000; transform: {{l3}}" aria-hidden="true">張飛</div>
+
+  <section aria-label="Quyết định" style="position: absolute; right: 32px; top: 150px; width: 560px; display: flex; flex-direction: column; gap: 10px; white-space: nowrap">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 4px">
+      <h2 style="margin: 0; font-family: 'Noto Serif', serif; font-size: 16px; font-weight: 600; color: #c4a062; letter-spacing: .06em">Quyết định của chủ công</h2>
+      <span style="font-size: 12px; color: #b9aa8c">Phím 1 – 4</span>
+    </div>
+    <button style="display: flex; gap: 14px; align-items: center; height: 56px; padding: 0 16px; background: rgba(31,24,19,.9); border: 1px solid #c4a062; border-radius: 4px; color: inherit; font-family: inherit; cursor: pointer; backdrop-filter: blur(6px)">
+      <span style="font-family: 'Ma Shan Zheng', serif; font-size: 26px; color: #c4a062; width: 28px">壹</span>
+      <span class="tk-one" style="flex: 1; min-width: 0; text-align: left; font-family: 'Noto Serif', serif; font-size: 15px; font-weight: 600; color: #f3e6cc">Thỉnh giáo Trương Phi đấu thương</span>
+      <span style="font-size: 12px; color: #8fc4a2">Võ +1 · Hảo cảm +5</span>
+    </button>
+    <button style="display: flex; gap: 14px; align-items: center; height: 56px; padding: 0 16px; background: rgba(31,24,19,.9); border: 1px solid #4a3a2a; border-radius: 4px; color: inherit; font-family: inherit; cursor: pointer; backdrop-filter: blur(6px)">
+      <span style="font-family: 'Ma Shan Zheng', serif; font-size: 26px; color: #c4a062; width: 28px">貳</span>
+      <span class="tk-one" style="flex: 1; min-width: 0; text-align: left; font-family: 'Noto Serif', serif; font-size: 15px; font-weight: 600; color: #f3e6cc">Ra chợ Đông Môn gặp Lưu Bị, Quan Vũ</span>
+      <span style="font-size: 12px; color: #b9aa8c">Chuyển cảnh</span>
+    </button>
+    <button style="display: flex; gap: 14px; align-items: center; height: 56px; padding: 0 16px; background: rgba(31,24,19,.9); border: 1px solid #4a3a2a; border-radius: 4px; color: inherit; font-family: inherit; cursor: pointer; backdrop-filter: blur(6px)">
+      <span style="font-family: 'Ma Shan Zheng', serif; font-size: 26px; color: #c4a062; width: 28px">參</span>
+      <span class="tk-one" style="flex: 1; min-width: 0; text-align: left; font-family: 'Noto Serif', serif; font-size: 15px; font-weight: 600; color: #f3e6cc">Về phường dệt đôn đốc thợ</span>
+      <span style="font-size: 12px; color: #b9aa8c">Sản xuất</span>
+    </button>
+    <button disabled style="display: flex; gap: 14px; align-items: center; height: 56px; padding: 0 16px; background: rgba(31,24,19,.7); border: 1px dashed #4a3a2a; border-radius: 4px; color: inherit; font-family: inherit">
+      <span style="font-family: 'Ma Shan Zheng', serif; font-size: 26px; color: #6e604a; width: 28px">肆</span>
+      <span class="tk-one" style="flex: 1; min-width: 0; text-align: left; font-family: 'Noto Serif', serif; font-size: 15px; font-weight: 600; color: #a69779">Mua 8 tấm da thuộc · 800 tiền</span>
+      <span style="font-size: 12px; padding: 3px 8px; border-radius: 3px; background: #3a1712; color: #e6a08f">Thiếu vốn</span>
+    </button>
+  </section>
+
+  <section aria-label="Lời thoại" style="position: absolute; left: 32px; right: 32px; bottom: 24px; display: flex; flex-direction: column; white-space: nowrap">
+    <div style="height: 12px; margin: 0 -8px; background: linear-gradient(#3b2a1d, #20160f); border-radius: 6px"></div>
+    <div style="background: #ecdfc2; color: #2a1f16; padding: 18px 36px 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: inset 0 0 60px rgba(120,84,40,.25)">
+      <div style="display: flex; align-items: center; gap: 14px">
+        <span style="padding: 4px 14px; background: #a8321f; color: #f8eedb; font-family: 'Noto Serif', serif; font-weight: 700; font-size: 16px; border-radius: 2px">Trương Phi</span>
+        <span style="font-size: 13px; color: #5c4a36">Dực Đức · Đồ tể huyện Trạc</span>
+        <span style="font-size: 12px; padding: 3px 10px; border: 1px solid #a8321f; color: #8a2818; border-radius: 12px">Hào sảng</span>
+        <span style="font-size: 12px; color: #2f6b4a; font-weight: 600">Hảo cảm +63</span>
+        <span style="margin-left: auto; font-size: 12px; color: #5c4a36">2 / 4</span>
+        <button style="background: none; border: 1px solid #8f7f62; color: #4a3a2a; font-size: 12px; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-family: inherit">Tâm can</button>
+        <button style="background: none; border: 1px solid #8f7f62; color: #4a3a2a; font-size: 12px; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-family: inherit">Lịch sử</button>
+      </div>
+      <p class="tk-one" style="margin: 0; font-family: 'Noto Serif', serif; font-size: 21px; color: #2a1f16">“Lò mổ của lão vừa lột mười tấm da trâu thượng hạng — đệ có muốn mua làm giỏ lương không?” <span style="color: #a8321f">▸</span></p>
+      <div style="display: flex; gap: 10px; align-items: center; border-top: 1px solid #c9b48e; padding-top: 12px">
+        <label for="cmd" style="font-family: 'Noto Serif', serif; font-size: 14px; font-weight: 600; color: #8a2818">Quân lệnh</label>
+        <input id="cmd" placeholder="Nhập lời đàm phán, ban lệnh hoặc kế sách…" style="flex-grow: 1; height: 44px; padding: 0 14px; background: #f6eedb; border: 1px solid #c9b48e; border-radius: 3px; font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; color: #2a1f16">
+        <button style="height: 44px; padding: 0 20px; background: #2a1f16; color: #f3e6cc; border: 0; border-radius: 3px; font-family: 'Noto Serif', serif; font-weight: 600; font-size: 14px; cursor: pointer">Truyền lệnh</button>
+      </div>
+    </div>
+    <div style="height: 12px; margin: 0 -8px; background: linear-gradient(#3b2a1d, #20160f); border-radius: 6px"></div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+constructor(p) { super(p); this.state = { mx: 0, my: 0 }; }
+renderVals() {
+const { mx, my } = this.state;
+return {
+move: (e) => {
+const r = e.currentTarget.getBoundingClientRect();
+this.setState({ mx: ((e.clientX - r.left) / r.width) * 2 - 1, my: ((e.clientY - r.top) / r.height) * 2 - 1 });
+},
+l0: 'translate(' + (-mx * 8) + 'px,' + (-my * 5) + 'px)',
+l1: 'translate(' + (-mx * 18) + 'px,' + (-my * 8) + 'px)',
+l2: 'translate(' + (mx * 22) + 'px,' + (my * 10) + 'px) rotateY(' + (mx * 7) + 'deg) rotateX(' + (-my * 3) + 'deg)',
+l3: 'translate(' + (mx * 40) + 'px,' + (my * 22) + 'px)'
+};
+}
+}
+</script>
+</body>
+</html>
