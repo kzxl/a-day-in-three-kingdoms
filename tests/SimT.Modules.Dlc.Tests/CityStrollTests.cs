@@ -18,6 +18,7 @@ public sealed class CityStrollTests : IDisposable
         var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
 
         var initialFatigue = attrs.Vitals.Fatigue;
+        var initialDay = kernel.Today.DayIndex;
 
         var result = stroll.Stroll(player.CurrentCityId);
 
@@ -26,6 +27,7 @@ public sealed class CityStrollTests : IDisposable
         Assert.NotEmpty(result.Narrative);
         Assert.NotEmpty(result.RewardSummary);
         Assert.True(attrs.Vitals.Fatigue >= initialFatigue);
+        Assert.Equal(initialDay + 1, kernel.Today.DayIndex);
     }
 
     [Fact]

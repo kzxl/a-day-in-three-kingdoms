@@ -65,9 +65,10 @@ internal sealed class CityStrollService : ICityStroll
                 0);
         }
 
-        // Apply baseline stamina consumption & stress relief
+        // Apply baseline stamina consumption & stress relief & advance day
         attrs?.ApplyFatigue(5);
         attrs?.RecoverVitals(fatigueRelief: 0, stressRelief: 12);
+        _clock.Advance(1);
 
         // 0. Check for pending Karma fruition / causality encounters first
         if (_broker.TryGet<IKarmaEngine>(CapabilityIds.KarmaEngine, out var karma) && karma is not null)

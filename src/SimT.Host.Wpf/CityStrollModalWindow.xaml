@@ -235,7 +235,7 @@
                             Padding="16,7" Margin="0,0,8,0"
                             FontWeight="Bold"
                             Click="ContinueStroll_Click"
-                            ToolTip="Dạo thêm một bước phố phường (tiêu hao 5 mệt mỏi, giảm 12 căng thẳng)" />
+                            ToolTip="Dạo thêm một bước phố phường (tiêu hao 1 ngày, 5 mệt mỏi, giải tỏa 12 căng thẳng)" />
                     <Button Content="Trở Về"
                             Style="{StaticResource GhostButton}"
                             Padding="16,7"

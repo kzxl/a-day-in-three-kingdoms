@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using SimT.Contracts.Playing;
+using SimT.Contracts.Time;
 using SimT.Core.Kernel;
 
 namespace SimT.Host.Wpf;
@@ -22,6 +23,8 @@ public partial class CityStrollModalWindow : Window
     private readonly ICityStroll _stroll;
     private readonly long _cityId;
 
+    public event Action? StrollStateChanged;
+
     public CityStrollModalWindow(SimKernel kernel, ICityStroll stroll, long cityId, StrollResult? initialResult = null)
     {
         InitializeComponent();
@@ -30,6 +33,8 @@ public partial class CityStrollModalWindow : Window
         _kernel = kernel;
         _stroll = stroll;
         _cityId = cityId;
+
+        Loaded += (_, _) => StrollStateChanged?.Invoke();
 
         var result = initialResult ?? stroll.Stroll(cityId);
         DisplayResult(result);
@@ -49,7 +54,7 @@ public partial class CityStrollModalWindow : Window
 
         LocationVenueText.Text = $"📍 {result.LocationName}";
         EventTitleText.Text = result.Title;
-        DateCounterText.Text = $"Ngày {_kernel.Today.DayIndex} ({_kernel.Today.Month}/{_kernel.Today.Year})";
+        DateCounterText.Text = $"📅 {GameDateCodec.Format(_kernel.Today)} · {GameDateCodec.DescribeVi(_kernel.Today)}";
 
         NarrativeText.Text = result.Narrative;
 
@@ -128,6 +133,8 @@ public partial class CityStrollModalWindow : Window
 
         // Animation transition
         AnimateStoryEntrance();
+
+        StrollStateChanged?.Invoke();
     }
 
     private void PopulateNpcChoices(IReadOnlyList<StrollChoiceOption> choices)
@@ -225,8 +232,9 @@ public partial class CityStrollModalWindow : Window
         {
             var v = attrs.Vitals;
             var isTired = v.Fatigue >= 90;
-            VitalsStatusText.Text = $"❤️ Sinh Lực: {v.Health}/{v.MaxHp} · ⚡ Thể Lực: {v.CurrentStamina}/{v.MaxStamina} · 💤 Mệt Mỏi: {v.Fatigue}% · 🌪️ Áp Lực: {v.Stress}%";
-            VitalsStatusText.Foreground = (Brush)(isTired ? FindResource("Loss") : FindResource("Muted"));
+            var isWarning = v.Fatigue >= 60;
+            VitalsStatusText.Text = $"❤️ Sinh Lực: {v.Health}/{v.MaxHp}  |  ⚡ Thể Lực: {v.CurrentStamina}/{v.MaxStamina}  |  💤 Mệt Mỏi: {v.Fatigue}%  |  🌪️ Căng Thẳng: {v.Stress}%";
+            VitalsStatusText.Foreground = (Brush)(isTired ? FindResource("Loss") : isWarning ? FindResource("Accent") : FindResource("Gain"));
 
             if (requiresChoice)
             {
@@ -241,7 +249,7 @@ public partial class CityStrollModalWindow : Window
             else
             {
                 ContinueStrollBtn.IsEnabled = true;
-                ContinueStrollBtn.ToolTip = "Dạo thêm một bước phố phường (tiêu hao 5 mệt mỏi, giảm 12 căng thẳng)";
+                ContinueStrollBtn.ToolTip = "Dạo thêm một bước phố phường (tiêu hao 1 ngày, 5 mệt mỏi, giải tỏa 12 căng thẳng)";
             }
         }
     }

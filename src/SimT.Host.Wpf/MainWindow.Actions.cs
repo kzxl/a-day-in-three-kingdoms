@@ -38,6 +38,12 @@ public partial class MainWindow
             _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
         {
             var modal = new CityStrollModalWindow(_kernel, stroll, player.CurrentCityId) { Owner = this };
+            modal.StrollStateChanged += () =>
+            {
+                _kernel.Save();
+                UpdateHeader();
+                RenderSelected();
+            };
             modal.ShowDialog();
 
             _kernel.Save();
