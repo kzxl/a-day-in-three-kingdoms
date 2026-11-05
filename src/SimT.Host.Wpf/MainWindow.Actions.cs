@@ -37,20 +37,12 @@ public partial class MainWindow
         if (_kernel.Capabilities.TryGet<ICityStroll>(CapabilityIds.CityStroll, out var stroll) && stroll is not null &&
             _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
         {
-            var result = stroll.Stroll(player.CurrentCityId);
-            if (result.Ok)
-            {
-                _kernel.Save();
-                UpdateHeader();
-                RenderSelected();
-                StatusText.Text = $"🚶 [{result.LocationName} · {result.Title}] {result.Narrative} » {result.RewardSummary}";
-                ShowGameToast($"Du Ngoạn · {result.LocationName}", $"{result.Narrative} » {result.RewardSummary}", "🚶", (Brush)FindResource("Accent"));
-                ShowFloatingFeedback($"🚶 {result.Title}", (Brush)FindResource("Gain"), 180, 50);
-            }
-            else
-            {
-                StatusText.Text = result.Narrative;
-            }
+            var modal = new CityStrollModalWindow(_kernel, stroll, player.CurrentCityId) { Owner = this };
+            modal.ShowDialog();
+
+            _kernel.Save();
+            UpdateHeader();
+            RenderSelected();
         }
         else
         {
