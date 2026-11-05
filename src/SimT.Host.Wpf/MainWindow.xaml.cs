@@ -25,6 +25,7 @@ namespace SimT.Host.Wpf;
 public partial class MainWindow : Window
 {
     private const string CityHubScreenId = "city.hub";
+    private const string CitySceneScreenId = "city.scene";
     private const string LedgerScreenId = "core.ledger";
 
     private static readonly CultureInfo Vietnamese = CultureInfo.GetCultureInfo("vi-VN");
@@ -304,6 +305,13 @@ public partial class MainWindow : Window
 
     public bool SelectScreen(string screenId)
     {
+        if (string.Equals(screenId, CitySceneScreenId, StringComparison.Ordinal))
+        {
+            _screenId = CitySceneScreenId;
+            SyncStrategicNavigation(_screenId);
+            RenderCityScene();
+            return true;
+        }
         if (string.Equals(screenId, UiGalleryScreenId, StringComparison.Ordinal))
         {
             _screenId = UiGalleryScreenId;
@@ -481,7 +489,7 @@ public partial class MainWindow : Window
                 Title = "Sa Bàn 13 Châu",
                 Subtitle = "Thiên hạ & lộ trình",
                 IconPathData = "M3,6 L9,3 L15,6 L21,3 L21,18 L15,21 L9,18 L3,21 Z M9,3 L9,18 M15,6 L15,21",
-                Tag = "world.map"
+                Tag = CityHubScreenId
             },
             new()
             {
@@ -497,7 +505,7 @@ public partial class MainWindow : Window
                 Title = "Thế Lực Triều Đình",
                 Subtitle = "Quan trường, quân doanh",
                 IconPathData = "M3,20 L21,20 M5,20 L5,10 M9,20 L9,10 M15,20 L15,10 M19,20 L19,10 M2,10 L12,4 L22,10",
-                Tag = "society.chronicle"
+                Tag = "politics.court"
             },
             new()
             {
@@ -513,7 +521,7 @@ public partial class MainWindow : Window
                 Title = "Bản Thân & Sổ Sách",
                 Subtitle = "Mệnh cách, uy danh, sổ cái",
                 IconPathData = "M12,2 L15,9 L22,12 L15,15 L12,22 L9,15 L2,12 L9,9 Z",
-                Tag = CityHubScreenId
+                Tag = "player.destiny"
             }
         };
 

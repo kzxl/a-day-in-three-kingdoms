@@ -562,6 +562,29 @@ public partial class MainWindow
 
     private void RenderCityHub()
     {
+        SceneOverlay.HideScene();
+        ScreenTitle.Text = "Nhật Trình Chiến Lược";
+        ScreenStatus.Text = "Đại điện quân cơ · Nắm bắt thời cuộc, tiêu điểm ngày và cơ hội thương đạo";
+        KpiStrip.Children.Clear();
+        AlertFeed.ItemsSource = null;
+        GlobalCommands.Children.Clear();
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+        ContentPanel.Children.Clear();
+
+        var briefing = new GameStrategicBriefingControl();
+        briefing.RequestNavigate += targetScreen => SelectScreen(targetScreen);
+        briefing.RequestOpenCityScene += () => SelectScreen(CitySceneScreenId);
+        briefing.RequestRest += () => Rest_Click(this, new RoutedEventArgs());
+        briefing.RequestStroll += () => TriggerCityStroll(preferModalWhenOutsideScene: true);
+        briefing.RequestTalkNpc += npcId => TryOpenTalkScene(npcId);
+
+        briefing.Bind(_kernel);
+        ContentPanel.Children.Add(briefing);
+    }
+
+    private void RenderCityScene()
+    {
         ScreenTitle.Text = "Trong Thành";
         ScreenStatus.Text = "Trung tâm thành trì · bấm địa điểm hoặc danh sĩ để tương tác";
         KpiStrip.Children.Clear();
@@ -570,7 +593,7 @@ public partial class MainWindow
         FilterBox.Visibility = Visibility.Collapsed;
         FilterHint.Visibility = Visibility.Collapsed;
         ContentPanel.Children.Clear();
-        ContentPanel.Children.Add(EmptyState("Cảnh Trong Thành đang hiển thị trên lớp phủ tương tác."));
+        ContentPanel.Children.Add(EmptyState("Cảnh Trong Thành đang hiển thị trên lớp phủ tương tác. Bấm nút [Nhật Trình] để trở lại đại điện chiến lược."));
         TryOpenCityScene();
     }
 

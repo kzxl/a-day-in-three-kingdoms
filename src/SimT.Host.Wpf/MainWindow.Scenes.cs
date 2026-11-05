@@ -42,6 +42,7 @@ public partial class MainWindow
         var (seasonVi, weatherFx) = ResolveSeasonAndWeather(_kernel.Today.Month);
         IReadOnlyList<SceneChoice> choices = customChoices ??
         [
+            new("briefing", "🏛️ Nhật trình", "Tiêu điểm & Báo cáo đầu ngày"),
             new("stroll", "Du ngoạn phố", "Tản bộ tìm kỳ ngộ"),
             new("stroll:log", "Sổ dạo phố", "Nhật ký kỳ ngộ"),
             new("map", "Xem bản đồ", "Hành trình liên thành")
@@ -251,7 +252,8 @@ public partial class MainWindow
         }
 
         if (type != "choice") return;
-        if (id == "stroll") TriggerCityStroll();
+        if (id == "briefing") SelectScreen(CityHubScreenId);
+        else if (id == "stroll") TriggerCityStroll();
         else if (id == "stroll:log")
         {
             if (_kernel.Capabilities.TryGet<ICityStroll>(CapabilityIds.CityStroll, out var stroll) && stroll is not null &&
