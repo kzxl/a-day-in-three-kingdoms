@@ -53,47 +53,173 @@ public partial class CityStrollModalWindow : Window
 
         NarrativeText.Text = result.Narrative;
 
-        // Reward pills
-        RewardBadgesPanel.Children.Clear();
-        if (!string.IsNullOrWhiteSpace(result.RewardSummary))
+        // Interactive choices vs final reward
+        if (result.RequiresChoice)
         {
-            var parts = result.RewardSummary.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var part in parts)
+            ChoicesBorder.Visibility = Visibility.Visible;
+            RewardStripBorder.Visibility = Visibility.Collapsed;
+            ContinueStrollBtn.IsEnabled = false;
+            ContinueStrollBtn.ToolTip = "Hãy giải quyết tương tác kỳ ngộ bên trên trước khi dạo tiếp!";
+
+            if (result.MerchantOffers is not null && result.MerchantOffers.Count > 0)
             {
-                var pill = CreateRewardPill(part);
-                RewardBadgesPanel.Children.Add(pill);
+                ChoicesHeadingText.Text = "❖ QUẦY HÀNG THƯƠNG NHÂN DU PHƯƠNG";
+                ChoicesSubHeadingText.Text = "Chọn mua 1 món hàng quý hoặc khéo léo từ chối";
+                MerchantOffersList.ItemsSource = result.MerchantOffers;
+                MerchantOffersList.Visibility = Visibility.Visible;
+                DeclineMerchantBtn.Visibility = Visibility.Visible;
+                NpcChoicesPanel.Visibility = Visibility.Collapsed;
+            }
+            else if (result.Choices is not null && result.Choices.Count > 0)
+            {
+                ChoicesHeadingText.Text = "❖ ĐỐI THOẠI & GIAO THIỆP DANH SĨ";
+                ChoicesSubHeadingText.Text = "Chọn phương thức ứng xử và đàm đạo phù hợp";
+                MerchantOffersList.Visibility = Visibility.Collapsed;
+                DeclineMerchantBtn.Visibility = Visibility.Collapsed;
+                NpcChoicesPanel.Visibility = Visibility.Visible;
+                PopulateNpcChoices(result.Choices);
+            }
+            else
+            {
+                ChoicesBorder.Visibility = Visibility.Collapsed;
             }
         }
         else
         {
-            var emptyPill = CreateRewardPill("Không có biến động đáng kể");
-            RewardBadgesPanel.Children.Add(emptyPill);
+            ChoicesBorder.Visibility = Visibility.Collapsed;
+            RewardStripBorder.Visibility = Visibility.Visible;
+
+            // Reward badges
+            RewardBadgesPanel.Children.Clear();
+            if (!string.IsNullOrWhiteSpace(result.RewardSummary))
+            {
+                var parts = result.RewardSummary.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (var part in parts)
+                {
+                    var pill = CreateRewardPill(part);
+                    RewardBadgesPanel.Children.Add(pill);
+                }
+            }
+            else
+            {
+                var emptyPill = CreateRewardPill("Không có biến động đáng kể");
+                RewardBadgesPanel.Children.Add(emptyPill);
+            }
+
+            // History entry
+            if (result.Ok)
+            {
+                var entry = new StrollHistoryEntry(
+                    $"Ngày {_kernel.Today.DayIndex}",
+                    result.LocationName,
+                    result.Title,
+                    result.RewardSummary,
+                    glyph);
+                SessionHistory.Insert(0, entry);
+                if (SessionHistory.Count > 10) SessionHistory.RemoveAt(SessionHistory.Count - 1);
+            }
+
+            HistoryList.ItemsSource = null;
+            HistoryList.ItemsSource = SessionHistory.Take(5).ToList();
         }
 
         // Vitals status
-        UpdateVitalsBar();
-
-        // History entry
-        if (result.Ok)
-        {
-            var entry = new StrollHistoryEntry(
-                $"Ngày {_kernel.Today.DayIndex}",
-                result.LocationName,
-                result.Title,
-                result.RewardSummary,
-                glyph);
-            SessionHistory.Insert(0, entry);
-            if (SessionHistory.Count > 10) SessionHistory.RemoveAt(SessionHistory.Count - 1);
-        }
-
-        HistoryList.ItemsSource = null;
-        HistoryList.ItemsSource = SessionHistory.Take(5).ToList();
+        UpdateVitalsBar(result.RequiresChoice);
 
         // Animation transition
         AnimateStoryEntrance();
     }
 
-    private void UpdateVitalsBar()
+    private void PopulateNpcChoices(IReadOnlyList<StrollChoiceOption> choices)
+    {
+        NpcChoicesPanel.Children.Clear();
+
+        foreach (var choice in choices)
+        {
+            var btn = new Button
+            {
+                Style = (Style)FindResource("GhostButton"),
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(12, 7, 12, 7),
+                Margin = new Thickness(0, 0, 0, 6),
+                Tag = choice.Key
+            };
+
+            var stack = new StackPanel();
+
+            var titleLine = new DockPanel();
+            var titleText = new TextBlock
+            {
+                Text = choice.LabelVi,
+                FontWeight = FontWeights.Bold,
+                FontSize = 12.5,
+                Foreground = (Brush)FindResource("Text")
+            };
+            DockPanel.SetDock(titleText, Dock.Left);
+            titleLine.Children.Add(titleText);
+
+            if (!string.IsNullOrWhiteSpace(choice.CostSummary))
+            {
+                var costText = new TextBlock
+                {
+                    Text = choice.CostSummary,
+                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 11,
+                    Foreground = (Brush)FindResource("Accent"),
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                DockPanel.SetDock(costText, Dock.Right);
+                titleLine.Children.Add(costText);
+            }
+            stack.Children.Add(titleLine);
+
+            if (!string.IsNullOrWhiteSpace(choice.DescriptionVi))
+            {
+                var descText = new TextBlock
+                {
+                    Text = choice.DescriptionVi,
+                    Style = (Style)FindResource("Caption"),
+                    Foreground = (Brush)FindResource("Muted"),
+                    Margin = new Thickness(0, 2, 0, 0),
+                    TextWrapping = TextWrapping.Wrap
+                };
+                stack.Children.Add(descText);
+            }
+
+            btn.Content = stack;
+            btn.Click += ChoiceOption_Click;
+            NpcChoicesPanel.Children.Add(btn);
+        }
+    }
+
+    private void ChoiceOption_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string key })
+        {
+            var resolved = _stroll.ResolveChoice(_cityId, key);
+            _kernel.Save();
+            DisplayResult(resolved);
+        }
+    }
+
+    private void BuyOffer_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: long itemId })
+        {
+            var resolved = _stroll.ResolveChoice(_cityId, "buy", itemId.ToString());
+            _kernel.Save();
+            DisplayResult(resolved);
+        }
+    }
+
+    private void DeclineMerchant_Click(object sender, RoutedEventArgs e)
+    {
+        var resolved = _stroll.ResolveChoice(_cityId, "decline");
+        _kernel.Save();
+        DisplayResult(resolved);
+    }
+
+    private void UpdateVitalsBar(bool requiresChoice = false)
     {
         if (_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)
         {
@@ -102,7 +228,12 @@ public partial class CityStrollModalWindow : Window
             VitalsStatusText.Text = $"❤️ Sinh Lực: {v.Health}/{v.MaxHp} · ⚡ Thể Lực: {v.CurrentStamina}/{v.MaxStamina} · 💤 Mệt Mỏi: {v.Fatigue}% · 🌪️ Áp Lực: {v.Stress}%";
             VitalsStatusText.Foreground = (Brush)(isTired ? FindResource("Loss") : FindResource("Muted"));
 
-            if (v.Fatigue >= 95)
+            if (requiresChoice)
+            {
+                ContinueStrollBtn.IsEnabled = false;
+                ContinueStrollBtn.ToolTip = "Hãy giải quyết tương tác kỳ ngộ bên trên trước khi dạo tiếp!";
+            }
+            else if (v.Fatigue >= 95)
             {
                 ContinueStrollBtn.IsEnabled = false;
                 ContinueStrollBtn.ToolTip = "Bạn đang quá kiệt sức (Mệt mỏi 95%+). Hãy nghỉ ngơi trước khi dạo phố tiếp!";
@@ -153,11 +284,11 @@ public partial class CityStrollModalWindow : Window
     {
         StrollEventType.KarmaFruition => ("⚖️", "Quả Báo & Nhân Duyên", Color.FromRgb(0xF5, 0xD0, 0x61)),
         StrollEventType.NpcEncounter => ("👥", "Kỳ Ngộ Danh Sĩ", Color.FromRgb(0x4A, 0x90, 0xE2)),
-        StrollEventType.MarketBargain => ("💰", "Kỳ Thương Cổ Vật", Color.FromRgb(0xE6, 0x7E, 0x22)),
+        StrollEventType.MarketBargain => ("💰", "Kỳ Thương Du Phương", Color.FromRgb(0xE6, 0x7E, 0x22)),
         StrollEventType.RighteousDeed => ("⚔️", "Trượng Nghĩa Hiệp Hành", Color.FromRgb(0xC0, 0x39, 0x2B)),
         StrollEventType.Epiphany => ("⚡", "Đốn Ngộ Binh Pháp", Color.FromRgb(0x8E, 0x44, 0xAD)),
         StrollEventType.TeahouseRumor => ("🍵", "Trà Quán Luận Thế", Color.FromRgb(0x16, 0xA0, 0x85)),
-        _ => ("🌸", "Tiêu Dao Tự Tại", Color.FromRgb(0x5A, 0xC0, 0x8A))
+        _ => ("🌸", "Phố Phường Thanh Bình", Color.FromRgb(0x5A, 0xC0, 0x8A))
     };
 
     private void ContinueStroll_Click(object sender, RoutedEventArgs e)
