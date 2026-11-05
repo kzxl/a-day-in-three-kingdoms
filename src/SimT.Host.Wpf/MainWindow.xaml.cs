@@ -57,6 +57,7 @@ public partial class MainWindow : Window
         RegisterModalPresenters();
 
         BuildRail();
+        BuildStrategicRibbon();
         UpdateHeader();
         _loaded = true;
         RenderSelected();
@@ -452,4 +453,148 @@ public partial class MainWindow : Window
     }
 
     private static string FormatRegionName(string? regionCode) => RoleTitleVi.FormatRegion(regionCode);
+
+    private void BuildStrategicRibbon()
+    {
+        var ribbonItems = new System.Collections.ObjectModel.ObservableCollection<CommandRibbonItem>
+        {
+            new()
+            {
+                Id = "group.map",
+                Title = "Sa Bàn 13 Châu",
+                Subtitle = "Thiên hạ & lộ trình",
+                IconPathData = "M3,6 L9,3 L15,6 L21,3 L21,18 L15,21 L9,18 L3,21 Z M9,3 L9,18 M15,6 L15,21",
+                Tag = "world.map"
+            },
+            new()
+            {
+                Id = "group.trade",
+                Title = "Thương Đạo",
+                Subtitle = "Chợ, kho bãi & đoàn buôn",
+                IconPathData = "M3,7 L21,7 L19,12 L5,12 Z M5,12 L5,20 L19,20 L19,12",
+                Tag = "market.stall"
+            },
+            new()
+            {
+                Id = "group.power",
+                Title = "Thế Lực Triều Đình",
+                Subtitle = "Quan trường, quân doanh",
+                IconPathData = "M3,20 L21,20 M5,20 L5,10 M9,20 L9,10 M15,20 L15,10 M19,20 L19,10 M2,10 L12,4 L22,10",
+                Tag = "society.chronicle"
+            },
+            new()
+            {
+                Id = "group.social",
+                Title = "Nhân Duyên Hào Kiệt",
+                Subtitle = "Danh sĩ, quan hệ, dòng họ",
+                IconPathData = "M12,11 A4,4 0 1,0 12,3 A4,4 0 1,0 12,11 M5,20 C5,16 8,14 12,14 C16,14 19,16 19,20",
+                Tag = "npc.directory"
+            },
+            new()
+            {
+                Id = "group.self",
+                Title = "Bản Thân & Sổ Sách",
+                Subtitle = "Mệnh cách, uy danh, sổ cái",
+                IconPathData = "M12,2 L15,9 L22,12 L15,15 L12,22 L9,15 L2,12 L9,9 Z",
+                Tag = CityHubScreenId
+            }
+        };
+
+        StrategicRibbon.ItemsSource = ribbonItems;
+        StrategicRibbon.ItemSelected += (s, e) =>
+        {
+            if (e.Item.Tag is string targetScreen)
+            {
+                SelectScreen(targetScreen);
+            }
+        };
+
+        ScreenGroupTabs.SelectionChanged += (idx, item) =>
+        {
+            if (!string.IsNullOrEmpty(item.Key) && item.Key != _screenId)
+            {
+                SelectScreen(item.Key);
+            }
+        };
+    }
+
+    public void SyncStrategicNavigation(string screenId)
+    {
+        if (StrategicRibbon is null || ScreenGroupTabs is null) return;
+
+        string activeGroupId;
+        List<GameTabItem> tabs;
+
+        switch (screenId)
+        {
+            case "world.map":
+                activeGroupId = "group.map";
+                tabs = new List<GameTabItem>
+                {
+                    new("world.map", "🗺️ Sa Bàn Thiên Hạ")
+                };
+                break;
+
+            case "market.stall":
+            case "market.player_stall":
+            case "market.warehouse":
+            case "caravan.routes":
+            case "cultivation.farm":
+            case "professions.trades":
+                activeGroupId = "group.trade";
+                tabs = new List<GameTabItem>
+                {
+                    new("market.stall", "🏪 Chợ Thành"),
+                    new("market.player_stall", "🛒 Sạp Hàng"),
+                    new("market.warehouse", "📦 Kho Bãi"),
+                    new("caravan.routes", "🐎 Thương Đoàn"),
+                    new("cultivation.farm", "🌾 Điền Trang"),
+                    new("professions.trades", "🔨 Nghề Nghiệp")
+                };
+                break;
+
+            case "society.chronicle":
+            case "politics.court":
+            case "military.arena":
+                activeGroupId = "group.power";
+                tabs = new List<GameTabItem>
+                {
+                    new("society.chronicle", "📜 Thiên Hạ Niên Giám"),
+                    new("politics.court", "🏛️ Quan Trường"),
+                    new("military.arena", "⚔️ Binh Nghiệp")
+                };
+                break;
+
+            case "npc.directory":
+            case "social.network":
+            case "lineage.family":
+                activeGroupId = "group.social";
+                tabs = new List<GameTabItem>
+                {
+                    new("npc.directory", "👥 Danh Sĩ"),
+                    new("social.network", "🕸️ Mạng Lưới"),
+                    new("lineage.family", "⛩️ Gia Tộc")
+                };
+                break;
+
+            default:
+                activeGroupId = "group.self";
+                tabs = new List<GameTabItem>
+                {
+                    new(CityHubScreenId, "🏯 Trong Thành"),
+                    new("player.destiny", "⭐ Mệnh Cách"),
+                    new("player.reputation", "🎖️ Danh Vọng"),
+                    new("content.item_hub", "💎 Đồ Giám"),
+                    new(LedgerScreenId, "📒 Sổ Cái")
+                };
+                break;
+        }
+
+        StrategicRibbon.SelectedItemId = activeGroupId;
+
+        int selectedIdx = tabs.FindIndex(t => t.Key == screenId);
+        if (selectedIdx < 0) selectedIdx = 0;
+        ScreenGroupTabs.SetTabs(tabs, selectedIdx);
+    }
+
 }

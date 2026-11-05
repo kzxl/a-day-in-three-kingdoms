@@ -39,6 +39,7 @@ public partial class MainWindow
         _screenId = entry.ScreenId;
         _firstGrid = null;
         _firstSection = null;
+        SyncStrategicNavigation(_screenId);
 
         if (entry.ScreenId == CityHubScreenId)
         {
