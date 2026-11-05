@@ -1,0 +1,297 @@
+<local:HubModalWindowBase x:Class="SimT.Host.Wpf.StrongholdDetailModalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SimT.Host.Wpf"
+        xmlns:controls="clr-namespace:SimT.Host.Wpf.Controls"
+        Title="Quân Cơ Doanh · Hồ Sơ Sào Huyệt &amp; Kế Sách Tiễu Trừ Sơn Trại"
+        Height="720" Width="920"
+        MinHeight="620" MinWidth="820"
+        Background="{StaticResource Bg}"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= ROW 0: GAME HUB HEADER ================= -->
+        <controls:GameHubHeader Grid.Row="0" x:Name="HubHeader" />
+
+        <!-- ================= ROW 1: STRONGHOLD DOSSIER BODY ================= -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== LEFT COLUMN: OUTLAW CHIEF & BANDIT HORDE ===== -->
+            <Border Grid.Column="0" Background="{StaticResource Surface}"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="8" Padding="16,14" Margin="0,0,12,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="THỦ LĨNH THẢO KHẤU &amp; QUÂN LỰC SÀO HUYỆT"
+                                   Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="0,0,0,10" />
+
+                        <!-- Chief Profile Card -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Chief Avatar -->
+                                <Border Grid.Column="0" Width="68" Height="68"
+                                        x:Name="ChiefAvatarBox"
+                                        Background="{StaticResource Bg}"
+                                        BorderBrush="{StaticResource Loss}" BorderThickness="2"
+                                        CornerRadius="8" Margin="0,0,14,0"
+                                        VerticalAlignment="Center">
+                                    <TextBlock x:Name="ChiefAvatarText" Text="賊"
+                                               FontSize="34" FontWeight="Bold"
+                                               Foreground="{StaticResource Loss}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <!-- Chief Info -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ChiefTitleText" Text="Hắc Sơn Kiếp Soái"
+                                               FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Accent}" />
+                                    <TextBlock x:Name="ChiefNameText" Text="Trương Yến"
+                                               FontSize="18" FontWeight="Bold"
+                                               Foreground="{StaticResource Text}" Margin="0,1,0,3" />
+
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border x:Name="ChiefBranchBadge" Background="{StaticResource AccentSoft}"
+                                                BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                                CornerRadius="3" Padding="6,1" Margin="0,0,6,0">
+                                            <TextBlock x:Name="ChiefBranchText" Text="🛡️ Bộ Binh"
+                                                       FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Accent}" />
+                                        </Border>
+                                        <Border Background="{StaticResource Surface}"
+                                                BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                                CornerRadius="3" Padding="6,1">
+                                            <TextBlock x:Name="ChiefFactionText" Text="Hắc Sơn Quân"
+                                                       FontSize="10.5" Foreground="{StaticResource Muted}" />
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Chief Martial Attributes Matrix -->
+                        <TextBlock Text="Năng Lực Võ Tướng Cầm Đầu" Style="{StaticResource Caption}"
+                                   Foreground="{StaticResource Muted}" Margin="0,0,0,6" />
+                        <UniformGrid Columns="3" Margin="0,0,0,14">
+                            <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                                    BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,4,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="⚔ VÕ LỰC" FontSize="9.5" FontWeight="SemiBold" Foreground="{StaticResource Loss}" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="ChiefWarText" Text="78" Style="{StaticResource NumberLarge}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                                    BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="2,0,2,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="🚩 THỐNG SOÁI" FontSize="9.5" FontWeight="SemiBold" Foreground="{StaticResource Accent}" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="ChiefLdrText" Text="72" Style="{StaticResource NumberLarge}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                                    BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="4,0,0,0">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="📜 MƯU TRÍ" FontSize="9.5" FontWeight="SemiBold" Foreground="{StaticResource Gain}" HorizontalAlignment="Center" />
+                                    <TextBlock x:Name="ChiefIntText" Text="55" Style="{StaticResource NumberLarge}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <!-- Horde Size & Terrain Info -->
+                        <Border Background="{StaticResource Rail}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,12">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="👥 Quân Lực Thảo Khấu:" Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
+                                    <TextBlock x:Name="BanditTroopCountText" Text="2,400 Quân Sĩ" FontWeight="Bold"
+                                               Foreground="{StaticResource Text}" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <DockPanel Margin="0,0,0,6">
+                                    <TextBlock Text="⛰ Địa Hình Căn Cứ:" Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
+                                    <TextBlock x:Name="TerrainNameText" Text="Sơn Cốc Dốc Đứng" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Accent}" HorizontalAlignment="Right" />
+                                </DockPanel>
+
+                                <DockPanel>
+                                    <TextBlock Text="🛡 Mức Độ Nguy Hiểm:" Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
+                                    <TextBlock x:Name="DangerLevelText" Text="Cấp 4 / 10 (Hiểm Ác)" FontWeight="Bold"
+                                               Foreground="{StaticResource Loss}" HorizontalAlignment="Right" />
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Chief Lore Description -->
+                        <TextBlock Text="Bối Cảnh Chiếm Cứ" Style="{StaticResource Caption}"
+                                   Foreground="{StaticResource Muted}" Margin="0,0,0,4" />
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="6" Padding="12,10">
+                            <TextBlock x:Name="ChiefLoreText"
+                                       Text="Sơn trại chiếm cứ địa hình hiểm yếu, thường xuyên cướp phá thương lộ quanh châu quận."
+                                       FontSize="12" LineHeight="19"
+                                       Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- ===== RIGHT COLUMN: LOOT, TACTICAL PREPARATION & ACTION ===== -->
+            <Border Grid.Column="1" Background="{StaticResource Surface}"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="8" Padding="18,14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Section 1: Loot & Spoils of War -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="CHIẾN LỢI PHẨM DỰ KIẾN KHI BÌNH ĐỊNH"
+                                   Style="{StaticResource Overline}" Foreground="{StaticResource Gain}" Margin="0,0,0,8" />
+
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="8" Padding="14,10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Bounty Gold -->
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                    <TextBlock Text="💰 NGÂN LƯỢNG" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Muted}" />
+                                    <TextBlock x:Name="LootGoldText" Text="+450 Quan"
+                                               FontSize="16" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,2,0,0" />
+                                </StackPanel>
+
+                                <!-- Item Reward -->
+                                <StackPanel Grid.Column="1" Margin="4,0,4,0">
+                                    <TextBlock Text="📦 CHIẾN CỤ / KHOÁNG SẢN" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Muted}" />
+                                    <TextBlock x:Name="ItemRewardText" Text="2 Đồng Thỏi"
+                                               FontSize="14" FontWeight="Bold" Foreground="{StaticResource Text}" Margin="0,2,0,0" />
+                                </StackPanel>
+
+                                <!-- Fame & Virtue -->
+                                <StackPanel Grid.Column="2" Margin="8,0,0,0">
+                                    <TextBlock Text="★ UY DANH &amp; ĐỨC HẠNH" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Muted}" />
+                                    <TextBlock x:Name="FameRewardText" Text="+60 Danh · +5 Đức"
+                                               FontSize="14" FontWeight="Bold" Foreground="{StaticResource Gain}" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Section 2: Historical Clearance Status -->
+                    <StackPanel Grid.Row="1" Margin="0,0,0,16">
+                        <TextBlock Text="TÌNH TRẠNG AN BÌNH &amp; PHỤC HỒI TẶC ĐỒ"
+                                   Style="{StaticResource Overline}" Margin="0,0,0,8" />
+
+                        <Border x:Name="StatusBadgeBorder" Background="{StaticResource Rail}"
+                                BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                CornerRadius="6" Padding="12,9">
+                            <DockPanel>
+                                <TextBlock x:Name="StatusBadgeIcon" Text="⚠️" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="StatusBadgeTitle" Text="Đang Hoạt Động Cướp Phá" FontWeight="Bold"
+                                               Foreground="{StaticResource Loss}" FontSize="12.5" />
+                                    <TextBlock x:Name="StatusBadgeSub" Text="Đã tiễu trừ 0 lần · Sẵn sàng khởi binh phạt tặc"
+                                               Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Section 3: Tactical Deployment (Branch Selector) -->
+                    <Border Grid.Row="2" Background="{StaticResource SurfaceAlt}"
+                            BorderBrush="{StaticResource Line}" BorderThickness="1"
+                            CornerRadius="8" Padding="14,12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                                <TextBlock Text="ĐIỀU ĐỘNG QUÂN SĨ · CHỌN BINH CHỦNG XUẤT TRẬN"
+                                           Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" />
+                                <TextBlock x:Name="PlayerTroopStrengthText" Text="Quân Lực Phe Ta: 2,140 Quân"
+                                           HorizontalAlignment="Right" FontWeight="Bold" Foreground="{StaticResource Text}" FontSize="11.5" />
+                            </DockPanel>
+
+                            <!-- Branch Buttons -->
+                            <UniformGrid Grid.Row="1" Columns="3" Margin="0,0,0,10">
+                                <Button x:Name="BranchInfantryBtn" Content="🛡️ Bộ Binh"
+                                        Style="{StaticResource GhostButton}"
+                                        FontWeight="Bold" Padding="10,8" Margin="0,0,4,0"
+                                        Click="Branch_Click" Tag="Infantry" />
+                                <Button x:Name="BranchCavalryBtn" Content="🐎 Kỵ Binh"
+                                        Style="{StaticResource GhostButton}"
+                                        FontWeight="Bold" Padding="10,8" Margin="2,0,2,0"
+                                        Click="Branch_Click" Tag="Cavalry" />
+                                <Button x:Name="BranchArchersBtn" Content="🏹 Cung Binh"
+                                        Style="{StaticResource GhostButton}"
+                                        FontWeight="Bold" Padding="10,8" Margin="4,0,0,0"
+                                        Click="Branch_Click" Tag="Archers" />
+                            </UniformGrid>
+
+                            <!-- Live Counter Affinity Callout -->
+                            <Border Grid.Row="2" x:Name="AffinityCalloutBorder" Background="{StaticResource Surface}"
+                                    BorderBrush="{StaticResource Accent}" BorderThickness="1"
+                                    CornerRadius="6" Padding="12,10" VerticalAlignment="Center">
+                                <StackPanel>
+                                    <TextBlock x:Name="AffinityMatchupHeading" Text="⚖ QUY LUẬT TƯƠNG KHẮC BINH CHỦNG"
+                                               FontSize="10.5" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,0,0,3" />
+                                    <TextBlock x:Name="AffinityMatchupDetail"
+                                               Text="Kỵ Binh khắc Bộ Binh · Bộ Binh khắc Cung Binh · Cung Binh khắc Kỵ Binh"
+                                               FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- Section 4: Bottom Call to Action inside Right Column -->
+                    <DockPanel Grid.Row="3" LastChildFill="False">
+                        <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                            <TextBlock x:Name="VitalsCostHintText" Text="⚡ Tiêu hao 25 thể lực · Trôi qua 1 ngày"
+                                       Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
+                        </StackPanel>
+
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button x:Name="AssaultExpeditionBtn" Content="⚔️ Xuất Quân Tiễu Phạt"
+                                    Style="{StaticResource PrimaryButton}"
+                                    FontWeight="Bold" FontSize="13"
+                                    Padding="22,9" Margin="0,0,8,0"
+                                    Click="AssaultExpedition_Click" />
+                            <Button Content="Trở Về"
+                                    Style="{StaticResource GhostButton}"
+                                    Padding="16,9"
+                                    Click="Close_Click" />
+                        </StackPanel>
+                    </DockPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</local:HubModalWindowBase>

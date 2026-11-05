@@ -117,7 +117,8 @@ internal sealed class MilitaryScreen : IScreenContribution
                     $"{sh.ClearedCount} lần"
                 ],
                 [
-                    new ScreenCommand($"assault:{sh.Id}", "Tiễu Trừ 🚩", CommandKind.Danger)
+                    new ScreenCommand($"stronghold:inspect:{sh.Id}", "Do Thám 👁", CommandKind.Secondary),
+                    new ScreenCommand($"stronghold:assault:{sh.Id}", "Tiễu Trừ 🚩", CommandKind.Danger)
                 ],
                 Title: $"{sh.NameVi} ({FactionVi(sh.BanditFaction)})",
                 Details:
@@ -231,6 +232,21 @@ internal sealed class MilitaryCommandHandler : IScreenCommandHandler
             if (long.TryParse(commandId["assault:".Length..], out var shId))
             {
                 return _military.AssaultStronghold(shId);
+            }
+        }
+        else if (commandId.StartsWith("stronghold:assault:"))
+        {
+            if (long.TryParse(commandId["stronghold:assault:".Length..], out var shId))
+            {
+                return _military.AssaultStronghold(shId);
+            }
+        }
+        else if (commandId.StartsWith("stronghold:inspect:"))
+        {
+            if (long.TryParse(commandId["stronghold:inspect:".Length..], out var shId))
+            {
+                var chief = _military.GetStrongholdChief(shId);
+                return $"[Sào Huyệt] Cứ điểm do Trại Chủ {chief.NameVi} ({chief.TitleVi}) chỉ huy {chief.TroopCount:N0} quân sĩ giữ trại. Địa thế: {chief.TerrainNameVi}.";
             }
         }
         else if (commandId.StartsWith("fulfill:"))

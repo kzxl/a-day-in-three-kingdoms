@@ -53,6 +53,33 @@ public partial class MainWindow
                 TryOpenItemDetailModalByCode(raw);
             }
         });
+
+        _kernel.Ui.RegisterModalPresenter("stronghold:inspect:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var shId) || uri.TryGetTargetLong(out shId))
+            {
+                TryOpenStrongholdDetailModal(shId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("stronghold:assault:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var shId) || uri.TryGetTargetLong(out shId))
+            {
+                TryOpenStrongholdDetailModal(shId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("stronghold:modal:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var shId) || uri.TryGetTargetLong(out shId))
+            {
+                TryOpenStrongholdDetailModal(shId);
+            }
+        });
     }
 
 
@@ -614,6 +641,44 @@ public partial class MainWindow
                 TryOpenItemDetailModal(entry.Item.Id);
             }
         }
+    }
+
+
+
+    public void TryOpenStrongholdDetailModal(long strongholdId)
+    {
+        if (!_kernel.Capabilities.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var military) || military is null ||
+            !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var worldMap) || worldMap is null ||
+            !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
+        {
+            StatusText.Text = "Hệ thống quân bị tiễu phạt chưa sẵn sàng.";
+            return;
+        }
+
+        var citadel = worldMap.Find(playerState.CurrentCityId);
+        var citadelName = citadel?.NameVi ?? "Châu quận";
+
+        var modal = new StrongholdDetailModalWindow(
+            _kernel,
+            military,
+            strongholdId,
+            citadelName)
+        {
+            Owner = this
+        };
+
+        modal.HubStateChanged += () =>
+        {
+            _kernel.Save();
+            UpdateHeader();
+            RenderSelected();
+        };
+
+        modal.ShowDialog();
+
+        _kernel.Save();
+        UpdateHeader();
+        RenderSelected();
     }
 
 }

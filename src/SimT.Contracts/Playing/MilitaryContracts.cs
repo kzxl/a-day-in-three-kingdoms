@@ -142,6 +142,59 @@ public sealed record StrongholdDef(
     TroopBranch Branch = TroopBranch.Infantry);
 
 /// <summary>
+/// Dossier of a bandit warlord / chief commanding a stronghold.
+/// </summary>
+public sealed record BanditChiefDef(
+    string NameVi,
+    string TitleVi,
+    string AvatarChar,
+    string FactionVi,
+    TroopBranch Branch,
+    int War,
+    int Ldr,
+    int Int,
+    int TroopCount,
+    int MaxHp,
+    int TerrainDanger,
+    string TerrainNameVi,
+    string DescriptionVi);
+
+/// <summary>
+/// Log of an individual combat round clash between the expeditionary forces and bandit horde.
+/// </summary>
+public sealed record BanditBattleRoundLog(
+    int RoundNumber,
+    int PlayerDamageDealt,
+    int BanditDamageDealt,
+    int PlayerTroopsRemaining,
+    int BanditTroopsRemaining,
+    int PlayerHpRemaining,
+    int BanditHpRemaining,
+    string? SkillTriggeredVi,
+    string NarrativeVi,
+    bool IsDecisive);
+
+/// <summary>
+/// Complete outcome of a visual expedition clash against an outlaw stronghold.
+/// </summary>
+public sealed record BanditExpeditionResult(
+    bool Won,
+    int Rounds,
+    int LootGold,
+    string ItemRewardCode,
+    string ItemRewardName,
+    int FameGained,
+    int VirtueGained,
+    int PlayerInitialTroops,
+    int PlayerFinalTroops,
+    int BanditInitialTroops,
+    int BanditFinalTroops,
+    BanditChiefDef Chief,
+    StrongholdDef Stronghold,
+    IReadOnlyList<BanditBattleRoundLog> RoundLogs,
+    string SummaryVi);
+
+/// <summary>
 /// The outcome of an arena duel between the player and an NPC.
 /// </summary>
 public sealed record DuelResult(
@@ -196,6 +249,15 @@ public interface IMilitaryCommand
 
     /// <summary>Leads an expedition against an outlaw stronghold.</summary>
     string AssaultStronghold(long strongholdId);
+
+    /// <summary>Resolves the outlaw chief dossier commanding a stronghold.</summary>
+    BanditChiefDef GetStrongholdChief(long strongholdId);
+
+    /// <summary>Simulates a visual multi-round expedition clash against a stronghold without committing side effects.</summary>
+    BanditExpeditionResult SimulateBanditExpedition(long strongholdId, TroopBranch playerBranch);
+
+    /// <summary>Executes a full expedition against an outlaw stronghold, committing rewards, loot, fatigue, and logs.</summary>
+    BanditExpeditionResult ExecuteBanditExpedition(long strongholdId, TroopBranch playerBranch);
 
     /// <summary>Fulfills a military garrison requisition from local bag stock.</summary>
     string FulfillRequisition(long requisitionId);

@@ -168,4 +168,62 @@ public sealed class MilitaryTests : IDisposable
         var restedDuel = military.ChallengeArena(opponent.Id);
         Assert.True(restedDuel.Rounds >= 1);
     }
+
+    [Fact]
+    public void Stronghold_chief_dossier_resolves_correctly()
+    {
+        using var kernel = _host.Boot();
+        var military = kernel.Capabilities.Get<IMilitaryCommand>(CapabilityIds.MilitaryCommand);
+
+        var strongholds = military.AllStrongholds();
+        Assert.NotEmpty(strongholds);
+
+        foreach (var sh in strongholds)
+        {
+            var chief = military.GetStrongholdChief(sh.Id);
+            Assert.NotNull(chief);
+            Assert.NotEmpty(chief.NameVi);
+            Assert.NotEmpty(chief.TitleVi);
+            Assert.NotEmpty(chief.AvatarChar);
+            Assert.NotEmpty(chief.FactionVi);
+            Assert.True(chief.War >= 40);
+            Assert.True(chief.Ldr >= 35);
+            Assert.True(chief.TroopCount >= 500);
+            Assert.True(chief.MaxHp >= 100);
+            Assert.NotEmpty(chief.TerrainNameVi);
+        }
+    }
+
+    [Fact]
+    public void Visual_expedition_battle_executes_with_troop_damage_and_round_logs()
+    {
+        using var kernel = _host.Boot();
+        var military = kernel.Capabilities.Get<IMilitaryCommand>(CapabilityIds.MilitaryCommand);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+
+        var target = military.StrongholdsAt(1).First(s => s.DangerLevel == 2);
+        var initialBalance = wallet.Balance;
+
+        var result = military.ExecuteBanditExpedition(target.Id, TroopBranch.Cavalry);
+        Assert.NotNull(result);
+        Assert.True(result.Rounds >= 1);
+        Assert.NotEmpty(result.RoundLogs);
+        Assert.True(result.PlayerInitialTroops >= 500);
+        Assert.True(result.BanditInitialTroops >= 500);
+
+        foreach (var log in result.RoundLogs)
+        {
+            Assert.True(log.RoundNumber >= 1);
+            Assert.NotEmpty(log.NarrativeVi);
+            Assert.True(log.PlayerDamageDealt >= 0);
+            Assert.True(log.BanditDamageDealt >= 0);
+        }
+
+        if (result.Won)
+        {
+            Assert.True(wallet.Balance > initialBalance);
+            Assert.True(result.LootGold > 0);
+            Assert.NotEmpty(result.ItemRewardName);
+        }
+    }
 }

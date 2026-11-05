@@ -177,9 +177,15 @@ internal sealed class MilitaryService : IMilitaryCommand
         return duel;
     }
 
-    public string AssaultStronghold(long strongholdId)
+    public BanditChiefDef GetStrongholdChief(long strongholdId)
     {
-        var stronghold = _db.QueryOne(
+        var sh = GetStronghold(strongholdId);
+        return BanditExpeditionEngine.ResolveChief(sh);
+    }
+
+    private StrongholdDef GetStronghold(long strongholdId)
+    {
+        return _db.QueryOne(
             "SELECT id, citadel_id, name_vi, bandit_faction, danger_level, loot_gold, item_reward_code, cleared_count, last_cleared_date " +
             "FROM ml_stronghold WHERE id = @id",
             record => new StrongholdDef(
@@ -195,6 +201,19 @@ internal sealed class MilitaryService : IMilitaryCommand
                 TacticalDuelEngine.ResolveStrongholdBranch(record.GetInt64(0), record.GetString(3), record.GetString(2))),
             DbArgs.One("@id", strongholdId))
             ?? throw new SimException("military.stronghold_not_found", $"Không tìm thấy sào huyệt mã {strongholdId}.");
+    }
+
+    public BanditExpeditionResult SimulateBanditExpedition(long strongholdId, TroopBranch playerBranch)
+    {
+        var stronghold = GetStronghold(strongholdId);
+        var item = _items.FindByCode(stronghold.ItemRewardCode);
+        var itemName = item?.NameVi ?? "Quân lương";
+        return BanditExpeditionEngine.SimulateExpedition(_attributes, stronghold, playerBranch, itemName);
+    }
+
+    public BanditExpeditionResult ExecuteBanditExpedition(long strongholdId, TroopBranch playerBranch)
+    {
+        var stronghold = GetStronghold(strongholdId);
 
         if (stronghold.LastClearedDate is not null)
         {
@@ -202,13 +221,45 @@ internal sealed class MilitaryService : IMilitaryCommand
             if (daysSince < 30)
             {
                 var daysRemaining = 30 - daysSince;
-                return $"Sào huyệt {stronghold.NameVi} vừa bị tiễu phạt cách đây {daysSince} ngày, thổ phỉ tan tác chưa kịp tụ tập lại (cần {daysRemaining} ngày nữa mới xuất hiện).";
+                var chief = BanditExpeditionEngine.ResolveChief(stronghold);
+                return new BanditExpeditionResult(
+                    false,
+                    0,
+                    0,
+                    stronghold.ItemRewardCode,
+                    "",
+                    0,
+                    0,
+                    0,
+                    0,
+                    chief.TroopCount,
+                    chief.TroopCount,
+                    chief,
+                    stronghold,
+                    Array.Empty<BanditBattleRoundLog>(),
+                    $"Sào huyệt {stronghold.NameVi} vừa bị tiễu phạt cách đây {daysSince} ngày, thổ phỉ tan tác chưa kịp tụ tập lại (cần {daysRemaining} ngày nữa mới xuất hiện).");
             }
         }
 
         if (_attributes.Vitals.CurrentStamina < 15 || _attributes.Vitals.Fatigue >= 95)
         {
-            return $"Thể lực đã cạn kiệt (mệt mỏi {_attributes.Vitals.Fatigue}/100). Không đủ sức dẫn binh tiến đánh sào huyệt hiểm trở. Hãy tĩnh dưỡng nghỉ ngơi!";
+            var chief = BanditExpeditionEngine.ResolveChief(stronghold);
+            return new BanditExpeditionResult(
+                false,
+                0,
+                0,
+                stronghold.ItemRewardCode,
+                "",
+                0,
+                0,
+                0,
+                0,
+                chief.TroopCount,
+                chief.TroopCount,
+                chief,
+                stronghold,
+                Array.Empty<BanditBattleRoundLog>(),
+                $"Thể lực đã cạn kiệt (mệt mỏi {_attributes.Vitals.Fatigue}/100). Không đủ sức dẫn binh tiến đánh sào huyệt hiểm trở. Hãy tĩnh dưỡng nghỉ ngơi!");
         }
 
         _attributes.ApplyFatigue(25);
@@ -217,44 +268,48 @@ internal sealed class MilitaryService : IMilitaryCommand
         var today = _clock.Today;
         var formattedDate = GameDateCodec.Format(today);
 
-        var pAttr = _attributes.Attributes;
-        var playerPower = pAttr.War + (pAttr.Con / 3) + (pAttr.Ldr / 3);
-        var requiredPower = stronghold.DangerLevel * 14;
+        var item = _items.FindByCode(stronghold.ItemRewardCode);
+        var itemName = item?.NameVi ?? "Quân lương";
+        var result = BanditExpeditionEngine.SimulateExpedition(_attributes, stronghold, playerBranch, itemName);
 
-        var won = playerPower >= requiredPower;
-        if (!won)
+        if (result.Won)
+        {
+            var currentCity = _player.CurrentCityId;
+            _db.Transaction(() =>
+            {
+                _wallet.Pay(stronghold.LootGold, "military.loot", $"Chiến lợi phẩm tiễu phạt {stronghold.NameVi}", $"assault:{strongholdId}:{formattedDate}");
+
+                if (item is not null)
+                {
+                    _bag.Add(currentCity, item.Id, 2);
+                }
+
+                _db.Execute(
+                    "UPDATE ml_stronghold SET cleared_count = cleared_count + 1, last_cleared_date = @date WHERE id = @id",
+                    new DbArgs().Add("@date", formattedDate).Add("@id", strongholdId));
+
+                _attributes.AddExp("WAR", 30);
+                _attributes.AddExp("LDR", 20);
+                _attributes.GainFame(stronghold.DangerLevel * 15, $"Tiễu phạt sào huyệt {stronghold.NameVi}, an định bờ cõi.", virtueDelta: 5);
+            });
+
+            _equipment?.DegradeEquipped("WEAPON", 5);
+            _equipment?.DegradeEquipped("ARMOR", 5);
+            _log.Info($"Assaulted stronghold {stronghold.NameVi}: victory, loot={stronghold.LootGold}, item={itemName}.");
+        }
+        else
         {
             _attributes.ApplyFatigue(10);
-            return $"Thất bại! Thế lực {stronghold.NameVi} quá đông đảo (Độ nguy hiểm cấp {stronghold.DangerLevel}). Quân ta lực bất tòng tâm đành phải tạm lui binh.";
+            _log.Info($"Assaulted stronghold {stronghold.NameVi}: defeat.");
         }
 
-        var item = _items.FindByCode(stronghold.ItemRewardCode);
-        var currentCity = _player.CurrentCityId;
+        return result;
+    }
 
-        _db.Transaction(() =>
-        {
-            _wallet.Pay(stronghold.LootGold, "military.loot", $"Chiến lợi phẩm tiễu phạt {stronghold.NameVi}", $"assault:{strongholdId}:{formattedDate}");
-
-            if (item is not null)
-            {
-                _bag.Add(currentCity, item.Id, 2);
-            }
-
-            _db.Execute(
-                "UPDATE ml_stronghold SET cleared_count = cleared_count + 1, last_cleared_date = @date WHERE id = @id",
-                new DbArgs().Add("@date", formattedDate).Add("@id", strongholdId));
-
-            _attributes.AddExp("WAR", 30);
-            _attributes.AddExp("LDR", 20);
-            _attributes.GainFame(stronghold.DangerLevel * 15, $"Tiễu phạt sào huyệt {stronghold.NameVi}, an định bờ cõi.", virtueDelta: 5);
-        });
-
-        _equipment?.DegradeEquipped("WEAPON", 5);
-        _equipment?.DegradeEquipped("ARMOR", 5);
-
-        var itemName = item?.NameVi ?? "Quân lương";
-        _log.Info($"Assaulted stronghold {stronghold.NameVi}: victory, loot={stronghold.LootGold}, item={itemName}.");
-        return $"Đại Thắng! Tiễu trừ {stronghold.NameVi}, thu hồi {stronghold.LootGold} Quan và 2 {itemName} nạp vào hành trang.";
+    public string AssaultStronghold(long strongholdId)
+    {
+        var result = ExecuteBanditExpedition(strongholdId, TroopBranch.Infantry);
+        return result.SummaryVi;
     }
 
     public string FulfillRequisition(long requisitionId)
