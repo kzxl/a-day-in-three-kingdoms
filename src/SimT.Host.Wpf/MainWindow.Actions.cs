@@ -611,6 +611,7 @@ public partial class MainWindow
         var citadel = worldMap.Find(playerState.CurrentCityId);
         var citadelName = citadel?.NameVi ?? "Châu quận";
 
+        if (TryOpenDuelScene(npc, citadelName)) return;
         var duelWindow = new DuelBattleWindow(
             military,
             registry,

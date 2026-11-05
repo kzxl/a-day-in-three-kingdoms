@@ -66,5 +66,21 @@ public sealed class SceneContractsTests
         Assert.Equal("art/sprites/traveler.png", merchant.SpritePath);
         Assert.Equal("Thương nhân", RoleTitleVi.Format("merchant"));
         Assert.Equal("Chưởng quỹ quán trọ", RoleTitleVi.Format("tavern"));
+
+        var duel = new DuelScene(
+            SceneId: "duel:2",
+            NpcId: 2,
+            NpcCode: "npc_0002",
+            TitleVi: "Tỷ võ cùng Trương Phi",
+            CitadelNameVi: "Lạc Dương",
+            BackgroundPath: "art/backgrounds/arena.png",
+            Player: new DuelFighterView("Lữ Khách", "Bộ Binh", SceneArtCatalog.PlayerPortraitFace, SceneArtCatalog.PlayerSprite, TroopBranch.Infantry, 125, 125, 0, 100),
+            Opponent: new DuelFighterView("Trương Phi", "Kỵ Binh", "art/portraits/zhang_fei/face.webp", "art/sprites/zhang_fei.png", TroopBranch.Cavalry, 145, 145, 10, 100),
+            MatchupSummaryVi: "Kỵ Binh khắc Bộ Binh",
+            Result: null,
+            Choices: [new SceneChoice("branch:Infantry", "Xuất chiến Bộ Binh")]);
+
+        Assert.True(SceneTrustGuard.IsAllowedMessage(new SceneClientMessage("choice", "duel:2", "branch:Infantry"), duel));
+        Assert.False(SceneTrustGuard.IsAllowedMessage(new SceneClientMessage("choice", "duel:2", "branch:Invalid"), duel));
     }
 }
