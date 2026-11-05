@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Media;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
+using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
 
@@ -111,6 +112,32 @@ public partial class FactionDetailModalWindow : HubModalWindowBase
 
         if (map != null)
         {
+            var allegiances = new List<GameFactionInfluenceMapControl.CitadelAllegiance>();
+            var allCitadels = map.Citadels;
+            foreach (var c in allCitadels)
+            {
+                var gov = court.Governances.FirstOrDefault(g => g.CitadelId == c.Id);
+                var fac = gov != null ? court.Factions.FirstOrDefault(f => f.Id == gov.FactionId) : null;
+                var facColor = fac?.ColorHex ?? "#64748B";
+                var isCap = faction.CapitalCityId == c.Id;
+
+                var eco = map.GetEcosystem(c.Id);
+                var normX = Math.Clamp((eco.MapX - 120.0) / 530.0, 0.05, 0.95);
+                var normY = Math.Clamp((eco.MapY - 60.0) / 440.0, 0.05, 0.95);
+
+                allegiances.Add(new GameFactionInfluenceMapControl.CitadelAllegiance(
+                    c.Id,
+                    c.NameVi,
+                    c.Region,
+                    normX,
+                    normY,
+                    gov?.FactionId ?? 0,
+                    facColor,
+                    isCap));
+            }
+
+            FactionInfluenceMap.SetData(allegiances, faction.Id, faction.ColorHex);
+
             foreach (var g in governances)
             {
                 var cit = map.Find(g.CitadelId);

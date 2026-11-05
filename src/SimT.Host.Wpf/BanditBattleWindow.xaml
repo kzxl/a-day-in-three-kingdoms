@@ -170,19 +170,12 @@
                 <!-- ===== CENTER: CLASH VISUAL ARENA ===== -->
                 <Grid Grid.Column="1" Margin="14,0">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="140" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" Background="{StaticResource SurfaceAlt}"
-                            BorderBrush="{StaticResource Line}" BorderThickness="1"
-                            CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
-                        <StackPanel HorizontalAlignment="Center">
-                            <TextBlock x:Name="ClashGlyphText" Text="⚔️" FontSize="26" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="ClashPhaseTitle" Text="GIÁP CHIẾN CÔNG ĐỒN"
-                                       FontWeight="Bold" FontSize="12" Foreground="{StaticResource Accent}" HorizontalAlignment="Center" />
-                        </StackPanel>
-                    </Border>
+                    <!-- Interactive Hardware-Accelerated Tactical Battlefield -->
+                    <controls:GameTacticalBattlefieldControl x:Name="TacticalBattlefield" Grid.Row="0" Margin="0,0,0,8" />
 
                     <Border Grid.Row="1" Background="{StaticResource Rail}"
                             BorderBrush="{StaticResource Line}" BorderThickness="1"

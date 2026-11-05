@@ -136,6 +136,9 @@
 
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                         <StackPanel>
+                            <!-- Strategic Faction Territory & Geopolitical Influence Map -->
+                            <controls:GameFactionInfluenceMapControl x:Name="FactionInfluenceMap" Margin="0,0,0,14" />
+
                             <!-- Territories -->
                             <TextBlock Text="🏰 LÃNH ĐỊA VÀ CHÂU QUẬN TRỰC THUỘC"
                                        Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="0,0,0,8" />

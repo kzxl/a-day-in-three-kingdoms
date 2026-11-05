@@ -101,6 +101,8 @@ public partial class BanditBattleWindow : HubModalWindowBase
         ChiefHpValueText.Text = $"{chief.MaxHp} / {chief.MaxHp}";
         ChiefSkillCalloutText.Text = $"⛰ Địa hình: {chief.TerrainNameVi} · {TroopBranchHelper.NameVi(chief.Branch)}";
 
+        TacticalBattlefield.ConfigureArmies(_playerBranch, chief.Branch, PlayerNameText.Text, chief.NameVi);
+
         // Play initial round
         PlayNextRound();
     }
@@ -118,7 +120,9 @@ public partial class BanditBattleWindow : HubModalWindowBase
 
         // Update Headers
         RoundCounterText.Text = $"HIỆP {log.RoundNumber} / {_result.Rounds}";
-        ClashPhaseTitle.Text = $"HIỆP {log.RoundNumber} GIÁP CHIẾN";
+
+        // Trigger Tactical Battlefield Simulation
+        TacticalBattlefield.PlayRoundAnimation(log, () => { });
 
         // Animate Bars with Ghosting
         AnimateBar(PlayerTroopBar, log.PlayerTroopsRemaining);
@@ -217,10 +221,6 @@ public partial class BanditBattleWindow : HubModalWindowBase
         RoundCounterText.Foreground = _result.Won ? (Brush)FindResource("Gain") : (Brush)FindResource("Loss");
 
         ExpeditionStatusText.Text = _result.Won ? "Sào huyệt đã bị triệt phá hoàn toàn!" : "Binh lực suy kiệt, tạm lui lui binh.";
-
-        ClashGlyphText.Text = _result.Won ? "🏆" : "🏳️";
-        ClashPhaseTitle.Text = _result.Won ? "TOÀN THẮNG BÌNH ĐỊNH" : "THẤT BẠI LUI BINH";
-        ClashPhaseTitle.Foreground = _result.Won ? (Brush)FindResource("Gain") : (Brush)FindResource("Loss");
 
         NarrativeDisplayText.Text = _result.SummaryVi;
 
