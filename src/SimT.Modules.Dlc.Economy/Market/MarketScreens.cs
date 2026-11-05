@@ -1,3 +1,4 @@
+using SimT.Modules.Dlc.Economy.ValueChain;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
@@ -111,6 +112,10 @@ internal sealed class StallScreen : IScreenContribution
                 Title: item.NameVi,
                 Details:
                 [
+                    new ScreenDetail("Chuỗi Giá Trị", ItemValueChain.FormatBadge(item.Code)),
+                    new ScreenDetail("Phân Loại Kinh Tế", ItemValueChain.GetProfile(item.Code).TierNameVi),
+                    new ScreenDetail("Thị Trường Tiêu Thụ", ItemValueChain.GetProfile(item.Code).PrimaryConsumerVi),
+                    new ScreenDetail("Vai Trò Kinh Tế", ItemValueChain.GetProfile(item.Code).EconomicRoleVi),
                     new ScreenDetail("Giá gốc", Fmt(item.BasePrice) + " quan"),
                     new ScreenDetail("Giá mua tại đây", Fmt(buy) + " quan"),
                     new ScreenDetail("Giá bán lại", Fmt(sell) + " quan"),
@@ -428,6 +433,9 @@ internal sealed class WarehouseScreen : IScreenContribution
                 Title: item.NameVi,
                 Details:
                 [
+                    new ScreenDetail("Chuỗi Giá Trị", ItemValueChain.FormatBadge(item.Code)),
+                    new ScreenDetail("Phân Loại Kinh Tế", ItemValueChain.GetProfile(item.Code).TierNameVi),
+                    new ScreenDetail("Thị Trường Tiêu Thụ", ItemValueChain.GetProfile(item.Code).PrimaryConsumerVi),
                     new ScreenDetail("Trong kho", Fmt(line.Quantity)),
                     new ScreenDetail("Đã lưu", $"{line.AgeDays} ngày"),
                     new ScreenDetail("Hạn", item.ShelfLifeDays <= 0 ? "không hỏng" : $"{item.ShelfLifeDays} ngày"),

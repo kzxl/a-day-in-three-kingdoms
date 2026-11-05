@@ -1,6 +1,6 @@
 # A Day in the Three Kingdoms (Một Ngày Ở Tam Quốc · SimT)
 
-[![Build & Test](https://img.shields.io/badge/Tests-407%20Passed-emerald.svg)](tests/)
+[![Build & Test](https://img.shields.io/badge/Tests-430%20Passed-emerald.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%204%20DLC%20Pillars%20Monolith-blueviolet.svg)](docs/module-authoring.md)
 [![Platform](https://img.shields.io/badge/Platform-.NET%208%20%7C%20WPF%20%7C%20SQLite%20WAL-blue.svg)](src/SimT.Host.Wpf/)
 [![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
@@ -121,8 +121,8 @@ Legacy saves containing historical records from individual micro-modules (`dlc.m
 | Architecture rules | 31 | `dotnet test tests/SimT.Architecture.Tests` |
 | Kernel primitives, contracts and hardening | 100 | `dotnet test tests/SimT.Core.Tests` |
 | Market slice, pricing budget, price history | 42 | `dotnet test tests/SimT.Modules.Market.Tests` |
-| Consolidated DLC Pillars behavior | 234 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
-| **Total test suite** | **407** | `dotnet test SimT.sln` |
+| Consolidated DLC Pillars behavior | 257 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| **Total test suite** | **430** | `dotnet test SimT.sln` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
 | Invariants at end of every replay | 26 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |
