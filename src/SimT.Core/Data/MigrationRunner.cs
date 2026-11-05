@@ -27,7 +27,7 @@ public sealed class MigrationRunner
             var sql = ReadResource(assembly, resourceName);
             _db.Transaction(() =>
             {
-                _db.Execute(sql);
+                ExecuteMigrationSql(sql);
                 _db.Execute(
                     "INSERT INTO core_migration(module_id, migration_id, applied_at) VALUES(@module, @id, @at)",
                     new DbArgs()
@@ -37,7 +37,42 @@ public sealed class MigrationRunner
             });
         }
 
+        // Align migration module ownership when modules are consolidated
+        var resources = ListResources(assembly);
+        foreach (var res in resources)
+        {
+            _db.Execute(
+                "UPDATE OR IGNORE core_migration SET module_id=@module WHERE migration_id=@id AND module_id != @module",
+                new DbArgs().Add("@module", moduleId).Add("@id", res.Id));
+        }
+
         return pending.Count;
+    }
+
+    private void ExecuteMigrationSql(string sql)
+    {
+        try
+        {
+            _db.Execute(sql);
+        }
+        catch (SimException ex) when (ex.Message.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase))
+        {
+            // When existing database schemas already contain columns added by incremental migrations,
+            // execute statements individually and bypass already-existing column additions.
+            var statements = sql.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var stmt in statements)
+            {
+                if (string.IsNullOrWhiteSpace(stmt)) continue;
+                try
+                {
+                    _db.Execute(stmt);
+                }
+                catch (SimException stmtEx) when (stmtEx.Message.Contains("duplicate column name", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Column already present in existing database, safe to proceed
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -46,14 +81,14 @@ public sealed class MigrationRunner
     /// </summary>
     public IReadOnlyList<(string ResourceName, string Id)> Pending(Assembly assembly, string moduleId)
     {
-        var applied = HasMigrationTable()
-            ? new HashSet<string>(
-                _db.Query(
-                    "SELECT migration_id FROM core_migration WHERE module_id=@module",
-                    row => row.GetString(0),
-                    DbArgs.One("@module", moduleId)),
-                StringComparer.Ordinal)
-            : new HashSet<string>(StringComparer.Ordinal);
+        if (!HasMigrationTable())
+        {
+            return ListResources(assembly);
+        }
+
+        var applied = new HashSet<string>(
+            _db.Query("SELECT migration_id FROM core_migration", row => row.GetString(0)),
+            StringComparer.Ordinal);
 
         return ListResources(assembly)
             .Where(item => !applied.Contains(item.Id))

@@ -18,16 +18,10 @@
     <ModuleProject Include="..\SimT.Modules.Base.World\SimT.Modules.Base.World.csproj" />
     <ModuleProject Include="..\SimT.Modules.Base.Player\SimT.Modules.Base.Player.csproj" />
     <ModuleProject Include="..\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
-    <ModuleProject Include="..\SimT.Modules.Dlc.Market\SimT.Modules.Dlc.Market.csproj" />
-    <ModuleProject Include="..\SimT.Modules.Dlc.Caravan\SimT.Modules.Dlc.Caravan.csproj" />
-    <ModuleProject Include="..\SimT.Modules.Dlc.Professions\SimT.Modules.Dlc.Professions.csproj" />
-    <ModuleProject Include="..\SimT.Modules.Dlc.Lineage\SimT.Modules.Dlc.Lineage.csproj" />
-    <ModuleProject Include="..\SimT.Modules.Dlc.Cultivation\SimT.Modules.Dlc.Cultivation.csproj" />
-    <ModuleProject Include="..\SimT.Modules.Dlc.Politics\SimT.Modules.Dlc.Politics.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Dlc.Economy\SimT.Modules.Dlc.Economy.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Dlc.Character\SimT.Modules.Dlc.Character.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Dlc.Power\SimT.Modules.Dlc.Power.csproj" />
     <ModuleProject Include="..\SimT.Modules.Dlc.Society\SimT.Modules.Dlc.Society.csproj" />
-    <ModuleProject Include="..\SimT.Modules.Dlc.Social\SimT.Modules.Dlc.Social.csproj" />
-    <ModuleProject Include="..\SimT.Modules.Dlc.Military\SimT.Modules.Dlc.Military.csproj" />
-    <ModuleProject Include="..\SimT.Modules.Dlc.Dialogue\SimT.Modules.Dlc.Dialogue.csproj" />
   </ItemGroup>
 
   <ItemGroup>

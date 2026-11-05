@@ -312,4 +312,75 @@ public partial class MainWindow
         _ = accent;
         ShowNotification($"{title}: {message}");
     }
+
+    private void AdvisorAction_Click(object sender, RoutedEventArgs e)
+    {
+        if (StrategicAdvisorBox.Tag is "rest")
+        {
+            Rest_Click(sender, e);
+        }
+        else if (StrategicAdvisorBox.Tag is string targetScreen && !string.IsNullOrEmpty(targetScreen))
+        {
+            SelectScreen(targetScreen);
+        }
+        else
+        {
+            SelectScreen("market.stall");
+        }
+    }
+
+    private void ProposalAction_Click(object sender, RoutedEventArgs e)
+    {
+        if (TopProposalCard.Tag is string targetScreen && !string.IsNullOrEmpty(targetScreen))
+        {
+            SelectScreen(targetScreen);
+        }
+    }
+
+    private void ProposalDismiss_Click(object sender, RoutedEventArgs e)
+    {
+        TopProposalCard.Visibility = Visibility.Collapsed;
+    }
+
+    public void UpdateStrategicState()
+    {
+        if (StrategicAdvisorBox is null) return;
+
+        // Check stamina / vitals
+        if (_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs?.Vitals is not null)
+        {
+            var v = attrs.Vitals;
+            if (v.CurrentStamina < 25 || v.Fatigue > 65)
+            {
+                StrategicAdvisorBox.AdvisorName = "QUẢN GIA THƯƠNG HỘI";
+                StrategicAdvisorBox.AdvisorTitle = "Cảnh Báo Sức Khỏe";
+                StrategicAdvisorBox.AvatarInitials = "Y";
+                StrategicAdvisorBox.AdviceMessage = "Đại nhân lao lực quá độ, thể lực suy kiệt. Xin hãy nghỉ ngơi hoặc tản bộ thư giãn, tránh gặp nguy khi xuất hành!";
+                StrategicAdvisorBox.ActionButtonLabel = "Nghỉ Ngơi";
+                StrategicAdvisorBox.Tag = "rest";
+                return;
+            }
+        }
+
+        // Check balance
+        var liquid = _kernel.Ledger.Liquid;
+        if (liquid > 15000)
+        {
+            StrategicAdvisorBox.AdvisorName = "THƯƠNG HỘI TỔNG QUẢN";
+            StrategicAdvisorBox.AdvisorTitle = "Kế Sách Đầu Tư";
+            StrategicAdvisorBox.AvatarInitials = "Phú";
+            StrategicAdvisorBox.AdviceMessage = $"Ngân lượng lưu động đạt {liquid:N0} quan! Đại nhân nên xem xét cấp vốn cho Thương Đoàn hoặc thâu tóm thêm Điền Trang.";
+            StrategicAdvisorBox.ActionButtonLabel = "Thương Đoàn";
+            StrategicAdvisorBox.Tag = "caravan.routes";
+            return;
+        }
+
+        // Default strategy counsel
+        StrategicAdvisorBox.AdvisorName = "QUẢN GIA THƯƠNG HỘI";
+        StrategicAdvisorBox.AdvisorTitle = "Túc Trí Tham Mưu";
+        StrategicAdvisorBox.AvatarInitials = "Sư";
+        StrategicAdvisorBox.AdviceMessage = "Thương trường Tam Quốc biến động theo thiên thời địa lợi. Khảo sát giá cả các thành trì sẽ mở ra cơ hội sinh lời lớn.";
+        StrategicAdvisorBox.ActionButtonLabel = "Khảo Sát Chợ";
+        StrategicAdvisorBox.Tag = "market.stall";
+    }
 }

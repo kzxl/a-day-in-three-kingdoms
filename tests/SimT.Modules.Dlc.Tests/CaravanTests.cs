@@ -2,7 +2,7 @@ using SimT.Contracts.Ledger;
 using SimT.Contracts.Playing;
 using SimT.Core.Data;
 using SimT.Core.Kernel;
-using SimT.Modules.Dlc.Caravan;
+using SimT.Modules.Dlc.Economy;
 
 namespace SimT.Modules.Dlc.Tests;
 

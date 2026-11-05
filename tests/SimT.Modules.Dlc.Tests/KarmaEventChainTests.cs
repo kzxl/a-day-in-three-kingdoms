@@ -19,7 +19,7 @@ public sealed class KarmaEventChainTests : IDisposable
         Assert.NotNull(society.Karma);
 
         var activeSeeds = society.Karma.GetActiveSeeds();
-        Assert.Equal(3, activeSeeds.Count);
+        Assert.Equal(10, activeSeeds.Count);
 
         var famine = activeSeeds.FirstOrDefault(s => s.ChainCode == "CH_GRAIN_FAMINE");
         Assert.NotNull(famine);
@@ -101,8 +101,8 @@ public sealed class KarmaEventChainTests : IDisposable
 
         // Check Stage 2 Pending Event
         var pendingStage2 = karma.CheckPendingEvents(1, currentDay: updatedSeed.TriggerAfterDay);
-        Assert.Single(pendingStage2);
-        Assert.Equal(2, pendingStage2[0].Stage);
+        var famineStage2 = Assert.Single(pendingStage2.Where(p => p.ChainCode == "CH_GRAIN_FAMINE"));
+        Assert.Equal(2, famineStage2.Stage);
 
         // Resolve Stage 2 climax
         var resStage2 = karma.ResolveChoice(famine.Id, "accept_steward");

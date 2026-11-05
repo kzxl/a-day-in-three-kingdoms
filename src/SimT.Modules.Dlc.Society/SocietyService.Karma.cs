@@ -60,6 +60,62 @@ internal sealed partial class SocietyService
                         @today, @trigger, @citadel, NULL, 'neutral', 1, 0, 'Bắt quả tang kẻ dắt trộm chiến mã trong đêm tối...', @date)
                 """,
                 new DbArgs().Add("@today", today).Add("@trigger", today + 35).Add("@citadel", targetCity3).Add("@date", formattedDate));
+
+            // Seed 4: NPC Kết Hôn
+            _db.Execute(
+                """
+                INSERT OR IGNORE INTO so_karma_seed (chain_code, title_vi, current_stage, max_stage, branch_choice, planted_day, trigger_after_day, citadel_id, target_npc_id, karma_alignment, is_active, is_resolved, last_outcome_vi, created_date)
+                VALUES ('CH_NPC_MARRIAGE', 'Hôn Sự Danh Môn · Kết Tóc Se Duyên', 1, 1, 'pending', @today, @today, @citadel, NULL, 'neutral', 1, 0, 'Đại lễ thành hôn mở tiệc mười dặm hồng trang...', @date)
+                """,
+                new DbArgs().Add("@today", today).Add("@citadel", _player.CurrentCityId).Add("@date", formattedDate));
+
+            // Seed 5: Thương Nhân Phá Sản
+            _db.Execute(
+                """
+                INSERT OR IGNORE INTO so_karma_seed (chain_code, title_vi, current_stage, max_stage, branch_choice, planted_day, trigger_after_day, citadel_id, target_npc_id, karma_alignment, is_active, is_resolved, last_outcome_vi, created_date)
+                VALUES ('CH_MERCHANT_BANKRUPTCY', 'Đại Hào Thương Sa Cơ Phá Sản', 1, 1, 'pending', @today, @today, @citadel, NULL, 'neutral', 1, 0, 'Thương đoàn vỡ nợ quẫn bách, sạp hàng bị niêm phong...', @date)
+                """,
+                new DbArgs().Add("@today", today).Add("@citadel", _player.CurrentCityId).Add("@date", formattedDate));
+
+            // Seed 6: Cửa Hàng Thành Lập
+            _db.Execute(
+                """
+                INSERT OR IGNORE INTO so_karma_seed (chain_code, title_vi, current_stage, max_stage, branch_choice, planted_day, trigger_after_day, citadel_id, target_npc_id, karma_alignment, is_active, is_resolved, last_outcome_vi, created_date)
+                VALUES ('CH_STORE_OPENED', 'Tân Điếm Khai Trương · Khởi Nghiệp Phố Đông', 1, 1, 'pending', @today, @today, @citadel, NULL, 'neutral', 1, 0, 'Tửu điếm trà lầu danh tiếng vừa hoàn thành xây cất...', @date)
+                """,
+                new DbArgs().Add("@today", today).Add("@citadel", _player.CurrentCityId).Add("@date", formattedDate));
+
+            // Seed 7: Thành Trì Loạn Lạc
+            _db.Execute(
+                """
+                INSERT OR IGNORE INTO so_karma_seed (chain_code, title_vi, current_stage, max_stage, branch_choice, planted_day, trigger_after_day, citadel_id, target_npc_id, karma_alignment, is_active, is_resolved, last_outcome_vi, created_date)
+                VALUES ('CH_CITY_TURMOIL', 'Thành Trì Loạn Lạc · Binh Biến Phong Vân', 1, 1, 'pending', @today, @today, @citadel, NULL, 'neutral', 1, 0, 'Bá tánh nổi dậy phong tỏa cổng thành, đốt phá nha môn...', @date)
+                """,
+                new DbArgs().Add("@today", today).Add("@citadel", _player.CurrentCityId).Add("@date", formattedDate));
+
+            // Seed 8: Bổ Nhiệm Quan Chức
+            _db.Execute(
+                """
+                INSERT OR IGNORE INTO so_karma_seed (chain_code, title_vi, current_stage, max_stage, branch_choice, planted_day, trigger_after_day, citadel_id, target_npc_id, karma_alignment, is_active, is_resolved, last_outcome_vi, created_date)
+                VALUES ('CH_OFFICIAL_APPOINTED', 'Chiếu Chỉ Triều Đình · Tân Quan Nhậm Chức', 1, 1, 'pending', @today, @today, @citadel, NULL, 'neutral', 1, 0, 'Triều đình hạ chiếu bổ nhiệm tân quan về trấn nhậm...', @date)
+                """,
+                new DbArgs().Add("@today", today).Add("@citadel", _player.CurrentCityId).Add("@date", formattedDate));
+
+            // Seed 9: Kết Giao Danh Sĩ
+            _db.Execute(
+                """
+                INSERT OR IGNORE INTO so_karma_seed (chain_code, title_vi, current_stage, max_stage, branch_choice, planted_day, trigger_after_day, citadel_id, target_npc_id, karma_alignment, is_active, is_resolved, last_outcome_vi, created_date)
+                VALUES ('CH_PLAYER_BOND', 'Đào Viên Kỳ Ngộ · Kết Giao Hào Kiệt', 1, 1, 'pending', @today, @today, @citadel, NULL, 'neutral', 1, 0, 'Tại quán rượu ven hồ tình cờ tao ngộ vị tráng sĩ khôi ngô...', @date)
+                """,
+                new DbArgs().Add("@today", today).Add("@citadel", _player.CurrentCityId).Add("@date", formattedDate));
+
+            // Seed 10: Thế Lực Chư Hầu Khởi Binh
+            _db.Execute(
+                """
+                INSERT OR IGNORE INTO so_karma_seed (chain_code, title_vi, current_stage, max_stage, branch_choice, planted_day, trigger_after_day, citadel_id, target_npc_id, karma_alignment, is_active, is_resolved, last_outcome_vi, created_date)
+                VALUES ('CH_FACTION_EMERGED', 'Chư Hầu Khởi Binh · Thế Lực Tranh Bá', 1, 1, 'pending', @today, @today, @citadel, NULL, 'neutral', 1, 0, 'Một lộ anh hào chính thức dựng cờ hiệu triệu thiên hạ...', @date)
+                """,
+                new DbArgs().Add("@today", today).Add("@citadel", _player.CurrentCityId).Add("@date", formattedDate));
         });
     }
 
@@ -340,6 +396,83 @@ internal sealed partial class SocietyService
                     }),
                 _ => null
             },
+
+            "CH_NPC_MARRIAGE" => new KarmaPendingEvent(
+                s.Id, s.ChainCode, "Hôn Sự Danh Môn · Kết Tóc Se Duyên",
+                $"Tại {s.CitadelNameVi}, hào môn vọng tộc mở đại lễ thành hôn kết duyên cùng tiểu thư thế gia. Khắp phố phường giăng đèn kết hoa, tiệc rượu mở rộng thết đãi tân khách bốn phương:",
+                1, s.CitadelId, s.CitadelNameVi,
+                new[]
+                {
+                    new KarmaPromptOption("send_gift", "Dâng Lễ Mừng Chúc Phúc", "Tặng lễ vật quý mừng tân hôn (-120 Quan, +15 Đức, +10 Danh)", "virtue"),
+                    new KarmaPromptOption("attend_banquet", "Dự Tiệc Kết Giao Hào Kiệt", "Tham dự tiệc rượu, mở rộng mạng lưới giao hảo (+5 Danh)", "neutral"),
+                    new KarmaPromptOption("ignore", "Lặng Lẽ Bỏ Qua", "Không can dự việc riêng thế gia", "neutral")
+                }),
+
+            "CH_MERCHANT_BANKRUPTCY" => new KarmaPendingEvent(
+                s.Id, s.ChainCode, "Đại Hào Thương Sa Cơ Phá Sản",
+                $"Một thương đoàn lớn tại {s.CitadelNameVi} đầu cơ lụa thất bại, nợ nần chồng chất lâm vào đường cùng, sạp hàng bị quan phủ niêm phong. Thương gia quẫn bách ngỏ lời cầu cứu:",
+                1, s.CitadelId, s.CitadelNameVi,
+                new[]
+                {
+                    new KarmaPromptOption("bailout", "Bơm Vốn Cứu Nguy (400 Quan)", "Cho vay không lấy lãi giúp vượt khó (-400 Quan, +25 Đức, +20 Danh)", "virtue"),
+                    new KarmaPromptOption("liquidate_buy", "Mua Đứt Hàng Tồn (250 Quan)", "Thanh lý lô tơ lụa giá rẻ (-250 Quan, +500 Quan hàng, +10 Danh)", "ruthless"),
+                    new KarmaPromptOption("ignore", "Bàng Quan Thương Trường", "Thương trường khốc liệt tự sinh tự diệt", "neutral")
+                }),
+
+            "CH_STORE_OPENED" => new KarmaPendingEvent(
+                s.Id, s.ChainCode, "Tân Điếm Khai Trương · Khởi Nghiệp Phố Đông",
+                $"Một dược phường trà quán danh tiếng vừa khánh thành trang trọng tại khu thương mại {s.CitadelNameVi}. Chưởng quầy đang tìm kiếm đối tác liên kết cung ứng lâu dài:",
+                1, s.CitadelId, s.CitadelNameVi,
+                new[]
+                {
+                    new KarmaPromptOption("invest_equity", "Góp Vốn Cổ Phần (300 Quan)", "Đầu tư vốn phát triển, hưởng lợi tức (-300 Quan, +10 Danh, quan hệ buôn bán)", "virtue"),
+                    new KarmaPromptOption("exclusive_supply", "Ký Hợp Đồng Độc Quyền", "Cam kết cung cấp nguyên liệu độc quyền với giá tốt (+8 Danh)", "neutral"),
+                    new KarmaPromptOption("toast_congrat", "Tặng Trướng Mừng Khánh Thành", "Gửi bức trướng đại cát đại lợi (+5 Danh)", "neutral")
+                }),
+
+            "CH_CITY_TURMOIL" => new KarmaPendingEvent(
+                s.Id, s.ChainCode, "Thành Trì Loạn Lạc · Binh Biến Phong Vân",
+                $"Bá tánh ngoại thành {s.CitadelNameVi} bất mãn vì thuế khóa nặng nề, cùng đám loạn binh bao vây cổng thành, đốt phá nha môn. Trị an náo động, lòng người hoang mang:",
+                1, s.CitadelId, s.CitadelNameVi,
+                new[]
+                {
+                    new KarmaPromptOption("relief_famine", "Xuất Lương Cứu Trợ (200 Quan)", "Mở kho phát chẩn cứu nạn dân, xoa dịu binh biến (-200 Quan, +30 Đức, +20 Danh)", "virtue"),
+                    new KarmaPromptOption("join_militia", "Chiêu Mộ Dũng Sĩ Dẹp Loạn", "Tình nguyện cùng quan binh giữ gìn trị an (+25 Danh, rèn luyện võ nghiệp)", "ruthless"),
+                    new KarmaPromptOption("flee_shelter", "Đóng Cửa Tự Phòng Bị", "Bảo toàn sản nghiệp tư gia, không can thiệp", "neutral")
+                }),
+
+            "CH_OFFICIAL_APPOINTED" => new KarmaPendingEvent(
+                s.Id, s.ChainCode, "Chiếu Chỉ Triều Đình · Tân Quan Nhậm Chức",
+                $"Triều đình vừa hạ sắc phong bổ nhiệm Tân Quan Thái Thú về cai quản {s.CitadelNameVi}. Vị quan này nổi danh thanh liêm, đang triệu tập hào thương bàn định chính sách:",
+                1, s.CitadelId, s.CitadelNameVi,
+                new[]
+                {
+                    new KarmaPromptOption("official_tribute", "Dâng Lễ Yết Kiến (180 Quan)", "Dâng lễ vật ra mắt, xin nới lỏng kiểm soát thương mại (-180 Quan, +20 Danh)", "virtue"),
+                    new KarmaPromptOption("advise_policy", "Hiến Sách Lược Hưng Thương", "Trình bày kế sách chấn hưng thương nghiệp địa phương (+15 Danh)", "neutral"),
+                    new KarmaPromptOption("standoff", "Quan Sát Chiều Hướng", "Đứng ngoài chờ xem chính sách thực thi", "neutral")
+                }),
+
+            "CH_PLAYER_BOND" => new KarmaPendingEvent(
+                s.Id, s.ChainCode, "Đào Viên Kỳ Ngộ · Kết Giao Hào Kiệt",
+                $"Tại quán rượu ven sông thành {s.CitadelNameVi}, bạn tình cờ hội ngộ một vị tráng sĩ anh dũng phi thường. Cùng đối ẩm ba chén, ngôn từ hào sảng, tương kiến hận vãn:",
+                1, s.CitadelId, s.CitadelNameVi,
+                new[]
+                {
+                    new KarmaPromptOption("pledge_brotherhood", "Cạn Chén Kết Nghĩa Kim Lan", "Cắt máu ăn thề kết làm huynh đệ đồng sinh cộng tử (+25 Danh, +20 Đức)", "virtue"),
+                    new KarmaPromptOption("treat_feast", "Mời Rượu Thết Đãi (80 Quan)", "Thết đãi mỹ tửu, đàm đạo võ học và thế cuộc (-80 Quan, +10 Danh)", "neutral"),
+                    new KarmaPromptOption("modest_greeting", "Hành Lễ Cáo Biệt", "Nâng chén chào nhau rồi cáo từ", "neutral")
+                }),
+
+            "CH_FACTION_EMERGED" => new KarmaPendingEvent(
+                s.Id, s.ChainCode, "Chư Hầu Khởi Binh · Thế Lực Tranh Bá",
+                $"Anh hào hào kiệt tại {s.CitadelNameVi} chính thức dựng cờ khởi nghĩa, hiệu triệu ba quân lập nên thế lực mới để mưu đồ thiên hạ. Tình hình quân sự căng thẳng tột độ:",
+                1, s.CitadelId, s.CitadelNameVi,
+                new[]
+                {
+                    new KarmaPromptOption("supply_arms", "Cung Ứng Quân Nhu (350 Quan)", "Chi viện chiến mã và quân lương cho thế lực mới (-350 Quan, +30 Danh, bảo hộ mậu dịch)", "virtue"),
+                    new KarmaPromptOption("trade_alliance", "Ký Hiệp Ước Mậu Dịch", "Thỏa thuận tự do thông thương qua các trạm kiểm soát (+15 Danh)", "neutral"),
+                    new KarmaPromptOption("neutral", "Tuyên Bố Trung Lập", "Không can dự phân tranh chư hầu", "neutral")
+                }),
 
             _ => null
         };

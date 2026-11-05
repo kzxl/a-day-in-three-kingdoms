@@ -1,0 +1,68 @@
+{
+  "id": "dlc.economy",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kind": "dlc",
+  "requires": ["base.content", "base.world", "base.player"],
+  "provides": [
+    "market.trade",
+    "market.warehouse",
+    "market.npc_stalls",
+    "caravan.guild",
+    "cultivation.estate",
+    "professions.guild",
+    "player.equipment"
+  ],
+  "consumes": [
+    "content.items",
+    "world.map",
+    "player.wallet",
+    "player.bag",
+    "player.state",
+    "player.attributes"
+  ],
+  "owns": {
+    "tables": [
+      "mk_stall_listing",
+      "mk_warehouse",
+      "mk_warehouse_stock",
+      "mk_price_sample",
+      "mk_player_stall",
+      "mk_player_stall_shelf",
+      "mk_stall",
+      "mk_npc_offer",
+      "mk_npc_preference",
+      "cv_run",
+      "cv_cargo",
+      "cv_contract",
+      "cv_fleet",
+      "fm_plot",
+      "fm_crop",
+      "fm_harvest_log",
+      "fm_facility",
+      "pf_trade",
+      "pf_skill",
+      "pf_recipe",
+      "pf_equipment",
+      "pf_equipped_slot",
+      "pf_workshop",
+      "pf_order",
+      "pf_guild_fame",
+      "pf_mastery_perk",
+      "pf_dish",
+      "pf_dish_inventory"
+    ],
+    "migrations": ["migrations"]
+  },
+  "screens": [
+    "market.stall",
+    "market.player_stall",
+    "market.warehouse",
+    "caravan.routes",
+    "cultivation.farm",
+    "professions.trades"
+  ],
+  "config": {
+    "freightPerUnit": 8
+  }
+}

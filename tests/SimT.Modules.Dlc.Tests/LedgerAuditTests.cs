@@ -2,7 +2,7 @@ using SimT.Contracts.Ledger;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Core.Kernel;
-using SimT.Modules.Dlc.Lineage;
+using SimT.Modules.Dlc.Character;
 
 namespace SimT.Modules.Dlc.Tests;
 
@@ -28,9 +28,8 @@ public sealed class LedgerAuditTests : IDisposable
 
         var modules = kernel.Ledger.Recent(50).Select(line => line.ModuleId).ToHashSet(StringComparer.Ordinal);
 
-        Assert.Contains("dlc.market", modules);
-        Assert.Contains("dlc.professions", modules);
-        Assert.Contains("dlc.lineage", modules);
+        Assert.Contains("dlc.economy", modules);
+        Assert.Contains("dlc.character", modules);
     }
 
     [Fact]
@@ -43,7 +42,7 @@ public sealed class LedgerAuditTests : IDisposable
         Command(kernel, "professions.trades", "work:1");
         Command(kernel, "lineage.family", "marry");
 
-        var lineage = kernel.Ledger.Query(GameDate.Start, kernel.Today, moduleId: "dlc.lineage");
+        var lineage = kernel.Ledger.Query(GameDate.Start, kernel.Today, moduleId: "dlc.character");
 
         Assert.Single(lineage);
         Assert.Equal(JournalCodes.Dowry, lineage[0].JournalCode);

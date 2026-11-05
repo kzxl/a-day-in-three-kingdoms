@@ -39,6 +39,7 @@ public partial class MainWindow
         _screenId = entry.ScreenId;
         _firstGrid = null;
         _firstSection = null;
+        SyncStrategicNavigation(_screenId);
 
         if (entry.ScreenId == CityHubScreenId)
         {
@@ -50,6 +51,14 @@ public partial class MainWindow
         if (entry.ScreenId == LedgerScreenId)
         {
             RenderLedger();
+            RefreshBadges();
+            AnimatePageTransition();
+            return;
+        }
+
+        if (entry.ScreenId == "society.chronicle")
+        {
+            RenderChronicle();
             RefreshBadges();
             AnimatePageTransition();
             return;
@@ -561,6 +570,29 @@ public partial class MainWindow
 
     private void RenderCityHub()
     {
+        SceneOverlay.HideScene();
+        ScreenTitle.Text = "Nhật Trình Chiến Lược";
+        ScreenStatus.Text = "Đại điện quân cơ · Nắm bắt thời cuộc, tiêu điểm ngày và cơ hội thương đạo";
+        KpiStrip.Children.Clear();
+        AlertFeed.ItemsSource = null;
+        GlobalCommands.Children.Clear();
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+        ContentPanel.Children.Clear();
+
+        var briefing = new GameStrategicBriefingControl();
+        briefing.RequestNavigate += targetScreen => SelectScreen(targetScreen);
+        briefing.RequestOpenCityScene += () => SelectScreen(CitySceneScreenId);
+        briefing.RequestRest += () => Rest_Click(this, new RoutedEventArgs());
+        briefing.RequestStroll += () => TriggerCityStroll(preferModalWhenOutsideScene: true);
+        briefing.RequestTalkNpc += npcId => TryOpenTalkScene(npcId);
+
+        briefing.Bind(_kernel);
+        ContentPanel.Children.Add(briefing);
+    }
+
+    private void RenderCityScene()
+    {
         ScreenTitle.Text = "Trong Thành";
         ScreenStatus.Text = "Trung tâm thành trì · bấm địa điểm hoặc danh sĩ để tương tác";
         KpiStrip.Children.Clear();
@@ -569,8 +601,30 @@ public partial class MainWindow
         FilterBox.Visibility = Visibility.Collapsed;
         FilterHint.Visibility = Visibility.Collapsed;
         ContentPanel.Children.Clear();
-        ContentPanel.Children.Add(EmptyState("Cảnh Trong Thành đang hiển thị trên lớp phủ tương tác."));
+        ContentPanel.Children.Add(EmptyState("Cảnh Trong Thành đang hiển thị trên lớp phủ tương tác. Bấm nút [Nhật Trình] để trở lại đại điện chiến lược."));
         TryOpenCityScene();
+    }
+
+    private void RenderChronicle()
+    {
+        SceneOverlay.HideScene();
+        ScreenTitle.Text = "Thiên Hạ Biên Niên Sử";
+        ScreenStatus.Text = "Kỷ yếu thời cuộc · Nắm bắt biến động thiên hạ và đưa ra quyết sách can thiệp";
+        KpiStrip.Children.Clear();
+        AlertFeed.ItemsSource = null;
+        GlobalCommands.Children.Clear();
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+        ContentPanel.Children.Clear();
+
+        var chronicleView = new GameChronicleView();
+        chronicleView.EventInteracted += () =>
+        {
+            UpdateHeader();
+            ShowNotification("Đã thực thi quyết sách dã sử thành công!");
+        };
+        chronicleView.Bind(_kernel);
+        ContentPanel.Children.Add(chronicleView);
     }
 
     private Border EmptyState(string message) => new GameEmptyState(
