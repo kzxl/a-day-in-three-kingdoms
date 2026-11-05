@@ -32,6 +32,7 @@ public static class CapabilityIds
     public const string MilitaryCommand = "military.command";
     public const string PlayerDestiny = "player.destiny";
     public const string CityStroll = "world.stroll";
+    public const string MerchantRivalry = "society.merchant_rivalry";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>

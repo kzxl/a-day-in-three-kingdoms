@@ -4,14 +4,15 @@
   "apiVersion": "1",
   "kind": "dlc",
   "requires": ["base.world", "base.npc", "base.player"],
-  "provides": ["society.chronicle"],
+  "provides": ["society.chronicle", "society.merchant_rivalry"],
   "consumes": ["world.map", "npc.registry", "player.state"],
   "owns": {
     "tables": [
       "so_ledger",
       "so_journey_log",
       "so_npc_activity",
-      "so_npc_stat_delta"
+      "so_npc_stat_delta",
+      "so_merchant_rival"
     ],
     "migrations": ["migrations"]
   },

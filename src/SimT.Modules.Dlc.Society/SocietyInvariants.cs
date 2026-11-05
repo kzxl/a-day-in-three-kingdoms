@@ -50,11 +50,26 @@ internal static class SocietyInvariants
         }
     }
 
+    public sealed class MerchantRivalCapitalNonNegative : IInvariant
+    {
+        public string Id => "society.merchant_rival.capital_non_negative";
+
+        public string? Check(IInvariantContext context)
+        {
+            var hasTable = context.Db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='so_merchant_rival'") > 0;
+            if (!hasTable) return null;
+
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM so_merchant_rival WHERE capital_quan < 0 OR fleet_carts < 1");
+            return bad == 0 ? null : $"{bad} merchant rival(s) have negative capital or invalid fleet size";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new WealthNonNegative();
         yield return new ValidFocusPaths();
         yield return new StatDeltasNonNegative();
         yield return new LogEventsHaveHeadlines();
+        yield return new MerchantRivalCapitalNonNegative();
     }
 }

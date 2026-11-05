@@ -79,6 +79,13 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         .Reverse()
         .ToList();
 
+    public void AdjustStock(long cityId, long itemId, int delta)
+    {
+        _db.Execute(
+            "UPDATE mk_stall_listing SET stock = MAX(0, stock + @delta) WHERE citadel_id=@city AND item_id=@item",
+            new DbArgs().Add("@delta", delta).Add("@city", cityId).Add("@item", itemId));
+    }
+
     /// <summary>
     /// One row per citadel and item per day. Prices are a function of stock, so the sample is
     /// also the record of how scarce the market was.

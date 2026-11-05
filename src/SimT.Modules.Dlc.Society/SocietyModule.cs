@@ -27,6 +27,7 @@ public sealed class SocietyModule : ISimModule
             context.Capabilities);
 
         context.Capabilities.Provide(CapabilityIds.SocietyChronicle, service);
+        context.Capabilities.Provide(CapabilityIds.MerchantRivalry, (IMerchantRivalry)service);
 
         var screen = new SocietyChronicleScreen(service, map, player, context.Clock);
         context.Ui.AddScreen(screen);

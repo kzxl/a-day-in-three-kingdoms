@@ -18,6 +18,9 @@ public interface IMarketTrade
 
     /// <summary>Daily buy prices, oldest first: the data behind a price trend.</summary>
     IReadOnlyList<long> PriceHistory(long cityId, long itemId, int days = 10);
+
+    /// <summary>Adjusts the stall stock directly by delta (positive or negative), clamped at zero.</summary>
+    void AdjustStock(long cityId, long itemId, int delta);
 }
 
 public readonly record struct TradeResult(bool Ok, long UnitPrice, long Total, string Message)

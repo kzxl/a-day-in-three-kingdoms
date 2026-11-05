@@ -73,4 +73,70 @@ public interface ISocietyChronicle
 
     /// <summary>Replenishes or spawns procedural NPCs into underpopulated or thriving citadels.</summary>
     IReadOnlyList<NpcDef> ReplenishNpcs(GameDate date, int count = 1);
+
+    /// <summary>Direct access to AI merchant rivalry engine.</summary>
+    IMerchantRivalry Rivals { get; }
+}
+
+/// <summary>
+/// Autonomous AI Merchant Rival managing an independent trading enterprise.
+/// </summary>
+public sealed record MerchantRivalDef(
+    long NpcId,
+    string NpcNameVi,
+    string EnterpriseName,
+    int MerchantTier,
+    string TierTitleVi,
+    long CapitalQuan,
+    int FleetCarts,
+    long PrimaryGoodId,
+    string PrimaryGoodNameVi,
+    long HeadquartersCitadelId,
+    string HeadquartersNameVi,
+    long CurrentCitadelId,
+    string CurrentCitadelNameVi,
+    long TargetCitadelId,
+    string TargetCitadelNameVi,
+    int Reputation,
+    int MarketInfluencePermille,
+    long MonthlyProfit,
+    long TotalTradeVolume,
+    string LastActionDesc,
+    GameDate UpdatedDate)
+{
+    public static string TierToTitle(int tier) => tier switch
+    {
+        >= 5 => "Cự Phú Địch Quốc",
+        4 => "Đại Hào Thương",
+        3 => "Phường Buôn Châu Huyện",
+        2 => "Cửa Hiệu Thành Trấn",
+        _ => "Tiểu Thương Hành"
+    };
+}
+
+/// <summary>
+/// Entry in the Realm's Merchant Leaderboard (Bảng Phú Hào Thiên Hạ).
+/// </summary>
+public sealed record MerchantLeaderboardEntry(
+    int Rank,
+    long EntityId,
+    string Name,
+    bool IsPlayer,
+    string EnterpriseName,
+    int Tier,
+    string TierTitle,
+    long EstimatedNetWorth,
+    string BaseCitadel,
+    string PrimarySpecialty,
+    string Status);
+
+/// <summary>
+/// Engine managing autonomous AI commercial competitors, market pressure, and rivalry.
+/// </summary>
+public interface IMerchantRivalry
+{
+    IReadOnlyList<MerchantRivalDef> GetAllRivals();
+    MerchantRivalDef? GetRival(long npcId);
+    IReadOnlyList<MerchantLeaderboardEntry> GetLeaderboard();
+    void SimulateMerchantTurn(GameDate date);
 }
