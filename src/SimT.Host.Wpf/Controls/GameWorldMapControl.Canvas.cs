@@ -690,7 +690,7 @@ public sealed partial class GameWorldMapControl
             dc.DrawEllipse(nodeBrush, isCurrent ? CurrentBeaconPen1 : MapBorderPen, pt, radius, radius);
 
             // 3. Iconic Glyph on Node
-            var glyph = isCapital ? "🏛️" : (c.Id is 3 or 7 or 10 or 13 or 15 ? "🏯" : (c.Id is 6 or 9 or 11 or 12 ? "⛵" : "🛡️"));
+            var glyph = isCapital ? "🏛️" : (c.Id is 3 or 7 or 10 or 13 or 15 or 17 or 19 ? "🏯" : (c.Id is 6 or 9 or 11 or 12 or 20 ? "⛵" : "🛡️"));
             var glyphText = new FormattedText(
                 glyph,
                 Vietnamese,
@@ -851,6 +851,9 @@ public sealed partial class GameWorldMapControl
             "ha_bac" or "ky_chau" or "u_chau" or "thanh_chau" => Color.FromRgb(0x27, 0xAE, 0x60),
             "giang_dong" or "duong_chau" or "tu_chau" => Color.FromRgb(0x29, 0x80, 0xB9),
             "kinh_chau" => Color.FromRgb(0x16, 0xA0, 0x85),
+            "tinh_chau" => Color.FromRgb(0x48, 0xBB, 0x78),
+            "luong_chau" => Color.FromRgb(0xD9, 0x77, 0x06),
+            "giao_chau" => Color.FromRgb(0x0D, 0x94, 0x88),
             _ => Color.FromRgb(0x8E, 0x44, 0xAD) // Ba Thục
         };
     }

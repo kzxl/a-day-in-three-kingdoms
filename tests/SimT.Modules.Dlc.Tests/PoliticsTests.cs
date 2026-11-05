@@ -181,7 +181,7 @@ public sealed class PoliticsTests : IDisposable
         Assert.Contains(court.Factions, f => f.Code == "shu_han" && f.TroopCount >= 30000);
         Assert.Contains(court.Factions, f => f.Code == "dong_wu" && f.TroopCount >= 40000);
 
-        Assert.Equal(15, court.Governances.Count);
+        Assert.Equal(20, court.Governances.Count);
         Assert.All(court.Governances, g =>
         {
             Assert.InRange(g.UnrestLevel, 0, 100);

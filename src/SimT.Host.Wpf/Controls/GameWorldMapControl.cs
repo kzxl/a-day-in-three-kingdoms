@@ -13,7 +13,7 @@ namespace SimT.Host.Wpf.Controls;
 
 /// <summary>
 /// Hardware-accelerated interactive Three Kingdoms World Map Control.
-/// Visualizes the 15 citadels with ornate cartography, interstate highways,
+/// Visualizes the 20 citadels with ornate cartography, interstate highways,
 /// regional ecosystems, player beacon, and strategic expedition dispatch console.
 /// </summary>
 public sealed partial class GameWorldMapControl : Border
@@ -79,6 +79,8 @@ public sealed partial class GameWorldMapControl : Border
         legendPanel.Children.Add(CreateLegendBadge("🌊 Giang Đông", Color.FromRgb(0x29, 0x80, 0xB9)));
         legendPanel.Children.Add(CreateLegendBadge("⛵ Kinh Châu", Color.FromRgb(0x16, 0xA0, 0x85)));
         legendPanel.Children.Add(CreateLegendBadge("⛰️ Ba Thục", Color.FromRgb(0x8E, 0x44, 0xAD)));
+        legendPanel.Children.Add(CreateLegendBadge("🏜️ Tây Lương", Color.FromRgb(0xD9, 0x77, 0x06)));
+        legendPanel.Children.Add(CreateLegendBadge("🌴 Giao Chỉ", Color.FromRgb(0x0D, 0x94, 0x88)));
         DockPanel.SetDock(legendPanel, Dock.Right);
         headerDock.Children.Add(legendPanel);
 
@@ -87,7 +89,7 @@ public sealed partial class GameWorldMapControl : Border
         var titleStack = new StackPanel();
         titleStack.Children.Add(new TextBlock
         {
-            Text = "BẢN ĐỒ CHIẾN LƯỢC THIÊN HẠ & MẠNG LƯỚI QUAN ĐẠO 15 ĐẠI THÀNH",
+            Text = "BẢN ĐỒ CHIẾN LƯỢC THIÊN HẠ & MẠNG LƯỚI QUAN ĐẠO 20 ĐẠI THÀNH",
             Style = (Style)Application.Current.FindResource("Overline")
         });
         titleStack.Children.Add(new TextBlock
@@ -468,8 +470,8 @@ public sealed partial class GameWorldMapControl : Border
     private static string GetCitadelRankTitle(long id) => id switch
     {
         1 or 2 => "🏛️ [Đế Đô]",
-        3 or 7 or 10 or 13 or 15 => "🏯 [Đại Đô]",
-        6 or 9 or 11 or 12 => "⛵ [Thương Cảng]",
+        3 or 7 or 10 or 13 or 15 or 17 or 19 => "🏯 [Đại Đô]",
+        6 or 9 or 11 or 12 or 20 => "⛵ [Thương Cảng]",
         _ => "🛡️ [Biên Ải]"
     };
 
@@ -485,6 +487,9 @@ public sealed partial class GameWorldMapControl : Border
         "kinh_chau" => "Kinh Châu",
         "giang_dong" => "Giang Đông",
         "ba_thuc" or "ich_chau" => "Ba Thục",
+        "tinh_chau" => "Tịnh Châu",
+        "luong_chau" => "Lương Châu",
+        "giao_chau" => "Giao Châu",
         _ => "Thiên Hạ"
     };
 
@@ -528,7 +533,7 @@ public sealed partial class GameWorldMapControl : Border
         var zoomInBtn = CreateMiniButton("➕", "Phóng to bản đồ (Cuộn chuột lên)", () => _canvas.ZoomIn());
         var zoomOutBtn = CreateMiniButton("➖", "Thu nhỏ bản đồ (Cuộn chuột xuống)", () => _canvas.ZoomOut());
         var centerBtn = CreateMiniButton("🎯", "Định vị đại thành bản thân đang trú ngụ", () => _canvas.CenterOnCitadel(_currentCityId));
-        var resetBtn = CreateMiniButton("⟲", "Toàn cảnh thiên hạ 15 châu quận", () => _canvas.ResetView());
+        var resetBtn = CreateMiniButton("⟲", "Toàn cảnh thiên hạ 20 châu quận", () => _canvas.ResetView());
 
         var zoomLabel = new TextBlock
         {

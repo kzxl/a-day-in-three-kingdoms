@@ -193,7 +193,7 @@ public sealed class SocietyTests : IDisposable
             Assert.True(npc.Id > 300);
             Assert.NotEmpty(npc.NameVi);
             Assert.NotEmpty(npc.Role);
-            Assert.True(npc.CitadelId >= 1 && npc.CitadelId <= 15);
+            Assert.True(npc.CitadelId >= 1 && npc.CitadelId <= 20);
             Assert.True(npc.Attributes.War > 0);
             Assert.NotEmpty(npc.Skills);
 
