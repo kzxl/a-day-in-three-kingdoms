@@ -31,7 +31,11 @@ public sealed record ProtagonistExtraData(
     int ChildCount,
     Func<long, string?>? NpcNameLookup = null,
     IReadOnlyList<ProtagonistBagItem>? BagItems = null,
-    Action<long>? OnInspectItem = null);
+    Action<long>? OnInspectItem = null,
+    Func<IReadOnlyList<ProtagonistBagItem>>? ReloadBagItems = null,
+    WarehouseInfo? WarehouseInfo = null,
+    Func<long, int, (bool ok, string msg)>? OnQuickStore = null,
+    Func<(bool ok, string msg)>? OnRentWarehouse = null);
 
 public partial class NpcDetailWindow : Window
 {

@@ -180,6 +180,55 @@ public partial class MainWindow
             }
         }
 
+        Func<IReadOnlyList<ProtagonistBagItem>> reloadBag = () =>
+        {
+            var list = new List<ProtagonistBagItem>();
+            if (_kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var b) && b is not null &&
+                _kernel.Capabilities.TryGet<IItemCatalog>(CapabilityIds.ItemCatalog, out var c) && c is not null)
+            {
+                _kernel.Capabilities.TryGet<IItemHubService>(CapabilityIds.ItemHub, out var h);
+                foreach (var item in c.All)
+                {
+                    var qty = b.Quantity(playerState.CurrentCityId, item.Id);
+                    if (qty > 0)
+                    {
+                        var entry = h?.FindEntry(item.Id);
+                        var icon = entry?.VisualIcon ?? "📦";
+                        var subCat = entry?.SubCategoryVi ?? item.Category;
+                        var summary = entry?.LoreDescriptionVi ?? item.NameVi;
+                        list.Add(new ProtagonistBagItem(
+                            item.Id,
+                            item.Code,
+                            item.NameVi,
+                            subCat,
+                            icon,
+                            qty,
+                            item.BasePrice,
+                            item.Weight,
+                            item.ShelfLifeDays,
+                            summary));
+                    }
+                }
+            }
+            return list;
+        };
+
+        _kernel.Capabilities.TryGet<IMarketWarehouse>(CapabilityIds.MarketWarehouse, out var whProfile);
+        var curWhInfo = whProfile?.Info(playerState.CurrentCityId);
+
+        Func<long, int, (bool, string)> quickStore = (itId, q) =>
+        {
+            if (whProfile is null) return (false, "Chưa kích hoạt kho bãi.");
+            var ok = whProfile.Store(playerState.CurrentCityId, itId, q, out var msg);
+            if (ok)
+            {
+                StatusText.Text = msg;
+                RefreshBadges();
+                RenderSelected();
+            }
+            return (ok, msg);
+        };
+
         var extraData = new ProtagonistExtraData(
             v,
             s,
@@ -192,7 +241,10 @@ public partial class MainWindow
             childCount,
             npcNameLookup,
             bagItemList,
-            itemId => TryOpenItemDetailModal(itemId));
+            itemId => TryOpenItemDetailModal(itemId),
+            reloadBag,
+            curWhInfo,
+            quickStore);
 
         NpcDetailWindow.ShowNpc(
             this,
@@ -495,8 +547,57 @@ public partial class MainWindow
             bagQty = bag.Quantity(cityId, itemId);
         }
 
+        _kernel.Capabilities.TryGet<IMarketWarehouse>(CapabilityIds.MarketWarehouse, out var warehouse);
+        var whInfo = warehouse?.Info(cityId);
+        var whQty = warehouse?.Stock(cityId).FirstOrDefault(s => s.ItemId == itemId)?.Quantity ?? 0;
+
+        Func<int, (bool, string)> onStore = qty =>
+        {
+            if (warehouse is null) return (false, "Chưa kích hoạt tính năng kho bãi.");
+            var ok = warehouse.Store(cityId, itemId, qty, out var msg);
+            if (ok)
+            {
+                StatusText.Text = msg;
+                RefreshBadges();
+                RenderSelected();
+            }
+            return (ok, msg);
+        };
+
+        Func<int, (bool, string)> onTake = qty =>
+        {
+            if (warehouse is null) return (false, "Chưa kích hoạt tính năng kho bãi.");
+            var ok = warehouse.Take(cityId, itemId, qty, out var msg);
+            if (ok)
+            {
+                StatusText.Text = msg;
+                RefreshBadges();
+                RenderSelected();
+            }
+            return (ok, msg);
+        };
+
+        Func<(bool, string)> onRent = () =>
+        {
+            if (warehouse is null) return (false, "Chưa kích hoạt tính năng kho bãi.");
+            var ok = warehouse.Rent(cityId, out var msg);
+            if (ok)
+            {
+                StatusText.Text = msg;
+                RefreshBadges();
+                RenderSelected();
+            }
+            return (ok, msg);
+        };
+
+        Action onChanged = () =>
+        {
+            RefreshBadges();
+            RenderSelected();
+        };
+
         var activeOwner = owner ?? Application.Current.Windows.OfType<Window>().LastOrDefault(w => w.IsActive) ?? this;
-        var win = new ItemDetailModalWindow(entry, bagQty)
+        var win = new ItemDetailModalWindow(entry, bagQty, whQty, whInfo, onStore, onTake, onRent, onChanged)
         {
             Owner = activeOwner
         };

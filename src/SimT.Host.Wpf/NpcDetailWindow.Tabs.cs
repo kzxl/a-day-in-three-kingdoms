@@ -418,7 +418,8 @@ public partial class NpcDetailWindow
         {
             InventoryItemCountText.Text = "HÀNH TRANG THỰC TẾ (0 MẶT HÀNG)";
             InventoryValuationText.Text = "Trị giá: 0 Quan";
-            InventoryCityLabel.Text = $"📍 Tại: {_citadelName}";
+            var whText = _protagonistExtra?.WarehouseInfo is not null ? $"🏪 Kho: {_protagonistExtra.WarehouseInfo.Used}/{_protagonistExtra.WarehouseInfo.Capacity}" : "🏪 Kho: Chưa thuê";
+        InventoryCityLabel.Text = $"📍 Tại: {_citadelName} · {whText}";
 
             var empty = new GameEmptyState(
                 "Hành Trang Trống Không",
@@ -459,7 +460,7 @@ public partial class NpcDetailWindow
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(165) });
 
         // 1. Icon Box
         var iconBorder = new Border

@@ -55,12 +55,16 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
             _ => "Tất Cả Kỳ Vật"
         };
 
+        _broker.TryGet<IMarketWarehouse>(CapabilityIds.MarketWarehouse, out var warehouse);
+        var whInfo = warehouse?.Info(cityId);
+        var whStockLookup = warehouse?.Stock(cityId).ToDictionary(s => s.ItemId, s => s.Quantity) ?? new Dictionary<long, int>();
+
         var metrics = new List<ScreenMetric>
         {
             new("Kỳ Vật Đã Biên Lục", $"{_hub.Entries.Count} mục", "Toàn bộ danh mục", MetricTone.Positive),
             new("Bộ Lọc Hiện Tại", activeFilterLabel, $"{entries.Count} mục hiển thị", MetricTone.Neutral),
             new("Đang Sở Hữu Tại Thành", $"{itemsInCity} / {_hub.Entries.Count} loại", "Hành trang sở tại", MetricTone.Neutral),
-            new("Nông Cụ Đã Trang Bị", $"{toolsInCity} / 3 bộ", toolsInCity >= 3 ? "Đầy đủ nông cụ" : "Cần mua thêm", toolsInCity >= 3 ? MetricTone.Positive : MetricTone.Warning)
+            new("Kho Thương Điếm", whInfo != null ? $"{whInfo.Used}/{whInfo.Capacity}" : "Chưa thuê", whInfo != null ? "Đã thuê kho" : "Chưa thuê kho", whInfo != null ? MetricTone.Positive : MetricTone.Neutral)
         };
 
         var rows = new List<ScreenRow>();
@@ -91,10 +95,26 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
             details.Add(new ScreenDetail("Thao tác sử dụng", entry.UsageVi));
             details.Add(new ScreenDetail("Tiềm năng nâng cấp", entry.UpgradeRoadmapVi));
 
+            var whQty = whStockLookup.GetValueOrDefault(entry.Item.Id, 0);
+            if (whInfo != null)
+            {
+                details.Add(new ScreenDetail("Tồn kho thương điếm", whQty > 0 ? $"{whQty} đơn vị" : "Không có trong kho"));
+            }
+
             var rowCommands = new List<ScreenCommand>
             {
-                new($"item:modal:{entry.Item.Id}", "🔍 Xem Đồ Giám Chi Tiết (Modal)", CommandKind.Primary)
+                new($"item:modal:{entry.Item.Id}", "🔍 Chi Tiết Đồ Giám", CommandKind.Primary)
             };
+
+            if (whInfo != null && qty > 0 && whInfo.Used < whInfo.Capacity)
+            {
+                rowCommands.Add(new ScreenCommand($"store:{entry.Item.Id}", "📥 Gửi Kho (1)", CommandKind.Secondary));
+            }
+
+            if (whInfo != null && whQty > 0)
+            {
+                rowCommands.Add(new ScreenCommand($"take:{entry.Item.Id}", "📤 Rút Túi (1)", CommandKind.Secondary));
+            }
 
             rows.Add(new ScreenRow(
                 [
@@ -155,6 +175,38 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
                 return entry is not null
                     ? $"{entry.VisualIcon} {entry.Item.NameVi}: {entry.LoreDescriptionVi}"
                     : "Không tìm thấy kỳ vật.";
+            }
+        }
+
+        if (commandId.StartsWith("store:", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = commandId.Split(':');
+            if (parts.Length >= 2 && long.TryParse(parts[1], out var storeItemId))
+            {
+                var qty = parts.Length >= 3 && int.TryParse(parts[2], out var q) ? q : 1;
+                _broker.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player);
+                _broker.TryGet<IMarketWarehouse>(CapabilityIds.MarketWarehouse, out var wh);
+                if (wh != null && player != null)
+                {
+                    wh.Store(player.CurrentCityId, storeItemId, qty, out var msg);
+                    return msg;
+                }
+            }
+        }
+
+        if (commandId.StartsWith("take:", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = commandId.Split(':');
+            if (parts.Length >= 2 && long.TryParse(parts[1], out var takeItemId))
+            {
+                var qty = parts.Length >= 3 && int.TryParse(parts[2], out var q) ? q : 1;
+                _broker.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player);
+                _broker.TryGet<IMarketWarehouse>(CapabilityIds.MarketWarehouse, out var wh);
+                if (wh != null && player != null)
+                {
+                    wh.Take(player.CurrentCityId, takeItemId, qty, out var msg);
+                    return msg;
+                }
             }
         }
 
