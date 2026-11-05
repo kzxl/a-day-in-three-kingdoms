@@ -8,14 +8,26 @@ using System.Windows.Media.Effects;
 
 namespace SimT.Host.Wpf.Controls;
 
+public enum SealShape
+{
+    Square,
+    Round
+}
+
 /// <summary>
-/// Strategic Round Seal Button inspired by classic Three Kingdoms strategy titles (ROTK).
-/// Features a circular bronze relief frame, cinnabar/lacquer core, vector icon,
-/// dynamic hover aura, pressed depth sink, and optional notification badge.
-/// Designed for key actions like "Bước sang ngày mới" (Advance Turn) or "Chiến dịch".
+/// Strategic Seal Button inspired by Imperial seals and classic Three Kingdoms strategy titles.
+/// Supports Square (imperial seal stamp) and Round shapes, with bronze relief frame,
+/// cinnabar lacquer core, vector glyph, dynamic hover glow, pressed depth sink, and notification badge.
 /// </summary>
 public sealed class GameSealButton : Button
 {
+    public static readonly DependencyProperty SealShapeProperty =
+        DependencyProperty.Register(
+            nameof(Shape),
+            typeof(SealShape),
+            typeof(GameSealButton),
+            new FrameworkPropertyMetadata(SealShape.Square, FrameworkPropertyMetadataOptions.AffectsRender));
+
     public static readonly DependencyProperty SealLabelProperty =
         DependencyProperty.Register(
             nameof(SealLabel),
@@ -42,14 +54,13 @@ public sealed class GameSealButton : Button
             nameof(Diameter),
             typeof(double),
             typeof(GameSealButton),
-            new FrameworkPropertyMetadata(84.0, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
+            new FrameworkPropertyMetadata(76.0, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsRender));
 
-    public static readonly DependencyProperty IsEmphasizedProperty =
-        DependencyProperty.Register(
-            nameof(IsEmphasized),
-            typeof(bool),
-            typeof(GameSealButton),
-            new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
+    public SealShape Shape
+    {
+        get => (SealShape)GetValue(SealShapeProperty);
+        set => SetValue(SealShapeProperty, value);
+    }
 
     public string SealLabel
     {
@@ -75,13 +86,7 @@ public sealed class GameSealButton : Button
         set => SetValue(DiameterProperty, value);
     }
 
-    public bool IsEmphasized
-    {
-        get => (bool)GetValue(IsEmphasizedProperty);
-        set => SetValue(IsEmphasizedProperty, value);
-    }
-
-    // Frozen brushes for zero-allocation rendering
+    // Frozen brushes for zero-allocation rendering (R_PERF)
     private static readonly Brush OuterBronzeRing = Freeze(new LinearGradientBrush(
         Color.FromRgb(0x8A, 0x6E, 0x43),
         Color.FromRgb(0x42, 0x33, 0x1E),
@@ -89,20 +94,20 @@ public sealed class GameSealButton : Button
         new Point(1, 1)));
 
     private static readonly Brush OuterBronzeHoverRing = Freeze(new LinearGradientBrush(
-        Color.FromRgb(0xC4, 0xA0, 0x62),
-        Color.FromRgb(0x6E, 0x54, 0x30),
+        Color.FromRgb(0xD6, 0xB4, 0x75),
+        Color.FromRgb(0x7D, 0x5C, 0x32),
         new Point(0, 0),
         new Point(1, 1)));
 
-    private static readonly Brush InnerBronzeGroove = Freeze(new SolidColorBrush(Color.FromRgb(0x24, 0x1A, 0x13)));
+    private static readonly Brush InnerBronzeGroove = Freeze(new SolidColorBrush(Color.FromRgb(0x22, 0x18, 0x10)));
 
     private static readonly Brush CinnabarCore = Freeze(new RadialGradientBrush(
         Color.FromRgb(0xB8, 0x38, 0x22),
         Color.FromRgb(0x6A, 0x1E, 0x12)));
 
     private static readonly Brush CinnabarHoverCore = Freeze(new RadialGradientBrush(
-        Color.FromRgb(0xD2, 0x46, 0x2E),
-        Color.FromRgb(0x7D, 0x24, 0x16)));
+        Color.FromRgb(0xD8, 0x48, 0x30),
+        Color.FromRgb(0x82, 0x26, 0x18)));
 
     private static readonly Brush CinnabarPressedCore = Freeze(new RadialGradientBrush(
         Color.FromRgb(0x55, 0x17, 0x0E),
@@ -152,8 +157,6 @@ public sealed class GameSealButton : Button
     {
         Focusable = true;
         Cursor = Cursors.Hand;
-        Width = Diameter;
-        Height = Diameter;
 
         // Subtle glow effect
         Effect = new DropShadowEffect
@@ -168,6 +171,13 @@ public sealed class GameSealButton : Button
 
     protected override Size MeasureOverride(Size constraint)
     {
+        if (Shape == SealShape.Square)
+        {
+            double w = double.IsNaN(Width) || Width <= 0 ? 190.0 : Width;
+            double h = double.IsNaN(Height) || Height <= 0 ? 60.0 : Height;
+            return new Size(w, h);
+        }
+
         double d = Diameter;
         return new Size(d, d);
     }
@@ -178,8 +188,8 @@ public sealed class GameSealButton : Button
         _isHovered = true;
         if (Effect is DropShadowEffect shadow)
         {
-            shadow.BlurRadius = 20;
-            shadow.Opacity = 0.65;
+            shadow.BlurRadius = 22;
+            shadow.Opacity = 0.70;
             shadow.Color = Color.FromRgb(0xE5, 0xC4, 0x83);
         }
         InvalidateVisual();
@@ -223,21 +233,139 @@ public sealed class GameSealButton : Button
     {
         base.OnRender(dc);
 
-        double size = Math.Min(ActualWidth, ActualHeight);
-        if (size <= 0)
-        {
-            size = Diameter;
-        }
-
-        Point center = new(size / 2, size / 2);
-        double radius = size / 2 - 2;
-
-        if (_isPressed)
-        {
-            center.Y += 1.5;
-        }
+        double width = ActualWidth > 0 ? ActualWidth : (Shape == SealShape.Square ? 190.0 : Diameter);
+        double height = ActualHeight > 0 ? ActualHeight : (Shape == SealShape.Square ? 60.0 : Diameter);
 
         bool isEnabled = IsEnabled;
+        double offsetY = _isPressed ? 1.5 : 0;
+
+        if (Shape == SealShape.Square)
+        {
+            DrawSquareSeal(dc, width, height, isEnabled, offsetY);
+        }
+        else
+        {
+            DrawRoundSeal(dc, width, height, isEnabled, offsetY);
+        }
+    }
+
+    private void DrawSquareSeal(DrawingContext dc, double w, double h, bool isEnabled, double offsetY)
+    {
+        Rect outerRect = new(0, offsetY, w, h);
+        double r = 6.0;
+
+        // 1. Outer bronze relief border
+        Brush borderBrush = !isEnabled ? DisabledRing : (_isHovered ? OuterBronzeHoverRing : OuterBronzeRing);
+        dc.DrawRoundedRectangle(borderBrush, null, outerRect, r, r);
+
+        // 2. Decorative inner track
+        Rect trackRect = new(outerRect.Left + 2.5, outerRect.Top + 2.5, Math.Max(0, w - 5), Math.Max(0, h - 5));
+        Pen goldPen = new(!isEnabled ? DisabledRing : GoldRingPenBrush, 1.2);
+        dc.DrawRoundedRectangle(null, goldPen, trackRect, r - 1.5, r - 1.5);
+
+        // 3. Middle dark groove
+        Rect grooveRect = new(outerRect.Left + 4.5, outerRect.Top + 4.5, Math.Max(0, w - 9), Math.Max(0, h - 9));
+        dc.DrawRoundedRectangle(InnerBronzeGroove, null, grooveRect, r - 2.5, r - 2.5);
+
+        // 4. Central Cinnabar Core
+        Brush coreBrush = !isEnabled
+            ? DisabledCore
+            : (_isPressed ? CinnabarPressedCore : (_isHovered ? CinnabarHoverCore : CinnabarCore));
+        Rect coreRect = new(outerRect.Left + 6.0, outerRect.Top + 6.0, Math.Max(0, w - 12), Math.Max(0, h - 12));
+        dc.DrawRoundedRectangle(coreBrush, null, coreRect, r - 3.5, r - 3.5);
+
+        // 5. Corner decorative studs
+        if (isEnabled)
+        {
+            Brush studBrush = GoldIconBrush;
+            dc.DrawEllipse(studBrush, null, new Point(coreRect.Left + 5, coreRect.Top + 5), 1.2, 1.2);
+            dc.DrawEllipse(studBrush, null, new Point(coreRect.Right - 5, coreRect.Top + 5), 1.2, 1.2);
+            dc.DrawEllipse(studBrush, null, new Point(coreRect.Left + 5, coreRect.Bottom - 5), 1.2, 1.2);
+            dc.DrawEllipse(studBrush, null, new Point(coreRect.Right - 5, coreRect.Bottom - 5), 1.2, 1.2);
+        }
+
+        // 6. Typography & Center Icon
+        double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        Point center = new(w / 2, (h / 2) + offsetY);
+
+        // If width is wide, render in horizontal layout: Icon + Label + SubLabel
+        if (w > 120)
+        {
+            // Center Play Icon on left
+            double iconX = center.X - 44;
+            DrawCenterIcon(dc, iconX, center.Y, isEnabled);
+
+            // Text Panel
+            FormattedText ft = new(
+                SealLabel,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                SerifTypeface,
+                14.0,
+                isEnabled ? GoldTextBrush : SubTextBrush,
+                dpi);
+
+            double textX = iconX + 16;
+            double titleY = string.IsNullOrEmpty(SubLabel) ? center.Y - (ft.Height / 2) : center.Y - 14;
+            dc.DrawText(ft, new Point(textX, titleY));
+
+            if (!string.IsNullOrEmpty(SubLabel))
+            {
+                FormattedText subFt = new(
+                    SubLabel,
+                    CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    SubTypeface,
+                    11.0,
+                    SubTextBrush,
+                    dpi);
+
+                dc.DrawText(subFt, new Point(textX, center.Y + 2));
+            }
+        }
+        else
+        {
+            // Compact Square
+            DrawCenterIcon(dc, center.X, center.Y - 14, isEnabled);
+
+            FormattedText ft = new(
+                SealLabel,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                SerifTypeface,
+                12.5,
+                isEnabled ? GoldTextBrush : SubTextBrush,
+                dpi);
+
+            dc.DrawText(ft, new Point(center.X - (ft.Width / 2), center.Y + 1));
+
+            if (!string.IsNullOrEmpty(SubLabel))
+            {
+                FormattedText subFt = new(
+                    SubLabel,
+                    CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    SubTypeface,
+                    10.0,
+                    SubTextBrush,
+                    dpi);
+
+                dc.DrawText(subFt, new Point(center.X - (subFt.Width / 2), center.Y + 16));
+            }
+        }
+
+        // Notification badge
+        if (!string.IsNullOrEmpty(BadgeText))
+        {
+            DrawNotificationBadge(dc, w, BadgeText);
+        }
+    }
+
+    private void DrawRoundSeal(DrawingContext dc, double w, double h, bool isEnabled, double offsetY)
+    {
+        double size = Math.Min(w, h);
+        Point center = new(w / 2, (h / 2) + offsetY);
+        double radius = (size / 2) - 2;
 
         // 1. Outer bronze relief ring
         Brush ringBrush = !isEnabled ? DisabledRing : (_isHovered ? OuterBronzeHoverRing : OuterBronzeRing);
@@ -257,7 +385,7 @@ public sealed class GameSealButton : Button
         double coreRadius = radius - 6.5;
         dc.DrawEllipse(coreBrush, null, center, coreRadius, coreRadius);
 
-        // 5. Traditional circular decorative marks (4 cardinal marks)
+        // 5. Traditional circular decorative marks
         if (isEnabled)
         {
             double markDist = coreRadius - 3.5;
@@ -268,11 +396,12 @@ public sealed class GameSealButton : Button
             dc.DrawEllipse(markBrush, null, new Point(center.X + markDist, center.Y), 1.2, 1.2);
         }
 
-        // 6. Center Action Symbol (Curved play chevron / ancient cloud curl)
+        // 6. Center Action Symbol
         double iconTop = center.Y - (string.IsNullOrEmpty(SubLabel) ? 14 : 18);
         DrawCenterIcon(dc, center.X, iconTop, isEnabled);
 
         // 7. Typography (Main label)
+        double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         if (!string.IsNullOrEmpty(SealLabel))
         {
             double fontSize = Math.Clamp(size * 0.13, 10, 13);
@@ -283,13 +412,13 @@ public sealed class GameSealButton : Button
                 SerifTypeface,
                 fontSize,
                 isEnabled ? GoldTextBrush : SubTextBrush,
-                VisualTreeHelper.GetDpi(this).PixelsPerDip);
+                dpi);
 
             double textY = center.Y + (string.IsNullOrEmpty(SubLabel) ? 3 : 0);
             dc.DrawText(ft, new Point(center.X - (ft.Width / 2), textY));
         }
 
-        // 8. Sub label if provided (e.g. "+1 Ngày" or "Lượt kế")
+        // 8. Sub label
         if (!string.IsNullOrEmpty(SubLabel))
         {
             double subFontSize = Math.Clamp(size * 0.105, 9, 11);
@@ -300,13 +429,13 @@ public sealed class GameSealButton : Button
                 SubTypeface,
                 subFontSize,
                 SubTextBrush,
-                VisualTreeHelper.GetDpi(this).PixelsPerDip);
+                dpi);
 
             double subY = center.Y + 14;
             dc.DrawText(subFt, new Point(center.X - (subFt.Width / 2), subY));
         }
 
-        // 9. Notification badge (Top-right corner)
+        // 9. Notification badge
         if (!string.IsNullOrEmpty(BadgeText))
         {
             DrawNotificationBadge(dc, size, BadgeText);
@@ -315,7 +444,6 @@ public sealed class GameSealButton : Button
 
     private void DrawCenterIcon(DrawingContext dc, double cx, double cy, bool isEnabled)
     {
-        // Classical forward tri-prong chevron
         StreamGeometry geom = new();
         using (StreamGeometryContext ctx = geom.Open())
         {

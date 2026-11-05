@@ -102,9 +102,36 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Vitals Summary -->
-                    <TextBlock x:Name="CompactVitalsText" Style="{StaticResource Caption}"
-                               Foreground="{StaticResource Muted}" FontSize="11" VerticalAlignment="Center" />
+                    <!-- Visual Character Vitals Strip (ROTK [1] Gauge HUD) -->
+                    <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                            BorderThickness="1" CornerRadius="4" Padding="10,4" Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Stamina Gauge -->
+                            <TextBlock Text="⚡ Thể lực" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <Grid Width="65" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+                                <Border Background="#1C281F" CornerRadius="3" />
+                                <Border x:Name="VisualStaminaFill" Background="#34D399" CornerRadius="3" HorizontalAlignment="Left" Width="40" />
+                            </Grid>
+                            <TextBlock x:Name="VisualStaminaText" Text="--/--" FontSize="11" FontWeight="SemiBold" Foreground="#34D399" Margin="0,0,12,0" VerticalAlignment="Center" />
+
+                            <!-- Fatigue Gauge -->
+                            <TextBlock Text="💤 Mệt" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <Grid Width="55" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+                                <Border Background="#2B1A14" CornerRadius="3" />
+                                <Border x:Name="VisualFatigueFill" Background="#F59E0B" CornerRadius="3" HorizontalAlignment="Left" Width="30" />
+                            </Grid>
+                            <TextBlock x:Name="VisualFatigueText" Text="--%" FontSize="11" FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,12,0" VerticalAlignment="Center" />
+
+                            <!-- Prestige Standing Badge -->
+                            <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                    BorderThickness="1" CornerRadius="3" Padding="6,1" VerticalAlignment="Center">
+                                <TextBlock x:Name="VisualStandingText" Text="Bách Tính" FontSize="10.5"
+                                           Foreground="{StaticResource Accent}" FontWeight="SemiBold" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                    <!-- Legacy compat hidden text -->
+                    <TextBlock x:Name="CompactVitalsText" Visibility="Collapsed" />
                 </StackPanel>
 
                 <!-- Right: System Utility Controls (ROTK [5]) -->
@@ -152,16 +179,17 @@
                     <!-- Fallback ListBox kept collapsed for 100% data binding & test compatibility -->
                     <ListBox x:Name="NavList" Grid.Row="1" Visibility="Collapsed" SelectionChanged="Nav_SelectionChanged" />
 
-                    <!-- Strategic Action Command Console (ROTK [2]) -->
-                    <StackPanel Grid.Row="2" Margin="0,6,0,0">
-                        <!-- Round Seal Action Button -->
-                        <controls:GameSealButton x:Name="SealAdvanceButton" SealLabel="QUA NGÀY" SubLabel="+1 Ngày"
-                                                 Diameter="74" HorizontalAlignment="Center" Margin="0,0,0,8"
+                    <!-- Strategic Action Command Console (ROTK [2] Square Jade Seal) -->
+                    <StackPanel Grid.Row="2" Margin="0,8,0,0">
+                        <!-- Square Seal Action Button -->
+                        <controls:GameSealButton x:Name="SealAdvanceButton" Shape="Square" Width="200" Height="50"
+                                                 SealLabel="QUA NGÀY" SubLabel="+1 Ngày"
+                                                 HorizontalAlignment="Center" Margin="0,0,0,6"
                                                  Click="Advance_Click"
                                                  ToolTip="Bấm để thúc đẩy thời gian sang ngày tiếp theo (Phím Space / Enter)" />
 
-                        <!-- Secondary Tactical Options -->
-                        <Grid Margin="0,0,0,4">
+                        <!-- Secondary Tactical Options (Rest & Advance Week) -->
+                        <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="6" />
@@ -173,13 +201,12 @@
                                                  ToolTip="Nghỉ ngơi tĩnh dưỡng 1 ngày (hồi phục thể lực và giảm mệt mỏi)" />
                             <controls:GameButton x:Name="AdvanceWeekButton" Grid.Column="2" Label="Tuần +7" Variant="Secondary"
                                                  IconPathData="M5,6 L12,12 L5,18 M12,6 L19,12 L12,18"
-                                                 Click="AdvanceWeek_Click" HorizontalContentAlignment="Center" IsCompact="True" />
+                                                 Click="AdvanceWeek_Click" HorizontalContentAlignment="Center" IsCompact="True"
+                                                 ToolTip="Thúc đẩy 1 tuần (+7 ngày)" />
                         </Grid>
 
-                        <controls:GameButton x:Name="StrollButton" Label="Du ngoạn phố" Variant="Secondary" IsCompact="True"
-                                             IconPathData="M12,2 A10,10 0 1,0 12,22 A10,10 0 1,0 12,2 M15,9 L9,15 M15,9 L10,10 L9,15 L14,14 Z"
-                                             Click="Stroll_Click" HorizontalContentAlignment="Center"
-                                             ToolTip="Tản bộ ngắm cảnh thành trì, tìm kiếm kỳ ngộ, tao ngộ danh sĩ (-12 Căng thẳng, +5 Thể lực)" />
+                        <!-- StrollButton kept collapsed to eliminate duplication with City Hub screen -->
+                        <controls:GameButton x:Name="StrollButton" Visibility="Collapsed" Click="Stroll_Click" />
                     </StackPanel>
                 </Grid>
             </Border>

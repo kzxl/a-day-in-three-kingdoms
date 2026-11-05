@@ -138,8 +138,8 @@ public sealed class GameCommandRibbon : Control
         FontWeights.Bold,
         FontStretches.Normal);
 
-    private const double TabHeight = 44.0;
-    private const double TabSpacing = 4.0;
+    private const double TabHeight = 52.0;
+    private const double TabSpacing = 9.0;
     private const double LeftCurveWidth = 6.0;
 
     private int _hoveredIndex = -1;
@@ -155,7 +155,7 @@ public sealed class GameCommandRibbon : Control
     {
         Focusable = true;
         Cursor = Cursors.Hand;
-        Width = 180;
+        Width = 200;
         HorizontalAlignment = HorizontalAlignment.Left;
         VerticalAlignment = VerticalAlignment.Top;
     }
@@ -316,13 +316,13 @@ public sealed class GameCommandRibbon : Control
             CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight,
             TitleTypeface,
-            12.5,
+            13.0,
             isSelected ? TextInk : (isHovered ? TextInk : TextMuted),
             dpi);
 
         double titleY = string.IsNullOrEmpty(item.Subtitle)
             ? rect.Top + (TabHeight - titleFt.Height) / 2
-            : rect.Top + 6;
+            : rect.Top + 8;
 
         dc.DrawText(titleFt, new Point(textStartX, titleY));
 
@@ -334,11 +334,11 @@ public sealed class GameCommandRibbon : Control
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
                 SubtitleTypeface,
-                10.0,
+                10.5,
                 TextFaint,
                 dpi);
 
-            dc.DrawText(subFt, new Point(textStartX, rect.Top + 22));
+            dc.DrawText(subFt, new Point(textStartX, rect.Top + 27));
         }
 
         // 6. Badge indicator

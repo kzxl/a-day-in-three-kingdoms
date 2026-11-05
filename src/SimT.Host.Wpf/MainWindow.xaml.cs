@@ -1,3 +1,4 @@
+using System.Windows.Media;
 using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
@@ -219,6 +220,22 @@ public partial class MainWindow : Window
             CompactVitalsText.Text = vitals is not null
                 ? $"Thể lực {vitals.CurrentStamina}/{vitals.MaxStamina} · Mệt {vitals.Fatigue}% · {shortStanding}"
                 : shortStanding;
+
+            if (vitals is not null)
+            {
+                double stamRatio = vitals.MaxStamina > 0 ? (double)vitals.CurrentStamina / vitals.MaxStamina : 1.0;
+                VisualStaminaFill.Width = Math.Clamp(stamRatio * 65.0, 2.0, 65.0);
+                VisualStaminaText.Text = $"{vitals.CurrentStamina}/{vitals.MaxStamina}";
+
+                double fatRatio = Math.Clamp((double)vitals.Fatigue / 100.0, 0.0, 1.0);
+                VisualFatigueFill.Width = Math.Clamp(fatRatio * 55.0, 2.0, 55.0);
+                VisualFatigueText.Text = $"{vitals.Fatigue}%";
+
+                VisualFatigueFill.Background = vitals.Fatigue > 75
+                    ? (Brush)FindResource("Loss")
+                    : new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
+            }
+            VisualStandingText.Text = shortStanding;
 
             PlayerHudCard.Configure(playerState.Name, citadelName, regionName, vitals, fameStanding);
         }
