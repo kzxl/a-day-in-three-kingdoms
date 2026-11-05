@@ -1,7 +1,7 @@
 using SimT.Contracts.Playing;
 using SimT.Contracts.Ui;
 
-namespace SimT.Modules.Dlc.Politics;
+namespace SimT.Modules.Dlc.Power;
 
 internal sealed class CourtScreen : IScreenContribution
 {

@@ -1,6 +1,6 @@
 using SimT.Contracts.Diagnostics;
 
-namespace SimT.Modules.Dlc.Military;
+namespace SimT.Modules.Dlc.Power;
 
 internal static class MilitaryInvariants
 {

@@ -1,6 +1,6 @@
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
-using SimT.Modules.Dlc.Military;
+using SimT.Modules.Dlc.Power;
 
 namespace SimT.Modules.Dlc.Tests;
 

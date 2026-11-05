@@ -2,7 +2,7 @@ using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 
-namespace SimT.Modules.Dlc.Military;
+namespace SimT.Modules.Dlc.Power;
 
 internal sealed class MilitaryScreen : IScreenContribution
 {

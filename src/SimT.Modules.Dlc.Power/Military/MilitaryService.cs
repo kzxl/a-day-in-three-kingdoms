@@ -4,7 +4,7 @@ using SimT.Contracts.Logging;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
-namespace SimT.Modules.Dlc.Military;
+namespace SimT.Modules.Dlc.Power;
 
 internal sealed class MilitaryService : IMilitaryCommand
 {

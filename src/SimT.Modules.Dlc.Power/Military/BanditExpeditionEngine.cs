@@ -1,6 +1,6 @@
 using SimT.Contracts.Playing;
 
-namespace SimT.Modules.Dlc.Military;
+namespace SimT.Modules.Dlc.Power;
 
 /// <summary>
 /// Tactical combat simulation engine for Outlaw Stronghold Expeditions (Tiễu Phạt Sơn Trại).

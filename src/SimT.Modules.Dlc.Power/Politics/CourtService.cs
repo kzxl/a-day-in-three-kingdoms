@@ -5,7 +5,7 @@ using SimT.Contracts.Logging;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
-namespace SimT.Modules.Dlc.Politics;
+namespace SimT.Modules.Dlc.Power;
 
 /// <summary>
 /// Standing at court & 12 warlord factions allegiance: service earns reputation,

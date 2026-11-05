@@ -1,7 +1,7 @@
 using SimT.Contracts.Data;
 using SimT.Contracts.Diagnostics;
 
-namespace SimT.Modules.Dlc.Politics;
+namespace SimT.Modules.Dlc.Power;
 
 internal static class CourtInvariants
 {

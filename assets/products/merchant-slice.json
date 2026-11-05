@@ -8,9 +8,8 @@
     "base.npc",
     "dlc.economy",
     "dlc.character",
-    "dlc.politics",
-    "dlc.society",
-    "dlc.military"
+    "dlc.power",
+    "dlc.society"
   ],
   "seed": 1840502,
   "startLocation": "lac_duong",

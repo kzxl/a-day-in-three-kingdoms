@@ -23,9 +23,8 @@
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Economy\SimT.Modules.Dlc.Economy.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Character\SimT.Modules.Dlc.Character.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Politics\SimT.Modules.Dlc.Politics.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Power\SimT.Modules.Dlc.Power.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Society\SimT.Modules.Dlc.Society.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Military\SimT.Modules.Dlc.Military.csproj" />
   </ItemGroup>
 
   <ItemGroup>
