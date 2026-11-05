@@ -1,0 +1,135 @@
+@font-face {
+  font-family: 'Noto Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/NotoSerif-Regular.woff2') format('woff2'),
+       url('fonts/NotoSerif-Regular-Latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Noto Serif';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('fonts/NotoSerif-Bold.woff2') format('woff2'),
+       url('fonts/NotoSerif-Bold-Latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/BeVietnamPro-Regular.woff2') format('woff2'),
+       url('fonts/BeVietnamPro-Regular-Latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('fonts/BeVietnamPro-SemiBold.woff2') format('woff2'),
+       url('fonts/BeVietnamPro-SemiBold-Latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Ma Shan Zheng';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/MaShanZheng-Regular.woff2') format('woff2');
+}
+
+:root {
+  --bg: #15110d;
+  --lacquer: #1d1611;
+  --lacquer-alt: #241a13;
+  --line: #3a2c20;
+  --line-soft: #2a2019;
+  --silk: #e8dcc4;
+  --silk-deep: #d6c5a3;
+  --text: #eadfc6;
+  --ink: #f3e6cc;
+  --paper-ink: #1f1712;
+  --paper-sub: #544537;
+  --paper-muted: #7e6d58;
+  --muted: #b9aa8c;
+  --faint: #8f7f62;
+  --gold: #c4a062;
+  --gold-hover: #d6b475;
+  --gold-soft: #332619;
+  --vermilion: #a8321f;
+  --jade: #3f6b55;
+  --font-display: 'Noto Serif', Georgia, serif;
+  --font-body: 'Be Vietnam Pro', 'Segoe UI', sans-serif;
+  --font-brush: 'Ma Shan Zheng', 'Noto Serif', serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.tk-scene-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.tk-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.tk-stage[hidden] {
+  display: none !important;
+}
+
+.tk-one {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tk-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.tk-seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-brush);
+  background: linear-gradient(155deg, #b83723 0%, #862012 100%);
+  color: #f7ead2;
+  border: 1px solid #d45b47;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1.5px rgba(247, 234, 210, 0.28), 0 4px 12px rgba(134, 32, 18, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

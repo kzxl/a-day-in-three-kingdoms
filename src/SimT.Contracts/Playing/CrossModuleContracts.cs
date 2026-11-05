@@ -35,6 +35,7 @@ public static class CapabilityIds
     public const string CityStroll = "world.stroll";
     public const string MerchantRivalry = "society.merchant_rivalry";
     public const string KarmaEngine = "society.karma";
+    public const string Dialogue = "dlc.dialogue";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>

@@ -115,7 +115,7 @@ public partial class App : Application
 
             var meta = saves.Create("smoke-" + DateTime.UtcNow.Ticks);
             var kernel = saves.Open(meta);
-            var window = new MainWindow(kernel, saves, meta);
+            var window = new MainWindow(kernel, saves, meta, isSmoke: true);
             window.Show();
             var screens = window.RenderAllScreens();
             File.WriteAllText(log, $"ok screens={screens} date={kernel.Today} balance={kernel.Ledger.Balance}");

@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private readonly SimKernel _kernel;
     private readonly SaveManager _saves;
     private readonly CampaignMeta _meta;
+    private readonly bool _isSmoke;
     private bool _loaded;
     private string _screenId = string.Empty;
     private string? _detailKey;
@@ -35,12 +36,14 @@ public partial class MainWindow : Window
     private ScreenSection? _firstSection;
     private string _filter = string.Empty;
 
-    public MainWindow(SimKernel kernel, SaveManager saves, CampaignMeta meta)
+    public MainWindow(SimKernel kernel, SaveManager saves, CampaignMeta meta, bool isSmoke = false)
     {
         InitializeComponent();
         _kernel = kernel;
         _saves = saves;
         _meta = meta;
+        _isSmoke = isSmoke;
+        InitializeSceneHost();
 
         CampaignText.Text = meta.Name;
         VersionText.Text = ShortVersion();
@@ -319,6 +322,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
+        SceneOverlay.Dispose();
         _kernel.Save();
         _saves.Touch(_meta, GameDateCodec.Format(_kernel.Today));
         _kernel.Dispose();

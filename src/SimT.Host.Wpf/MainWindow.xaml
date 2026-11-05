@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
             xmlns:local="clr-namespace:SimT.Host.Wpf"
         xmlns:controls="clr-namespace:SimT.Host.Wpf.Controls"
+        xmlns:scenes="clr-namespace:SimT.Host.Wpf.Scenes"
     Title="SimT" Height="800" Width="1320"
         MinHeight="660" MinWidth="1120"
         Background="{StaticResource Bg}"
@@ -214,6 +215,9 @@
                 <TextBlock x:Name="StatusText" Style="{StaticResource Caption}" Text="Sẵn sàng." />
             </Border>
         </Grid>
+
+        <!-- ===== WebView2 Scene Overlay (2.5D Talk / Pixel Duel / City Hub) ===== -->
+        <scenes:SceneOverlayControl x:Name="SceneOverlay" Grid.Column="1" Panel.ZIndex="15" Visibility="Collapsed" />
 
         <!-- ===== Inspector: overlays the page so opening it never reflows the grid ===== -->
         <Border x:Name="InspectorScrim" Grid.Column="1" Panel.ZIndex="19" Visibility="Collapsed"

@@ -31,6 +31,10 @@ dotnet publish src\SimT.Host.Wpf\SimT.Host.Wpf.csproj -c Release -r win-x64 ^
   -p:PublishTrimmed=false ^
   -o "%OUT%" -v q --nologo || exit /b 1
 
+echo == verify scenes assets
+if not exist "%OUT%\assets\scenes\index.html" exit /b 1
+if not exist "%OUT%\assets\scenes\art\manifest.json" exit /b 1
+
 echo == smoke
 "%OUT%\SimT.Host.Wpf.exe" --smoke || exit /b 1
 
