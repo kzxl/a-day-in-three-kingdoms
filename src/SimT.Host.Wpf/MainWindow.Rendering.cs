@@ -56,6 +56,14 @@ public partial class MainWindow
             return;
         }
 
+        if (entry.ScreenId == "society.chronicle")
+        {
+            RenderChronicle();
+            RefreshBadges();
+            AnimatePageTransition();
+            return;
+        }
+
         var contribution = _kernel.Ui.Screens.FirstOrDefault(screen => screen.ScreenId == entry.ScreenId);
         if (contribution is null)
         {
@@ -595,6 +603,28 @@ public partial class MainWindow
         ContentPanel.Children.Clear();
         ContentPanel.Children.Add(EmptyState("Cảnh Trong Thành đang hiển thị trên lớp phủ tương tác. Bấm nút [Nhật Trình] để trở lại đại điện chiến lược."));
         TryOpenCityScene();
+    }
+
+    private void RenderChronicle()
+    {
+        SceneOverlay.HideScene();
+        ScreenTitle.Text = "Thiên Hạ Biên Niên Sử";
+        ScreenStatus.Text = "Kỷ yếu thời cuộc · Nắm bắt biến động thiên hạ và đưa ra quyết sách can thiệp";
+        KpiStrip.Children.Clear();
+        AlertFeed.ItemsSource = null;
+        GlobalCommands.Children.Clear();
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+        ContentPanel.Children.Clear();
+
+        var chronicleView = new GameChronicleView();
+        chronicleView.EventInteracted += () =>
+        {
+            UpdateHeader();
+            ShowNotification("Đã thực thi quyết sách dã sử thành công!");
+        };
+        chronicleView.Bind(_kernel);
+        ContentPanel.Children.Add(chronicleView);
     }
 
     private Border EmptyState(string message) => new GameEmptyState(
