@@ -33,6 +33,10 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
 
     public int Order => 16;
 
+    public ISocietyChronicle Chronicle => _chronicle;
+
+    public IGameClock Clock => _clock;
+
     public void SetFilter(string filter) => _filterKind = filter;
 
     public ScreenModel Render()
@@ -44,6 +48,11 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
         if (_filterKind == "rivals")
         {
             return RenderLeaderboard(currentCityId, currentCitadelName);
+        }
+
+        if (_filterKind == "karma")
+        {
+            return RenderKarmaScreen(currentCityId, currentCitadelName);
         }
 
         var allEvents = _chronicle.RecentEvents(limit: 60);
@@ -105,6 +114,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
         {
             new("filter:all", "Tất Cả", _filterKind == "all" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", _filterKind == "rivals" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:karma", "⚖️ Nhân Quả", _filterKind == "karma" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:local", $"Tại {currentCitadelName}", _filterKind == "local" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:martial", "⚔️ Võ Nghiệp", _filterKind == "martial" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:commerce", "💰 Thương Lộ", _filterKind == "commerce" ? CommandKind.Primary : CommandKind.Secondary),
@@ -204,6 +214,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
         {
             new("filter:all", "Tất Cả", CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", CommandKind.Primary),
+            new("filter:karma", "⚖️ Nhân Quả", CommandKind.Secondary),
             new("filter:local", $"Tại {currentCitadelName}", CommandKind.Secondary),
             new("filter:martial", "⚔️ Võ Nghiệp", CommandKind.Secondary),
             new("filter:commerce", "💰 Thương Lộ", CommandKind.Secondary),
@@ -212,6 +223,152 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
         };
 
         var status = $"Bảng Xếp Hạng Phú Hào cập nhật đến {_clock.Today} · {rivals.Count} đối thủ thương nghiệp AI đang vận hành độc lập.";
+
+        return new ScreenModel(
+            ScreenId,
+            Title,
+            status,
+            sections,
+            commands,
+            metrics,
+            alerts);
+    }
+
+    private ScreenModel RenderKarmaScreen(long currentCityId, string currentCitadelName)
+    {
+        var karma = _chronicle.Karma;
+        var allSeeds = karma.GetAllSeeds();
+        var activeSeeds = allSeeds.Where(s => !s.IsResolved).ToList();
+        var history = karma.GetHistory();
+        var today = (int)_clock.Today.DayIndex;
+        var pendingInCitadel = karma.CheckPendingEvents(currentCityId, today);
+
+        var seedColumns = new[] { "Chuỗi Nhân Quả", "Giai Đoạn", "Nơi Ứng Nghiệm", "Tích Hướng", "Đơm Hoa Kết Trái", "Trạng Thái" };
+        var seedRows = activeSeeds.Select(s =>
+        {
+            var stageText = s.CurrentStage == 1 ? "Hạt Giống (Sơ Khởi)" : "Báo Ứng (Đơm Hoa)";
+            var alignmentText = s.KarmaAlignment switch
+            {
+                "virtue" => "Thiện Nghiệp ☀️",
+                "ruthless" => "Ác Duyên ⚡",
+                _ => "Chưa Định Hình ⚖️"
+            };
+            var daysRemaining = s.TriggerAfterDay - today;
+            var countdownText = daysRemaining <= 0
+                ? "Sẵn sàng ứng nghiệm! ⏳"
+                : $"Còn {daysRemaining} ngày (Ngày {s.TriggerAfterDay})";
+
+            var statusText = s.CitadelId == currentCityId && daysRemaining <= 0
+                ? "👉 Có Thể Kích Hoạt Tại Đây"
+                : s.CitadelId == currentCityId
+                    ? "Đang Ươm Mầm"
+                    : $"Cần Tới {s.CitadelNameVi}";
+
+            return new ScreenRow(
+                [
+                    s.TitleVi,
+                    stageText,
+                    s.CitadelNameVi,
+                    alignmentText,
+                    countdownText,
+                    statusText
+                ],
+                s.CitadelId == currentCityId && daysRemaining <= 0
+                    ? [new ScreenCommand($"karma:resolve:{s.Id}", "Kích Hoạt ⚖️", CommandKind.Primary)]
+                    : Array.Empty<ScreenCommand>(),
+                Title: $"{s.TitleVi} — {stageText}",
+                Details:
+                [
+                    new ScreenDetail("Mã Chuỗi", s.ChainCode),
+                    new ScreenDetail("Tiêu Đề", s.TitleVi),
+                    new ScreenDetail("Thành Trì", s.CitadelNameVi),
+                    new ScreenDetail("Giai Đoạn", stageText),
+                    new ScreenDetail("Tích Hướng Đạo Đức", alignmentText),
+                    new ScreenDetail("Thời Gian Ứng Nghiệm", countdownText),
+                    new ScreenDetail("Hành Trạng Gần Nhất", s.LastOutcomeVi)
+                ]);
+        }).ToList();
+
+        var historyColumns = new[] { "Thời Gian", "Chuỗi Nhân Quả", "Giai Đoạn", "Quyết Định", "Thành Quả / Báo Ứng", "Biến Động" };
+        var historyRows = history.Select(h =>
+        {
+            var impactText = !string.IsNullOrWhiteSpace(h.StatDeltaSummary) ? h.StatDeltaSummary : "Không biến động";
+
+            return new ScreenRow(
+                [
+                    GameDateCodec.Format(h.RecordedDate),
+                    h.ChainCode,
+                    $"Giai đoạn {h.Stage}",
+                    h.DecisionVi,
+                    h.ConsequenceVi,
+                    impactText
+                ],
+                Array.Empty<ScreenCommand>(),
+                Title: $"{h.ChainCode} — {h.DecisionVi}",
+                Details:
+                [
+                    new ScreenDetail("Thời Gian", GameDateCodec.Format(h.RecordedDate)),
+                    new ScreenDetail("Chuỗi Nhân Quả", h.ChainCode),
+                    new ScreenDetail("Giai Đoạn", $"Giai đoạn {h.Stage}"),
+                    new ScreenDetail("Quyết Định Của Bạn", h.DecisionVi),
+                    new ScreenDetail("Nội Dung Báo Ứng", h.ConsequenceVi),
+                    new ScreenDetail("Biến Động Thực Tế", impactText)
+                ]);
+        }).ToList();
+
+        var sections = new List<ScreenSection>
+        {
+            new(
+                $"🌱 HẠT GIỐNG NHÂN QUẢ ĐANG ƯƠM MẦM ({activeSeeds.Count} Hạt Giống)",
+                seedColumns,
+                seedRows)
+        };
+
+        if (historyRows.Count > 0)
+        {
+            sections.Add(new ScreenSection(
+                $"📜 SỔ BÁO ỨNG & KÝ SỰ NHÂN DUYÊN ({historyRows.Count} Biến Cố Đã Định)",
+                historyColumns,
+                historyRows));
+        }
+
+        var goodSeeds = activeSeeds.Count(s => s.KarmaAlignment == "virtue");
+        var ruthlessSeeds = activeSeeds.Count(s => s.KarmaAlignment == "ruthless");
+        var moralTone = goodSeeds > ruthlessSeeds ? "Thuần Thiện Nhân Nghĩa" : ruthlessSeeds > goodSeeds ? "Thực Dụng / Đoạt Lợi" : "Trung Đạo Vô Vi";
+
+        var metrics = new List<ScreenMetric>
+        {
+            new("Hạt Giống Đang Ươm", $"{activeSeeds.Count} chuỗi", "Đang tích lũy nhân duyên", MetricTone.Neutral),
+            new("Nhân Quả Tại Thành", $"{pendingInCitadel.Count} sự kiện", currentCitadelName, pendingInCitadel.Count > 0 ? MetricTone.Warning : MetricTone.Neutral),
+            new("Ký Sự Đã Ứng Nghiệm", $"{history.Count} biến cố", "Đã lưu vào quả báo đồ lục", MetricTone.Positive),
+            new("Tâm Tính Duyên Khởi", moralTone, $"{goodSeeds} Thiện · {ruthlessSeeds} Lợi", goodSeeds >= ruthlessSeeds ? MetricTone.Positive : MetricTone.Warning)
+        };
+
+        var alerts = new List<ScreenAlert>();
+        if (pendingInCitadel.Count > 0)
+        {
+            alerts.Add(new ScreenAlert(
+                $"[Nhân Quả Đơm Hoa] Tại {currentCitadelName}, có {pendingInCitadel.Count} duyên khởi đã đủ ngày tháng chín muồi! Bạn có thể dạo phố hoặc kích hoạt sự kiện để đón nhận quả báo.",
+                AlertLevel.Info));
+        }
+        else if (activeSeeds.Count == 0)
+        {
+            alerts.Add(new ScreenAlert("Tất cả hạt giống nhân quả đã đơm hoa kết trái toàn mỹ.", AlertLevel.Info));
+        }
+
+        var commands = new List<ScreenCommand>
+        {
+            new("filter:all", "Tất Cả", CommandKind.Secondary),
+            new("filter:rivals", "🏆 Phú Hào", CommandKind.Secondary),
+            new("filter:karma", "⚖️ Nhân Quả", CommandKind.Primary),
+            new("filter:local", $"Tại {currentCitadelName}", CommandKind.Secondary),
+            new("filter:martial", "⚔️ Võ Nghiệp", CommandKind.Secondary),
+            new("filter:commerce", "💰 Thương Lộ", CommandKind.Secondary),
+            new("filter:scholarly", "📜 Mưu Lược", CommandKind.Secondary),
+            new("filter:travel", "🗺️ Du Hành", CommandKind.Secondary)
+        };
+
+        var status = $"Ký sự Nhân Quả & Nghiệp Duyên cập nhật đến {_clock.Today} · {activeSeeds.Count} hạt giống đang ươm mầm khắp thiên hạ.";
 
         return new ScreenModel(
             ScreenId,
@@ -263,6 +420,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
     private static string FilterLabel(string filter) => filter switch
     {
         "rivals" => "Bảng phú hào",
+        "karma" => "Nhân quả báo ứng",
         "local" => "Đồng thành",
         "martial" => "Võ nghiệp",
         "commerce" => "Thương lộ",
@@ -291,6 +449,26 @@ internal sealed class SocietyCommandHandler : IScreenCommandHandler
             var filter = commandId["filter:".Length..];
             _screen.SetFilter(filter);
             return $"Đã chuyển bộ lọc: {filter}";
+        }
+
+        if (commandId.StartsWith("karma:resolve:"))
+        {
+            if (long.TryParse(commandId["karma:resolve:".Length..], out var seedId))
+            {
+                var seed = _screen.Chronicle.Karma.GetAllSeeds().FirstOrDefault(s => s.Id == seedId);
+                if (seed is not null)
+                {
+                    var pending = _screen.Chronicle.Karma.CheckPendingEvents(seed.CitadelId, (int)_screen.Clock.Today.DayIndex)
+                        .FirstOrDefault(p => p.SeedId == seedId);
+
+                    if (pending is not null && pending.Options.Count > 0)
+                    {
+                        var res = _screen.Chronicle.Karma.ResolveChoice(seedId, pending.Options[0].ChoiceKey);
+                        return $"[Nhân Quả Ứng Nghiệm] {res.OutcomeVi}";
+                    }
+                }
+            }
+            return "Không thể kích hoạt sự kiện nhân quả này.";
         }
 
         return null;

@@ -33,6 +33,7 @@ public static class CapabilityIds
     public const string PlayerDestiny = "player.destiny";
     public const string CityStroll = "world.stroll";
     public const string MerchantRivalry = "society.merchant_rivalry";
+    public const string KarmaEngine = "society.karma";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>
@@ -408,7 +409,8 @@ public enum StrollEventType
     MarketBargain,
     RighteousDeed,
     Epiphany,
-    TeahouseRumor
+    TeahouseRumor,
+    KarmaFruition
 }
 
 /// <summary>Outcome of a city stroll exploration action.</summary>

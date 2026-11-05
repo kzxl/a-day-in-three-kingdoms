@@ -58,6 +58,34 @@ internal sealed class CityStrollService : ICityStroll
         attrs?.ApplyFatigue(5);
         attrs?.RecoverVitals(fatigueRelief: 0, stressRelief: 12);
 
+        // 0. Check for pending Karma fruition / causality encounters first!
+        if (_broker.TryGet<IKarmaEngine>(CapabilityIds.KarmaEngine, out var karma) && karma is not null)
+        {
+            var pendingEvents = karma.CheckPendingEvents(city.Id, (int)_clock.Today.DayIndex);
+            if (pendingEvents.Count > 0)
+            {
+                var evt = pendingEvents[0];
+                if (evt.Options.Count > 0)
+                {
+                    var chosenOpt = evt.Options[0];
+                    var resolution = karma.ResolveChoice(evt.SeedId, chosenOpt.ChoiceKey);
+
+                    var deltaSummary = $"{(resolution.MoneyChange != 0 ? (resolution.MoneyChange > 0 ? $"+{resolution.MoneyChange} Quan, " : $"{resolution.MoneyChange} Quan, ") : "")}{(resolution.VirtueChange != 0 ? (resolution.VirtueChange > 0 ? $"+{resolution.VirtueChange} Đức, " : $"{resolution.VirtueChange} Đức, ") : "")}{(resolution.FameChange != 0 ? (resolution.FameChange > 0 ? $"+{resolution.FameChange} Danh, " : $"{resolution.FameChange} Danh, ") : "")}-12 Căng thẳng";
+
+                    _log.Info($"[Stroll] Triggered Karma fruition event {evt.SeedId} at {city.NameVi}: {resolution.OutcomeVi}");
+                    return new StrollResult(
+                        true,
+                        evt.Stage == 2 ? $"⚖️ Quả Báo Hiện Tiền: {evt.TitleVi}" : $"⚖️ Nhân Duyên Khởi Điểm: {evt.TitleVi}",
+                        subloc.NameVi,
+                        $"{evt.NarrativeVi}\n\n[Lựa chọn: {chosenOpt.LabelVi}]\n{resolution.OutcomeVi}",
+                        deltaSummary,
+                        StrollEventType.KarmaFruition,
+                        5,
+                        12);
+                }
+            }
+        }
+
         var seed = (int)(_clock.Today.DayIndex * 37 + cityId * 19 + Math.Abs(Environment.TickCount64) % 1000);
         var roll = Math.Abs(seed % 100);
 

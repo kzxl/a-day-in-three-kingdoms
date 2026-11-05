@@ -64,6 +64,20 @@ internal static class SocietyInvariants
         }
     }
 
+    public sealed class KarmaSeedsValid : IInvariant
+    {
+        public string Id => "society.karma_seed.valid";
+
+        public string? Check(IInvariantContext context)
+        {
+            var hasTable = context.Db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='so_karma_seed'") > 0;
+            if (!hasTable) return null;
+
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM so_karma_seed WHERE current_stage < 1 OR max_stage < 1 OR current_stage > max_stage");
+            return bad == 0 ? null : $"{bad} karma seed(s) have invalid stage progression";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new WealthNonNegative();
@@ -71,5 +85,6 @@ internal static class SocietyInvariants
         yield return new StatDeltasNonNegative();
         yield return new LogEventsHaveHeadlines();
         yield return new MerchantRivalCapitalNonNegative();
+        yield return new KarmaSeedsValid();
     }
 }

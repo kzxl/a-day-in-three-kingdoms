@@ -76,6 +76,9 @@ public interface ISocietyChronicle
 
     /// <summary>Direct access to AI merchant rivalry engine.</summary>
     IMerchantRivalry Rivals { get; }
+
+    /// <summary>Direct access to branching karma & causality event engine.</summary>
+    IKarmaEngine Karma { get; }
 }
 
 /// <summary>
@@ -139,4 +142,87 @@ public interface IMerchantRivalry
     MerchantRivalDef? GetRival(long npcId);
     IReadOnlyList<MerchantLeaderboardEntry> GetLeaderboard();
     void SimulateMerchantTurn(GameDate date);
+}
+
+/// <summary>
+/// Active karma seed incubating in the living world.
+/// </summary>
+public sealed record KarmaSeedDef(
+    long Id,
+    string ChainCode,
+    string TitleVi,
+    int CurrentStage,
+    int MaxStage,
+    string BranchChoice,
+    int PlantedDay,
+    int TriggerAfterDay,
+    long CitadelId,
+    string CitadelNameVi,
+    long? TargetNpcId,
+    string? TargetNpcNameVi,
+    string KarmaAlignment, // "virtue", "ruthless", "neutral"
+    bool IsActive,
+    bool IsResolved,
+    string LastOutcomeVi,
+    GameDate CreatedDate);
+
+/// <summary>
+/// Historical record of a karmic turning point and player decision.
+/// </summary>
+public sealed record KarmaHistoryDef(
+    long Id,
+    long SeedId,
+    string ChainCode,
+    int Stage,
+    string DecisionVi,
+    string ConsequenceVi,
+    string? StatDeltaSummary,
+    int RecordedDay,
+    GameDate RecordedDate);
+
+/// <summary>
+/// A narrative decision prompt presented when a karma event chain triggers.
+/// </summary>
+public sealed record KarmaPromptOption(
+    string ChoiceKey,
+    string LabelVi,
+    string DescriptionVi,
+    string KarmaAlignment); // "virtue", "ruthless", "neutral"
+
+/// <summary>
+/// An actionable karma event whose conditions and timing have matured.
+/// </summary>
+public sealed record KarmaPendingEvent(
+    long SeedId,
+    string ChainCode,
+    string TitleVi,
+    string NarrativeVi,
+    int Stage,
+    long CitadelId,
+    string CitadelNameVi,
+    IReadOnlyList<KarmaPromptOption> Options);
+
+/// <summary>
+/// Consequence outcome and economic/reputation impact of a karmic choice.
+/// </summary>
+public sealed record KarmaResolutionResult(
+    bool Success,
+    string HeadlineVi,
+    string OutcomeVi,
+    long MoneyChange,
+    int FameChange,
+    int VirtueChange,
+    bool ChainCompleted);
+
+/// <summary>
+/// Engine managing delayed causality, incubation, branching event paths, and karma fruition.
+/// </summary>
+public interface IKarmaEngine
+{
+    IReadOnlyList<KarmaSeedDef> GetActiveSeeds();
+    IReadOnlyList<KarmaSeedDef> GetAllSeeds();
+    IReadOnlyList<KarmaHistoryDef> GetHistory(long? seedId = null);
+    IReadOnlyList<KarmaPendingEvent> CheckPendingEvents(long currentCitadelId, int currentDay);
+    KarmaResolutionResult ResolveChoice(long seedId, string choiceKey);
+    long PlantSeed(string chainCode, string titleVi, string branchChoice, int triggerDelayDays, long citadelId, string karmaAlignment, long? targetNpcId = null);
 }
