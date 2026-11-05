@@ -86,7 +86,7 @@ public sealed class CaravanTests : IDisposable
         using var kernel = _host.Boot();
         Seed(kernel, 1);
 
-        var result = Command(kernel, "send:3");
+        var result = Command(kernel, "send:15");
 
         Assert.Contains("Không có đường", result);
         Assert.Empty(Guild(kernel).Runs);

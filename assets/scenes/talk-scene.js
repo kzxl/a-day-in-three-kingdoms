@@ -46,7 +46,8 @@ function renderTalkScene(container, scene, bridge) {
   const choices = Array.isArray(scene.choices) ? scene.choices : [];
   const nearby = Array.isArray(scene.nearbyNpcs) ? scene.nearbyNpcs : [];
   const sealChar = scene.nameHan ? String(scene.nameHan).trim().charAt(0) : '漢';
-  const stylePart = scene.styleNameVi ? `Tự ${scene.styleNameVi} · ` : '';
+  const hasDistinctStyle = scene.styleNameVi && scene.styleNameVi.trim() !== String(scene.nameVi || '').trim();
+  const stylePart = hasDistinctStyle ? `Tự ${scene.styleNameVi} · ` : '';
   const sign = scene.affinity >= 0 ? `+${scene.affinity}` : `${scene.affinity}`;
 
   const nearbyHtml = nearby.map((n) => `

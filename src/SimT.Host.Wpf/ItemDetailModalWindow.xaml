@@ -1,8 +1,9 @@
 <Window x:Class="SimT.Host.Wpf.ItemDetailModalWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:SimT.Host.Wpf.Controls"
         Title="Bách Vật Đồ Giám — Tra Cứu Kỳ Vật &amp; Nông Cụ"
-        Height="720" Width="820"
+        Height="740" Width="840"
         MinHeight="620" MinWidth="740"
         Background="{StaticResource Bg}"
         WindowStartupLocation="CenterOwner"
@@ -76,23 +77,123 @@
                     </WrapPanel>
                 </StackPanel>
 
-                <!-- Inventory Count in Current City -->
-                <Border Grid.Column="2" Background="{StaticResource Surface}"
-                        BorderBrush="{StaticResource Line}" BorderThickness="1"
-                        CornerRadius="6" Padding="12,8" VerticalAlignment="Center">
-                    <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="HÀNH TRANG SỞ TẠI" FontSize="10" Foreground="{StaticResource Muted}"
-                                   HorizontalAlignment="Center" FontWeight="SemiBold" />
-                        <TextBlock x:Name="BagQuantityText" Text="0 đơn vị" FontSize="18" FontWeight="Bold"
-                                   Foreground="{StaticResource Text}" HorizontalAlignment="Center" Margin="0,2,0,0" />
-                    </StackPanel>
-                </Border>
+                <!-- Inventory & Warehouse Count in Current City -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- 1. Bag box -->
+                    <Border Background="{StaticResource Surface}"
+                            BorderBrush="{StaticResource Line}" BorderThickness="1"
+                            CornerRadius="6" Padding="12,8" Margin="0,0,8,0">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="🎒 TRONG TÚI" FontSize="10" Foreground="{StaticResource Muted}"
+                                       HorizontalAlignment="Center" FontWeight="SemiBold" />
+                            <TextBlock x:Name="BagQuantityText" Text="0 đơn vị" FontSize="16" FontWeight="Bold"
+                                       Foreground="{StaticResource Text}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 2. Warehouse box -->
+                    <Border Background="{StaticResource Surface}"
+                            BorderBrush="{StaticResource Line}" BorderThickness="1"
+                            CornerRadius="6" Padding="12,8">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="🏪 TRONG KHO" FontSize="10" Foreground="{StaticResource Muted}"
+                                       HorizontalAlignment="Center" FontWeight="SemiBold" />
+                            <TextBlock x:Name="WarehouseQuantityText" Text="0 đơn vị" FontSize="16" FontWeight="Bold"
+                                       Foreground="{StaticResource Text}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                            <TextBlock x:Name="WarehouseCapacitySummaryText" Text="Kho: 0/50" FontSize="9"
+                                       Foreground="{StaticResource Accent}" HorizontalAlignment="Center" Margin="0,1,0,0" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
             </Grid>
         </Border>
 
         <!-- ===== Body Content (Scrollable) ===== -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="0,0,8,0">
+
+                <!-- 0. Warehouse Transfer Controls Card: Trao đổi Túi <-> Kho -->
+                <Border x:Name="WarehouseTransferCard" Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource AccentSoft}"
+                        BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Header: Title & Warehouse status -->
+                        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                            <TextBlock Text="🔄 TRAO ĐỔI KHO &amp; HÀNH TRANG (ĐIỀU CHUYỂN HÀNG HÓA)"
+                                       FontWeight="Bold" FontSize="12" Foreground="{StaticResource Accent}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="WarehouseStatusBadge" Text="Sức chứa: 0/50 đơn vị"
+                                       FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </DockPanel>
+
+                        <!-- Unrented State Panel -->
+                        <Border x:Name="UnrentedWarehousePanel" Grid.Row="1" Background="{StaticResource Surface}"
+                                BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,4">
+                            <DockPanel>
+                                <controls:GameButton x:Name="RentWarehouseButton" Label="Thuê Kho Ngay" CostText="120 q/tháng"
+                                                     Variant="Primary" DockPanel.Dock="Right" Margin="10,0,0,0"
+                                                     Click="RentWarehouse_Click" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="⚠️ Chưa thuê kho thương điếm tại thành này" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource Loss}" />
+                                    <TextBlock Text="Thuê kho để cất giữ nông sản &amp; vật phẩm, tránh quá tải hành trang và giảm rủi ro cướp bóc."
+                                               FontSize="11.5" Foreground="{StaticResource Muted}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Rented Action Controls Grid -->
+                        <Grid x:Name="RentedWarehousePanel" Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="14" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Cột Gửi Vào Kho: Túi -> Kho -->
+                            <Border Grid.Column="0" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                    BorderThickness="1" CornerRadius="6" Padding="12,8">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,6">
+                                        <TextBlock Text="📥 GỬI VÀO KHO (Túi ➔ Kho)" FontWeight="SemiBold" FontSize="11.5" Foreground="{StaticResource Text}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="AvailableInBagText" Text="Có: 0" FontSize="10.5" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <WrapPanel>
+                                        <controls:GameButton x:Name="StoreOneButton" Label="Gửi 1" Variant="Secondary" IsCompact="True" Margin="0,0,6,4" Click="StoreOne_Click" />
+                                        <controls:GameButton x:Name="StoreFiveButton" Label="Gửi 5" Variant="Secondary" IsCompact="True" Margin="0,0,6,4" Click="StoreFive_Click" />
+                                        <controls:GameButton x:Name="StoreAllButton" Label="Gửi Hết" Variant="Primary" IsCompact="True" Margin="0,0,6,4" Click="StoreAll_Click" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Cột Lấy Ra Túi: Kho -> Túi -->
+                            <Border Grid.Column="2" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                    BorderThickness="1" CornerRadius="6" Padding="12,8">
+                                <StackPanel>
+                                    <DockPanel Margin="0,0,0,6">
+                                        <TextBlock Text="📤 LẤY RA TÚI (Kho ➔ Túi)" FontWeight="SemiBold" FontSize="11.5" Foreground="{StaticResource Text}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="AvailableInWarehouseText" Text="Kho: 0" FontSize="10.5" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <WrapPanel>
+                                        <controls:GameButton x:Name="TakeOneButton" Label="Lấy 1" Variant="Secondary" IsCompact="True" Margin="0,0,6,4" Click="TakeOne_Click" />
+                                        <controls:GameButton x:Name="TakeFiveButton" Label="Lấy 5" Variant="Secondary" IsCompact="True" Margin="0,0,6,4" Click="TakeFive_Click" />
+                                        <controls:GameButton x:Name="TakeAllButton" Label="Lấy Hết" Variant="Primary" IsCompact="True" Margin="0,0,6,4" Click="TakeAll_Click" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Feedback Toast / Notice Banner -->
+                        <Border x:Name="TransferFeedbackBorder" Grid.Row="2" Background="{StaticResource AccentSoft}"
+                                BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,5" Margin="0,8,0,0"
+                                Visibility="Collapsed">
+                            <TextBlock x:Name="TransferFeedbackText" Text="Đã chuyển thành công." FontSize="11.5" Foreground="{StaticResource Accent}" FontWeight="SemiBold" />
+                        </Border>
+                    </Grid>
+                </Border>
 
                 <!-- 1. Visual Illustration Banner & Lore Description -->
                 <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
@@ -108,43 +209,44 @@
                         <!-- ASCII Visual Art Box -->
                         <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource AccentSoft}"
                                 BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
-                            <TextBlock x:Name="AsciiIllustrationText"
-                                       FontFamily="Consolas, Cascadia Mono, Lucida Console, Courier New"
-                                       FontSize="12" LineHeight="16"
-                                       Foreground="{StaticResource Accent}"
-                                       HorizontalAlignment="Center"
-                                       TextAlignment="Left" />
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <TextBlock x:Name="AsciiIllustrationText" FontFamily="Consolas, Cascadia Code, Courier New"
+                                           FontSize="11.5" LineHeight="14" Foreground="{StaticResource Accent}"
+                                           TextWrapping="NoWrap" />
+                            </ScrollViewer>
                         </Border>
 
-                        <TextBlock x:Name="LoreDescriptionText" TextWrapping="Wrap"
-                                   FontSize="13" LineHeight="20" Foreground="{StaticResource Text}" />
+                        <!-- Lore Text -->
+                        <TextBlock x:Name="LoreDescriptionText" TextWrapping="Wrap" FontSize="13"
+                                   LineHeight="19" Foreground="{StaticResource Text}" FontStyle="Italic" />
                     </StackPanel>
                 </Border>
 
-                <!-- 2. Detailed Parameters & Specifications -->
+                <!-- 2. Detailed Technical & Economic Specs -->
                 <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
                         BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock Text="📊 THÔNG SỐ KỸ THUẬT &amp; CÔNG DỤNG ĐẶC THÙ"
-                                   FontWeight="Bold" FontSize="12" Foreground="{StaticResource Accent}" Margin="0,0,0,10" />
-
+                        <TextBlock Text="📊 THÔNG SỐ ĐẶC TÍNH &amp; KINH TẾ QUÂN SỰ"
+                                   FontWeight="Bold" FontSize="12" Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
                         <ItemsControl x:Name="DetailedStatsList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel Margin="0,0,0,6">
-                                        <TextBlock Text="{Binding Value}" TextAlignment="Right"
-                                                   FontWeight="SemiBold" Foreground="{StaticResource Text}"
-                                                   DockPanel.Dock="Right" MaxWidth="440" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding Key}" FontSize="12"
-                                                   Foreground="{StaticResource Muted}" />
-                                    </DockPanel>
+                                    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                            BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,0,0,6">
+                                        <DockPanel>
+                                            <TextBlock Text="{Binding Key}" FontWeight="SemiBold" FontSize="12"
+                                                       Foreground="{StaticResource Text}" Width="160" />
+                                            <TextBlock Text="{Binding Value}" FontSize="12"
+                                                       Foreground="{StaticResource Accent}" TextWrapping="Wrap" />
+                                        </DockPanel>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </StackPanel>
                 </Border>
 
-                <!-- 3. Sourcing & Acquisition -->
+                <!-- 3. Sourcing & Gathering Guide -->
                 <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
                         BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
                     <StackPanel>
@@ -188,11 +290,11 @@
         <!-- ===== Footer: Action Buttons ===== -->
         <Border Grid.Row="2" Padding="0,10,0,0" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0">
             <DockPanel>
-                <TextBlock Text="Phím ESC để đóng cửa sổ · Bách Vật Đồ Giám SimT"
+                <TextBlock Text="Phím ESC để đóng cửa sổ · Bách Vật Đồ Giám &amp; Kho Thương Điếm SimT"
                            VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource Muted}" />
-                <Button Content="Đóng Đồ Giám" Style="{StaticResource PrimaryButton}"
-                        HorizontalAlignment="Right" Padding="18,6"
-                        Click="CloseButton_Click" />
+                <controls:GameButton Label="Đóng Đồ Giám" Variant="Primary"
+                                     HorizontalAlignment="Right"
+                                     Click="CloseButton_Click" />
             </DockPanel>
         </Border>
     </Grid>

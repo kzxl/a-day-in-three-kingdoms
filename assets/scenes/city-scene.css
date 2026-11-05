@@ -39,10 +39,10 @@
 
 /* Architectural Hotspots */
 .tk-hotspot {
-  position: absolute; transform: translate(-50%, -50%); z-index: 6;
+  position: absolute; transform: translate(-50%, -50%); z-index: 120;
   display: inline-flex; align-items: center; gap: 8px;
   height: 36px; padding: 0 13px;
-  background: rgba(24, 18, 13, 0.90);
+  background: rgba(24, 18, 13, 0.92);
   border: 1px solid var(--gold); border-left: 3px solid var(--vermilion);
   border-radius: 4px; color: var(--ink);
   font-family: var(--font-display); font-size: 13px; font-weight: 700;
@@ -52,7 +52,8 @@
 .tk-hotspot:hover {
   transform: translate(-50%, -54%) scale(1.04);
   border-color: var(--gold-hover);
-  background: rgba(46, 33, 22, 0.96);
+  background: rgba(46, 33, 22, 0.98);
+  z-index: 135;
 }
 .tk-hotspot-dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -61,30 +62,35 @@
 
 /* Standing NPC Sprites */
 .tk-city-npc {
-  position: absolute; transform: translate(-50%, -100%); z-index: 7;
+  position: absolute; transform: translate(-50%, -100%); z-index: 70;
   display: flex; flex-direction: column; align-items: center;
   background: none; border: none; cursor: pointer; padding: 0;
 }
+.tk-city-npc:hover, .tk-city-npc:focus-visible {
+  z-index: 140 !important;
+}
 .tk-city-npc-label {
   margin-bottom: 6px; padding: 3px 9px; border-radius: 3px;
-  background: rgba(24, 18, 13, 0.92); border: 1px solid rgba(196, 160, 98, 0.55);
+  background: rgba(24, 18, 13, 0.96); border: 1px solid rgba(196, 160, 98, 0.72);
   color: var(--ink); font-family: var(--font-body); font-size: 11.5px; font-weight: 600;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65);
-  opacity: 0.88; transition: opacity 0.14s ease, transform 0.14s ease, border-color 0.14s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
+  opacity: 0; pointer-events: none; transform: translateY(4px);
+  transition: opacity 0.14s ease, transform 0.14s ease, border-color 0.14s ease;
 }
 .tk-city-npc-role {
   display: block; font-size: 10px; font-weight: 400; color: var(--gold);
 }
 .tk-city-npc-sprite {
-  height: 102px; width: auto; object-fit: contain;
+  height: calc(104px * var(--npc-scale, 1)); width: auto; object-fit: contain;
   image-rendering: pixelated;
   filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.78));
   animation: tkCityNpcBreath 4.2s ease-in-out infinite;
   transform-origin: 50% 100%;
 }
 .tk-city-npc:nth-child(even) .tk-city-npc-sprite { animation-delay: 1.4s; }
-.tk-city-npc:hover .tk-city-npc-label {
-  opacity: 1; transform: translateY(-3px); border-color: var(--gold-hover);
+.tk-city-npc:hover .tk-city-npc-label,
+.tk-city-npc:focus-visible .tk-city-npc-label {
+  opacity: 1; transform: translateY(-4px); border-color: var(--gold-hover);
 }
 .tk-city-npc:hover .tk-city-npc-sprite {
   filter: brightness(1.12) drop-shadow(0 10px 14px rgba(196, 160, 98, 0.45));
@@ -96,7 +102,7 @@
 
 /* Mini Event Card (Du ngoạn phố) */
 .tk-city-event-card {
-  position: absolute; left: 24px; bottom: 20px; width: 460px; z-index: 9;
+  position: absolute; left: 24px; bottom: 20px; width: min(460px, calc(100% - 48px)); z-index: 150;
   padding: 14px 18px; border-radius: 4px;
   background: linear-gradient(180deg, var(--silk) 0%, var(--silk-deep) 100%);
   border: 1px solid #9e845c; border-left: 5px solid var(--vermilion);

@@ -92,7 +92,17 @@ public partial class App : Application
 
         if (ownsDirectory && Directory.Exists(root))
         {
-            Directory.Delete(root, recursive: true);
+            try
+            {
+                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                Directory.Delete(root, recursive: true);
+            }
+            catch
+            {
+                // Best-effort cleanup of temp smoke folder on Windows
+            }
         }
 
         return code;

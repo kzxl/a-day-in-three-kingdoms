@@ -63,7 +63,7 @@ public sealed class SceneContractsTests
 
         var merchant = SceneArtCatalog.ResolveNpcArt("npc_9999", "merchant");
         Assert.Equal("art/portraits/merchant/full.webp", merchant.PortraitFull);
-        Assert.Equal("art/sprites/traveler.png", merchant.SpritePath);
+        Assert.Equal("art/sprites/civ_merchant.png", merchant.SpritePath);
         Assert.Equal("Thương nhân", RoleTitleVi.Format("merchant"));
         Assert.Equal("Chưởng quỹ quán trọ", RoleTitleVi.Format("tavern"));
 

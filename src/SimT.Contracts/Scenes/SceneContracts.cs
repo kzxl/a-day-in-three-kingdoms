@@ -191,82 +191,72 @@ public static class RoleTitleVi
         };
     }
 
-    public static string ToArchetypeKey(string? rawRole)
+    public static string ToArchetypeKey(string? rawRole) =>
+        SceneArtCatalog.ClassifyArchetype(npcCode: null, rawRole: rawRole);
+
+    public static string FormatPersonality(string? rawPersonality)
     {
-        if (string.IsNullOrWhiteSpace(rawRole))
-            return "commoner";
+        if (string.IsNullOrWhiteSpace(rawPersonality))
+            return "Trầm ổn";
 
-        return rawRole.Trim().ToLowerInvariant() switch
+        var trimmed = rawPersonality.Trim();
+        return trimmed.ToUpperInvariant() switch
         {
-            "general" or "commander" or "warlord" or "warrior" or "guard" or "captain" => "general",
-            "scholar" or "literati" or "strategist" or "advisor" or "official" or "governor" or "physician" => "scholar",
-            "merchant" or "trader" or "shopkeeper" or "tavern" or "innkeeper" => "merchant",
-            "elder" or "patriarch" or "monk" or "taoist" => "elder",
-            "lady" or "noblewoman" or "dancer" => "lady",
-            "swordswoman" or "heroine" => "swordswoman",
-            "archer" or "bowman" => "archer",
-            "rebel" or "bandit" => "rebel",
-            _ => "commoner"
-        };
-    }
-}
-
-/// <summary>
-/// Resolves portrait, sprite, and background paths under <c>assets/scenes/art/</c>
-/// matching <c>assets/scenes/art/manifest.json</c>.
-/// </summary>
-public static class SceneArtCatalog
-{
-    public const string PlayerPortraitFace = "art/portraits/player/face.webp";
-    public const string PlayerPortraitFull = "art/portraits/player/full.webp";
-    public const string PlayerSprite = "art/sprites/traveler.png";
-
-    public static (string PortraitFull, string PortraitFace, string SpritePath) ResolveNpcArt(string? npcCode, string? rawRole)
-    {
-        var (portraitKey, spriteKey) = (npcCode ?? string.Empty).Trim().ToLowerInvariant() switch
-        {
-            "npc_0001" => ("liu_bei", "liu_bei"),
-            "npc_0002" => ("zhang_fei", "zhang_fei"),
-            "npc_0003" => ("guan_yu", "guan_yu"),
-            "npc_0022" => ("cao_cao", "cao_cao"),
-            "npc_0025" => ("zhuge_liang", "zhuge_liang"),
-            "npc_0057" => ("lu_bu", "lu_bu"),
-            "npc_0140" => ("lady", "female_warrior"),
-            _ => ResolveArchetypeKeys(rawRole)
-        };
-
-        return (
-            $"art/portraits/{portraitKey}/full.webp",
-            $"art/portraits/{portraitKey}/face.webp",
-            $"art/sprites/{spriteKey}.png");
-    }
-
-    public static (string PortraitKey, string SpriteKey) ResolveArchetypeKeys(string? rawRole)
-    {
-        var archetype = RoleTitleVi.ToArchetypeKey(rawRole);
-        return archetype switch
-        {
-            "general" => ("general", "han_officer"),
-            "scholar" => ("scholar", "zhuge_liang"),
-            "merchant" => ("merchant", "traveler"),
-            "elder" => ("elder", "zhuge_liang"),
-            "lady" => ("lady", "female_warrior"),
-            "swordswoman" => ("swordswoman", "female_warrior"),
-            "archer" => ("general", "han_archer"),
-            "rebel" => ("general", "yellow_turban"),
-            _ => ("commoner", "han_infantry")
+            "VALIANT" => "Dũng mãnh",
+            "SCHOLARLY" => "Nho nhã",
+            "PRAGMATIC" => "Thực tế",
+            "BENEVOLENT" => "Nhân đức",
+            "HONORABLE" => "Nghĩa khí",
+            "FIERCE" => "Mãnh liệt",
+            "CAUTIOUS" => "Thận trọng",
+            "AMBITIOUS" => "Hùng tâm",
+            "DILIGENT" => "Cần mẫn",
+            "CUNNING" => "Thâm mưu",
+            "LOYAL" => "Trung nghĩa",
+            _ => IsAllAsciiUpper(trimmed) ? "Trầm ổn" : trimmed
         };
     }
 
-    public static string BackgroundForKey(string key) => key.Trim().ToLowerInvariant() switch
+    public static string FormatRegion(string? rawRegion)
     {
-        "market" => "art/backgrounds/market.png",
-        "arena" => "art/backgrounds/arena.png",
-        "gate" => "art/backgrounds/gate.png",
-        "hall" => "art/backgrounds/hall.png",
-        "field" => "art/backgrounds/field.png",
-        _ => "art/backgrounds/street.png"
-    };
+        if (string.IsNullOrWhiteSpace(rawRegion))
+            return "Trung Nguyên";
+
+        var trimmed = rawRegion.Trim();
+        return trimmed.ToLowerInvariant() switch
+        {
+            "trung_nguyen" => "Trung Nguyên",
+            "quan_trung" => "Quan Trung",
+            "ha_bac" => "Hà Bắc",
+            "u_chau" => "U Châu",
+            "ky_chau" => "Ký Châu",
+            "thanh_chau" => "Thanh Châu",
+            "du_chau" => "Dự Châu",
+            "tu_chau" => "Từ Châu",
+            "kinh_chau" => "Kinh Châu",
+            "giang_dong" => "Giang Đông",
+            "duong_chau" => "Dương Châu",
+            "ich_chau" => "Ích Châu",
+            "luong_chau" or "tay_luong" => "Tây Lương",
+            "ung_chau" => "Ung Châu",
+            "giao_chau" => "Giao Châu",
+            "nam_trung" => "Nam Trung",
+            "quang_chau" => "Quảng Châu",
+            "duyen_chau" => "Duyên Châu",
+            "tinh_chau" => "Tịnh Châu",
+            _ => trimmed.Contains('_') ? trimmed.Replace('_', ' ') : trimmed
+        };
+    }
+
+    private static bool IsAllAsciiUpper(string text)
+    {
+        foreach (var ch in text)
+        {
+            if (ch is >= 'a' and <= 'z' || ch > 127)
+                return false;
+        }
+        return true;
+    }
 }
 
 /// <summary>

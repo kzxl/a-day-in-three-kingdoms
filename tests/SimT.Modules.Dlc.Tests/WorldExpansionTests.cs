@@ -14,12 +14,12 @@ public sealed class WorldExpansionTests : IDisposable
         kernel.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
 
     [Fact]
-    public void WorldMap_contains_15_historical_citadels()
+    public void WorldMap_contains_20_historical_citadels()
     {
         using var kernel = _host.Boot();
         var map = Map(kernel);
 
-        Assert.Equal(15, map.Citadels.Count);
+        Assert.Equal(20, map.Citadels.Count);
 
         // Core 3 citadels
         Assert.NotNull(map.Find(1)); // Lạc Dương
@@ -38,6 +38,26 @@ public sealed class WorldExpansionTests : IDisposable
         Assert.Equal("thanh_do", chengdu.Code);
         Assert.Equal("Thành Đô", chengdu.NameVi);
         Assert.Equal("ich_chau", chengdu.Region);
+
+        var uyenThanh = map.Find(16);
+        Assert.NotNull(uyenThanh);
+        Assert.Equal("uyen_thanh", uyenThanh.Code);
+
+        var thoXuan = map.Find(17);
+        Assert.NotNull(thoXuan);
+        Assert.Equal("tho_xuan", thoXuan.Code);
+
+        var thuongDang = map.Find(18);
+        Assert.NotNull(thuongDang);
+        Assert.Equal("thuong_dang", thuongDang.Code);
+
+        var tayLuong = map.Find(19);
+        Assert.NotNull(tayLuong);
+        Assert.Equal("tay_luong", tayLuong.Code);
+
+        var giaoChi = map.Find(20);
+        Assert.NotNull(giaoChi);
+        Assert.Equal("giao_chi", giaoChi.Code);
     }
 
     [Fact]
@@ -57,6 +77,14 @@ public sealed class WorldExpansionTests : IDisposable
         // Hán Trung (14) <-> Thành Đô (15): 4 days
         Assert.Equal(4, map.TravelDays(14, 15));
         Assert.Equal(4, map.TravelDays(15, 14));
+
+        // Trường An (2) <-> Tây Lương (19): 4 days
+        Assert.Equal(4, map.TravelDays(2, 19));
+        Assert.Equal(4, map.TravelDays(19, 2));
+
+        // Giang Lăng (12) <-> Giao Chỉ (20): 7 days
+        Assert.Equal(7, map.TravelDays(12, 20));
+        Assert.Equal(7, map.TravelDays(20, 12));
 
         // Non-adjacent citadels return 0
         Assert.Equal(0, map.TravelDays(4, 15));
@@ -80,7 +108,7 @@ public sealed class WorldExpansionTests : IDisposable
     }
 
     [Fact]
-    public void WorldMap_screen_is_registered_and_renders_15_citadels()
+    public void WorldMap_screen_is_registered_and_renders_20_citadels()
     {
         using var kernel = _host.Boot();
         var screen = kernel.Ui.Screens.FirstOrDefault(s => s.ScreenId == "world.map");
@@ -93,7 +121,7 @@ public sealed class WorldExpansionTests : IDisposable
         Assert.NotEmpty(model.Sections);
 
         var totalRows = model.Sections.Sum(sec => sec.Rows.Count);
-        Assert.Equal(15, totalRows);
+        Assert.Equal(20, totalRows);
         Assert.Contains(model.Headline, m => m.Label == "Thành Đang Trú");
     }
 

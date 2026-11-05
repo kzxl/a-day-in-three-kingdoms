@@ -177,7 +177,7 @@ internal sealed class CourtScreen : IScreenContribution
         {
             new("Cửu Phẩm Quan Chế Triều Đình", OfficeColumns, officeRows),
             new("Thế Lực Chư Hầu Tam Quốc (12 Lộ)", FactionColumns, factionRows),
-            new("Chính Sự & Trị An Châu Quận (15 Thành)", CityColumns, govRows)
+            new($"Chính Sự & Trị An Châu Quận ({govRows.Count} Thành)", CityColumns, govRows)
         };
 
         if (logRows.Count > 0)

@@ -36,6 +36,7 @@ public static class CapabilityIds
     public const string MerchantRivalry = "society.merchant_rivalry";
     public const string KarmaEngine = "society.karma";
     public const string Dialogue = "dlc.dialogue";
+    public const string EventPublisher = "core.events";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>
@@ -441,6 +442,25 @@ public enum StrollEventType
     KarmaFruition
 }
 
+/// <summary>Interactive dialogue or decision option presented during a stroll encounter.</summary>
+public sealed record StrollChoiceOption(
+    string Key,
+    string LabelVi,
+    string DescriptionVi,
+    string? CostSummary = null,
+    bool IsRecommended = false);
+
+/// <summary>Merchandise offered by an itinerant wandering merchant during city stroll.</summary>
+public sealed record StrollMerchantOffer(
+    long ItemId,
+    string ItemCode,
+    string ItemNameVi,
+    string CategoryVi,
+    string VisualIcon,
+    long UnitPrice,
+    int Quantity,
+    string DescriptionVi);
+
 /// <summary>Outcome of a city stroll exploration action.</summary>
 public sealed record StrollResult(
     bool Ok,
@@ -450,10 +470,17 @@ public sealed record StrollResult(
     string RewardSummary,
     StrollEventType EventType,
     int FatigueDelta,
-    int StressRelief);
+    int StressRelief,
+    bool RequiresChoice = false,
+    IReadOnlyList<StrollChoiceOption>? Choices = null,
+    IReadOnlyList<StrollMerchantOffer>? MerchantOffers = null,
+    long TargetNpcId = 0);
 
 /// <summary>City stroll and urban random encounter capability (<c>world.stroll</c>).</summary>
 public interface ICityStroll
 {
     StrollResult Stroll(long cityId);
+
+    /// <summary>Resolves a player interactive choice (e.g. merchant purchase or NPC social interaction).</summary>
+    StrollResult ResolveChoice(long cityId, string choiceKey, string? param = null);
 }

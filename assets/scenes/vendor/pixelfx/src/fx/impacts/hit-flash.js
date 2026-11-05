@@ -31,7 +31,8 @@ export const act = {
 const BEATS = [[0.025, "white"], [0.058, "white2"], [0.125, "red"], [0.158, "rim"], [0.36, "cool"]];
 
 export function create(o) {
-  const C = fit(o.palette, 7), R = new Rng(o.seed), A = o.actor, M = A.mask, PX = A.pixels, S = o.side;
+  const fallbackActor = { x: -8, y: -36, chest: [0, -20], mask: { w: 1, h: 1, data: new Uint8Array(1) }, pixels: new Uint32Array(1) };
+  const C = fit(o.palette, 7), R = new Rng(o.seed), A = o.actor ?? fallbackActor, M = A.mask ?? fallbackActor.mask, PX = A.pixels ?? fallbackActor.pixels, S = o.side ?? 1;
   const [cx, cy] = A.chest, hx = cx + S * 12, hy = cy - 5; // where the blow lands: the character's front, chest high
   const lights = new Lights();
   lights.add(hx, hy, 34, WHITE, 0.6, 0.1);

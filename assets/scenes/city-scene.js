@@ -1,5 +1,6 @@
 import { SimTBridge } from './bridge.js';
-import { createFrame, clearFrame, createFx, composite } from './vendor/pixelfx/src/core/index.js';
+import { createFrame, clearFrame, composite } from './vendor/pixelfx/src/core/index.js';
+import { safeCreateFx } from './duel-scene.js';
 import * as cherryBlossoms from './vendor/pixelfx/src/fx/weather/cherry-blossoms.js';
 import * as fallingLeaves from './vendor/pixelfx/src/fx/weather/falling-leaves.js';
 import * as snowFx from './vendor/pixelfx/src/fx/weather/snow.js';
@@ -9,6 +10,9 @@ let rafId = null;
 
 function escapeHtml(str) {
   return String(str ?? '')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -50,10 +54,14 @@ function renderCityScene(container, scene, bridge) {
     </button>
   `).join('');
 
-  const npcsHtml = npcs.map((n) => `
+  const npcsHtml = npcs.map((n) => {
+    const yPct = Number(n.yPercent || 78);
+    const scale = Math.max(0.68, Math.min(1.06, 0.48 + ((yPct - 62) / 30) * 0.56));
+    const zIdx = 10 + Math.round(yPct);
+    return `
     <button type="button"
             class="tk-city-npc"
-            style="left:${n.xPercent}%; top:${n.yPercent}%"
+            style="left:${n.xPercent}%; top:${yPct}%; --npc-scale:${scale.toFixed(2)}; z-index:${zIdx}"
             data-nav-target="npc:${n.npcId}"
             title="Diện kiến ${escapeHtml(n.nameVi)} (${escapeHtml(n.roleVi)})">
       <div class="tk-city-npc-label tk-one">
@@ -62,7 +70,8 @@ function renderCityScene(container, scene, bridge) {
       </div>
       <img class="tk-city-npc-sprite" src="${escapeHtml(n.spritePath)}" alt="${escapeHtml(n.nameVi)}" />
     </button>
-  `).join('');
+  `;
+  }).join('');
 
   const eventHtml = ev ? `
     <aside class="tk-city-event-card" id="tk-city-event-card">
@@ -138,11 +147,11 @@ function renderCityScene(container, scene, bridge) {
     const ctx = canvas.getContext('2d');
     const frame = createFrame(480, 270);
     const imgData = ctx.createImageData(480, 270);
-    const fxA = createFx(weatherMod, { x: 140, y: 135, seed: 11 });
-    const fxB = createFx(weatherMod, { x: 340, y: 135, seed: 29 });
+    const fxA = safeCreateFx(weatherMod, { x: 140, y: 135, seed: 11 });
+    const fxB = safeCreateFx(weatherMod, { x: 340, y: 135, seed: 29 });
     // Pre-warm weather so particles are already falling on initial frame
-    fxA.update(1.5);
-    fxB.update(2.4);
+    if (fxA) fxA.update(1.5);
+    if (fxB) fxB.update(2.4);
     let prev = performance.now();
 
     const tick = (now) => {
@@ -150,10 +159,8 @@ function renderCityScene(container, scene, bridge) {
       const dt = Math.min(0.05, (now - prev) / 1000);
       prev = now;
       clearFrame(frame);
-      fxA.update(dt);
-      fxB.update(dt);
-      fxA.draw(frame);
-      fxB.draw(frame);
+      if (fxA) { fxA.update(dt); fxA.draw(frame); }
+      if (fxB) { fxB.update(dt); fxB.draw(frame); }
       composite(frame, imgData.data, null, 1);
       ctx.putImageData(imgData, 0, 0);
       rafId = requestAnimationFrame(tick);

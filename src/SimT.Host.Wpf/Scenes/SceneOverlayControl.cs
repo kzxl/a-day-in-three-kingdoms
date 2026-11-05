@@ -78,10 +78,12 @@ public sealed class SceneOverlayControl : Border, IDisposable
 
         try
         {
+            var extraArgs = Environment.GetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS");
+            var hasExtraArgs = !string.IsNullOrWhiteSpace(extraArgs);
             var userDataDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "SimT",
-                "webview");
+                hasExtraArgs ? "webview-cdp" : "webview");
             Directory.CreateDirectory(userDataDir);
 
             _webView = new WebView2
@@ -92,11 +94,12 @@ public sealed class SceneOverlayControl : Border, IDisposable
             };
             Child = _webView;
 
-            var env = await CoreWebView2Environment.CreateAsync(null, userDataDir);
+            var envOptions = hasExtraArgs ? new CoreWebView2EnvironmentOptions(extraArgs) : null;
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataDir, envOptions);
             await _webView.EnsureCoreWebView2Async(env);
 
             var core = _webView.CoreWebView2;
-            ConfigureSettings(core);
+            ConfigureSettings(core, hasExtraArgs);
 
             core.SetVirtualHostNameToFolderMapping(
                 "simt.scene",
@@ -232,7 +235,7 @@ public sealed class SceneOverlayControl : Border, IDisposable
         ClientMessageReceived?.Invoke(message, _activeScene);
     }
 
-    private static void ConfigureSettings(CoreWebView2 core)
+    private static void ConfigureSettings(CoreWebView2 core, bool enableDevTools = false)
     {
         var settings = core.Settings;
         settings.IsStatusBarEnabled = false;
@@ -245,7 +248,7 @@ public sealed class SceneOverlayControl : Border, IDisposable
         settings.AreDefaultContextMenusEnabled = true;
         settings.AreBrowserAcceleratorKeysEnabled = true;
 #else
-        settings.AreDevToolsEnabled = false;
+        settings.AreDevToolsEnabled = enableDevTools;
         settings.AreDefaultContextMenusEnabled = false;
         settings.AreBrowserAcceleratorKeysEnabled = false;
 #endif

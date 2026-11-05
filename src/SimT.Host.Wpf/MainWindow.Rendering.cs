@@ -51,6 +51,7 @@ public partial class MainWindow
         {
             RenderLedger();
             RefreshBadges();
+            AnimatePageTransition();
             return;
         }
 
@@ -72,6 +73,23 @@ public partial class MainWindow
         {
             RenderWorldMapScreen(model);
             RefreshBadges();
+            AnimatePageTransition();
+            return;
+        }
+
+        if (entry.ScreenId == "player.destiny")
+        {
+            RenderDestinyTreeScreen(model);
+            RefreshBadges();
+            AnimatePageTransition();
+            return;
+        }
+
+        if (entry.ScreenId == "cultivation.farm")
+        {
+            RenderFarmFieldScreen(model);
+            RefreshBadges();
+            AnimatePageTransition();
             return;
         }
 
@@ -144,6 +162,21 @@ public partial class MainWindow
         ContentPanel.Children.Add(MonthFooter());
         RestoreDetail(model);
         RefreshBadges();
+        AnimatePageTransition();
+    }
+
+    private void AnimatePageTransition()
+    {
+        var animOpacity = new System.Windows.Media.Animation.DoubleAnimation(0.25, 1.0, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new System.Windows.Media.Animation.QuarticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+        };
+        var animTranslate = new System.Windows.Media.Animation.DoubleAnimation(10.0, 0.0, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new System.Windows.Media.Animation.QuarticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+        };
+        PageTransform.BeginAnimation(TranslateTransform.YProperty, animTranslate);
+        PageRoot.BeginAnimation(OpacityProperty, animOpacity);
     }
 
     private void RenderLedger()
@@ -223,7 +256,7 @@ public partial class MainWindow
         if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
             _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
         {
-            var mapCtrl = new Controls.GameWorldMapControl(map, player.CurrentCityId);
+            var mapCtrl = new Controls.GameWorldMapControl(map, player.CurrentCityId, _kernel);
             mapCtrl.TravelRequested += async (targetId, mode) =>
             {
                 var modeStr = mode switch
@@ -245,6 +278,140 @@ public partial class MainWindow
         ContentPanel.Children.Add(MonthFooter());
         RestoreDetail(model);
         RefreshBadges();
+        AnimatePageTransition();
+    }
+
+
+
+    private void RenderDestinyTreeScreen(ScreenModel model)
+    {
+        ScreenTitle.Text = model.Title;
+        ScreenStatus.Text = model.StatusLine;
+
+        KpiStrip.Children.Clear();
+        foreach (var metric in model.Headline)
+        {
+            KpiStrip.Children.Add(BuildMetric(metric));
+        }
+
+        AlertFeed.ItemsSource = model.Attention.Count == 0
+            ? null
+            : model.Attention.Select(alert => new AlertVm(alert)).ToList();
+
+        GlobalCommands.Children.Clear();
+        foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
+        {
+            GlobalCommands.Children.Add(CommandButton(command, command.Id));
+        }
+
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+
+        ContentPanel.Children.Clear();
+
+        // 1. Interactive PoE-Style Visual Destiny Tree Canvas Control
+        if (_kernel.Capabilities.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var destiny) && destiny is not null)
+        {
+            var treeCtrl = new Controls.GameDestinyTreeControl(destiny);
+            treeCtrl.LearnRequested += async nodeId =>
+            {
+                await ExecuteScreenCommandAsync($"destiny:learn:{nodeId}", "player.destiny");
+            };
+            treeCtrl.RespecRequested += async () =>
+            {
+                await ExecuteScreenCommandAsync("destiny:respec", "player.destiny");
+            };
+            treeCtrl.EvaluateRequested += async () =>
+            {
+                await ExecuteScreenCommandAsync("destiny:evaluate", "player.destiny");
+            };
+            ContentPanel.Children.Add(treeCtrl);
+        }
+
+        // 2. Tabular Milestones & Breakthrough Achievements
+        var milestoneSection = model.Sections.FirstOrDefault(s => s.Heading.Contains("KỲ NGỘ", StringComparison.OrdinalIgnoreCase))
+            ?? model.Sections.LastOrDefault();
+
+        if (milestoneSection is not null)
+        {
+            ContentPanel.Children.Add(BuildCard(Filtered(milestoneSection)));
+        }
+
+        ContentPanel.Children.Add(MonthFooter());
+        RestoreDetail(model);
+        RefreshBadges();
+        AnimatePageTransition();
+    }
+
+    private void RenderFarmFieldScreen(ScreenModel model)
+    {
+        ScreenTitle.Text = model.Title;
+        ScreenStatus.Text = model.StatusLine;
+
+        KpiStrip.Children.Clear();
+        foreach (var metric in model.Headline)
+        {
+            KpiStrip.Children.Add(BuildMetric(metric));
+        }
+
+        AlertFeed.ItemsSource = model.Attention.Count == 0
+            ? null
+            : model.Attention.Select(alert => new AlertVm(alert)).ToList();
+
+        GlobalCommands.Children.Clear();
+        foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
+        {
+            GlobalCommands.Children.Add(CommandButton(command, command.Id));
+        }
+
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+
+        ContentPanel.Children.Clear();
+
+        // 1. Visual Farmland Tile Grid Control
+        if (_kernel.Capabilities.TryGet<ICultivationEstate>(CapabilityIds.CultivationEstate, out var estate) && estate is not null &&
+            _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
+            _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
+        {
+            var farmCtrl = new Controls.GameFarmFieldControl(estate, map, player.CurrentCityId, _kernel.Clock);
+            farmCtrl.RentRequested += async plotId =>
+            {
+                await ExecuteScreenCommandAsync($"rent:{plotId}", "cultivation.farm");
+            };
+            farmCtrl.PlantRequested += async (plotId, cropCode) =>
+            {
+                await ExecuteScreenCommandAsync($"plant:{plotId}:{cropCode}", "cultivation.farm");
+            };
+            farmCtrl.HarvestRequested += async plotId =>
+            {
+                await ExecuteScreenCommandAsync($"harvest:{plotId}", "cultivation.farm");
+            };
+            farmCtrl.FertilizeRequested += async plotId =>
+            {
+                await ExecuteScreenCommandAsync($"fertilize:{plotId}", "cultivation.farm");
+            };
+            farmCtrl.BuySeedRequested += async (cropCode, qty) =>
+            {
+                await ExecuteScreenCommandAsync($"buy_seed:{player.CurrentCityId}:{cropCode}:{qty}", "cultivation.farm");
+            };
+            farmCtrl.BuyFertilizerRequested += async qty =>
+            {
+                await ExecuteScreenCommandAsync($"buy_fertilizer:{player.CurrentCityId}:{qty}", "cultivation.farm");
+            };
+            ContentPanel.Children.Add(farmCtrl);
+        }
+
+        // 2. Auxiliary Sections (Facilities, Harvest History) below the field
+        foreach (var section in model.Sections.Where(s => !s.Heading.Contains("QUỸ ĐẤT", StringComparison.OrdinalIgnoreCase) && !s.Heading.StartsWith("KHU VỰC CANH TÁC", StringComparison.OrdinalIgnoreCase)))
+        {
+            ContentPanel.Children.Add(BuildCard(Filtered(section)));
+        }
+
+        ContentPanel.Children.Add(MonthFooter());
+        RestoreDetail(model);
+        RefreshBadges();
+        AnimatePageTransition();
     }
 
     private GameMetricCard BuildMetric(ScreenMetric metric) => new(metric);

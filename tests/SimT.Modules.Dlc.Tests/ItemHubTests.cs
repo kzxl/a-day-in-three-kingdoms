@@ -145,4 +145,60 @@ public sealed class ItemHubTests : IDisposable
         var filteredModel = screen.Render();
         Assert.Equal(3, filteredModel.Sections[0].Rows.Count);
     }
+    [Fact]
+    public void ItemHub_supports_warehouse_exchange_when_rented()
+    {
+        using var kernel = _host.Boot();
+        var warehouse = kernel.Capabilities.Get<IMarketWarehouse>(CapabilityIds.MarketWarehouse);
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+
+        Assert.NotNull(warehouse);
+        Assert.NotNull(bag);
+        Assert.NotNull(player);
+
+        var cityId = player.CurrentCityId;
+
+        // 1. Rent warehouse
+        var rentOk = warehouse.Rent(cityId, out var rentMsg);
+        Assert.True(rentOk, rentMsg);
+
+        // 2. Add 10 units of item 1 (lúa gạo) to bag
+        bag.Add(cityId, 1, 10);
+        Assert.Equal(10, bag.Quantity(cityId, 1));
+
+        // 3. Screen shows warehouse metrics and store command
+        var screen = kernel.Ui.Screens.FirstOrDefault(s => s.ScreenId == "content.item_hub");
+        Assert.NotNull(screen);
+        var model = screen.Render();
+        Assert.Contains(model.Headline, m => m.Label == "Kho Thương Điếm" && m.Value.Contains("/"));
+
+        var gaoRow = model.Sections[0].Rows.FirstOrDefault(r => r.Cells[1] == "gao");
+        Assert.NotNull(gaoRow);
+        Assert.Contains(gaoRow.Commands, c => c.Id == "store:1");
+
+        // 4. Execute store command through ItemHubScreen handler (store 4 units)
+        Assert.True(kernel.TryGetCommandHandler("content.item_hub", out var handler));
+        Assert.NotNull(handler);
+
+        var storeResult = handler.Execute("store:1:4");
+        Assert.NotNull(storeResult);
+        Assert.Equal(6, bag.Quantity(cityId, 1));
+
+        var stock = warehouse.Stock(cityId);
+        var whItem1 = stock.FirstOrDefault(s => s.ItemId == 1);
+        Assert.NotNull(whItem1);
+        Assert.Equal(4, whItem1.Quantity);
+
+        // 5. Execute take command through ItemHubScreen handler (take 2 units back)
+        var takeResult = handler.Execute("take:1:2");
+        Assert.NotNull(takeResult);
+        Assert.Equal(8, bag.Quantity(cityId, 1));
+
+        stock = warehouse.Stock(cityId);
+        whItem1 = stock.FirstOrDefault(s => s.ItemId == 1);
+        Assert.NotNull(whItem1);
+        Assert.Equal(2, whItem1.Quantity);
+    }
 }

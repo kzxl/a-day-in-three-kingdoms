@@ -57,7 +57,7 @@ public sealed class GamePortraitCard : Border
 
         // Top row: Portrait + Name/Role/Subtitle
         var topDock = new DockPanel { Margin = new Thickness(0, 0, 0, 9) };
-        var avatarBorder = BuildAvatarElement(npcCodeOrRole, roleVi, 52);
+        var avatarBorder = BuildAvatarElement(npcCodeOrRole, roleVi, 52, nameVi);
         avatarBorder.Margin = new Thickness(0, 0, 10, 0);
         DockPanel.SetDock(avatarBorder, Dock.Left);
         topDock.Children.Add(avatarBorder);
@@ -150,9 +150,9 @@ public sealed class GamePortraitCard : Border
         MouseLeftButtonUp += (_, _) => CardSelected?.Invoke();
     }
 
-    public static Border BuildAvatarElement(string? npcCode, string? role, double size = 34)
+    public static Border BuildAvatarElement(string? npcCode, string? role, double size = 34, string? nameVi = null)
     {
-        var (_, faceRel, spriteRel) = SceneArtCatalog.ResolveNpcArt(npcCode, role);
+        var (_, faceRel, spriteRel) = SceneArtCatalog.ResolveNpcArt(npcCode, role, nameVi: nameVi);
         var imgSource = TryLoadSceneImage(faceRel) ?? TryLoadSceneImage(spriteRel);
 
         var frame = new Border

@@ -8,6 +8,7 @@ using System.Windows.Data;
 using SimT.Contracts;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Products;
+using SimT.Contracts.Scenes;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 using SimT.Host.Wpf.Controls;
@@ -186,14 +187,14 @@ public partial class MainWindow : Window
         if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) && playerState is not null)
         {
             var citadelName = "Lạc Dương";
-            var shortCitadel = "Lạc Dương";
+            var regionName = "Trung Nguyên";
             if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
             {
                 var cit = map.Find(playerState.CurrentCityId);
                 if (cit is not null)
                 {
-                    shortCitadel = cit.NameVi;
-                    citadelName = $"{cit.NameVi} ({cit.Region})";
+                    citadelName = cit.NameVi;
+                    regionName = RoleTitleVi.FormatRegion(cit.Region);
                 }
             }
 
@@ -213,12 +214,12 @@ public partial class MainWindow : Window
             }
 
             CompactPlayerNameText.Text = playerState.Name;
-            CompactLocationText.Text = shortCitadel;
+            CompactLocationText.Text = citadelName;
             CompactVitalsText.Text = vitals is not null
                 ? $"Thể lực {vitals.CurrentStamina}/{vitals.MaxStamina} · Mệt {vitals.Fatigue}% · {shortStanding}"
                 : shortStanding;
 
-            PlayerHudCard.Configure(playerState.Name, citadelName, vitals, fameStanding);
+            PlayerHudCard.Configure(playerState.Name, citadelName, regionName, vitals, fameStanding);
         }
 
         RenderCalendar(today);
@@ -230,10 +231,6 @@ public partial class MainWindow : Window
             ? portfolio.InventoryValue()
             : 0;
 
-    /// <summary>
-    /// The month as thirty cells: past days fade, today is solid, day 30 is the close marker.
-    /// A management sim always shows the clock you are spending.
-    /// </summary>
     private void RenderCalendar(GameDate today)
     {
         CalendarBar.SetDate(today, _kernel.Turn);
@@ -247,7 +244,6 @@ public partial class MainWindow : Window
 
     // ---------------------------------------------------------- rail badges
 
-    /// <summary>Counts attention items per screen so the rail shows where the trouble is.</summary>
     private void RefreshBadges()
     {
         if (NavList.ItemsSource is not IEnumerable<NavEntry> entries)
@@ -281,7 +277,6 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Selects a screen by id; used by the demo launcher and future shortcuts.</summary>
     public void ShowNotification(string message, GameToastKind? kind = null)
     {
         StatusText.Text = message;
@@ -319,7 +314,6 @@ public partial class MainWindow : Window
         return true;
     }
 
-    /// <summary>Selects the first row of the first card; used by the demo launcher.</summary>
     public bool SelectFirstRow()
     {
         if (_firstSection is null || _firstSection.Rows.Count == 0)
@@ -337,11 +331,9 @@ public partial class MainWindow : Window
         return true;
     }
 
-    /// <summary>Runs a command through the normal path; used by the demo launcher.</summary>
     public void RunCommandForDemo(string commandId) =>
         RowCommand_Click(new Button { Tag = commandId }, new RoutedEventArgs());
 
-    /// <summary>Runs one day through the real button path; used by the demo launcher.</summary>
     public void AdvanceOneDayForDemo() => AdvanceSync(1);
 
     public int RenderAllScreens()
@@ -360,7 +352,6 @@ public partial class MainWindow : Window
         return rendered;
     }
 
-    /// <summary>Space advances a day, W a week, digits jump between screens, Esc closes the inspector.</summary>
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.OriginalSource is TextBox && e.Key != System.Windows.Input.Key.Escape)
@@ -428,7 +419,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+    private void Window_Closing(object sender, CancelEventArgs e)
     {
         SceneOverlay.Dispose();
         _kernel.Save();
@@ -458,4 +449,6 @@ public partial class MainWindow : Window
         var hash = full[(plus + 1)..];
         return $"Một Ngày Ở Tam Quốc {full[..plus]} · {hash[..Math.Min(7, hash.Length)]}";
     }
+
+    private static string FormatRegionName(string? regionCode) => RoleTitleVi.FormatRegion(regionCode);
 }

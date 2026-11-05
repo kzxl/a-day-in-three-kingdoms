@@ -25,7 +25,7 @@ internal sealed class DialogueService : IDialogueModule
         var lines = QueryLines("npc", npc.Code, tier);
         if (lines.Count == 0)
         {
-            var roleGroup = MapToSeededRoleGroup(npc.Role);
+            var roleGroup = MapToSeededRoleGroup(SceneArtCatalog.ClassifyArchetype(npc));
             lines = QueryLines("role", roleGroup, tier);
         }
 
@@ -56,8 +56,8 @@ internal sealed class DialogueService : IDialogueModule
                 lines.Insert(0, cleanFeedback);
         }
 
-        var (portraitFull, portraitFace, _) = SceneArtCatalog.ResolveNpcArt(npc.Code, npc.Role);
-        var bgPath = ResolveTalkBackground(npc.Role);
+        var (portraitFull, portraitFace, _) = SceneArtCatalog.ResolveNpcArt(npc);
+        var bgPath = ResolveTalkBackground(SceneArtCatalog.ClassifyArchetype(npc));
         var choices = BuildChoices(npc, playerState.CurrentCityId);
 
         var nearby = npcs.FindByCitadel(npc.CitadelId)
@@ -66,8 +66,11 @@ internal sealed class DialogueService : IDialogueModule
             .Take(5)
             .Select(n =>
             {
-                var art = SceneArtCatalog.ResolveNpcArt(n.Code, n.Role);
-                return new SceneNpcThumb(n.Id, n.NameVi, art.PortraitFace, n.Id == npc.Id);
+                var art = SceneArtCatalog.ResolveNpcArt(n);
+                var shortName = n.NameVi.Contains('(')
+                    ? n.NameVi[..n.NameVi.IndexOf('(')].Trim()
+                    : n.NameVi;
+                return new SceneNpcThumb(n.Id, shortName, art.PortraitFace, n.Id == npc.Id);
             })
             .ToList();
 
@@ -79,7 +82,7 @@ internal sealed class DialogueService : IDialogueModule
             NameHan: string.IsNullOrWhiteSpace(npc.NameHan) ? "漢" : npc.NameHan,
             StyleNameVi: npc.StyleNameVi,
             RoleVi: RoleTitleVi.Format(npc.Role),
-            PersonalityVi: string.IsNullOrWhiteSpace(npc.Personality) ? "Trầm ổn" : npc.Personality,
+            PersonalityVi: RoleTitleVi.FormatPersonality(npc.Personality),
             LocationNameVi: locationVi,
             LocationHan: locationHan,
             Affinity: affinity,

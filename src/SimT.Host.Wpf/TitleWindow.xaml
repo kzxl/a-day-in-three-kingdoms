@@ -6,7 +6,13 @@
         Background="{StaticResource Bg}"
         WindowStartupLocation="CenterScreen">
 
-    <Grid Margin="28">
+    <Grid x:Name="TitleRoot" Margin="28" RenderTransformOrigin="0.5,0.5" Opacity="0">
+        <Grid.RenderTransform>
+            <TransformGroup>
+                <ScaleTransform x:Name="TitleScale" ScaleX="0.97" ScaleY="0.97" />
+                <TranslateTransform x:Name="TitleTranslate" Y="8" />
+            </TransformGroup>
+        </Grid.RenderTransform>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -15,23 +21,29 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="MỘT NGÀY Ở TAM QUỐC" Style="{StaticResource Display}"
-                       Foreground="{StaticResource Accent}" />
-            <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0"
-                       Text="Mô phỏng thương nhân &amp; danh sĩ thời Hán mạt · một người chơi · offline · mỗi ván một database riêng" />
-            <TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0"
-                       Foreground="{StaticResource Faint}"
-                       Text="Khởi đầu năm 184 · lịch 12 tháng 30 ngày · đơn vị tiền Quan" />
-        </StackPanel>
+        <DockPanel Grid.Row="0">
+            <Border DockPanel.Dock="Right" Background="{StaticResource AccentSoft}" BorderBrush="{StaticResource Accent}"
+                    BorderThickness="1" CornerRadius="6" Padding="10,6" VerticalAlignment="Center">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="漢末天下" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Accent}" HorizontalAlignment="Center" />
+                    <TextBlock Text="Năm 184 · Quan" FontSize="10" Foreground="{StaticResource Muted}" HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="MỘT NGÀY Ở TAM QUỐC" Style="{StaticResource Display}"
+                           Foreground="{StaticResource Accent}" />
+                <TextBlock Style="{StaticResource Caption}" Margin="0,5,0,0"
+                           Text="Mô phỏng thương gia Tam Quốc · Thị trường độc lập · Vận hành thế sự triều đình và bang phái" />
+            </StackPanel>
+        </DockPanel>
 
         <Border Grid.Row="1" Margin="0,20,0,14" Padding="14,12"
                 Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
                 BorderThickness="1" CornerRadius="8">
             <DockPanel>
-                <controls:GameButton DockPanel.Dock="Right" Label="Tạo ván" Variant="Primary"
+                <controls:GameButton DockPanel.Dock="Right" Label="Khởi nghiệp" Variant="Primary"
                                      Click="New_Click" Margin="10,0,0,0" />
-                <TextBlock DockPanel.Dock="Left" Text="Tên ván mới" VerticalAlignment="Center"
+                <TextBlock DockPanel.Dock="Left" Text="Tên nhân vật / Hiệu buôn:" VerticalAlignment="Center"
                            Margin="0,0,12,0" Style="{StaticResource Caption}" />
                 <TextBox x:Name="NameBox" Text="Lữ Khách" />
             </DockPanel>
@@ -41,10 +53,13 @@
                  ItemContainerStyle="{StaticResource SaveItem}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <StackPanel>
-                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
-                        <TextBlock Style="{StaticResource Caption}" Text="{Binding Summary}" Margin="0,3,0,0" />
-                    </StackPanel>
+                    <DockPanel LastChildFill="True">
+                        <TextBlock Text="📜" FontSize="20" Margin="0,0,12,0" VerticalAlignment="Center" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource Text}" />
+                            <TextBlock Style="{StaticResource Caption}" Text="{Binding Summary}" Margin="0,3,0,0" Foreground="{StaticResource Muted}" />
+                        </StackPanel>
+                    </DockPanel>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
@@ -52,7 +67,7 @@
         <TextBlock x:Name="EmptyText" Grid.Row="2" Style="{StaticResource Caption}"
                    Foreground="{StaticResource Faint}" TextAlignment="Center"
                    VerticalAlignment="Center" Visibility="Collapsed"
-                   Text="Chưa có ván nào. Gõ tên rồi bấm Tạo ván." />
+                   Text="Chưa có dữ liệu ván chơi. Hãy nhập tên và chọn Khởi nghiệp để bắt đầu." />
 
         <DockPanel Grid.Row="3" Margin="0,16,0,0">
             <controls:GameButton DockPanel.Dock="Left" Label="Quản Lý DLC" Variant="Secondary"

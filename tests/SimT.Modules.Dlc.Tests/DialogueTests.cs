@@ -122,4 +122,36 @@ public sealed class DialogueTests
                 Directory.Delete(dir, recursive: true);
         }
     }
+
+    [Fact]
+    public void Classifies_hua_xiong_zhang_laoban_diaochan_and_sima_yi_to_correct_archetypes_and_lines()
+    {
+        using var host = new DlcTestHost();
+        using var kernel = host.Boot();
+
+        var dialogue = kernel.Capabilities.Get<IDialogueModule>(CapabilityIds.Dialogue);
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        var huaXiong = npcs.FindByCode("npc_0095")!;
+        var zhangLaoban = npcs.FindByCode("thuong_nhan_a")!;
+        var diaoChan = npcs.FindByCode("npc_0140")!;
+        var simaYi = npcs.FindByCode("npc_0039")!;
+
+        Assert.Equal("general", SceneArtCatalog.ClassifyArchetype(huaXiong));
+        Assert.Equal("merchant", SceneArtCatalog.ClassifyArchetype(zhangLaoban));
+        Assert.Equal("lady", SceneArtCatalog.ClassifyArchetype(diaoChan));
+        Assert.Equal("scholar", SceneArtCatalog.ClassifyArchetype(simaYi));
+
+        var huaXiongScene = dialogue.BuildTalkScene(huaXiong.Id);
+        Assert.Equal("art/portraits/general/full.webp", huaXiongScene.PortraitFull);
+        Assert.Equal("Dũng mãnh", huaXiongScene.PersonalityVi);
+        Assert.DoesNotContain(huaXiongScene.Lines, l => l.Contains("Dân đen chúng tôi", StringComparison.Ordinal));
+
+        var simaYiScene = dialogue.BuildTalkScene(simaYi.Id);
+        Assert.Equal("art/portraits/scholar/full.webp", simaYiScene.PortraitFull);
+        Assert.Equal("Nho nhã", simaYiScene.PersonalityVi);
+
+        Assert.Equal("Trung Nguyên", RoleTitleVi.FormatRegion("trung_nguyen"));
+        Assert.Equal("Quan Trung", RoleTitleVi.FormatRegion("quan_trung"));
+    }
 }

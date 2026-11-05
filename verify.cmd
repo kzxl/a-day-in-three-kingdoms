@@ -8,6 +8,9 @@ dotnet build SimT.sln -c Release --nologo -v q || exit /b 1
 echo == tests
 dotnet test SimT.sln -c Release --nologo --no-build || exit /b 1
 
+echo == check scenes (pixelfx + manifest)
+node tools/check-scenes.mjs || exit /b 1
+
 echo == golden replay (market slice)
 dotnet run --project src/SimT.Cli -c Release --no-build -- golden samples/merchant-30d.json samples/merchant-30d.expected.txt || exit /b 1
 

@@ -129,7 +129,12 @@ public sealed class WorldModule : ISimModule
                 new CitadelEcosystemDef(12, "Nam Quận Thành Lũy", "Mưa phùn sương khói mờ ảo", "Thành trì kiên cố đầm lầy nam Kinh Châu", "Gỗ Đóng Thuyền Chiến", "Lương Thảo Thủy Lộ", 2, 390, 440),
                 new CitadelEcosystemDef(13, "Giang Đông Thủy Quốc", "Nhiệt đới gió mùa mát rượi", "Kinh đô Đông Ngô bên bờ Thái Hồ", "Trà Long Tỉnh", "Tơ Lụa & Gốm Sứ Tinh Xảo", 1, 620, 390),
                 new CitadelEcosystemDef(14, "Tần Lĩnh Hiểm Đạo", "Sương giá mù sương núi cao", "Hiểm đạo Kiếm Các vách đá cheo leo", "Linh Chi & Trầm Hương", "Quặng Sắt Hán Trung", 3, 260, 340),
-                new CitadelEcosystemDef(15, "Thiên Phủ Ba Thục", "Ấm áp bốn mùa không tuyết", "Bình nguyên Ba Thục màu mỡ trù phú", "Thục Cẩm Danh Trấn", "Mật Gấu & Trà Thục Sơn", 1, 190, 430)
+                new CitadelEcosystemDef(15, "Thiên Phủ Ba Thục", "Ấm áp bốn mùa không tuyết", "Bình nguyên Ba Thục màu mỡ trù phú", "Thục Cẩm Danh Trấn", "Mật Gấu & Trà Thục Sơn", 1, 190, 430),
+                new CitadelEcosystemDef(16, "Nam Dương Yết Hầu", "Ôn hòa mưa thuận ven sông", "Bình nguyên Dục Thủy nối liền Trung Nguyên và Kinh Tương", "Thảo Dược Nam Dương", "Binh Giáp Tây Lương", 2, 425, 330),
+                new CitadelEcosystemDef(17, "Hoài Nam Trọng Trấn", "Ẩm ướt mưa nhiều bốn mùa", "Đồng bằng phì nhiêu ven bờ sông Hoài Thủy", "Lúa Nước Hoài Nam", "Binh Khí Hoài Thủy", 2, 530, 335),
+                new CitadelEcosystemDef(18, "Thái Hành Hiểm Trấn", "Khô lạnh gió núi Thái Hành", "Cao nguyên hiểm trở nhìn xuống Trung Nguyên", "Quặng Sắt Thượng Đảng", "Chiến Mã Tịnh Châu", 2, 370, 190),
+                new CitadelEcosystemDef(19, "Lương Châu Sa Mạc", "Gió cát khô lạnh sa mạc cằn cỗi", "Thảo nguyên sa mạc cửa ngõ Con Đường Tơ Lụa", "Hãn Huyết Chiến Mã", "Tơ Lụa Tây Vực & Đao Sắt", 3, 150, 190),
+                new CitadelEcosystemDef(20, "Lĩnh Nam Hải Lộ", "Nhiệt đới ẩm ấm gió biển quanh năm", "Đồng bằng duyên hải rừng rậm cận kề Biển Đông", "Nam Hải Dạ Minh Châu", "Trầm Hương Lĩnh Nam & Gỗ Quý", 2, 430, 475)
             };
 
             foreach (var eco in seedEcosystems)
