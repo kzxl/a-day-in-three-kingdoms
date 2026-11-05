@@ -1,4 +1,4 @@
-# Một Ngày Ở Tam Quốc (SimT)
+# A Day in the Three Kingdoms (Một Ngày Ở Tam Quốc · SimT)
 
 [![Build & Test](https://img.shields.io/badge/Tests-308%2F308%20Passed-emerald.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%20DLC%20Modular%20Monolith-blueviolet.svg)](docs/module-authoring.md)
