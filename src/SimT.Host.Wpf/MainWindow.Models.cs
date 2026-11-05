@@ -65,7 +65,7 @@ public partial class MainWindow
     }
 
     /// <summary>Row shape the DataGrid binds to: cells, chip buttons and the model behind it.</summary>
-    private sealed class RowVm
+    public sealed class RowVm
     {
         public RowVm(ScreenSection section, ScreenRow row, MainWindow owner)
         {
@@ -89,7 +89,7 @@ public partial class MainWindow
         public IReadOnlyList<ChipVm> Chips { get; }
     }
 
-    private sealed record ChipVm(ScreenCommand Command, Style Style)
+    public sealed record ChipVm(ScreenCommand Command, Style Style)
     {
         public string Id => Command.Id;
 

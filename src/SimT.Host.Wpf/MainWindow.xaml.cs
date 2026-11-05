@@ -34,7 +34,7 @@ public partial class MainWindow : Window
     private bool _loaded;
     private string _screenId = string.Empty;
     private string? _detailKey;
-    private DataGrid? _firstGrid;
+    private GameTable? _firstGrid;
     private ScreenSection? _firstSection;
     private string _filter = string.Empty;
 
@@ -45,6 +45,7 @@ public partial class MainWindow : Window
         _saves = saves;
         _meta = meta;
         _isSmoke = isSmoke;
+        ToastHost.SuppressTimers = isSmoke;
         InitializeSceneHost();
 
         CampaignText.Text = meta.Name;
@@ -281,8 +282,21 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Selects a screen by id; used by the demo launcher and future shortcuts.</summary>
+    public void ShowNotification(string message, GameToastKind? kind = null)
+    {
+        StatusText.Text = message;
+        ToastHost.ShowToast(message, kind);
+    }
+
     public bool SelectScreen(string screenId)
     {
+        if (string.Equals(screenId, UiGalleryScreenId, StringComparison.Ordinal))
+        {
+            _screenId = UiGalleryScreenId;
+            SceneOverlay.HideScene();
+            RenderUiGalleryScreen();
+            return true;
+        }
         if (NavList.ItemsSource is not IEnumerable<NavEntry> entries)
         {
             return false;
@@ -339,6 +353,9 @@ public partial class MainWindow : Window
             rendered++;
         }
 
+        SelectScreen(UiGalleryScreenId);
+        rendered++;
+
         UpdateLayout();
         return rendered;
     }
@@ -380,7 +397,7 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
             case System.Windows.Input.Key.Enter:
-                if (_firstGrid?.SelectedItem is RowVm selectedRow)
+                if (_firstGrid?.SelectedRowVm is RowVm selectedRow)
                 {
                     ShowInspector(selectedRow.Section, selectedRow.Row);
                     e.Handled = true;

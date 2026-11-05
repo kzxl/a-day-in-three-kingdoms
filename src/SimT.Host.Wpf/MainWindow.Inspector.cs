@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using SimT.Contracts.Ui;
 using SimT.Contracts.Playing;
+using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
 
@@ -31,6 +32,17 @@ public partial class MainWindow
 
         foreach (var detail in details)
         {
+            var cellVm = CellVm.Create(detail.Value);
+            if (cellVm.HasProgress)
+            {
+                var bar = new GameProgressBar(detail.Label, cellVm.ProgressValue, cellVm.ProgressMax, GameProgressTone.Affection, compact: true)
+                {
+                    Margin = new Thickness(0, 0, 0, 7)
+                };
+                InspectorBody.Children.Add(bar);
+                continue;
+            }
+
             var line = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
             var value = new TextBlock
             {
@@ -49,9 +61,9 @@ public partial class MainWindow
             InspectorBody.Children.Add(line);
         }
 
-        // Price Trend Chart Integration: If item has trade price history, render GamePriceChart
-        if (_kernel.Capabilities.TryGet<SimT.Contracts.Playing.IMarketTrade>(CapabilityIds.MarketTrade, out var trade) && trade is not null
-            && _kernel.Capabilities.TryGet<SimT.Contracts.Playing.IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
+        // Price Trend Chart Integration
+        if (_kernel.Capabilities.TryGet<IMarketTrade>(CapabilityIds.MarketTrade, out var trade) && trade is not null
+            && _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
         {
             long? tradeItemId = null;
             foreach (var cmd in row.Commands)
@@ -68,9 +80,11 @@ public partial class MainWindow
                 }
             }
 
-            if (!tradeItemId.HasValue && _kernel.Capabilities.TryGet<SimT.Contracts.Playing.IItemCatalog>(CapabilityIds.ItemCatalog, out var catalog) && catalog is not null)
+            if (!tradeItemId.HasValue && _kernel.Capabilities.TryGet<IItemCatalog>(CapabilityIds.ItemCatalog, out var catalog) && catalog is not null)
             {
-                var candidate = catalog.All.FirstOrDefault(i => string.Equals(i.NameVi, title, StringComparison.OrdinalIgnoreCase) || (row.Cells.Count > 0 && string.Equals(i.NameVi, row.Cells[0], StringComparison.OrdinalIgnoreCase)));
+                var candidate = catalog.All.FirstOrDefault(i =>
+                    string.Equals(i.NameVi, title, StringComparison.OrdinalIgnoreCase) ||
+                    (row.Cells.Count > 0 && string.Equals(i.NameVi, row.Cells[0], StringComparison.OrdinalIgnoreCase)));
                 if (candidate is not null)
                 {
                     tradeItemId = candidate.Id;
@@ -82,7 +96,7 @@ public partial class MainWindow
                 var history = trade.PriceHistory(player.CurrentCityId, tradeItemId.Value, 15);
                 if (history.Count > 0)
                 {
-                    var chart = new Controls.GamePriceChart();
+                    var chart = new GamePriceChart();
                     chart.SetData(title, history);
                     chart.Margin = new Thickness(0, 10, 0, 10);
                     InspectorBody.Children.Add(chart);
@@ -125,7 +139,7 @@ public partial class MainWindow
                 var bannerStack = new StackPanel();
                 bannerStack.Children.Add(new TextBlock
                 {
-                    Text = $"{matchedEntry.VisualIcon} {matchedEntry.Item.NameVi} · {matchedEntry.SubCategoryVi}",
+                    Text = $"{matchedEntry.Item.NameVi} · {matchedEntry.SubCategoryVi}",
                     FontWeight = FontWeights.Bold,
                     Foreground = (Brush)FindResource("Accent"),
                     FontSize = 12,
@@ -142,10 +156,12 @@ public partial class MainWindow
                     Margin = new Thickness(0, 0, 0, 6)
                 });
 
-                var modalQuickBtn = new Button
+                var modalQuickBtn = new GameButton(
+                    "Xem Đồ Giám Chi Tiết",
+                    GameButtonVariant.Secondary,
+                    iconPathData: "M12,3 L20,7.5 L20,16.5 L12,21 L4,16.5 L4,7.5 Z M12,12 L20,7.5 M12,12 L4,7.5 M12,12 L12,21",
+                    isCompact: true)
                 {
-                    Content = "🔍 Xem Đồ Giám Chi Tiết & Thông Số",
-                    Style = (Style)FindResource("ChipButton"),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
                 var entryId = matchedEntry.Item.Id;
@@ -172,11 +188,13 @@ public partial class MainWindow
                 var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
                 foreach (var command in quick)
                 {
-                    var chip = new Button
+                    var chip = new GameButton(
+                        command.Label,
+                        VariantFor(command.Kind),
+                        command.Cost,
+                        isCompact: true)
                     {
-                        Content = command.Label,
                         Tag = command.Id,
-                        Style = (Style)FindResource(command.Kind == CommandKind.Danger ? "DangerButton" : "ChipButton"),
                         Margin = new Thickness(0, 0, 6, 6)
                     };
                     chip.Click += RowCommand_Click;
@@ -194,10 +212,11 @@ public partial class MainWindow
             var modalCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("npc:modal:"));
             if (modalCmd is not null && long.TryParse(modalCmd.Id["npc:modal:".Length..], out var inspectorNpcId))
             {
-                var modalBtn = new Button
+                var modalBtn = new GameButton(
+                    "Xem Hồ Sơ Nhân Sĩ",
+                    GameButtonVariant.Secondary,
+                    iconPathData: "M12,11 A4,4 0 1,0 12,3 A4,4 0 1,0 12,11 M5,20 C5,16 8,14 12,14 C16,14 19,16 19,20")
                 {
-                    Content = "🔍 Xem Toàn Bộ Hồ Sơ Nhân Sĩ (Modal)",
-                    Style = (Style)FindResource("PrimaryButton"),
                     Margin = new Thickness(0, 8, 0, 6),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
@@ -207,10 +226,11 @@ public partial class MainWindow
                 var duelCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("duel:"));
                 if (duelCmd is not null)
                 {
-                    var duelBtn = new Button
+                    var duelBtn = new GameButton(
+                        "Tỷ Võ Lôi Đài",
+                        GameButtonVariant.Primary,
+                        iconPathData: "M4,20 L20,4 M15,4 L20,4 L20,9 M20,20 L4,4 M9,4 L4,4 L4,9")
                     {
-                        Content = "⚔️ Tỷ Võ Lôi Đài (Đơn Đấu Chiến Thuật)",
-                        Style = (Style)FindResource("PrimaryButton"),
                         Margin = new Thickness(0, 0, 0, 8),
                         HorizontalAlignment = HorizontalAlignment.Stretch
                     };
@@ -225,94 +245,27 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Quantity action: pick a number, read what it will cost, then commit. The preview text is
-    /// supplied by the module, so the host stays free of pricing rules.
+    /// Quantity action using GameQuantityPicker (−, +, slider, Tối đa, live total preview).
     /// </summary>
     private FrameworkElement BuildQuantityAction(ScreenCommand command)
     {
-        var quantity = new TextBox
-        {
-            Text = "1",
-            Width = 54,
-            TextAlignment = TextAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center
-        };
+        var picker = new GameQuantityPicker(
+            commandId: command.Id,
+            actionLabel: command.Label,
+            buttonVariant: VariantFor(command.Kind),
+            min: 1,
+            max: 50,
+            initial: 1,
+            previewFunc: command.Preview,
+            costText: command.Cost);
 
-        var preview = new TextBlock
-        {
-            Style = (Style)FindResource("Caption"),
-            Foreground = (Brush)FindResource("Faint"),
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 6, 0, 0)
-        };
-
-        var button = new Button
-        {
-            Content = command.Label,
-            Style = (Style)FindResource(StyleFor(command.Kind)),
-            Margin = new Thickness(8, 0, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Center
-        };
-
-        void Refresh()
-        {
-            var amount = ReadQuantity(quantity);
-            preview.Text = command.Preview?.Invoke(amount) ?? string.Empty;
-            button.Tag = $"{command.Id}:{amount}";
-        }
-
-        quantity.TextChanged += (_, _) => Refresh();
-        button.Click += RowCommand_Click;
-
-        var row = new Grid();
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        Grid.SetColumn(quantity, 0);
-        Grid.SetColumn(button, 1);
-        row.Children.Add(quantity);
-        row.Children.Add(button);
-
-        var stack = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-        stack.Children.Add(new TextBlock
-        {
-            Text = "SỐ LƯỢNG",
-            Style = (Style)FindResource("Overline"),
-            Margin = new Thickness(0, 0, 0, 4)
-        });
-        stack.Children.Add(row);
-        stack.Children.Add(preview);
-
-        if (command.Cost is not null)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = $"Tốn {command.Cost}",
-                Style = (Style)FindResource("Caption"),
-                Foreground = (Brush)FindResource("Accent"),
-                Margin = new Thickness(0, 2, 0, 0)
-            });
-        }
-
-        Refresh();
-        return stack;
+        picker.CommitClicked += RowCommand_Click;
+        return picker;
     }
-
-    private static int ReadQuantity(TextBox box) =>
-        int.TryParse(box.Text, NumberStyles.Integer, Vietnamese, out var value) && value > 0 ? value : 1;
 
     private void CloseInspector_Click(object sender, RoutedEventArgs e) => CloseInspector();
 
     private void Scrim_Click(object sender, System.Windows.Input.MouseButtonEventArgs e) => CloseInspector();
-
-    /// <summary>The ⋯ button on a row: open the drawer for that row.</summary>
-    private void OpenDetail_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { DataContext: RowVm row })
-        {
-            ShowInspector(row.Section, row.Row);
-        }
-    }
 
     private void CloseInspector()
     {
@@ -322,11 +275,9 @@ public partial class MainWindow
         InspectorBody.Children.Clear();
     }
 
-    /// <summary>Identity of a row across refreshes: the module's title, or its first cell.</summary>
     private static string DetailKey(ScreenRow row) =>
         row.Title ?? (row.Cells.Count > 0 ? row.Cells[0] : string.Empty);
 
-    /// <summary>Re-opens the drawer on the same row after an action re-rendered the page.</summary>
     private void RestoreDetail(ScreenModel model)
     {
         if (_detailKey is null)

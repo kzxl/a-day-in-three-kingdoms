@@ -122,7 +122,9 @@ public sealed record ScreenRow(
     IReadOnlyList<string> Cells,
     IReadOnlyList<ScreenCommand> Commands,
     string? Title = null,
-    IReadOnlyList<ScreenDetail>? Details = null)
+    IReadOnlyList<ScreenDetail>? Details = null,
+    string? IconHint = null,
+    string? RarityHint = null)
 {
     public static ScreenRow Of(IReadOnlyList<string> cells) => new(cells, Array.Empty<ScreenCommand>());
 

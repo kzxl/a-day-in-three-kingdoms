@@ -1,8 +1,8 @@
 using System.IO;
 using System.Windows;
-using System.Windows.Controls;
 using SimT.Contracts;
 using SimT.Contracts.Products;
+using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
 
@@ -16,7 +16,7 @@ public partial class TitleWindow : Window
         InitializeComponent();
         _saves = saves;
         DarkTitleBar.Apply(this);
-        VersionText.Text = $"SimT {App.Version()} · lưu tại {saves.Root}";
+        VersionText.Text = $"Một Ngày Ở Tam Quốc {App.Version()} · lưu tại {saves.Root}";
         Reload();
     }
 
@@ -90,9 +90,13 @@ public partial class TitleWindow : Window
             return;
         }
 
-        var confirm = MessageBox.Show(this, $"Xóa vĩnh viễn ván \"{selected.Name}\"?", "Xác nhận",
-            MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (confirm != MessageBoxResult.Yes)
+        if (!GameConfirmDialog.Ask(
+                this,
+                "Xác nhận xóa ván chơi",
+                $"Xóa vĩnh viễn ván \"{selected.Name}\"? Dữ liệu ván chơi này sẽ không thể khôi phục.",
+                "Xóa vĩnh viễn",
+                "Giữ lại",
+                isDanger: true))
         {
             return;
         }
@@ -113,12 +117,12 @@ public partial class TitleWindow : Window
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Không thể nạp thông tin DLC: {ex.Message}", "Quản Lý DLC", MessageBoxButton.OK, MessageBoxImage.Warning);
+                GameConfirmDialog.Alert(this, "Quản Lý DLC", $"Không thể nạp thông tin DLC: {ex.Message}", isError: true);
             }
         }
         else
         {
-            MessageBox.Show("Vui lòng chọn một ván chơi trong danh sách để quản lý và kiểm tra DLC của ván đó.", "Quản Lý DLC", MessageBoxButton.OK, MessageBoxImage.Information);
+            GameConfirmDialog.Alert(this, "Quản Lý DLC", "Vui lòng chọn một ván chơi trong danh sách để quản lý và kiểm tra DLC của ván đó.");
         }
     }
 
@@ -139,10 +143,10 @@ public partial class TitleWindow : Window
     }
 
     private void Fail(SimException error) =>
-        MessageBox.Show(this, $"[{error.Code}] {error.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        GameConfirmDialog.Alert(this, "Lỗi", $"[{error.Code}] {error.Message}", isError: true);
 
     private void Fail(string message) =>
-        MessageBox.Show(this, message, "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        GameConfirmDialog.Alert(this, "Lỗi", message, isError: true);
 
     private sealed class SaveItem
     {

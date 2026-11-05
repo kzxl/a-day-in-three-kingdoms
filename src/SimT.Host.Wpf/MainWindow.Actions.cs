@@ -44,7 +44,7 @@ public partial class MainWindow
                 _kernel.Save();
                 UpdateHeader();
                 RenderSelected();
-                StatusText.Text = $"[{result.LocationName} · {result.Title}] {result.Narrative} » {result.RewardSummary}";
+                ShowNotification($"[{result.LocationName} · {result.Title}] {result.Narrative} » {result.RewardSummary}");
                 var card = new CityEventCard(result.Title, result.LocationName, result.Narrative, result.RewardSummary);
                 TryOpenCityScene(card);
             }
@@ -93,7 +93,7 @@ public partial class MainWindow
             UpdateHeader();
             RenderSelected();
             ShowReport(from, _kernel.Today);
-            StatusText.Text = customStatus ?? $"Đã sang {GameDateCodec.DescribeVi(_kernel.Today)} (+{days} ngày).";
+            ShowNotification(customStatus ?? $"Đã sang {GameDateCodec.DescribeVi(_kernel.Today)} (+{days} ngày).");
         }
         catch (Exception error)
         {
@@ -245,7 +245,7 @@ public partial class MainWindow
         try
         {
             resultMsg = handler.Execute(commandId) ?? "Xong.";
-            StatusText.Text = resultMsg;
+            ShowNotification(resultMsg);
         }
         catch (Exception error)
         {

@@ -11,11 +11,11 @@ namespace SimT.Host.Wpf.Controls;
 /// </summary>
 public sealed class GameSectionCard : Border
 {
-    private static readonly Brush CardBg = Freeze(new SolidColorBrush(Color.FromRgb(0x17, 0x1E, 0x28)));
-    private static readonly Brush CardBorder = Freeze(new SolidColorBrush(Color.FromRgb(0x26, 0x30, 0x3D)));
-    private static readonly Brush HeadingColor = Freeze(new SolidColorBrush(Color.FromRgb(0x5E, 0x6B, 0x7C)));
-    private static readonly Brush TitleColor = Freeze(new SolidColorBrush(Color.FromRgb(0xE8, 0xED, 0xF5)));
-    private static readonly Brush SubtitleColor = Freeze(new SolidColorBrush(Color.FromRgb(0x8A, 0x97, 0xA8)));
+    private static readonly Brush CardBg = Freeze(new SolidColorBrush(Color.FromRgb(0x1D, 0x16, 0x11)));
+    private static readonly Brush CardBorder = Freeze(new SolidColorBrush(Color.FromRgb(0x3A, 0x2C, 0x20)));
+    private static readonly Brush HeadingColor = Freeze(new SolidColorBrush(Color.FromRgb(0xC4, 0xA0, 0x62)));
+    private static readonly Brush TitleColor = Freeze(new SolidColorBrush(Color.FromRgb(0xF3, 0xE6, 0xCC)));
+    private static readonly Brush SubtitleColor = Freeze(new SolidColorBrush(Color.FromRgb(0xB9, 0xAA, 0x8C)));
 
     private readonly DockPanel _headerPanel;
     private readonly StackPanel _titleStack;
