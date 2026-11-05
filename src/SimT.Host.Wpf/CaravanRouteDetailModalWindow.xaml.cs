@@ -1,0 +1,126 @@
+using System.Windows;
+using System.Windows.Media;
+using SimT.Contracts.Playing;
+using SimT.Core.Kernel;
+
+namespace SimT.Host.Wpf;
+
+public sealed record CommodityArbitrageVm(
+    string Glyph,
+    string ItemNameVi,
+    string PriceComparisonText,
+    string ProfitMarginText);
+
+public sealed record FreightContractVm(
+    string TitleVi,
+    string GuildName,
+    string RewardText);
+
+public partial class CaravanRouteDetailModalWindow : HubModalWindowBase
+{
+    private readonly SimKernel _kernel;
+    private readonly long _fromCityId;
+    private readonly long _toCityId;
+
+    public CaravanRouteDetailModalWindow(SimKernel kernel, long fromCityId, long toCityId)
+    {
+        InitializeComponent();
+
+        _kernel = kernel;
+        _fromCityId = fromCityId;
+        _toCityId = toCityId;
+
+        PopulateRouteHub();
+    }
+
+    private void PopulateRouteHub()
+    {
+        var fromName = "Khởi Hành";
+        var toName = "Đích Đến";
+
+        if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
+        {
+            var f = map.Find(_fromCityId);
+            var t = map.Find(_toCityId);
+            if (f != null) fromName = f.NameVi;
+            if (t != null) toName = t.NameVi;
+        }
+
+        OriginCityText.Text = fromName;
+        DestCityText.Text = toName;
+
+        var distance = (int)(Math.Abs(_fromCityId - _toCityId) * 120 + 200);
+        var days = Math.Max(2, (distance / 100));
+        var risk = Math.Clamp(10 + (int)(Math.Abs(_fromCityId - _toCityId) * 8), 10, 45);
+
+        HubHeader.Configure(
+            glyph: "🐎",
+            category: "TIÊU CỤC VẬN TIÊU LIÊN CHÂU",
+            title: $"{fromName} ➔ {toName}",
+            subtitle: $"Lộ trình thương lộ quan ải · Dự kiến hành trình {days} ngày",
+            rightBadgeTitle: $"★ CỰ LY: {distance:N0} DẶM",
+            rightBadgeSub: $"Nguy cơ cướp bóc: {risk}%",
+            accentColor: Color.FromRgb(0xE6, 0x7E, 0x22));
+
+        RouteDistanceText.Text = $"{distance:N0} Dặm";
+        RouteDaysText.Text = $"{days} Ngày";
+        AmbushRiskText.Text = $"{risk}% {(risk <= 20 ? "Thấp" : (risk <= 35 ? "Vừa" : "Cao"))}";
+
+        // Fleet and Crew
+        if (_kernel.Capabilities.TryGet<ICaravanGuild>(CapabilityIds.CaravanGuild, out var guild) && guild is not null)
+        {
+            FleetTierText.Text = $"{guild.Fleet.NameVi}";
+            RouteStatusText.Text = $"Cước phí vận chuyển cơ sở: {guild.FeePerUnit} Quan / đơn vị hàng";
+
+            if (guild.Crew.EscortNpcId.HasValue && _kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) && reg != null)
+            {
+                var escort = reg.Find(guild.Crew.EscortNpcId.Value);
+                if (escort != null)
+                {
+                    EscortNameText.Text = $"Tiêu Sư: {escort.NameVi} (Võ lực {escort.Attributes.War})";
+                    EscortSubText.Text = "Hộ tống đắc lực: Giảm 80% rủi ro thảo khấu cướp tiêu trên đường.";
+                }
+            }
+
+            // Contracts
+            var routeContracts = guild.Contracts
+                .Where(c => c.FromCityId == _fromCityId && c.ToCityId == _toCityId)
+                .Select(c => new FreightContractVm(
+                    $"Vận chuyển {c.Quantity} kiện hàng hóa",
+                    c.GuildName,
+                    $"+{c.RewardCopper:N0} Quan"))
+                .ToList();
+
+            if (routeContracts.Count == 0)
+            {
+                routeContracts.Add(new FreightContractVm("Hợp đồng chuyến hàng tự do", "Thương Hội Địa Phương", "+350 Quan"));
+            }
+            ContractsList.ItemsSource = routeContracts;
+        }
+
+        // Mock commodities arbitrage between two cities
+        CommodityArbitrageList.ItemsSource = new List<CommodityArbitrageVm>
+        {
+            new("🌾", "Gạo Lương Nông", $"Mua {fromName}: 10 Quan ➔ Bán {toName}: 16 Quan", "+60% Lãi"),
+            new("🧂", "Muối Biển Tinh Chế", $"Mua {fromName}: 22 Quan ➔ Bán {toName}: 32 Quan", "+45% Lãi"),
+            new("🧵", "Tơ Lụa Giang Nam", $"Mua {fromName}: 65 Quan ➔ Bán {toName}: 95 Quan", "+46% Lãi"),
+            new("🍵", "Trà Xanh Thượng Hạng", $"Mua {fromName}: 28 Quan ➔ Bán {toName}: 39 Quan", "+39% Lãi")
+        };
+    }
+
+    private void DispatchCaravan_Click(object sender, RoutedEventArgs e)
+    {
+        if (_kernel.Capabilities.TryGet<ICaravanGuild>(CapabilityIds.CaravanGuild, out var guild) && guild is not null)
+        {
+            var res = guild.Send(_fromCityId, _toCityId);
+            MessageBox.Show(res.Message, "Phát Hàng Vận Tiêu", MessageBoxButton.OK, res.Ok ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            _kernel.Save();
+            NotifyHubStateChanged();
+        }
+    }
+
+    private void Close_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+}

@@ -201,6 +201,7 @@ internal sealed class CaravanScreen : IScreenContribution
                     held.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 ],
                 [
+                    new ScreenCommand($"route:inspect:{city.Id}:{neighbourId}", "Chi Tiết 🗺️"),
                     new ScreenCommand($"send:{neighbourId}", "Gửi hàng 📦"),
                     new ScreenCommand($"send_escort:{neighbourId}", "Thuê Tiêu Sư 🛡️", CommandKind.Primary),
                     new ScreenCommand($"goto:{neighbourId}", "Lên Đường 🐎")

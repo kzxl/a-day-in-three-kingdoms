@@ -60,6 +60,7 @@ internal sealed class CourtScreen : IScreenContribution
             var capitalName = citadelNames.TryGetValue(faction.CapitalCityId, out var cap) ? cap : $"Thành #{faction.CapitalCityId}";
 
             var cmdList = new List<ScreenCommand>();
+            cmdList.Add(new ScreenCommand($"faction:inspect:{faction.Id}", "Khảo Sát 🏛️"));
             if (!isAllegiant && _service.Reputation >= 5)
             {
                 cmdList.Add(new ScreenCommand($"join_faction:{faction.Id}", "Quy thuận"));
@@ -86,6 +87,7 @@ internal sealed class CourtScreen : IScreenContribution
             var isCurrentCity = gov.CitadelId == _player.CurrentCityId;
 
             var actionCmds = new List<ScreenCommand>();
+            actionCmds.Add(new ScreenCommand($"citadel:inspect:{gov.CitadelId}", "Khảo Sát 🏰"));
             if (isCurrentCity)
             {
                 actionCmds.Add(new ScreenCommand($"policy:relief:{gov.CitadelId}", "An Dân (-15% loạn)"));

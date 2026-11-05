@@ -80,6 +80,78 @@ public partial class MainWindow
                 TryOpenStrongholdDetailModal(shId);
             }
         });
+
+        _kernel.Ui.RegisterModalPresenter("inspect:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var citId) || uri.TryGetTargetLong(out citId))
+            {
+                TryOpenCitadelDetailModal(citId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("citadel:inspect:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var citId) || uri.TryGetTargetLong(out citId))
+            {
+                TryOpenCitadelDetailModal(citId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("citadel:modal:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var citId) || uri.TryGetTargetLong(out citId))
+            {
+                TryOpenCitadelDetailModal(citId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("faction:inspect:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var facId) || uri.TryGetTargetLong(out facId))
+            {
+                TryOpenFactionDetailModal(facId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("faction:modal:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var facId) || uri.TryGetTargetLong(out facId))
+            {
+                TryOpenFactionDetailModal(facId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("route:inspect:", commandId =>
+        {
+            var raw = commandId.Substring("route:inspect:".Length);
+            var parts = raw.Split(':');
+            var fromId = parts.Length > 0 && long.TryParse(parts[0], out var f) ? f : 1;
+            var toId = parts.Length > 1 && long.TryParse(parts[1], out var t) ? t : 2;
+            TryOpenCaravanRouteDetailModal(fromId, toId);
+        });
+
+        _kernel.Ui.RegisterModalPresenter("plot:inspect:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var plotId) || uri.TryGetTargetLong(out plotId))
+            {
+                TryOpenFarmsteadDetailModal(plotId);
+            }
+        });
+
+        _kernel.Ui.RegisterModalPresenter("farm:inspect:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var plotId) || uri.TryGetTargetLong(out plotId))
+            {
+                TryOpenFarmsteadDetailModal(plotId);
+            }
+        });
     }
 
 
@@ -681,4 +753,79 @@ public partial class MainWindow
         RenderSelected();
     }
 
+
+
+    public void TryOpenCitadelDetailModal(long citadelId)
+    {
+        var modal = new CitadelDetailModalWindow(_kernel, citadelId)
+        {
+            Owner = this
+        };
+        modal.HubStateChanged += () =>
+        {
+            _kernel.Save();
+            UpdateHeader();
+            RenderSelected();
+        };
+        modal.ShowDialog();
+        _kernel.Save();
+        UpdateHeader();
+        RenderSelected();
+    }
+
+    public void TryOpenFactionDetailModal(long factionId)
+    {
+        var modal = new FactionDetailModalWindow(_kernel, factionId)
+        {
+            Owner = this
+        };
+        modal.HubStateChanged += () =>
+        {
+            _kernel.Save();
+            UpdateHeader();
+            RenderSelected();
+        };
+        modal.ShowDialog();
+        _kernel.Save();
+        UpdateHeader();
+        RenderSelected();
+    }
+
+    public void TryOpenCaravanRouteDetailModal(long fromCityId, long toCityId)
+    {
+        var modal = new CaravanRouteDetailModalWindow(_kernel, fromCityId, toCityId)
+        {
+            Owner = this
+        };
+        modal.HubStateChanged += () =>
+        {
+            _kernel.Save();
+            UpdateHeader();
+            RenderSelected();
+        };
+        modal.ShowDialog();
+        _kernel.Save();
+        UpdateHeader();
+        RenderSelected();
+    }
+
+    public void TryOpenFarmsteadDetailModal(long plotId)
+    {
+        var modal = new FarmsteadDetailModalWindow(_kernel, plotId)
+        {
+            Owner = this
+        };
+        modal.HubStateChanged += () =>
+        {
+            _kernel.Save();
+            UpdateHeader();
+            RenderSelected();
+        };
+        modal.ShowDialog();
+        _kernel.Save();
+        UpdateHeader();
+        RenderSelected();
+    }
+
 }
+

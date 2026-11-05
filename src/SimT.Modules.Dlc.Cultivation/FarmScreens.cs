@@ -46,6 +46,7 @@ internal sealed class FarmScreen : IScreenContribution
             var city = _map.Find(plot.CitadelId);
             var atCity = plot.CitadelId == _player.CurrentCityId;
             var commands = new List<ScreenCommand>();
+            commands.Add(new ScreenCommand($"plot:inspect:{plot.Id}", "Khảo Sát 🌾"));
 
             if (atCity)
             {
