@@ -22,7 +22,25 @@ public interface ICultivationEstate
     FarmResult Fertilise(long plotId, long cityId);
 
     FarmResult Irrigate(long plotId, long cityId);
+
+    IReadOnlyList<EstateFacilityDef> Facilities { get; }
+
+    IReadOnlyList<EstateFacilityDef> GetFacilities(long citadelId);
+
+    FarmResult UpgradeFacility(long citadelId, string facilityType);
 }
+
+public sealed record EstateFacilityDef(
+    long Id,
+    long CitadelId,
+    string FacilityType,
+    int Tier,
+    int BuiltDay,
+    string NameVi,
+    string TierTitleVi,
+    string EffectVi,
+    long NextUpgradeCost,
+    bool CanUpgrade);
 
 public sealed record PlotView(
     long Id,

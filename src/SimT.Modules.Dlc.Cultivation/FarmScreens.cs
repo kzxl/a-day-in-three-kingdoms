@@ -9,6 +9,9 @@ internal sealed class FarmScreen : IScreenContribution
     private static readonly string[] Columns =
         ["Khu", "Thành", "Mẫu", "Đất", "Thủy Lợi", "Thuê/tháng", "Trạng thái", "Chín", "Dự thu"];
 
+    private static readonly string[] FacilityColumns =
+        ["Công Trình", "Cấp Bậc", "Tên Kiến Trúc", "Hiệu Quả & Dịch Vụ", "Nâng Cấp Kế", "Trạng Thái"];
+
     private static readonly string[] HarvestColumns =
         ["Khu", "Thành", "Cây Trồng", "Sản Lượng", "Ngày Gặt", "Đất Còn"];
 
@@ -102,6 +105,52 @@ internal sealed class FarmScreen : IScreenContribution
                 ]));
         }
 
+        var currentCityId = _player.CurrentCityId;
+        var currentCity = _map.Find(currentCityId);
+        var facilities = _service.GetFacilities(currentCityId);
+        var facilityRows = new List<ScreenRow>();
+
+        foreach (var fac in facilities)
+        {
+            var commands = new List<ScreenCommand>();
+            if (fac.CanUpgrade)
+            {
+                commands.Add(new ScreenCommand($"upgrade_fac:{currentCityId}:{fac.FacilityType}", $"Nâng cấp ({fac.NextUpgradeCost} Quan)"));
+            }
+
+            var tierStars = fac.Tier switch
+            {
+                1 => "★☆☆☆☆ (Cấp 1)",
+                2 => "★★☆☆☆ (Cấp 2)",
+                3 => "★★★☆☆ (Cấp 3)",
+                4 => "★★★★☆ (Cấp 4)",
+                5 => "★★★★★ (Cấp 5 - Hóa Cảnh)",
+                _ => "☆☆☆☆☆ (Chưa xây)"
+            };
+
+            var nextText = fac.CanUpgrade ? $"{fac.NextUpgradeCost} Quan" : "Đã đạt cấp tối đa";
+
+            facilityRows.Add(new ScreenRow(
+                [
+                    fac.NameVi,
+                    tierStars,
+                    fac.TierTitleVi,
+                    fac.EffectVi,
+                    nextText,
+                    fac.CanUpgrade ? "Có thể nâng cấp" : "Tối đa"
+                ],
+                commands,
+                Title: $"{fac.NameVi} · {fac.TierTitleVi}",
+                Details:
+                [
+                    new ScreenDetail("Công trình", fac.NameVi),
+                    new ScreenDetail("Cấp bậc", tierStars),
+                    new ScreenDetail("Tên kiến trúc", fac.TierTitleVi),
+                    new ScreenDetail("Hiệu quả", fac.EffectVi),
+                    new ScreenDetail("Phí nâng cấp kế", nextText)
+                ]));
+        }
+
         var harvestRows = new List<ScreenRow>();
         foreach (var h in _service.HarvestLogs)
         {
@@ -130,7 +179,8 @@ internal sealed class FarmScreen : IScreenContribution
 
         var status = $"Đang thuê {rented} khu · "
                      + $"phí ruộng {_service.MonthlyRentTotal} quan/tháng · "
-                     + $"{_service.GrowingCount} đang lớn, {_service.ReadyCount} chờ gặt";
+                     + $"{_service.GrowingCount} đang lớn, {_service.ReadyCount} chờ gặt · "
+                     + $"{facilities.Count(f => f.Tier > 0)} công trình điền trang tại {currentCity?.NameVi ?? "châu thành"}";
 
         return new ScreenModel(
             ScreenId,
@@ -138,6 +188,7 @@ internal sealed class FarmScreen : IScreenContribution
             status,
             [
                 new ScreenSection("Điền Trang Đang Quản Lý", Columns, rows),
+                new ScreenSection($"Công Trình Điền Trang (Ổ Bảo Tại {currentCity?.NameVi ?? "Sở Tại"})", FacilityColumns, facilityRows),
                 new ScreenSection("Lịch Sử Mùa Vụ (Gặt Gần Đây)", HarvestColumns, harvestRows)
             ],
             [],
@@ -146,7 +197,8 @@ internal sealed class FarmScreen : IScreenContribution
                 new ScreenMetric("Phí ruộng", Fmt(_service.MonthlyRentTotal), "quan/tháng"),
                 new ScreenMetric("Đang lớn", Fmt(_service.GrowingCount), "cây"),
                 new ScreenMetric("Chờ gặt", Fmt(_service.ReadyCount), "khu",
-                    _service.ReadyCount > 0 ? MetricTone.Warning : MetricTone.Neutral)
+                    _service.ReadyCount > 0 ? MetricTone.Warning : MetricTone.Neutral),
+                new ScreenMetric("Công trình Ổ Bảo", Fmt(facilities.Count(f => f.Tier > 0)), "đã xây")
             ],
             alerts);
     }
@@ -186,6 +238,16 @@ internal sealed class FarmCommandHandler : IScreenCommandHandler
 
     public string? Execute(string commandId)
     {
+        if (commandId.StartsWith("upgrade_fac:", StringComparison.Ordinal))
+        {
+            var fparts = commandId.Split(':');
+            if (fparts.Length >= 3 && long.TryParse(fparts[1], out var targetCityId))
+            {
+                return _service.UpgradeFacility(targetCityId, fparts[2]).Message;
+            }
+            return "Lệnh nâng cấp không hợp lệ.";
+        }
+
         var parts = commandId.Split(':');
         if (parts.Length < 2 || !long.TryParse(parts[1], out var plotId))
         {

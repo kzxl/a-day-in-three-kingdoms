@@ -206,6 +206,67 @@ public sealed class CultivationTests : IDisposable
         Assert.Empty(kernel.RunInvariants());
     }
 
+    [Fact]
+    public void Upgrading_estate_facility_advances_tier_and_charges_ledger()
+    {
+        using var kernel = _host.Boot();
+        var cityId = Player(kernel).CurrentCityId;
+        var estate = Guild(kernel);
+        var initialBalance = kernel.Ledger.Balance;
+
+        // Upgrade Granary tier 0 -> 1 (costs 100)
+        var msg1 = Command(kernel, $"upgrade_fac:{cityId}:GRANARY");
+        Assert.Contains("Nâng cấp thành công", msg1);
+        Assert.Contains("bậc 1/5", msg1);
+        Assert.Equal(initialBalance - 100, kernel.Ledger.Balance);
+
+        var facilities = estate.GetFacilities(cityId);
+        var granary = Assert.Single(facilities, f => f.FacilityType == "GRANARY");
+        Assert.Equal(1, granary.Tier);
+        Assert.Equal(250, granary.NextUpgradeCost);
+        Assert.True(granary.CanUpgrade);
+
+        // Upgrade Granary tier 1 -> 2 (costs 250)
+        var msg2 = Command(kernel, $"upgrade_fac:{cityId}:GRANARY");
+        Assert.Contains("Nâng cấp thành công", msg2);
+        Assert.Contains("bậc 2/5", msg2);
+        Assert.Equal(initialBalance - 350, kernel.Ledger.Balance);
+
+        facilities = estate.GetFacilities(cityId);
+        granary = Assert.Single(facilities, f => f.FacilityType == "GRANARY");
+        Assert.Equal(2, granary.Tier);
+    }
+
+    [Fact]
+    public void Irrigation_facility_reduces_growth_days_and_boosts_yield()
+    {
+        using var kernel = _host.Boot();
+        var cityId = Player(kernel).CurrentCityId;
+        var plot = HomePlot(kernel);
+        Command(kernel, $"rent:{plot.Id}");
+
+        // Upgrade Irrigation to Tier 3 (Tier 1: 80, Tier 2: 200, Tier 3: 500)
+        Command(kernel, $"upgrade_fac:{cityId}:IRRIGATION");
+        Command(kernel, $"upgrade_fac:{cityId}:IRRIGATION");
+        Command(kernel, $"upgrade_fac:{cityId}:IRRIGATION");
+
+        var facilities = Guild(kernel).GetFacilities(cityId);
+        var irrigation = Assert.Single(facilities, f => f.FacilityType == "IRRIGATION");
+        Assert.Equal(3, irrigation.Tier);
+
+        // Plant rice
+        var msg = Command(kernel, $"plant:{plot.Id}");
+        Assert.Contains("ngày nữa chín", msg);
+
+        var growing = Find(kernel, plot.Id);
+        var baseDays = CropCalendar.GrowthDays(CropSpec.Rice, kernel.Today.Month);
+        var expectedDays = CropCalendar.GrowthDays(CropSpec.Rice, kernel.Today.Month, irrigationTier: 3);
+        Assert.True(expectedDays < baseDays, "Tier 3 irrigation must reduce growth days");
+
+        var expectedYield = CropCalendar.Yield(plot.AreaMu, CropSpec.Rice, kernel.Today.Month, plot.Soil, irrigationTier: 3);
+        Assert.Equal(expectedYield, growing.YieldQuantity!.Value);
+    }
+
     private const long GrainItem = 1;
 
     private static PlotView HomePlot(SimKernel kernel) =>

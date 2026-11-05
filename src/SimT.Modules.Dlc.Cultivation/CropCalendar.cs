@@ -28,14 +28,27 @@ internal static class CropCalendar
     public const int FertiliseGain = 30;
     public const int SoilCeiling = 100;
 
-    public static int GrowthDays(CropSpec crop, int month) =>
-        crop.FixedGrowthDays > 0 ? crop.FixedGrowthDays : month switch
+    public static int GrowthDays(CropSpec crop, int month, int irrigationTier = 0)
+    {
+        var days = crop.FixedGrowthDays > 0 ? crop.FixedGrowthDays : month switch
         {
             <= 3 => 20,
             <= 6 => 18,
             <= 9 => 22,
             _ => 30
         };
+
+        var reduction = irrigationTier switch
+        {
+            >= 5 => 8,
+            >= 4 => 6,
+            >= 3 => 4,
+            >= 2 => 2,
+            _ => 0
+        };
+
+        return Math.Max(5, days - reduction);
+    }
 
     /// <summary>Permille applied to the base yield: winter is poor, autumn is generous.</summary>
     public static int SeasonPermille(int month) => month switch
@@ -49,10 +62,18 @@ internal static class CropCalendar
     /// <summary>Permille applied for soil quality: 100 → 1000, 0 → 600.</summary>
     public static int SoilPermille(int soil) => 600 + (Math.Clamp(soil, 0, SoilCeiling) * 4);
 
-    public static int Yield(int areaMu, CropSpec crop, int month, int soil)
+    public static int Yield(int areaMu, CropSpec crop, int month, int soil, int irrigationTier = 0)
     {
         var permille = (long)SeasonPermille(month) * SoilPermille(soil);
         var raw = (long)areaMu * crop.YieldPerMu * permille;
+        var yieldBonusPermille = irrigationTier switch
+        {
+            >= 5 => 1300L,
+            >= 4 => 1200L,
+            >= 3 => 1100L,
+            _ => 1000L
+        };
+        raw = (raw * yieldBonusPermille) / 1000L;
         return (int)((raw + 500_000L) / 1_000_000L);
     }
 }

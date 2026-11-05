@@ -89,6 +89,124 @@ internal sealed class FarmService : ICultivationEstate
                 row.GetInt32(5),
                 row.GetInt32(6)));
 
+    public IReadOnlyList<EstateFacilityDef> Facilities =>
+        _db.Query(
+            """
+            SELECT id, citadel_id, facility_type, tier, built_day
+            FROM fm_facility
+            ORDER BY citadel_id, facility_type
+            """,
+            row =>
+            {
+                var id = row.GetInt64(0);
+                var cityId = row.GetInt64(1);
+                var type = row.GetString(2);
+                var tier = row.GetInt32(3);
+                var built = row.GetInt32(4);
+                var info = FacilitySpecs.GetTierInfo(type, tier);
+                var nextCost = tier < 5 ? FacilitySpecs.GetTierInfo(type, tier + 1).Cost : 0;
+                return new EstateFacilityDef(id, cityId, type, tier, built, info.Name, info.TierTitle, info.Effect, nextCost, tier < 5);
+            });
+
+    public IReadOnlyList<EstateFacilityDef> GetFacilities(long citadelId)
+    {
+        var existing = _db.Query(
+            """
+            SELECT id, citadel_id, facility_type, tier, built_day
+            FROM fm_facility
+            WHERE citadel_id = @city
+            """,
+            row => (
+                Id: row.GetInt64(0),
+                CityId: row.GetInt64(1),
+                Type: row.GetString(2),
+                Tier: row.GetInt32(3),
+                Built: row.GetInt32(4)
+            ),
+            DbArgs.One("@city", citadelId)).ToDictionary(x => x.Type, StringComparer.OrdinalIgnoreCase);
+
+        var list = new List<EstateFacilityDef>(FacilitySpecs.AllTypes.Length);
+        foreach (var type in FacilitySpecs.AllTypes)
+        {
+            if (existing.TryGetValue(type, out var found))
+            {
+                var info = FacilitySpecs.GetTierInfo(type, found.Tier);
+                var nextCost = found.Tier < 5 ? FacilitySpecs.GetTierInfo(type, found.Tier + 1).Cost : 0;
+                list.Add(new EstateFacilityDef(found.Id, citadelId, type, found.Tier, found.Built, info.Name, info.TierTitle, info.Effect, nextCost, found.Tier < 5));
+            }
+            else
+            {
+                var info = FacilitySpecs.GetTierInfo(type, 1);
+                list.Add(new EstateFacilityDef(0, citadelId, type, 0, 0, FacilitySpecs.TypeName(type), "Chưa xây dựng", "Chưa xây dựng công trình này", info.Cost, true));
+            }
+        }
+        return list;
+    }
+
+    public int GetFacilityTier(long citadelId, string facilityType) =>
+        (int)_db.ScalarLong(
+            "SELECT COALESCE(tier, 0) FROM fm_facility WHERE citadel_id = @city AND facility_type = @type",
+            new DbArgs().Add("@city", citadelId).Add("@type", facilityType.ToUpperInvariant()));
+
+    public FarmResult UpgradeFacility(long citadelId, string facilityType)
+    {
+        var normalizedType = facilityType.ToUpperInvariant();
+        if (!FacilitySpecs.AllTypes.Contains(normalizedType))
+        {
+            return FarmResult.Failure($"Loại công trình '{facilityType}' không tồn tại.");
+        }
+
+        var currentTier = GetFacilityTier(citadelId, normalizedType);
+        if (currentTier >= 5)
+        {
+            return FarmResult.Failure("Công trình này đã đạt cấp tối đa (Cấp 5 - Hóa Cảnh).");
+        }
+
+        var nextTier = currentTier + 1;
+        var info = FacilitySpecs.GetTierInfo(normalizedType, nextTier);
+        if (_wallet.Liquid < info.Cost)
+        {
+            return FarmResult.Failure($"Cần {info.Cost} Quan để nâng cấp lên {info.TierTitle}, chỉ có {_wallet.Liquid}.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _actionTime.Charge(ActionCodes.FarmRent);
+            _wallet.Charge(info.Cost, JournalCodes.FarmRent, $"Nâng cấp {info.Name} ({info.TierTitle}) tại thành {citadelId}");
+
+            if (currentTier == 0)
+            {
+                _db.Execute(
+                    """
+                    INSERT INTO fm_facility(id, citadel_id, facility_type, tier, built_day)
+                    VALUES(@id, @city, @type, @tier, @day)
+                    """,
+                    new DbArgs()
+                        .Add("@id", _ids.Next("cultivation.facility"))
+                        .Add("@city", citadelId)
+                        .Add("@type", normalizedType)
+                        .Add("@tier", nextTier)
+                        .Add("@day", _clock.Today.DayIndex));
+            }
+            else
+            {
+                _db.Execute(
+                    "UPDATE fm_facility SET tier = @tier WHERE citadel_id = @city AND facility_type = @type",
+                    new DbArgs().Add("@tier", nextTier).Add("@city", citadelId).Add("@type", normalizedType));
+            }
+
+            if (normalizedType == FacilitySpecs.Irrigation)
+            {
+                _db.Execute(
+                    "UPDATE fm_plot SET soil = MIN(100, soil + 10) WHERE citadel_id = @city AND rented = 1",
+                    DbArgs.One("@city", citadelId));
+            }
+        });
+
+        _log.Info($"estate facility {normalizedType} at citadel {citadelId} upgraded to tier {nextTier} ({info.TierTitle})");
+        return FarmResult.Success($"Nâng cấp thành công {info.Name} lên bậc {nextTier}/5 ({info.TierTitle}): {info.Effect} (Chi phí {info.Cost} Quan).");
+    }
+
     public long MonthlyRentTotal =>
         _db.ScalarLong("SELECT COALESCE(SUM(monthly_rent), 0) FROM fm_plot WHERE rented = 1");
 
@@ -190,7 +308,8 @@ internal sealed class FarmService : ICultivationEstate
             return FarmResult.Failure($"Không có giống '{cropCode}'.");
         }
 
-        var seedCost = SeedCostPerMu * plot.AreaMu;
+        var isGranaryMax = GetFacilityTier(plot.CitadelId, FacilitySpecs.Granary) >= 5;
+        var seedCost = isGranaryMax ? (SeedCostPerMu * plot.AreaMu) / 2 : SeedCostPerMu * plot.AreaMu;
         if (_wallet.Liquid < seedCost)
         {
             return FarmResult.Failure($"Cần {seedCost} Quan tiền giống, chỉ có {_wallet.Liquid}.");
@@ -199,14 +318,15 @@ internal sealed class FarmService : ICultivationEstate
         var name = _items.Find(crop.OutputItemId)?.NameVi ?? crop.Code;
         var growth = 0;
         var yieldQuantity = 0;
+        var irrigationTier = GetFacilityTier(plot.CitadelId, FacilitySpecs.Irrigation);
 
         _db.Transaction(() =>
         {
             _actionTime.Charge(ActionCodes.FarmPlant);
 
             var month = _clock.Today.Month;
-            growth = CropCalendar.GrowthDays(crop, month);
-            yieldQuantity = CropCalendar.Yield(plot.AreaMu, crop, month, plot.Soil);
+            growth = CropCalendar.GrowthDays(crop, month, irrigationTier);
+            yieldQuantity = CropCalendar.Yield(plot.AreaMu, crop, month, plot.Soil, irrigationTier);
             var plantedDay = _clock.Today.DayIndex;
 
             _wallet.Charge(seedCost, JournalCodes.FarmSeed, $"Giống {name} cho khu {plot.Id}");
@@ -410,6 +530,17 @@ internal sealed class FarmService : ICultivationEstate
                 $"Tiền ruộng khu {plot.Id} tháng {date.Month:00}/{date.Year}",
                 $"cultivation.rent:{plot.Id}:{date.DayIndex}");
         }
+
+        // Passive stipend from BREWERY tier 5 (Quỳnh Tương Ngọc Lộ Cung)
+        var breweryT5 = _db.ScalarLong("SELECT COUNT(*) FROM fm_facility WHERE facility_type = 'BREWERY' AND tier >= 5");
+        if (breweryT5 > 0)
+        {
+            _wallet.Pay(
+                100 * breweryT5,
+                JournalCodes.FarmRent,
+                "Bổng lộc danh tửu Quỳnh Tương Ngọc Lộ Cung",
+                $"cultivation.brewery_stipend:{date.DayIndex}");
+        }
     }
 
     /// <summary>Soil recovers a little each month on rented land — fallow is not wasted time.</summary>
@@ -421,6 +552,27 @@ internal sealed class FarmService : ICultivationEstate
             WHERE rented = 1 AND soil < @ceiling
             """,
             new DbArgs().Add("@ceiling", CropCalendar.SoilCeiling).Add("@gain", CropCalendar.SoilRecoveryPerMonth));
+
+        // Additional recovery from IRRIGATION facilities in each citadel
+        var irrigationTiers = _db.Query(
+            "SELECT citadel_id, tier FROM fm_facility WHERE facility_type = 'IRRIGATION' AND tier > 0",
+            row => (CityId: row.GetInt64(0), Tier: row.GetInt32(1)));
+
+        foreach (var (cityId, tier) in irrigationTiers)
+        {
+            var extra = tier * 2;
+            var minSoil = tier >= 5 ? 80 : 0;
+            _db.Execute(
+                """
+                UPDATE fm_plot SET soil = MAX(@minSoil, MIN(@ceiling, soil + @extra))
+                WHERE citadel_id = @city AND rented = 1
+                """,
+                new DbArgs()
+                    .Add("@ceiling", CropCalendar.SoilCeiling)
+                    .Add("@extra", extra)
+                    .Add("@minSoil", minSoil)
+                    .Add("@city", cityId));
+        }
     }
 
     private void InsertPlot(long citadelId, int areaMu, long rent) =>
