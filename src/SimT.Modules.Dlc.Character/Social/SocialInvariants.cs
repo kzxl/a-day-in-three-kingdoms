@@ -1,6 +1,6 @@
 using SimT.Contracts.Diagnostics;
 
-namespace SimT.Modules.Dlc.Social;
+namespace SimT.Modules.Dlc.Character;
 
 internal static class SocialInvariants
 {

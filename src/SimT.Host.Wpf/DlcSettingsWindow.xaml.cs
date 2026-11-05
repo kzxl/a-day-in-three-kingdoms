@@ -19,6 +19,7 @@ public partial class DlcSettingsWindow : Window
         ["dlc.caravan"] = ("Thương Đoàn Viễn Chinh", "⇢", "Tổ chức thương đội vận tải hàng hóa liên thành, thuê tiêu sư hộ vệ và nhận hợp đồng giao thương."),
         ["dlc.professions"] = ("Bách Nghệ & Chế Tác", "⚒", "Hệ thống 5 nghề thủ công (Rèn, Mộc, Y, Bói, Tửu) với kỹ năng chế tác thần binh và thương phẩm."),
         ["dlc.cultivation"] = ("Điền Trang & Nông Nghiệp", "❖", "Khai hoang điền sản, mua bán ruộng đất, gieo trồng nông sản/dược liệu và thu hoạch theo mùa vụ."),
+        ["dlc.character"] = ("Nhân Duyên & Gia Tộc", "👥", "Đại trụ cột nhân vật: Mạng lưới hảo cảm, kết nghĩa Đào Viên, đối thoại tương tác và hôn sự gia tộc."),
         ["dlc.lineage"] = ("Gia Tộc & Huyết Thống", "⚭", "Kết tóc phu thê, sinh con dưỡng cái, giáo dục gia phong và lập người kế vị cơ nghiệp."),
         ["dlc.politics"] = ("Quan Trường & Triều Đình", "⌂", "Hệ thống Cửu phẩm trung chính, phái hệ triều đình, tiến cử thăng quan và bổ nhiệm thái thú."),
         ["dlc.society"] = ("Thế Thái & Nhân Văn", "📜", "Mô phỏng 127 danh nhân NPC có đời sống tự trị, ghi chép biên niên sử thế thái và tin tức giang hồ."),

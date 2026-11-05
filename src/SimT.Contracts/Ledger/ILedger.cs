@@ -112,7 +112,7 @@ public static class JournalCodes
             var code when code.StartsWith("CV.", StringComparison.Ordinal) => "dlc.economy",
             var code when code.StartsWith("PF.", StringComparison.Ordinal) => "dlc.economy",
             var code when code.StartsWith("FM.", StringComparison.Ordinal) => "dlc.economy",
-            var code when code.StartsWith("LN.", StringComparison.Ordinal) => "dlc.lineage",
+            var code when code.StartsWith("LN.", StringComparison.Ordinal) => "dlc.character",
             var code when code.StartsWith("PO.", StringComparison.Ordinal) => "dlc.politics",
             var code when code.StartsWith("PL.", StringComparison.Ordinal) => "base.player",
             _ => "core"

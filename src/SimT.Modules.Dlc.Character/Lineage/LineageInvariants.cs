@@ -1,7 +1,7 @@
 using SimT.Contracts.Data;
 using SimT.Contracts.Diagnostics;
 
-namespace SimT.Modules.Dlc.Lineage;
+namespace SimT.Modules.Dlc.Character;
 
 internal static class LineageInvariants
 {

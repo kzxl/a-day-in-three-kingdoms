@@ -5,7 +5,7 @@ using SimT.Contracts.Playing;
 using SimT.Contracts.Scenes;
 using SimT.Contracts.Time;
 
-namespace SimT.Modules.Dlc.Dialogue;
+namespace SimT.Modules.Dlc.Character;
 
 internal sealed class DialogueService : IDialogueModule
 {

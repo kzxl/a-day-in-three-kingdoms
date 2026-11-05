@@ -1,7 +1,7 @@
 using SimT.Contracts.Ledger;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
-using SimT.Modules.Dlc.Lineage;
+using SimT.Modules.Dlc.Character;
 using SimT.Testing;
 
 namespace SimT.Modules.Dlc.Tests;

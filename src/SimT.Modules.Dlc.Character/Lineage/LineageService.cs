@@ -6,7 +6,7 @@ using SimT.Contracts.Logging;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
-namespace SimT.Modules.Dlc.Lineage;
+namespace SimT.Modules.Dlc.Character;
 
 public sealed record FamilyMember(long Id, string Name, string Role, int DayIndex, bool IsHeir);
 

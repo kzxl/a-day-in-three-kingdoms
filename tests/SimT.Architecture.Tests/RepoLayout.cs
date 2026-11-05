@@ -27,12 +27,10 @@ internal static class RepoLayout
         typeof(SimT.Modules.Base.Player.PlayerModule).Assembly,
         typeof(SimT.Modules.Base.Npc.NpcModule).Assembly,
         typeof(SimT.Modules.Dlc.Economy.EconomyModule).Assembly,
-        typeof(SimT.Modules.Dlc.Lineage.LineageModule).Assembly,
+        typeof(SimT.Modules.Dlc.Character.CharacterModule).Assembly,
         typeof(SimT.Modules.Dlc.Politics.PoliticsModule).Assembly,
         typeof(SimT.Modules.Dlc.Society.SocietyModule).Assembly,
-        typeof(SimT.Modules.Dlc.Social.SocialModule).Assembly,
-        typeof(SimT.Modules.Dlc.Military.MilitaryModule).Assembly,
-        typeof(SimT.Modules.Dlc.Dialogue.DialogueModule).Assembly
+        typeof(SimT.Modules.Dlc.Military.MilitaryModule).Assembly
     ];
 
     private static string FindRoot()

@@ -1,7 +1,7 @@
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 
-namespace SimT.Modules.Dlc.Lineage;
+namespace SimT.Modules.Dlc.Character;
 
 internal sealed class FamilyScreen : IScreenContribution
 {

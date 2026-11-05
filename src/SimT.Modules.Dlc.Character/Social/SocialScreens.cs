@@ -2,7 +2,7 @@ using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 
-namespace SimT.Modules.Dlc.Social;
+namespace SimT.Modules.Dlc.Character;
 
 internal sealed class SocialScreen : IScreenContribution
 {

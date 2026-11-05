@@ -22,12 +22,10 @@
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Player\SimT.Modules.Base.Player.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Economy\SimT.Modules.Dlc.Economy.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Lineage\SimT.Modules.Dlc.Lineage.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Character\SimT.Modules.Dlc.Character.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Politics\SimT.Modules.Dlc.Politics.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Society\SimT.Modules.Dlc.Society.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Social\SimT.Modules.Dlc.Social.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Military\SimT.Modules.Dlc.Military.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Dialogue\SimT.Modules.Dlc.Dialogue.csproj" />
   </ItemGroup>
 
   <ItemGroup>

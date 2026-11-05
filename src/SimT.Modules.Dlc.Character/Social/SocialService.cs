@@ -5,7 +5,7 @@ using SimT.Contracts.Logging;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
-namespace SimT.Modules.Dlc.Social;
+namespace SimT.Modules.Dlc.Character;
 
 internal sealed class SocialService : ISocialNetwork
 {

@@ -7,12 +7,10 @@
     "base.player",
     "base.npc",
     "dlc.economy",
-    "dlc.lineage",
+    "dlc.character",
     "dlc.politics",
     "dlc.society",
-    "dlc.social",
-    "dlc.military",
-    "dlc.dialogue"
+    "dlc.military"
   ],
   "seed": 1840502,
   "startLocation": "lac_duong",
