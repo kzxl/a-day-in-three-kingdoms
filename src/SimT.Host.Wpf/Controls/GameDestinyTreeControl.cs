@@ -566,7 +566,21 @@ public sealed class GameDestinyTreeControl : Border
             Cursor = Cursors.Arrow;
 
             MouseMove += OnMouseMove;
-            MouseLeave += (_, _) => { _hoveredNodeId = null; InvalidateVisual(); };
+            MouseLeave += (_, _) =>
+            {
+                _hoveredNodeId = null;
+                if (_isDragging && !Mouse.LeftButton.HasFlag(MouseButtonState.Pressed) && !Mouse.RightButton.HasFlag(MouseButtonState.Pressed))
+                {
+                    _isDragging = false;
+                    ReleaseMouseCapture();
+                }
+                InvalidateVisual();
+            };
+            LostMouseCapture += (_, _) =>
+            {
+                _isDragging = false;
+                Cursor = Cursors.Arrow;
+            };
             MouseLeftButtonDown += OnMouseLeftButtonDown;
             MouseLeftButtonUp += OnMouseLeftButtonUp;
             MouseRightButtonDown += OnMouseRightButtonDown;
@@ -631,6 +645,14 @@ public sealed class GameDestinyTreeControl : Border
 
             if (_isDragging)
             {
+                if (e.LeftButton != MouseButtonState.Pressed && e.RightButton != MouseButtonState.Pressed)
+                {
+                    _isDragging = false;
+                    ReleaseMouseCapture();
+                    Cursor = Cursors.Arrow;
+                    return;
+                }
+
                 _panX += pos.X - _lastDragPos.X;
                 _panY += pos.Y - _lastDragPos.Y;
                 _lastDragPos = pos;
@@ -699,6 +721,23 @@ public sealed class GameDestinyTreeControl : Border
 
         private void OnMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            // Only zoom when mouse cursor is strictly within the canvas bounds
+            if (!IsMouseOver)
+            {
+                if (IsMouseCaptured)
+                {
+                    _isDragging = false;
+                    ReleaseMouseCapture();
+                }
+                return;
+            }
+
+            var mouseCheck = e.GetPosition(this);
+            if (mouseCheck.X < 0 || mouseCheck.X > ActualWidth || mouseCheck.Y < 0 || mouseCheck.Y > ActualHeight)
+            {
+                return;
+            }
+
             var zoomDelta = e.Delta > 0 ? 1.12 : 0.89;
             var targetZoom = Math.Clamp(_zoom * zoomDelta, 0.65, 1.85);
 
@@ -710,6 +749,7 @@ public sealed class GameDestinyTreeControl : Border
             _panX = (_panX - (mouse.X - cx)) * (targetZoom / _zoom) + (mouse.X - cx);
             _panY = (_panY - (mouse.Y - cy)) * (targetZoom / _zoom) + (mouse.Y - cy);
             _zoom = targetZoom;
+            e.Handled = true;
 
             InvalidateVisual();
         }
