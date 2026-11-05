@@ -111,8 +111,18 @@ public sealed class ActionCostTests : IDisposable
         handler!.Execute(commandId);
     }
 
-    private static PlotView HomePlot(SimKernel kernel) =>
-        Guild(kernel).Plots.First(plot => plot.CitadelId == City(kernel));
+    private static PlotView HomePlot(SimKernel kernel)
+    {
+        var cityId = City(kernel);
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        bag.Add(cityId, 17, 50);
+        bag.Add(cityId, 22, 1);
+        bag.Add(cityId, 23, 1);
+        return Guild(kernel).Plots.First(plot => plot.CitadelId == cityId);
+    }
+
+
+
 
     private static IMarketTrade Trade(SimKernel kernel) =>
         kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);

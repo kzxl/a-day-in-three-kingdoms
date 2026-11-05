@@ -2,18 +2,54 @@ using SimT.Contracts.Playing;
 
 namespace SimT.Modules.Dlc.Cultivation;
 
-/// <summary>A crop a plot can grow: what it yields, how long it takes and how much land it needs.</summary>
-internal sealed record CropSpec(string Code, long OutputItemId, int FixedGrowthDays, int YieldPerMu)
+/// <summary>A crop a plot can grow: what it yields, how long it takes, how much land it needs, and the required seed item.</summary>
+internal sealed record CropSpec(
+    string Code,
+    long OutputItemId,
+    int FixedGrowthDays,
+    int YieldPerMu,
+    string SeedItemCode,
+    long SeedItemId,
+    string SeedNameVi)
 {
-    public static readonly CropSpec Rice = new("gao", 1, 0, 8);
-    public static readonly CropSpec Tea = new("tra", 3, 24, 2);
-    public static readonly CropSpec Mulberry = new("dau_tam", 4, 30, 2);
-    public static readonly CropSpec Herb = new("duoc_thao", 7, 20, 2);
+    public static readonly CropSpec Rice = new("gao", 1, 0, 8, "hat_giong_lua", 17, "Hạt giống lúa");
+    public static readonly CropSpec Tea = new("tra", 3, 24, 2, "hat_giong_tra", 18, "Hạt giống trà");
+    public static readonly CropSpec Mulberry = new("dau_tam", 4, 30, 2, "hat_giong_dau_tam", 19, "Cây giống dâu tằm");
+    public static readonly CropSpec Herb = new("duoc_thao", 7, 20, 2, "hat_giong_duoc_thao", 20, "Hạt giống dược thảo");
 
     public static readonly CropSpec[] All = [Rice, Tea, Mulberry, Herb];
 
     public static CropSpec? Find(string? code) =>
-        code is null ? Rice : All.FirstOrDefault(spec => spec.Code.Equals(code, StringComparison.OrdinalIgnoreCase) || spec.Code.StartsWith(code, StringComparison.OrdinalIgnoreCase));
+        code is null ? Rice : All.FirstOrDefault(spec =>
+            spec.Code.Equals(code, StringComparison.OrdinalIgnoreCase)
+            || spec.SeedItemCode.Equals(code, StringComparison.OrdinalIgnoreCase)
+            || (code.Equals("rice", StringComparison.OrdinalIgnoreCase) && spec == Rice)
+            || (code.Equals("tea", StringComparison.OrdinalIgnoreCase) && spec == Tea)
+            || (code.Equals("mulberry", StringComparison.OrdinalIgnoreCase) && spec == Mulberry)
+            || (code.Equals("herb", StringComparison.OrdinalIgnoreCase) && spec == Herb));
+
+    public static CropSpec? FindBySeedCode(string seedCode) =>
+        All.FirstOrDefault(spec => spec.SeedItemCode.Equals(seedCode, StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>Standard agricultural tools and supply identifiers for cultivation operations.</summary>
+internal static class FarmingSupplies
+{
+    public const string HoeCode = "cuoc_nong";
+    public const long HoeItemId = 22;
+    public const string HoeNameVi = "Cuốc nông nghiệp";
+
+    public const string SickleCode = "liem_gat";
+    public const long SickleItemId = 23;
+    public const string SickleNameVi = "Liềm thu hoạch";
+
+    public const string ScoopCode = "binh_tuoi";
+    public const long ScoopItemId = 24;
+    public const string ScoopNameVi = "Gầu mương thủy lợi";
+
+    public const string FertilizerCode = "phan_bon";
+    public const long FertilizerItemId = 21;
+    public const string FertilizerNameVi = "Phân bón nông nghiệp";
 }
 
 /// <summary>

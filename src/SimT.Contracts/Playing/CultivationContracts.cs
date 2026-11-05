@@ -28,7 +28,25 @@ public interface ICultivationEstate
     IReadOnlyList<EstateFacilityDef> GetFacilities(long citadelId);
 
     FarmResult UpgradeFacility(long citadelId, string facilityType);
+
+    FarmResult BuySeed(long cityId, string cropCode, int quantity = 1);
+
+    FarmResult BuyFertilizer(long cityId, int quantity = 1);
+
+    FarmResult BuyTool(long cityId, string toolCode);
+
+    FarmSupplyInventory GetSupplyInventory(long cityId);
 }
+
+public sealed record FarmSupplyInventory(
+    int RiceSeeds,
+    int TeaSeeds,
+    int MulberrySeedlings,
+    int HerbSeeds,
+    int FertilizerCount,
+    bool HasHoe,
+    bool HasSickle,
+    bool HasWateringScoop);
 
 public sealed record EstateFacilityDef(
     long Id,

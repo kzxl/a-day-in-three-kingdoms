@@ -52,13 +52,15 @@ public sealed class CultivationSoilTests : IDisposable
         GrowAndHarvest(kernel, plot);
 
         var worn = Find(kernel, plot).Soil;
-        var before = kernel.Ledger.Balance;
+        var cityId = Player(kernel).CurrentCityId;
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var beforeFertilizer = bag.Quantity(cityId, 21);
 
         var message = Command(kernel, $"fertilise:{plot.Id}");
 
         Assert.Contains("Bón phân", message);
         Assert.Equal(CropCalendar.SoilCeiling, Find(kernel, plot).Soil);
-        Assert.Equal(before - CropCalendar.FertiliseCost, kernel.Ledger.Balance);
+        Assert.Equal(beforeFertilizer - 1, bag.Quantity(cityId, 21));
         Assert.True(worn < CropCalendar.SoilCeiling);
     }
 
@@ -154,8 +156,18 @@ public sealed class CultivationSoilTests : IDisposable
     private static PlotView Find(SimKernel kernel, PlotView plot) =>
         Guild(kernel).Plots.Single(candidate => candidate.Id == plot.Id);
 
-    private static PlotView HomePlot(SimKernel kernel) =>
-        Guild(kernel).Plots.First(plot => plot.CitadelId == Player(kernel).CurrentCityId);
+    private static PlotView HomePlot(SimKernel kernel)
+    {
+        var cityId = Player(kernel).CurrentCityId;
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        bag.Add(cityId, 17, 50); // rice seed
+        bag.Add(cityId, 18, 50); // tea seed
+        bag.Add(cityId, 21, 50); // fertilizer
+        bag.Add(cityId, 22, 1);  // hoe
+        bag.Add(cityId, 23, 1);  // sickle
+        bag.Add(cityId, 24, 1);  // scoop
+        return Guild(kernel).Plots.First(plot => plot.CitadelId == cityId);
+    }
 
     private static string Command(SimKernel kernel, string commandId)
     {

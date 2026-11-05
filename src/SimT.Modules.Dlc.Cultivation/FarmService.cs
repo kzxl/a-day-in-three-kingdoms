@@ -225,6 +225,13 @@ internal sealed class FarmService : ICultivationEstate
                     "cultivation.crop_missing",
                     $"Crop '{crop.Code}' yields item {crop.OutputItemId}, which is not in the catalog.");
             }
+
+            if (_items.Find(crop.SeedItemId) is null)
+            {
+                throw new SimException(
+                    "cultivation.seed_missing",
+                    $"Crop '{crop.Code}' requires seed item {crop.SeedItemId}, which is not in the catalog.");
+            }
         }
     }
 
@@ -308,11 +315,18 @@ internal sealed class FarmService : ICultivationEstate
             return FarmResult.Failure($"Không có giống '{cropCode}'.");
         }
 
-        var isGranaryMax = GetFacilityTier(plot.CitadelId, FacilitySpecs.Granary) >= 5;
-        var seedCost = isGranaryMax ? (SeedCostPerMu * plot.AreaMu) / 2 : SeedCostPerMu * plot.AreaMu;
-        if (_wallet.Liquid < seedCost)
+        // 1. Tool check: Hoe required to till and sow
+        if (_bag.Quantity(cityId, FarmingSupplies.HoeItemId) <= 0)
         {
-            return FarmResult.Failure($"Cần {seedCost} Quan tiền giống, chỉ có {_wallet.Liquid}.");
+            return FarmResult.Failure("Thiếu nông cụ: Cần có [Cuốc Nông Nghiệp] trong hành trang để cày xới và gieo hạt! Hãy mua cuốc tại kho điền trang hoặc chợ.");
+        }
+
+        // 2. Seed check: required seeds = plot area in mu
+        var requiredSeeds = plot.AreaMu;
+        var currentSeeds = _bag.Quantity(cityId, crop.SeedItemId);
+        if (currentSeeds < requiredSeeds)
+        {
+            return FarmResult.Failure($"Thiếu hạt giống: Cần {requiredSeeds} bao {crop.SeedNameVi} cho {plot.AreaMu} mẫu ruộng (trong hành trang chỉ có {currentSeeds}). Hãy mua thêm hạt giống trước!");
         }
 
         var name = _items.Find(crop.OutputItemId)?.NameVi ?? crop.Code;
@@ -329,7 +343,7 @@ internal sealed class FarmService : ICultivationEstate
             yieldQuantity = CropCalendar.Yield(plot.AreaMu, crop, month, plot.Soil, irrigationTier);
             var plantedDay = _clock.Today.DayIndex;
 
-            _wallet.Charge(seedCost, JournalCodes.FarmSeed, $"Giống {name} cho khu {plot.Id}");
+            _bag.Remove(cityId, crop.SeedItemId, requiredSeeds);
             _db.Execute(
                 """
                 INSERT INTO fm_crop(id, plot_id, item_id, planted_day, ready_day, yield_qty, status)
@@ -345,7 +359,7 @@ internal sealed class FarmService : ICultivationEstate
         });
 
         return FarmResult.Success(
-            $"Gieo {name} trên {plot.AreaMu} mẫu: {growth} ngày nữa chín, dự thu {yieldQuantity} (giống {seedCost} Quan).");
+            $"Gieo {crop.SeedNameVi} trên {plot.AreaMu} mẫu (tiêu hao {requiredSeeds} bao giống): {growth} ngày nữa chín, dự thu {yieldQuantity} {name}.");
     }
 
     public FarmResult Harvest(long plotId, long cityId)
@@ -364,6 +378,12 @@ internal sealed class FarmService : ICultivationEstate
         if (plot.CropStatus != "READY")
         {
             return FarmResult.Failure(plot.CropStatus is null ? "Khu ruộng đang trống." : "Lúa chưa chín.");
+        }
+
+        // Tool check: Sickle required to harvest crops
+        if (_bag.Quantity(cityId, FarmingSupplies.SickleItemId) <= 0)
+        {
+            return FarmResult.Failure("Thiếu nông cụ: Cần có [Liềm Thu Hoạch] trong hành trang để gặt lúa và thu hoạch nông sản! Hãy mua liềm tại kho điền trang hoặc chợ.");
         }
 
         var yieldQuantity = plot.YieldQuantity ?? 0;
@@ -415,7 +435,7 @@ internal sealed class FarmService : ICultivationEstate
         });
 
         _log.Info($"harvested plot {plotId}: +{yieldQuantity}, soil {plot.Soil} -> {soilAfter}");
-        return FarmResult.Success($"Gặt được {yieldQuantity}, đất còn {soilAfter}/100.");
+        return FarmResult.Success($"Gặt được {yieldQuantity} {cropSpec.Code}, đất còn {soilAfter}/100.");
     }
 
     public FarmResult Fertilise(long plotId, long cityId)
@@ -436,14 +456,22 @@ internal sealed class FarmService : ICultivationEstate
             return FarmResult.Failure("Chưa thuê khu ruộng này.");
         }
 
+        // 1. Tool check: Hoe required to till and mix fertilizer
+        if (_bag.Quantity(cityId, FarmingSupplies.HoeItemId) <= 0)
+        {
+            return FarmResult.Failure("Thiếu nông cụ: Cần có [Cuốc Nông Nghiệp] trong hành trang để xới đất bón phân!");
+        }
+
+        // 2. Fertilizer check: at least 1 bag of fertilizer
+        var currentFertilizer = _bag.Quantity(cityId, FarmingSupplies.FertilizerItemId);
+        if (currentFertilizer < 1)
+        {
+            return FarmResult.Failure("Thiếu phân bón: Cần ít nhất 1 bao [Phân Bón Nông Nghiệp] trong hành trang để bón cải tạo đất! Hãy mua phân bón trước.");
+        }
+
         if (plot.Soil >= CropCalendar.SoilCeiling)
         {
             return FarmResult.Failure("Đất còn tốt, chưa cần bón.");
-        }
-
-        if (_wallet.Liquid < CropCalendar.FertiliseCost)
-        {
-            return FarmResult.Failure($"Cần {CropCalendar.FertiliseCost} Quan phân bón, chỉ có {_wallet.Liquid}.");
         }
 
         var soilAfter = Math.Min(CropCalendar.SoilCeiling, plot.Soil + CropCalendar.FertiliseGain);
@@ -451,11 +479,11 @@ internal sealed class FarmService : ICultivationEstate
         _db.Transaction(() =>
         {
             _actionTime.Charge(ActionCodes.FarmFertilise);
-            _wallet.Charge(CropCalendar.FertiliseCost, JournalCodes.FarmSeed, $"Phân bón khu {plot.Id}");
+            _bag.Remove(cityId, FarmingSupplies.FertilizerItemId, 1);
             _db.Execute("UPDATE fm_plot SET soil=@soil WHERE id=@id", new DbArgs().Add("@soil", soilAfter).Add("@id", plotId));
         });
 
-        return FarmResult.Success($"Bón phân: đất {plot.Soil} -> {soilAfter}/100 ({CropCalendar.FertiliseCost} Quan).");
+        return FarmResult.Success($"Bón phân thành công: tiêu hao 1 bao phân bón, độ phì đất {plot.Soil} -> {soilAfter}/100.");
     }
 
     public FarmResult Irrigate(long plotId, long cityId)
@@ -482,6 +510,12 @@ internal sealed class FarmService : ICultivationEstate
             return FarmResult.Failure("Hệ thống mương máng thủy lợi khu ruộng này đã hoàn thiện (cấp tối đa).");
         }
 
+        // Tool check: Scoop or Hoe required
+        if (_bag.Quantity(cityId, FarmingSupplies.ScoopItemId) <= 0 && _bag.Quantity(cityId, FarmingSupplies.HoeItemId) <= 0)
+        {
+            return FarmResult.Failure("Thiếu dụng cụ: Cần có [Gầu Mương Thủy Lợi] hoặc [Cuốc Nông Nghiệp] trong hành trang để thi công mương máng.");
+        }
+
         if (_wallet.Liquid < IrrigationCost)
         {
             return FarmResult.Failure($"Cần {IrrigationCost} Quan chi phí xây dựng thủy lợi, chỉ có {_wallet.Liquid}.");
@@ -499,6 +533,100 @@ internal sealed class FarmService : ICultivationEstate
         });
 
         return FarmResult.Success($"Đào mương thủy lợi thành công cho khu {plot.Id}! Nâng cấp lên bậc {newLevel}/2 (phí {IrrigationCost} Quan).");
+    }
+
+    public FarmResult BuySeed(long cityId, string cropCode, int quantity = 1)
+    {
+        if (quantity <= 0) return FarmResult.Failure("Số lượng mua phải lớn hơn 0.");
+        var crop = CropSpec.Find(cropCode);
+        if (crop is null) return FarmResult.Failure($"Không tìm thấy loại giống '{cropCode}'.");
+        var seedItem = _items.Find(crop.SeedItemId);
+        if (seedItem is null) return FarmResult.Failure("Vật phẩm hạt giống không tồn tại trong danh mục.");
+
+        var totalCost = seedItem.BasePrice * quantity;
+        if (_wallet.Liquid < totalCost)
+        {
+            return FarmResult.Failure($"Cần {totalCost} Quan để mua {quantity} bao {seedItem.NameVi}, trong tay chỉ có {_wallet.Liquid} Quan.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(totalCost, JournalCodes.FarmSeed, $"Mua {quantity} bao {seedItem.NameVi} tại thành {cityId}");
+            _bag.Add(cityId, seedItem.Id, quantity);
+        });
+
+        _log.Info($"purchased {quantity}x {seedItem.Code} for {totalCost} quan at city {cityId}");
+        return FarmResult.Success($"Đã mua {quantity} bao {seedItem.NameVi} hết {totalCost} Quan (đã cất vào hành trang).");
+    }
+
+    public FarmResult BuyFertilizer(long cityId, int quantity = 1)
+    {
+        if (quantity <= 0) return FarmResult.Failure("Số lượng mua phải lớn hơn 0.");
+        var fertItem = _items.Find(FarmingSupplies.FertilizerItemId);
+        var basePrice = fertItem?.BasePrice ?? 15;
+        var totalCost = basePrice * quantity;
+
+        if (_wallet.Liquid < totalCost)
+        {
+            return FarmResult.Failure($"Cần {totalCost} Quan để mua {quantity} bao Phân Bón Nông Nghiệp, chỉ có {_wallet.Liquid} Quan.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(totalCost, JournalCodes.FarmSeed, $"Mua {quantity} bao Phân Bón Nông Nghiệp tại thành {cityId}");
+            _bag.Add(cityId, FarmingSupplies.FertilizerItemId, quantity);
+        });
+
+        _log.Info($"purchased {quantity}x fertilizer for {totalCost} quan at city {cityId}");
+        return FarmResult.Success($"Đã mua {quantity} bao Phân Bón Nông Nghiệp hết {totalCost} Quan (đã cất vào hành trang).");
+    }
+
+    public FarmResult BuyTool(long cityId, string toolCode)
+    {
+        var normalized = toolCode.ToLowerInvariant().Trim();
+        var (itemId, defaultCost, defaultName) = normalized switch
+        {
+            "cuoc_nong" or "hoe" => (FarmingSupplies.HoeItemId, 60L, FarmingSupplies.HoeNameVi),
+            "liem_gat" or "sickle" => (FarmingSupplies.SickleItemId, 50L, FarmingSupplies.SickleNameVi),
+            "binh_tuoi" or "scoop" => (FarmingSupplies.ScoopItemId, 70L, FarmingSupplies.ScoopNameVi),
+            _ => (0L, 0L, "")
+        };
+
+        if (itemId == 0)
+        {
+            return FarmResult.Failure($"Không có nông cụ '{toolCode}'.");
+        }
+
+        var item = _items.Find(itemId);
+        var cost = item?.BasePrice ?? defaultCost;
+        var name = item?.NameVi ?? defaultName;
+
+        if (_wallet.Liquid < cost)
+        {
+            return FarmResult.Failure($"Cần {cost} Quan để mua {name}, chỉ có {_wallet.Liquid} Quan.");
+        }
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(cost, JournalCodes.FarmRent, $"Mua nông cụ {name} tại thành {cityId}");
+            _bag.Add(cityId, itemId, 1);
+        });
+
+        _log.Info($"purchased tool {name} for {cost} quan at city {cityId}");
+        return FarmResult.Success($"Đã mua thành công [{name}] với giá {cost} Quan (đã cất vào hành trang).");
+    }
+
+    public FarmSupplyInventory GetSupplyInventory(long cityId)
+    {
+        return new FarmSupplyInventory(
+            RiceSeeds: _bag.Quantity(cityId, CropSpec.Rice.SeedItemId),
+            TeaSeeds: _bag.Quantity(cityId, CropSpec.Tea.SeedItemId),
+            MulberrySeedlings: _bag.Quantity(cityId, CropSpec.Mulberry.SeedItemId),
+            HerbSeeds: _bag.Quantity(cityId, CropSpec.Herb.SeedItemId),
+            FertilizerCount: _bag.Quantity(cityId, FarmingSupplies.FertilizerItemId),
+            HasHoe: _bag.Quantity(cityId, FarmingSupplies.HoeItemId) > 0,
+            HasSickle: _bag.Quantity(cityId, FarmingSupplies.SickleItemId) > 0,
+            HasWateringScoop: _bag.Quantity(cityId, FarmingSupplies.ScoopItemId) > 0);
     }
 
     /// <summary>Daily flip: a crop becomes harvestable on its ready day, exactly once.</summary>

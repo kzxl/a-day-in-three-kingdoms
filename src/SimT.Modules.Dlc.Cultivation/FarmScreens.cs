@@ -12,6 +12,9 @@ internal sealed class FarmScreen : IScreenContribution
     private static readonly string[] FacilityColumns =
         ["Công Trình", "Cấp Bậc", "Tên Kiến Trúc", "Hiệu Quả & Dịch Vụ", "Nâng Cấp Kế", "Trạng Thái"];
 
+    private static readonly string[] SupplyColumns =
+        ["Phân Loại", "Vật Phẩm", "Công Dụng & Yêu Cầu", "Trong Hành Trang", "Đơn Giá", "Trạng Thái"];
+
     private static readonly string[] HarvestColumns =
         ["Khu", "Thành", "Cây Trồng", "Sản Lượng", "Ngày Gặt", "Đất Còn"];
 
@@ -165,6 +168,58 @@ internal sealed class FarmScreen : IScreenContribution
             ]));
         }
 
+        var supplies = _service.GetSupplyInventory(currentCityId);
+        var supplyRows = new List<ScreenRow>
+        {
+            new ScreenRow(
+                ["Nông Cụ", "Cuốc Nông Nghiệp", "Cày xới, gieo hạt, bón phân", supplies.HasHoe ? "Đã có (1)" : "Chưa có ❌", "60 Quan", supplies.HasHoe ? "Sẵn sàng" : "Cần mua"],
+                supplies.HasHoe ? [] : [new ScreenCommand("buy_tool:cuoc_nong", "Mua Cuốc (60 Quan)", CommandKind.Primary)],
+                Title: "Cuốc Nông Nghiệp",
+                Details: [new ScreenDetail("Tác dụng", "Bắt buộc phải có để gieo hạt và bón phân"), new ScreenDetail("Trạng thái", supplies.HasHoe ? "Đã trang bị trong bao" : "Chưa có")]),
+
+            new ScreenRow(
+                ["Nông Cụ", "Liềm Thu Hoạch", "Gặt lúa & nông sản khi chín", supplies.HasSickle ? "Đã có (1)" : "Chưa có ❌", "50 Quan", supplies.HasSickle ? "Sẵn sàng" : "Cần mua"],
+                supplies.HasSickle ? [] : [new ScreenCommand("buy_tool:liem_gat", "Mua Liềm (50 Quan)", CommandKind.Primary)],
+                Title: "Liềm Thu Hoạch",
+                Details: [new ScreenDetail("Tác dụng", "Bắt buộc phải có để gặt lúa khi mùa vụ chín"), new ScreenDetail("Trạng thái", supplies.HasSickle ? "Đã trang bị trong bao" : "Chưa có")]),
+
+            new ScreenRow(
+                ["Nông Cụ", "Gầu Mương Thủy Lợi", "Thi công đào mương dẫn nước", supplies.HasWateringScoop ? "Đã có (1)" : "Chưa có ❌", "70 Quan", supplies.HasWateringScoop ? "Sẵn sàng" : "Cần mua"],
+                supplies.HasWateringScoop ? [] : [new ScreenCommand("buy_tool:binh_tuoi", "Mua Gầu (70 Quan)", CommandKind.Primary)],
+                Title: "Gầu Mương Thủy Lợi",
+                Details: [new ScreenDetail("Tác dụng", "Dụng cụ đào mương thủy lợi cải tạo đất"), new ScreenDetail("Trạng thái", supplies.HasWateringScoop ? "Đã trang bị trong bao" : "Chưa có")]),
+
+            new ScreenRow(
+                ["Phân Bón", "Phân Bón Nông Nghiệp", "Cải tạo đất bạc màu (+30 phì)", $"{supplies.FertilizerCount} bao", "15 Quan", supplies.FertilizerCount > 0 ? "Còn hàng" : "Hết hàng ❌"],
+                [new ScreenCommand("buy_fertilizer:1", "Mua 1 Bao (15 Quan)", CommandKind.Secondary), new ScreenCommand("buy_fertilizer:5", "Mua 5 Bao (75 Quan)", CommandKind.Primary)],
+                Title: "Phân Bón Nông Nghiệp",
+                Details: [new ScreenDetail("Tác dụng", "Phục hồi 30 điểm độ phì nhiêu của đất"), new ScreenDetail("Tồn kho", $"{supplies.FertilizerCount} bao")]),
+
+            new ScreenRow(
+                ["Hạt Giống", "Hạt Giống Lúa", "Gieo trồng Lúa thu hoạch Gạo", $"{supplies.RiceSeeds} bao", "5 Quan", supplies.RiceSeeds > 0 ? "Còn hạt" : "Cần mua"],
+                [new ScreenCommand("buy_seed:gao:5", "Mua 5 Giống (25 Quan)", CommandKind.Primary)],
+                Title: "Hạt Giống Lúa",
+                Details: [new ScreenDetail("Sản lượng", "8 Gạo / mẫu"), new ScreenDetail("Thời gian", "18-30 ngày")]),
+
+            new ScreenRow(
+                ["Hạt Giống", "Hạt Giống Trà", "Gieo trồng Trà búp", $"{supplies.TeaSeeds} bao", "15 Quan", supplies.TeaSeeds > 0 ? "Còn hạt" : "Cần mua"],
+                [new ScreenCommand("buy_seed:tra:5", "Mua 5 Giống (75 Quan)", CommandKind.Secondary)],
+                Title: "Hạt Giống Trà",
+                Details: [new ScreenDetail("Sản lượng", "2 Trà / mẫu"), new ScreenDetail("Thời gian", "24 ngày")]),
+
+            new ScreenRow(
+                ["Hạt Giống", "Cây Giống Dâu Tằm", "Trồng dâu nuôi tằm dệt Lụa", $"{supplies.MulberrySeedlings} cây", "20 Quan", supplies.MulberrySeedlings > 0 ? "Còn giống" : "Cần mua"],
+                [new ScreenCommand("buy_seed:dau_tam:5", "Mua 5 Cây (100 Quan)", CommandKind.Secondary)],
+                Title: "Cây Giống Dâu Tằm",
+                Details: [new ScreenDetail("Sản lượng", "2 Lụa / mẫu"), new ScreenDetail("Thời gian", "30 ngày")]),
+
+            new ScreenRow(
+                ["Hạt Giống", "Hạt Giống Dược Thảo", "Trồng dược thảo thu hoạch Thuốc", $"{supplies.HerbSeeds} bao", "35 Quan", supplies.HerbSeeds > 0 ? "Còn hạt" : "Cần mua"],
+                [new ScreenCommand("buy_seed:duoc_thao:5", "Mua 5 Giống (175 Quan)", CommandKind.Secondary)],
+                Title: "Hạt Giống Dược Thảo",
+                Details: [new ScreenDetail("Sản lượng", "2 Thuốc / mẫu"), new ScreenDetail("Thời gian", "20 ngày")])
+        };
+
         var rented = _service.Plots.Count(plot => plot.Rented);
         var alerts = new List<ScreenAlert>();
         if (_service.ReadyCount > 0)
@@ -188,6 +243,7 @@ internal sealed class FarmScreen : IScreenContribution
             status,
             [
                 new ScreenSection("Điền Trang Đang Quản Lý", Columns, rows),
+                new ScreenSection($"Kho Nông Cụ & Hạt Giống (Hành Trang Sở Tại · {currentCity?.NameVi ?? "Thành"})", SupplyColumns, supplyRows),
                 new ScreenSection($"Công Trình Điền Trang (Ổ Bảo Tại {currentCity?.NameVi ?? "Sở Tại"})", FacilityColumns, facilityRows),
                 new ScreenSection("Lịch Sử Mùa Vụ (Gặt Gần Đây)", HarvestColumns, harvestRows)
             ],
@@ -198,6 +254,7 @@ internal sealed class FarmScreen : IScreenContribution
                 new ScreenMetric("Đang lớn", Fmt(_service.GrowingCount), "cây"),
                 new ScreenMetric("Chờ gặt", Fmt(_service.ReadyCount), "khu",
                     _service.ReadyCount > 0 ? MetricTone.Warning : MetricTone.Neutral),
+                new ScreenMetric("Nông cụ sở hữu", supplies.HasHoe && supplies.HasSickle ? "Đầy đủ" : "Thiếu cụ", "bộ"),
                 new ScreenMetric("Công trình Ổ Bảo", Fmt(facilities.Count(f => f.Tier > 0)), "đã xây")
             ],
             alerts);
@@ -238,6 +295,48 @@ internal sealed class FarmCommandHandler : IScreenCommandHandler
 
     public string? Execute(string commandId)
     {
+        if (commandId.StartsWith("buy_seed", StringComparison.Ordinal))
+        {
+            var sparts = commandId.Split(':');
+            var cropCode = "gao";
+            var qty = 5;
+            if (sparts.Length >= 4 && long.TryParse(sparts[1], out _))
+            {
+                cropCode = sparts[2];
+                if (int.TryParse(sparts[3], out var q)) qty = q;
+            }
+            else
+            {
+                if (sparts.Length > 1) cropCode = sparts[1];
+                if (sparts.Length > 2 && int.TryParse(sparts[2], out var q)) qty = q;
+            }
+            return _service.BuySeed(_player.CurrentCityId, cropCode, qty).Message;
+        }
+
+        if (commandId.StartsWith("buy_fertilizer", StringComparison.Ordinal))
+        {
+            var fparts = commandId.Split(':');
+            var qty = 1;
+            if (fparts.Length >= 3 && long.TryParse(fparts[1], out _))
+            {
+                if (int.TryParse(fparts[2], out var q)) qty = q;
+            }
+            else if (fparts.Length > 1 && int.TryParse(fparts[1], out var q))
+            {
+                qty = q;
+            }
+            return _service.BuyFertilizer(_player.CurrentCityId, qty).Message;
+        }
+
+        if (commandId.StartsWith("buy_tool:", StringComparison.Ordinal))
+        {
+            var tparts = commandId.Split(':');
+            var toolCode = tparts.Length >= 3 && long.TryParse(tparts[1], out _)
+                ? tparts[2]
+                : (tparts.Length > 1 ? tparts[1] : "cuoc_nong");
+            return _service.BuyTool(_player.CurrentCityId, toolCode).Message;
+        }
+
         if (commandId.StartsWith("upgrade_fac:", StringComparison.Ordinal))
         {
             var fparts = commandId.Split(':');

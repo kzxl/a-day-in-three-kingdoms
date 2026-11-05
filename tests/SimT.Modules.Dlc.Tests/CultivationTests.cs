@@ -48,14 +48,15 @@ public sealed class CultivationTests : IDisposable
         using var kernel = _host.Boot();
         var plot = HomePlot(kernel);
         Command(kernel, $"rent:{plot.Id}");
-        var before = kernel.Ledger.Balance;
+        var cityId = Player(kernel).CurrentCityId;
+        var beforeSeeds = Bag(kernel).Quantity(cityId, 17);
         var message = Command(kernel, $"plant:{plot.Id}");
 
         // Sowing costs days, so the schedule starts from the date after the action.
         var planted = kernel.Today;
 
         Assert.Contains("ngày nữa chín", message);
-        Assert.Equal(before - (FarmService.SeedCostPerMu * plot.AreaMu), kernel.Ledger.Balance);
+        Assert.Equal(beforeSeeds - plot.AreaMu, Bag(kernel).Quantity(cityId, 17));
         var growing = Find(kernel, plot.Id);
         Assert.Equal("GROWING", growing.CropStatus);
         Assert.Equal(
@@ -267,10 +268,169 @@ public sealed class CultivationTests : IDisposable
         Assert.Equal(expectedYield, growing.YieldQuantity!.Value);
     }
 
+    [Fact]
+    public void Planting_without_hoe_fails_with_tool_missing_error()
+    {
+        using var kernel = _host.Boot();
+        var plot = RawPlot(kernel);
+        Command(kernel, $"rent:{plot.Id}");
+
+        var msg = Command(kernel, $"plant:{plot.Id}");
+        Assert.Contains("Thiếu nông cụ", msg);
+        Assert.Contains("Cuốc Nông Nghiệp", msg);
+    }
+
+    [Fact]
+    public void Planting_without_seeds_fails_with_seed_missing_error()
+    {
+        using var kernel = _host.Boot();
+        var cityId = Player(kernel).CurrentCityId;
+        var plot = RawPlot(kernel);
+        Command(kernel, $"rent:{plot.Id}");
+
+        // Player has hoe, but no seeds
+        Bag(kernel).Add(cityId, FarmingSupplies.HoeItemId, 1);
+
+        var msg = Command(kernel, $"plant:{plot.Id}");
+        Assert.Contains("Thiếu hạt giống", msg);
+    }
+
+    [Fact]
+    public void Buying_seed_and_tool_enables_planting_and_consumes_seeds()
+    {
+        using var kernel = _host.Boot();
+        var cityId = Player(kernel).CurrentCityId;
+        var plot = RawPlot(kernel);
+        Command(kernel, $"rent:{plot.Id}");
+
+        // Buy hoe and seeds via commands
+        var hoeMsg = Command(kernel, $"buy_tool:{cityId}:{FarmingSupplies.HoeCode}");
+        Assert.Contains("Cuốc", hoeMsg);
+        Assert.Contains("Đã mua thành công", hoeMsg);
+
+        var seedMsg = Command(kernel, $"buy_seed:{cityId}:RICE:10");
+        Assert.Contains("Đã mua 10 bao", seedMsg);
+        Assert.Contains("Hạt giống lúa", seedMsg, StringComparison.OrdinalIgnoreCase);
+
+        var bag = Bag(kernel);
+        Assert.Equal(1, bag.Quantity(cityId, FarmingSupplies.HoeItemId));
+        Assert.Equal(10, bag.Quantity(cityId, 17)); // 17 = Rice seed
+
+        // Plant now succeeds and consumes plot.AreaMu seeds
+        var plantMsg = Command(kernel, $"plant:{plot.Id}");
+        Assert.Contains("ngày nữa chín", plantMsg);
+        Assert.Equal(10 - plot.AreaMu, bag.Quantity(cityId, 17));
+    }
+
+    [Fact]
+    public void Harvesting_without_sickle_fails_with_tool_missing_error()
+    {
+        using var kernel = _host.Boot();
+        var cityId = Player(kernel).CurrentCityId;
+        var plot = RawPlot(kernel);
+        Command(kernel, $"rent:{plot.Id}");
+
+        // Give hoe and seeds to plant
+        var bag = Bag(kernel);
+        bag.Add(cityId, FarmingSupplies.HoeItemId, 1);
+        bag.Add(cityId, 17, plot.AreaMu);
+
+        Command(kernel, $"plant:{plot.Id}");
+        kernel.AdvanceDays(CropCalendar.GrowthDays(CropSpec.Rice, kernel.Today.Month));
+
+        // Try harvest without sickle
+        var failHarvest = Command(kernel, $"harvest:{plot.Id}");
+        Assert.Contains("Thiếu nông cụ", failHarvest);
+        Assert.Contains("Liềm Thu Hoạch", failHarvest);
+
+        // Buy sickle and harvest again
+        Command(kernel, $"buy_tool:{cityId}:{FarmingSupplies.SickleCode}");
+        var okHarvest = Command(kernel, $"harvest:{plot.Id}");
+        Assert.Contains("Gặt được", okHarvest);
+        Assert.True(bag.Quantity(cityId, GrainItem) > 0);
+    }
+
+    [Fact]
+    public void Fertilising_without_hoe_or_fertilizer_fails()
+    {
+        using var kernel = _host.Boot();
+        var cityId = Player(kernel).CurrentCityId;
+        var plot = RawPlot(kernel);
+        Command(kernel, $"rent:{plot.Id}");
+
+        // Without hoe
+        var noHoe = Command(kernel, $"fertilise:{plot.Id}");
+        Assert.Contains("Thiếu nông cụ", noHoe);
+        Assert.Contains("Cuốc Nông Nghiệp", noHoe);
+
+        // With hoe, but no fertilizer
+        var bag = Bag(kernel);
+        bag.Add(cityId, FarmingSupplies.HoeItemId, 1);
+        var noFert = Command(kernel, $"fertilise:{plot.Id}");
+        Assert.Contains("Thiếu phân bón", noFert);
+
+        // Buy fertilizer and fertilise after a harvest when soil is depleted
+        var buyMsg = Command(kernel, $"buy_fertilizer:{cityId}:5");
+        Assert.Contains("Đã mua 5 bao", buyMsg);
+        Assert.Contains("Phân Bón Nông Nghiệp", buyMsg);
+        Assert.Equal(5, bag.Quantity(cityId, FarmingSupplies.FertilizerItemId));
+
+        // Plant and harvest to wear down soil to 75
+        bag.Add(cityId, 17, plot.AreaMu);
+        Command(kernel, $"plant:{plot.Id}");
+        kernel.AdvanceDays(CropCalendar.GrowthDays(CropSpec.Rice, kernel.Today.Month));
+        Command(kernel, $"buy_tool:{cityId}:{FarmingSupplies.SickleCode}");
+        Command(kernel, $"harvest:{plot.Id}");
+
+        var wornSoil = Find(kernel, plot.Id).Soil;
+        Assert.True(wornSoil < CropCalendar.SoilCeiling);
+
+        var okFert = Command(kernel, $"fertilise:{plot.Id}");
+        Assert.Contains("Bón phân thành công", okFert);
+        Assert.Equal(4, bag.Quantity(cityId, FarmingSupplies.FertilizerItemId));
+        Assert.Equal(CropCalendar.SoilCeiling, Find(kernel, plot.Id).Soil);
+    }
+
+    [Fact]
+    public void Irrigating_without_scoop_or_hoe_fails()
+    {
+        using var kernel = _host.Boot();
+        var cityId = Player(kernel).CurrentCityId;
+        var plot = RawPlot(kernel);
+        Command(kernel, $"rent:{plot.Id}");
+
+        // Without scoop or hoe
+        var noTool = Command(kernel, $"irrigate:{plot.Id}");
+        Assert.Contains("Thiếu dụng cụ", noTool);
+
+        // Buy scoop
+        Command(kernel, $"buy_tool:{cityId}:{FarmingSupplies.ScoopCode}");
+        var okIrrigate = Command(kernel, $"irrigate:{plot.Id}");
+        Assert.Contains("Đào mương thủy lợi thành công", okIrrigate);
+    }
+
     private const long GrainItem = 1;
 
-    private static PlotView HomePlot(SimKernel kernel) =>
-        Guild(kernel).Plots.First(plot => plot.CitadelId == Player(kernel).CurrentCityId);
+    private static PlotView RawPlot(SimKernel kernel)
+    {
+        var cityId = Player(kernel).CurrentCityId;
+        return Guild(kernel).Plots.First(plot => plot.CitadelId == cityId);
+    }
+
+    private static PlotView HomePlot(SimKernel kernel)
+    {
+        var cityId = Player(kernel).CurrentCityId;
+        var bag = Bag(kernel);
+        bag.Add(cityId, 17, 50); // rice seed
+        bag.Add(cityId, 18, 50); // tea seed
+        bag.Add(cityId, 19, 50); // mulberry seedlings
+        bag.Add(cityId, 20, 50); // herb seeds
+        bag.Add(cityId, 21, 50); // fertilizer
+        bag.Add(cityId, 22, 1);  // hoe
+        bag.Add(cityId, 23, 1);  // sickle
+        bag.Add(cityId, 24, 1);  // scoop
+        return Guild(kernel).Plots.First(plot => plot.CitadelId == cityId);
+    }
 
     private static PlotView Find(SimKernel kernel, long plotId) =>
         Guild(kernel).Plots.Single(plot => plot.Id == plotId);
