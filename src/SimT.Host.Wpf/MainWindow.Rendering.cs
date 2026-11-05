@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Data;
 using System.Windows.Media;
 using SimT.Contracts;
 using SimT.Contracts.Ledger;
@@ -15,8 +13,17 @@ namespace SimT.Host.Wpf;
 
 public partial class MainWindow
 {
+    private int _selectedSectionTab;
+
     private void RenderSelected()
     {
+        if (string.Equals(_screenId, UiGalleryScreenId, StringComparison.Ordinal) &&
+            NavList.SelectedItem is not NavEntry)
+        {
+            RenderUiGalleryScreen();
+            return;
+        }
+
         if (NavList.SelectedItem is not NavEntry entry)
         {
             return;
@@ -25,11 +32,20 @@ public partial class MainWindow
         if (!string.Equals(_screenId, entry.ScreenId, StringComparison.Ordinal))
         {
             _detailKey = null;
+            _selectedSectionTab = 0;
+            SceneOverlay.HideScene();
         }
 
         _screenId = entry.ScreenId;
         _firstGrid = null;
         _firstSection = null;
+
+        if (entry.ScreenId == CityHubScreenId)
+        {
+            RenderCityHub();
+            RefreshBadges();
+            return;
+        }
 
         if (entry.ScreenId == LedgerScreenId)
         {
@@ -109,9 +125,33 @@ public partial class MainWindow
             : Visibility.Collapsed;
 
         ContentPanel.Children.Clear();
-        foreach (var section in model.Sections)
+
+        if (model.Sections.Count > 1)
         {
-            ContentPanel.Children.Add(BuildCard(Filtered(section)));
+            var tabItems = new List<GameTabItem>
+            {
+                new("all", "Tất cả", model.Sections.Sum(s => s.Rows.Count))
+            };
+            for (var i = 0; i < model.Sections.Count; i++)
+            {
+                tabItems.Add(new GameTabItem($"sec:{i}", model.Sections[i].Heading, model.Sections[i].Rows.Count));
+            }
+
+            var tabs = new GameTabs(tabItems, Math.Clamp(_selectedSectionTab, 0, tabItems.Count - 1));
+            tabs.SelectionChanged += (idx, _) =>
+            {
+                _selectedSectionTab = idx;
+                RenderSelected();
+            };
+            ContentPanel.Children.Add(tabs);
+        }
+
+        for (var i = 0; i < model.Sections.Count; i++)
+        {
+            if (_selectedSectionTab > 0 && _selectedSectionTab - 1 != i)
+                continue;
+
+            ContentPanel.Children.Add(BuildCard(Filtered(model.Sections[i])));
         }
 
         if (model.Sections.Count == 0)
@@ -178,7 +218,7 @@ public partial class MainWindow
         ContentPanel.Children.Clear();
         ContentPanel.Children.Add(BuildCard(
             new ScreenSection("Bút toán", ["Ngày", "Mã", "Loại", "Số tiền", "Số dư", "Nguồn", "Diễn giải"], rows),
-            wideColumn: 6));
+            wideColumn: 5));
 
         ContentPanel.Children.Add(MonthFooter());
         if (_detailKey is null)
@@ -213,7 +253,6 @@ public partial class MainWindow
 
         ContentPanel.Children.Clear();
 
-        // 1. Interactive Three Kingdoms Map Canvas & Departure Console
         if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
             _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
         {
@@ -231,7 +270,6 @@ public partial class MainWindow
             ContentPanel.Children.Add(mapCtrl);
         }
 
-        // 2. Tabular Citadel Sections below the map
         foreach (var section in model.Sections)
         {
             ContentPanel.Children.Add(BuildCard(Filtered(section)));
@@ -378,20 +416,27 @@ public partial class MainWindow
 
     private GameMetricCard BuildMetric(ScreenMetric metric) => new(metric);
 
-    private Button CommandButton(ScreenCommand command, string id)
+    private GameButton CommandButton(ScreenCommand command, string id)
     {
-        var button = new Button
+        var button = new GameButton(command.Label, VariantFor(command.Kind), command.Cost)
         {
-            Content = command.Label,
             Tag = id,
-            Style = (Style)FindResource(StyleFor(command.Kind)),
             Margin = new Thickness(0, 0, 8, 0),
-            ToolTip = command.Cost is null ? null : $"Tốn {command.Cost}"
+            ToolTip = command.Cost is null
+                ? null
+                : new GameRichTooltip(command.Label, $"Chi phí: {command.Cost}")
         };
 
         button.Click += RowCommand_Click;
         return button;
     }
+
+    private static GameButtonVariant VariantFor(CommandKind kind) => kind switch
+    {
+        CommandKind.Primary => GameButtonVariant.Primary,
+        CommandKind.Danger => GameButtonVariant.Danger,
+        _ => GameButtonVariant.Secondary
+    };
 
     private string StyleFor(CommandKind kind) => kind switch
     {
@@ -400,7 +445,6 @@ public partial class MainWindow
         _ => "GhostButton"
     };
 
-    /// <summary>Rows matching the search box; a cell hit is enough, case-insensitive.</summary>
     private ScreenSection Filtered(ScreenSection section)
     {
         if (string.IsNullOrWhiteSpace(_filter))
@@ -431,26 +475,43 @@ public partial class MainWindow
 
     private Border BuildCard(ScreenSection section, int wideColumn = -1)
     {
+        var bodyStack = new StackPanel();
+
+        var portraitStrip = TryBuildPortraitStrip(section);
+        if (portraitStrip is not null)
+        {
+            bodyStack.Children.Add(portraitStrip);
+        }
+
+        var slotStrip = TryBuildItemSlotStrip(section);
+        if (slotStrip is not null)
+        {
+            bodyStack.Children.Add(slotStrip);
+        }
+
+        bodyStack.Children.Add(BuildGrid(section, wideColumn));
+
         return new GameSectionCard
         {
             Heading = section.Heading,
             HeaderRight = new GameBadge($"{section.Rows.Count} dòng", BadgeVariant.Default),
-            CardBody = BuildGrid(section, wideColumn)
+            CardBody = bodyStack
         };
     }
 
-    private DataGrid BuildGrid(ScreenSection section, int wideColumn)
+    private UIElement BuildGrid(ScreenSection section, int wideColumn)
     {
         var rows = section.Rows.Select(row => new RowVm(section, row, this)).ToList();
         var columns = section.Columns;
 
         if (rows.Count == 0)
         {
-            return new DataGrid { ItemsSource = rows, MaxHeight = 120 };
+            return EmptyState("Chưa có dữ liệu trong mục này.");
         }
 
+        var visibleColumns = Math.Min(6, columns.Count);
         var numeric = new bool[columns.Count];
-        for (var index = 0; index < columns.Count; index++)
+        for (var index = 0; index < visibleColumns; index++)
         {
             var column = index;
             numeric[column] = rows.All(row =>
@@ -458,19 +519,14 @@ public partial class MainWindow
                 && (string.IsNullOrWhiteSpace(row.Cells[column].Text) || row.Cells[column].IsNumeric));
         }
 
-        // Exactly one column may stretch, and it should carry the longest text.
         var flexColumn = wideColumn;
-        if (flexColumn < 0)
+        if (flexColumn < 0 || flexColumn >= visibleColumns)
         {
-            var best = -1;
+            var best = 0;
             var bestLength = -1.0;
-            for (var index = 0; index < columns.Count; index++)
+            for (var index = 0; index < visibleColumns; index++)
             {
-                if (numeric[index])
-                {
-                    continue;
-                }
-
+                if (numeric[index]) continue;
                 var average = rows.Average(row => row.Cells[index].Text.Length);
                 if (average > bestLength)
                 {
@@ -482,125 +538,46 @@ public partial class MainWindow
             flexColumn = best;
         }
 
-        var grid = new DataGrid
+        var table = new GameTable(section, rows, visibleColumns, flexColumn, numeric);
+        table.ActionClicked += RowCommand_Click;
+        table.RowInspected += (sec, row) =>
         {
-            ItemsSource = rows,
-            Margin = new Thickness(-4, 0, -4, 0),
-            MaxHeight = 440,
-            EnableRowVirtualization = true
+            ShowInspector(sec, row);
+            var modalCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("npc:modal:"));
+            if (modalCmd is not null && long.TryParse(modalCmd.Id["npc:modal:".Length..], out var id))
+            {
+                TryOpenNpcModal(id);
+            }
         };
-        VirtualizingPanel.SetIsVirtualizing(grid, true);
-        VirtualizingPanel.SetVirtualizationMode(grid, VirtualizationMode.Recycling);
-
-        for (var index = 0; index < columns.Count; index++)
-        {
-            var templateCol = new DataGridTemplateColumn
-            {
-                Header = columns[index],
-                SortMemberPath = $"Cells[{index}]",
-                Width = index == flexColumn
-                    ? new DataGridLength(1, DataGridLengthUnitType.Star)
-                    : DataGridLength.Auto
-            };
-
-            if (index == flexColumn)
-            {
-                templateCol.MinWidth = 150;
-            }
-
-            if (numeric[index])
-            {
-                var header = new Style(typeof(DataGridColumnHeader), (Style)FindResource(typeof(DataGridColumnHeader)));
-                header.Setters.Add(new Setter(DataGridColumnHeader.HorizontalContentAlignmentProperty, HorizontalAlignment.Right));
-                templateCol.HeaderStyle = header;
-            }
-
-            var factory = new FrameworkElementFactory(typeof(ContentControl));
-            factory.SetBinding(ContentControl.ContentProperty, new Binding($"Cells[{index}]"));
-            factory.SetValue(ContentControl.FocusableProperty, false);
-            factory.SetValue(ContentControl.IsHitTestVisibleProperty, false);
-            templateCol.CellTemplate = new DataTemplate { VisualTree = factory };
-
-            grid.Columns.Add(templateCol);
-        }
-
-        if (section.Rows.Any(row => row.Commands.Any(command => !command.RequiresQuantity)))
-        {
-            grid.Columns.Add(new DataGridTemplateColumn
-            {
-                Header = string.Empty,
-                CellTemplate = (DataTemplate)FindResource("ActionsCell"),
-                Width = DataGridLength.Auto
-            });
-        }
-
-        grid.Columns.Add(new DataGridTemplateColumn
-        {
-            Header = string.Empty,
-            CellTemplate = (DataTemplate)FindResource("DetailCell"),
-            Width = DataGridLength.Auto
-        });
 
         if (_firstGrid is null)
         {
-            _firstGrid = grid;
+            _firstGrid = table;
             _firstSection = section;
         }
 
-        // A click selects a row for quick work. Opening the drawer is an explicit act:
-        // double-click, the ⋯ button, or Enter — otherwise every click would reflow the page.
-        grid.MouseDoubleClick += (_, _) =>
-        {
-            if (grid.SelectedItem is RowVm selected)
-            {
-                ShowInspector(section, selected.Row);
+        return table;
+    }
 
-                var modalCmd = selected.Row.Commands.FirstOrDefault(c => c.Id.StartsWith("npc:modal:"));
-                if (modalCmd is not null && long.TryParse(modalCmd.Id["npc:modal:".Length..], out var id))
-                {
-                    TryOpenNpcModal(id);
-                    return;
-                }
-
-                var itemModalCmd = selected.Row.Commands.FirstOrDefault(c => c.Id.StartsWith("item:modal:"));
-                if (itemModalCmd is not null)
-                {
-                    var uri = CommandUri.Parse(itemModalCmd.Id);
-                    if (uri.TryGetParamLong(out var itemId) || uri.TryGetTargetLong(out itemId))
-                    {
-                        TryOpenItemDetailModal(itemId);
-                        return;
-                    }
-                }
-
-                if (_kernel.Capabilities.TryGet<IItemHubService>(CapabilityIds.ItemHub, out var hub) && hub is not null)
-                {
-                    var rowTitle = selected.Row.Title ?? (selected.Row.Cells.Count > 0 ? selected.Row.Cells[0] : null);
-                    if (!string.IsNullOrEmpty(rowTitle))
-                    {
-                        var entry = hub.Entries.FirstOrDefault(e =>
-                            string.Equals(e.Item.NameVi, rowTitle, StringComparison.OrdinalIgnoreCase) ||
-                            rowTitle.StartsWith(e.Item.NameVi, StringComparison.OrdinalIgnoreCase) ||
-                            (selected.Row.Cells.Count > 0 && string.Equals(e.Item.NameVi, selected.Row.Cells[0], StringComparison.OrdinalIgnoreCase)));
-                        if (entry is not null)
-                        {
-                            TryOpenItemDetailModal(entry.Item.Id);
-                            return;
-                        }
-                    }
-                }
-            }
-        };
-
-        return grid;
+    private void RenderCityHub()
+    {
+        ScreenTitle.Text = "Trong Thành";
+        ScreenStatus.Text = "Trung tâm thành trì · bấm địa điểm hoặc danh sĩ để tương tác";
+        KpiStrip.Children.Clear();
+        AlertFeed.ItemsSource = null;
+        GlobalCommands.Children.Clear();
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+        ContentPanel.Children.Clear();
+        ContentPanel.Children.Add(EmptyState("Cảnh Trong Thành đang hiển thị trên lớp phủ tương tác."));
+        TryOpenCityScene();
     }
 
     private Border EmptyState(string message) => new GameEmptyState(
         "Chưa Có Dữ Liệu",
         string.IsNullOrWhiteSpace(message) ? "Chưa có thông tin hoặc đối tượng nào được ghi nhận tại phân khu này." : message,
-        "📜");
+        "—");
 
-    /// <summary>Quiet line under the cards: how long the current month still runs.</summary>
     private TextBlock MonthFooter()
     {
         var today = _kernel.Today;

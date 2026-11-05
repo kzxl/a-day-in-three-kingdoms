@@ -1,0 +1,27 @@
+{
+  "id": "dlc.dialogue",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "kind": "dlc",
+  "requires": ["base.world", "base.npc", "base.player", "base.content"],
+  "provides": ["dlc.dialogue"],
+  "consumes": [
+    "world.map",
+    "npc.registry",
+    "player.state",
+    "player.bag",
+    "player.attributes",
+    "content.items",
+    "social.network",
+    "market.trade",
+    "military.command"
+  ],
+  "owns": {
+    "tables": [
+      "dg_dialogue_line",
+      "dg_dialogue_visit"
+    ],
+    "migrations": ["migrations"]
+  },
+  "screens": []
+}

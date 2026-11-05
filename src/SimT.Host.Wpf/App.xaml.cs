@@ -1,6 +1,9 @@
 using System.IO;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
 
@@ -125,7 +128,7 @@ public partial class App : Application
 
             var meta = saves.Create("smoke-" + DateTime.UtcNow.Ticks);
             var kernel = saves.Open(meta);
-            var window = new MainWindow(kernel, saves, meta);
+            var window = new MainWindow(kernel, saves, meta, isSmoke: true);
             window.Show();
             var screens = window.RenderAllScreens();
             File.WriteAllText(log, $"ok screens={screens} date={kernel.Today} balance={kernel.Ledger.Balance}");
@@ -161,6 +164,11 @@ public partial class App : Application
         SeedDemo(kernel);
 
         var window = new MainWindow(kernel, saves, meta);
+        if (int.TryParse(Environment.GetEnvironmentVariable("SIMT_DEMO_WIDTH"), out var demoWidth) && demoWidth >= 800)
+        {
+            window.Width = demoWidth;
+        }
+
         MainWindow = window;
         window.Show();
 
@@ -184,7 +192,31 @@ public partial class App : Application
             window.RunCommandForDemo(act);
         }
 
+        var screenshotOut = Environment.GetEnvironmentVariable("SIMT_DEMO_SCREENSHOT");
+        if (!string.IsNullOrWhiteSpace(screenshotOut))
+        {
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            window.UpdateLayout();
+            if (window.Content is FrameworkElement rootEl)
+            {
+                var w = Math.Max(800, (int)Math.Round(rootEl.ActualWidth > 0 ? rootEl.ActualWidth : window.Width));
+                var h = Math.Max(600, (int)Math.Round(rootEl.ActualHeight > 0 ? rootEl.ActualHeight : window.Height));
+                rootEl.Measure(new Size(w, h));
+                rootEl.Arrange(new Rect(0, 0, w, h));
+                rootEl.UpdateLayout();
 
+                var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+                rtb.Render(rootEl);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(rtb));
+                using (var fs = File.Create(screenshotOut))
+                {
+                    encoder.Save(fs);
+                }
+            }
+            window.Close();
+            Shutdown(0);
+        }
     }
 
     /// <summary>Informational version, which includes the commit the build came from.</summary>

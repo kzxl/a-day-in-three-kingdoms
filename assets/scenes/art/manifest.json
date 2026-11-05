@@ -1,0 +1,86 @@
+{
+  "player": {
+    "portrait": "player",
+    "sprite": "traveler"
+  },
+  "npc": {
+    "npc_0001": {
+      "portrait": "liu_bei",
+      "sprite": "liu_bei"
+    },
+    "npc_0002": {
+      "portrait": "zhang_fei",
+      "sprite": "zhang_fei"
+    },
+    "npc_0003": {
+      "portrait": "guan_yu",
+      "sprite": "guan_yu"
+    },
+    "npc_0022": {
+      "portrait": "cao_cao",
+      "sprite": "cao_cao"
+    },
+    "npc_0025": {
+      "portrait": "zhuge_liang",
+      "sprite": "zhuge_liang"
+    },
+    "npc_0057": {
+      "portrait": "lu_bu",
+      "sprite": "lu_bu"
+    },
+    "npc_0140": {
+      "portrait": "lady",
+      "sprite": "civ_lady"
+    }
+  },
+  "archetype": {
+    "general": {
+      "portrait": "general",
+      "sprite": "han_officer"
+    },
+    "scholar": {
+      "portrait": "scholar",
+      "sprite": "civ_scholar"
+    },
+    "merchant": {
+      "portrait": "merchant",
+      "sprite": "civ_merchant"
+    },
+    "elder": {
+      "portrait": "elder",
+      "sprite": "civ_elder"
+    },
+    "commoner": {
+      "portrait": "commoner",
+      "sprite": "civ_commoner"
+    },
+    "lady": {
+      "portrait": "lady",
+      "sprite": "civ_lady"
+    },
+    "swordswoman": {
+      "portrait": "swordswoman",
+      "sprite": "female_warrior"
+    },
+    "archer": {
+      "portrait": "general",
+      "sprite": "han_archer"
+    },
+    "rebel": {
+      "portrait": "commoner",
+      "sprite": "yellow_turban"
+    },
+    "farmer_woman": {
+      "portrait": "farmer_woman",
+      "sprite": "civ_farmer_woman"
+    }
+  },
+  "backgrounds": {
+    "street": "backgrounds/street.png",
+    "market": "backgrounds/market.png",
+    "arena": "backgrounds/arena.png",
+    "gate": "backgrounds/gate.png",
+    "hall": "backgrounds/hall.png",
+    "field": "backgrounds/field.png"
+  }
+}

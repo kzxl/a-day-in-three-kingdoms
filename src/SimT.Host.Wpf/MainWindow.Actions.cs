@@ -1,11 +1,12 @@
-using System.Windows.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using SimT.Contracts;
 using SimT.Contracts.Ledger;
 using SimT.Contracts.Playing;
+using SimT.Contracts.Scenes;
 using SimT.Contracts.Time;
+using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
 
@@ -30,25 +31,56 @@ public partial class MainWindow
 
     private async void AdvanceWeek_Click(object sender, RoutedEventArgs e) => await AdvanceAsync(7);
 
-    private void Stroll_Click(object sender, RoutedEventArgs e)
+    private void Stroll_Click(object sender, RoutedEventArgs e) => TriggerCityStroll(preferModalWhenOutsideScene: true);
+
+    private void TriggerCityStroll(bool preferModalWhenOutsideScene = false)
     {
         if (_isAdvancing) return;
 
         if (_kernel.Capabilities.TryGet<ICityStroll>(CapabilityIds.CityStroll, out var stroll) && stroll is not null &&
             _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
         {
-            var modal = new CityStrollModalWindow(_kernel, stroll, player.CurrentCityId) { Owner = this };
-            modal.StrollStateChanged += () =>
+            if (preferModalWhenOutsideScene && !SceneOverlay.IsVisible)
             {
+                var modal = new CityStrollModalWindow(_kernel, stroll, player.CurrentCityId) { Owner = this };
+                modal.StrollStateChanged += () =>
+                {
+                    _kernel.Save();
+                    UpdateHeader();
+                    RenderSelected();
+                };
+                modal.ShowDialog();
                 _kernel.Save();
                 UpdateHeader();
                 RenderSelected();
-            };
-            modal.ShowDialog();
+                return;
+            }
 
+            var result = stroll.Stroll(player.CurrentCityId);
             _kernel.Save();
             UpdateHeader();
-            RenderSelected();
+
+            if (result.Ok)
+            {
+                RenderSelected();
+                ShowNotification($"[{result.LocationName} · {result.Title}] {result.Narrative} » {result.RewardSummary}");
+                PresentStrollResultInCityScene(result);
+            }
+            else
+            {
+                ShowNotification($"[{result.Title}] {result.Narrative}");
+            }
+
+            if (result.Ok)
+            {
+                RenderSelected();
+                ShowNotification($"[{result.LocationName} · {result.Title}] {result.Narrative} » {result.RewardSummary}");
+                PresentStrollResultInCityScene(result);
+            }
+            else
+            {
+                ShowNotification(result.Narrative, GameToastKind.Loss);
+            }
         }
         else
         {
@@ -101,7 +133,8 @@ public partial class MainWindow
             {
                 ShowFloatingFeedback($"{netDelta:N0} Quan", (Brush)FindResource("Loss"), 180, 50);
             }
-            StatusText.Text = customStatus ?? $"Đã sang {GameDateCodec.DescribeVi(_kernel.Today)} (+{days} ngày).";
+
+            ShowNotification(customStatus ?? $"Đã sang {GameDateCodec.DescribeVi(_kernel.Today)} (+{days} ngày).");
         }
         catch (Exception error)
         {
@@ -123,10 +156,6 @@ public partial class MainWindow
         Cursor = busy ? System.Windows.Input.Cursors.Wait : null;
     }
 
-    /// <summary>
-    /// What the days just spent actually did: money in, money out, and the charges the month
-    /// close took. The old turn report in one card.
-    /// </summary>
     private void ShowReport(GameDate from, GameDate to)
     {
         var lines = _kernel.Ledger.Query(from, to, limit: 500);
@@ -199,15 +228,11 @@ public partial class MainWindow
         }
 
         var fromDate = _kernel.Today;
-        string? resultMsg = null;
+        string? resultMsg;
         try
         {
             resultMsg = handler.Execute(commandId) ?? "Xong.";
-            StatusText.Text = resultMsg;
-            if (!string.IsNullOrWhiteSpace(resultMsg) && !resultMsg.StartsWith("Lỗi", StringComparison.OrdinalIgnoreCase))
-            {
-                ShowGameToast("Thao Tác Hoàn Tất", resultMsg, "◈", (Brush)FindResource("Accent"));
-            }
+            ShowNotification(resultMsg);
         }
         catch (Exception error)
         {
@@ -281,49 +306,10 @@ public partial class MainWindow
         tb.BeginAnimation(OpacityProperty, fadeAnim);
     }
 
-    private DispatcherTimer? _toastTimer;
-
     public void ShowGameToast(string title, string message, string glyph = "⚡", Brush? accent = null)
     {
-        ToastTitle.Text = title;
-        ToastMessage.Text = message;
-        ToastGlyph.Text = glyph;
-        if (accent is not null)
-        {
-            ToastTitle.Foreground = accent;
-            ToastBanner.BorderBrush = accent;
-        }
-        else
-        {
-            ToastTitle.Foreground = (Brush)FindResource("Accent");
-            ToastBanner.BorderBrush = (Brush)FindResource("Accent");
-        }
-
-        ToastBanner.Visibility = Visibility.Visible;
-        var slideIn = new System.Windows.Media.Animation.DoubleAnimation(-20, 0, TimeSpan.FromMilliseconds(220))
-        {
-            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
-        };
-        var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(220));
-
-        ToastTransform.BeginAnimation(TranslateTransform.YProperty, slideIn);
-        ToastBanner.BeginAnimation(OpacityProperty, fadeIn);
-
-        _toastTimer?.Stop();
-        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2800) };
-        _toastTimer.Tick += (_, _) =>
-        {
-            _toastTimer.Stop();
-            var slideOut = new System.Windows.Media.Animation.DoubleAnimation(0, -20, TimeSpan.FromMilliseconds(180))
-            {
-                EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn }
-            };
-            var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(1.0, 0, TimeSpan.FromMilliseconds(180));
-            fadeOut.Completed += (_, _) => ToastBanner.Visibility = Visibility.Collapsed;
-
-            ToastTransform.BeginAnimation(TranslateTransform.YProperty, slideOut);
-            ToastBanner.BeginAnimation(OpacityProperty, fadeOut);
-        };
-        _toastTimer.Start();
+        _ = glyph;
+        _ = accent;
+        ShowNotification($"{title}: {message}");
     }
 }

@@ -146,13 +146,19 @@ internal sealed class StallScreen : IScreenContribution
             ["food"] = ("🍱 Thực Phẩm & Đồ Uống", 2),
             ["luxury"] = ("👑 Thượng Phẩm & Xa Xỉ", 3),
             ["medicine"] = ("💊 Dược Liệu & Thuốc Men", 4),
-            ["material"] = ("⛏️ Khoáng Sản & Vật Liệu", 5)
+            ["material"] = ("⛏️ Khoáng Sản & Vật Liệu", 5),
+            ["seed"] = ("🌱 Hạt Giống & Cây Trồng", 6),
+            ["farming"] = ("🌾 Vật Tư Nông Nghiệp", 7),
+            ["supply"] = ("🌾 Vật Tư Nông Nghiệp", 7),
+            ["tool"] = ("🛠️ Nông Cụ & Khí Cụ", 8),
+            ["weapon"] = ("⚔️ Binh Khí & Quân Trang", 9),
+            ["book"] = ("📜 Thư Tịch & Bí Kíp", 10)
         };
 
         var sections = rowsByCategory
             .OrderBy(pair => categoryMap.TryGetValue(pair.Key, out var meta) ? meta.Order : 99)
             .Select(pair => new ScreenSection(
-                categoryMap.TryGetValue(pair.Key, out var meta) ? meta.Title : pair.Key,
+                categoryMap.TryGetValue(pair.Key, out var meta) ? meta.Title : SimT.Contracts.Scenes.RoleTitleVi.FormatItemCategory(pair.Key),
                 Columns,
                 pair.Value))
             .ToList();
@@ -202,7 +208,7 @@ internal sealed class StallScreen : IScreenContribution
                         new ScreenDetail("Ưu đãi giảm giá", discountText),
                         new ScreenDetail("Giá thực mua", Fmt(effectivePrice) + " quan"),
                         new ScreenDetail("Tồn kho sạp", $"{offer.Quantity}/{offer.MaxQuantity}"),
-                        new ScreenDetail("Ngành hàng", stall?.Sector ?? "Tổng hợp")
+                        new ScreenDetail("Ngành hàng", SimT.Contracts.Scenes.RoleTitleVi.FormatItemCategory(stall?.Sector ?? item.Category))
                     ]));
             }
 
@@ -643,7 +649,7 @@ internal sealed class PlayerStallScreen : IScreenContribution
                 Details:
                 [
                     new ScreenDetail("Mặt hàng", item.NameVi),
-                    new ScreenDetail("Ngành hàng", item.Category),
+                    new ScreenDetail("Ngành hàng", SimT.Contracts.Scenes.RoleTitleVi.FormatItemCategory(item.Category)),
                     new ScreenDetail("Số lượng trên quầy", $"{shelf.Quantity} đơn vị"),
                     new ScreenDetail("Giá niêm yết bán lẻ", $"{shelf.SellingPrice} quan"),
                     new ScreenDetail("Giá sỉ tại chợ", $"{marketPrice} quan"),

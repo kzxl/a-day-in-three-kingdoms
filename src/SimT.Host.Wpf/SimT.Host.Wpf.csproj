@@ -27,6 +27,7 @@
     <ModuleProject Include="..\SimT.Modules.Dlc.Society\SimT.Modules.Dlc.Society.csproj" />
     <ModuleProject Include="..\SimT.Modules.Dlc.Social\SimT.Modules.Dlc.Social.csproj" />
     <ModuleProject Include="..\SimT.Modules.Dlc.Military\SimT.Modules.Dlc.Military.csproj" />
+    <ModuleProject Include="..\SimT.Modules.Dlc.Dialogue\SimT.Modules.Dlc.Dialogue.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -51,6 +52,10 @@
 
   <ItemGroup>
     <None Include="..\..\assets\**\*" LinkBase="assets" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
   </ItemGroup>
 
 </Project>

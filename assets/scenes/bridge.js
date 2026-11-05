@@ -1,0 +1,115 @@
+const stageHandlers = {
+  talk: null,
+  duel: null,
+  city: null
+};
+
+let activeKind = 'none';
+let activeSceneId = null;
+
+function postToHost(message) {
+  if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
+    window.chrome.webview.postMessage(message);
+  }
+}
+
+export const SimTBridge = {
+  registerStage(kind, handler) {
+    stageHandlers[kind] = handler;
+  },
+
+  sendChoice(sceneId, id) {
+    postToHost({ type: 'choice', sceneId: sceneId || activeSceneId, id: String(id) });
+  },
+
+  sendNavigate(sceneId, id) {
+    postToHost({ type: 'navigate', sceneId: sceneId || activeSceneId, id: String(id) });
+  },
+
+  sendClose(sceneId) {
+    postToHost({ type: 'close', sceneId: sceneId || activeSceneId });
+  },
+
+  getActiveKind() {
+    return activeKind;
+  }
+};
+
+window.SimTBridge = SimTBridge;
+
+function showStageSection(kind, scene) {
+  const root = document.getElementById('scene-root');
+  if (root) {
+    root.dataset.active = kind;
+  }
+
+  for (const key of ['talk', 'duel', 'city']) {
+    const el = document.getElementById(`stage-${key}`);
+    if (!el) continue;
+    if (key === kind) {
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+      if (stageHandlers[key] && typeof stageHandlers[key].unmount === 'function') {
+        stageHandlers[key].unmount();
+      }
+    }
+  }
+
+  activeKind = kind;
+  activeSceneId = scene ? scene.sceneId || kind : null;
+
+  if (kind !== 'none' && stageHandlers[kind] && typeof stageHandlers[kind].render === 'function') {
+    const container = document.getElementById(`stage-${kind}`);
+    stageHandlers[kind].render(container, scene, SimTBridge);
+  }
+}
+
+function handleHostEnvelope(raw) {
+  if (!raw) return;
+  let data = raw;
+  if (typeof raw === 'string') {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return;
+    }
+  }
+  if (!data || typeof data.type !== 'string') return;
+
+  switch (data.type) {
+    case 'scene:talk':
+      showStageSection('talk', data.scene);
+      break;
+    case 'scene:duel':
+      showStageSection('duel', data.scene);
+      break;
+    case 'scene:city':
+      showStageSection('city', data.scene);
+      break;
+    case 'scene:hide':
+      showStageSection('none', null);
+      break;
+  }
+}
+
+if (window.chrome && window.chrome.webview) {
+  window.chrome.webview.addEventListener('message', (event) => {
+    handleHostEnvelope(event.data);
+  });
+}
+
+window.addEventListener('message', (event) => {
+  handleHostEnvelope(event.data);
+});
+
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && (activeKind === 'talk' || activeKind === 'duel')) {
+    event.preventDefault();
+    SimTBridge.sendClose(activeSceneId);
+  }
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  postToHost({ type: 'ready' });
+});

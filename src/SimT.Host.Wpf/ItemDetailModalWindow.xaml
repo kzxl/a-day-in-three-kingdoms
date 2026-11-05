@@ -1,6 +1,7 @@
 <Window x:Class="SimT.Host.Wpf.ItemDetailModalWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:SimT.Host.Wpf.Controls"
         Title="Bách Vật Đồ Giám — Tra Cứu Kỳ Vật &amp; Nông Cụ"
         Height="740" Width="840"
         MinHeight="620" MinWidth="740"
@@ -133,9 +134,9 @@
                         <Border x:Name="UnrentedWarehousePanel" Grid.Row="1" Background="{StaticResource Surface}"
                                 BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,4">
                             <DockPanel>
-                                <Button x:Name="RentWarehouseButton" Content="🔑 Thuê Kho Ngay (120 Quan/tháng)"
-                                        Style="{StaticResource PrimaryButton}" DockPanel.Dock="Right" Padding="14,6" Margin="10,0,0,0"
-                                        Click="RentWarehouse_Click" />
+                                <controls:GameButton x:Name="RentWarehouseButton" Label="Thuê Kho Ngay" CostText="120 q/tháng"
+                                                     Variant="Primary" DockPanel.Dock="Right" Margin="10,0,0,0"
+                                                     Click="RentWarehouse_Click" />
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="⚠️ Chưa thuê kho thương điếm tại thành này" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource Loss}" />
                                     <TextBlock Text="Thuê kho để cất giữ nông sản &amp; vật phẩm, tránh quá tải hành trang và giảm rủi ro cướp bóc."
@@ -161,9 +162,9 @@
                                         <TextBlock x:Name="AvailableInBagText" Text="Có: 0" FontSize="10.5" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </DockPanel>
                                     <WrapPanel>
-                                        <Button x:Name="StoreOneButton" Content="Gửi 1" Style="{StaticResource ChipButton}" Margin="0,0,6,4" Padding="10,4" Click="StoreOne_Click" />
-                                        <Button x:Name="StoreFiveButton" Content="Gửi 5" Style="{StaticResource ChipButton}" Margin="0,0,6,4" Padding="10,4" Click="StoreFive_Click" />
-                                        <Button x:Name="StoreAllButton" Content="Gửi Hết" Style="{StaticResource ChipButton}" Margin="0,0,6,4" Padding="10,4" Click="StoreAll_Click" />
+                                        <controls:GameButton x:Name="StoreOneButton" Label="Gửi 1" Variant="Secondary" IsCompact="True" Margin="0,0,6,4" Click="StoreOne_Click" />
+                                        <controls:GameButton x:Name="StoreFiveButton" Label="Gửi 5" Variant="Secondary" IsCompact="True" Margin="0,0,6,4" Click="StoreFive_Click" />
+                                        <controls:GameButton x:Name="StoreAllButton" Label="Gửi Hết" Variant="Primary" IsCompact="True" Margin="0,0,6,4" Click="StoreAll_Click" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -177,9 +178,9 @@
                                         <TextBlock x:Name="AvailableInWarehouseText" Text="Kho: 0" FontSize="10.5" Foreground="{StaticResource Muted}" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </DockPanel>
                                     <WrapPanel>
-                                        <Button x:Name="TakeOneButton" Content="Lấy 1" Style="{StaticResource ChipButton}" Margin="0,0,6,4" Padding="10,4" Click="TakeOne_Click" />
-                                        <Button x:Name="TakeFiveButton" Content="Lấy 5" Style="{StaticResource ChipButton}" Margin="0,0,6,4" Padding="10,4" Click="TakeFive_Click" />
-                                        <Button x:Name="TakeAllButton" Content="Lấy Hết" Style="{StaticResource ChipButton}" Margin="0,0,6,4" Padding="10,4" Click="TakeAll_Click" />
+                                        <controls:GameButton x:Name="TakeOneButton" Label="Lấy 1" Variant="Secondary" IsCompact="True" Margin="0,0,6,4" Click="TakeOne_Click" />
+                                        <controls:GameButton x:Name="TakeFiveButton" Label="Lấy 5" Variant="Secondary" IsCompact="True" Margin="0,0,6,4" Click="TakeFive_Click" />
+                                        <controls:GameButton x:Name="TakeAllButton" Label="Lấy Hết" Variant="Primary" IsCompact="True" Margin="0,0,6,4" Click="TakeAll_Click" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
@@ -291,9 +292,9 @@
             <DockPanel>
                 <TextBlock Text="Phím ESC để đóng cửa sổ · Bách Vật Đồ Giám &amp; Kho Thương Điếm SimT"
                            VerticalAlignment="Center" FontSize="11" Foreground="{StaticResource Muted}" />
-                <Button Content="Đóng Đồ Giám" Style="{StaticResource PrimaryButton}"
-                        HorizontalAlignment="Right" Padding="18,6"
-                        Click="CloseButton_Click" />
+                <controls:GameButton Label="Đóng Đồ Giám" Variant="Primary"
+                                     HorizontalAlignment="Right"
+                                     Click="CloseButton_Click" />
             </DockPanel>
         </Border>
     </Grid>

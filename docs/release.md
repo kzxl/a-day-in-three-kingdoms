@@ -30,6 +30,7 @@ QUICKSTART.txt           what a player needs to know
 Modules\                 base + DLC modules (10 DLLs in 0.1.0)
 assets\config\           game-constants.json
 assets\products\         merchant-slice.json (enabled modules, seed, starting cash)
+assets\scenes\           WebView2 interactive scenes (HTML/CSS/JS, fonts, art, pixelfx)
 ```
 
 Modules stay outside the single-file bundle on purpose: a DLC is an artefact, not a reference, so

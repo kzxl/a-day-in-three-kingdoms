@@ -170,10 +170,10 @@
                     <StackPanel x:Name="NpcChoicesPanel" Visibility="Collapsed" />
 
                     <!-- Decline Button (for Merchant) -->
-                    <Button x:Name="DeclineMerchantBtn" Content="Cáo Biệt Không Mua"
-                            Style="{StaticResource GhostButton}"
-                            HorizontalAlignment="Center" Margin="0,8,0,0" Padding="16,5"
-                            Visibility="Collapsed" Click="DeclineMerchant_Click" />
+                    <controls:GameButton x:Name="DeclineMerchantBtn" Label="Cáo Biệt Không Mua"
+                                         Variant="Secondary"
+                                         HorizontalAlignment="Center" Margin="0,8,0,0"
+                                         Visibility="Collapsed" Click="DeclineMerchant_Click" />
                 </StackPanel>
             </Border>
 
@@ -234,16 +234,14 @@
 
                 <!-- Right: Action Buttons -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="ContinueStrollBtn" Content="🚶 Tiếp Tục Dạo Bước"
-                            Style="{StaticResource PrimaryButton}"
-                            Padding="16,7" Margin="0,0,8,0"
-                            FontWeight="Bold"
-                            Click="ContinueStroll_Click"
-                            ToolTip="Dạo thêm một bước phố phường (tiêu hao 1 ngày, 5 mệt mỏi, giải tỏa 12 căng thẳng)" />
-                    <Button Content="Trở Về"
-                            Style="{StaticResource GhostButton}"
-                            Padding="16,7"
-                            Click="Close_Click" />
+                    <controls:GameButton x:Name="ContinueStrollBtn" Label="🚶 Tiếp Tục Dạo Bước"
+                                         Variant="Primary"
+                                         Margin="0,0,8,0"
+                                         Click="ContinueStroll_Click"
+                                         ToolTip="Dạo thêm một bước phố phường (tiêu hao 1 ngày, 5 mệt mỏi, giải tỏa 12 căng thẳng)" />
+                    <controls:GameButton Label="Trở Về"
+                                         Variant="Secondary"
+                                         Click="Close_Click" />
                 </StackPanel>
             </DockPanel>
         </Border>

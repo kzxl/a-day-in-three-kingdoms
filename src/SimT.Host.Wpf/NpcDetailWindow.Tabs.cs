@@ -105,9 +105,7 @@ public partial class NpcDetailWindow
             };
             LifestyleReputationText.Text = $"★ Uy danh {repVal:N0} ({repTitle})";
             LifestyleActionText.Text = _activity is not null ? $"⚡ {_activity.CurrentAction}" : "Tu tâm dưỡng tính";
-            PersonalityDetailText.Text = string.IsNullOrWhiteSpace(_npc.Personality)
-                ? "Khí chất bình ổn, chưa bộc lộ dã tâm hay khuynh hướng đặc biệt."
-                : _npc.Personality;
+            PersonalityDetailText.Text = SimT.Contracts.Scenes.RoleTitleVi.FormatPersonality(_npc.Personality);
         }
     }
 
@@ -541,10 +539,8 @@ public partial class NpcDetailWindow
             HorizontalAlignment = HorizontalAlignment.Right
         });
 
-        var detailBtn = new Button
+        var detailBtn = new GameButton("Xem Chi Tiết", GameButtonVariant.Secondary, isCompact: true)
         {
-            Content = "🔍 Xem Chi Tiết",
-            Style = (Style)FindResource("ChipButton"),
             Margin = new Thickness(0, 4, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Right
         };

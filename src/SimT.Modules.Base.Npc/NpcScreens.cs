@@ -237,7 +237,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
         {
             new("Họ Tên", $"{npc.NameVi}{nameHan}"),
             new("Tên Tự", style),
-            new("Thân Phận", npc.Role),
+            new("Thân Phận", SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role)),
             new("Ngụ Cư", citadelName),
             new("Tình Trạng", statusNote)
         };
@@ -291,7 +291,7 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             [
                 npc.NameVi,
                 $"{style}{nameHan}",
-                npc.Role,
+                SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role),
                 citadelName,
                 warDisplay,
                 ldrDisplay,
@@ -299,7 +299,8 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
                 comDisplay
             ],
             [
-                new ScreenCommand($"npc:modal:{npc.Id}", "Hồ Sơ 🔍", CommandKind.Primary)
+                new ScreenCommand($"talk:npc:{npc.Id}", "Bái phỏng", CommandKind.Primary),
+                new ScreenCommand($"npc:modal:{npc.Id}", "Hồ Sơ", CommandKind.Secondary)
             ],
             Title: $"{npc.NameVi} — {style}",
             Details: details);
@@ -323,7 +324,7 @@ internal sealed class NpcCommandHandler : IScreenCommandHandler
                 var npc = _registry.Find(id);
                 if (npc is not null)
                 {
-                    return $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? npc.Role})";
+                    return $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role)})";
                 }
             }
             return "Không tìm thấy thông tin nhân sĩ.";

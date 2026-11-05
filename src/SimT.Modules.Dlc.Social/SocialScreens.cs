@@ -347,7 +347,8 @@ internal sealed class SocialScreen : IScreenContribution
 
             var commands = new List<ScreenCommand>
             {
-                new($"chat:{npc.Id}", "Đàm Đạo 💬", CommandKind.Primary),
+                new($"talk:npc:{npc.Id}", "Gặp gỡ", CommandKind.Primary),
+                new($"chat:{npc.Id}", "Đàm Đạo", CommandKind.Secondary),
                 new($"gift:{npc.Id}", "Biếu Quà 🎁", CommandKind.Secondary),
                 new($"npc:modal:{npc.Id}", "Hồ Sơ 🔍", CommandKind.Secondary)
             };
@@ -395,7 +396,7 @@ internal sealed class SocialScreen : IScreenContribution
                 [
                     npc.NameVi,
                     rankBadge,
-                    npc.Role,
+                    SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role),
                     skillDisplay,
                     $"{affinityDisplay}/100",
                     impression,
@@ -407,7 +408,7 @@ internal sealed class SocialScreen : IScreenContribution
                 [
                     new ScreenDetail("Họ Tên", npc.NameVi),
                     new ScreenDetail("Phẩm Giai", $"{rankBadge} · Sính lễ: {req.SigningFee:N0} Quan, Bổng lộc tối thiểu: {req.MinMonthlyStipend:N0} Quan/tháng"),
-                    new ScreenDetail("Thân Phận", npc.Role),
+                    new ScreenDetail("Thân Phận", SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role)),
                     new ScreenDetail("Đặc Kỹ", npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => $"[{s.NameVi}] {s.EffectSummary}")) : "Chưa khai mở"),
                     new ScreenDetail("Hảo Cảm", $"{affinity}/100"),
                     new ScreenDetail("Mức Độ Quan Hệ", impression),

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Media;
 using SimT.Contracts.Ui;
 
 namespace SimT.Host.Wpf;
@@ -12,11 +13,13 @@ public partial class MainWindow
         private string _badge = string.Empty;
         private Visibility _badgeVisibility = Visibility.Collapsed;
 
-        public NavEntry(string screenId, string title, string glyph)
+        public NavEntry(string screenId, string title, string group, string iconPathData, bool showGroupHeader = false)
         {
             ScreenId = screenId;
             Title = title;
-            Glyph = glyph;
+            Group = group;
+            IconGeometry = Geometry.Parse(iconPathData);
+            GroupHeaderVisibility = showGroupHeader ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -25,7 +28,11 @@ public partial class MainWindow
 
         public string Title { get; }
 
-        public string Glyph { get; }
+        public string Group { get; }
+
+        public Geometry IconGeometry { get; }
+
+        public Visibility GroupHeaderVisibility { get; }
 
         public string Badge
         {
@@ -58,7 +65,7 @@ public partial class MainWindow
     }
 
     /// <summary>Row shape the DataGrid binds to: cells, chip buttons and the model behind it.</summary>
-    private sealed class RowVm
+    public sealed class RowVm
     {
         public RowVm(ScreenSection section, ScreenRow row, MainWindow owner)
         {
@@ -82,7 +89,7 @@ public partial class MainWindow
         public IReadOnlyList<ChipVm> Chips { get; }
     }
 
-    private sealed record ChipVm(ScreenCommand Command, Style Style)
+    public sealed record ChipVm(ScreenCommand Command, Style Style)
     {
         public string Id => Command.Id;
 
@@ -99,9 +106,9 @@ public partial class MainWindow
             ScreenId = alert.ScreenId;
             Accent = alert.Level switch
             {
-                AlertLevel.Critical => "#E06C75",
-                AlertLevel.Warning => "#D9A441",
-                _ => "#5E6B7C"
+                AlertLevel.Critical => "#A8321F",
+                AlertLevel.Warning => "#C4A062",
+                _ => "#8F7F62"
             };
         }
 

@@ -213,15 +213,13 @@ public partial class NpcDetailWindow : Window
         HanNameText.Text = string.IsNullOrWhiteSpace(_npc.NameHan) ? "" : _npc.NameHan;
         StyleNameText.Text = string.IsNullOrWhiteSpace(_npc.StyleNameVi) ? "" : $"Tự: {_npc.StyleNameVi}";
 
-        RoleText.Text = _npc.Role;
+        RoleText.Text = SimT.Contracts.Scenes.RoleTitleVi.Format(_npc.Role);
         CitadelText.Text = $"Ngụ tại: {_citadelName}";
 
         var sameCity = (_npcCitadelId == _playerCityId);
         UpdatePills(sameCity);
 
-        PersonalitySummaryText.Text = string.IsNullOrWhiteSpace(_npc.Personality)
-            ? "Khí chất bình ổn, phong thái điềm đạm."
-            : $"Khí chất: {_npc.Personality}";
+        PersonalitySummaryText.Text = $"Khí chất: {SimT.Contracts.Scenes.RoleTitleVi.FormatPersonality(_npc.Personality)}";
 
         // Calculate total stats and combat power
         var a = _npc.Attributes;
@@ -397,7 +395,9 @@ public partial class NpcDetailWindow : Window
 
     private void MeetNpc_Click(object sender, RoutedEventArgs e)
     {
-        OnMeetNpc?.Invoke(_npcId);
+        var id = _npcId;
+        Close();
+        OnMeetNpc?.Invoke(id);
         _hasMet = true;
         UpdateAfterMeeting();
     }

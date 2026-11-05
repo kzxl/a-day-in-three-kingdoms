@@ -1,0 +1,130 @@
+/* ===== STAGE 4: TRONG THÀNH (CITY HUB SCENE) ===== */
+.tk-city-shell {
+  position: relative; width: 100%; height: 100%;
+  display: grid; grid-template-rows: 52px 1fr 78px;
+  background: var(--bg); color: var(--text); overflow: hidden;
+}
+
+.tk-city-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; background: var(--lacquer);
+  border-bottom: 1px solid var(--line); z-index: 10;
+}
+.tk-city-title-group { display: flex; align-items: center; gap: 12px; }
+.tk-city-name { font-family: var(--font-display); font-size: 17px; font-weight: 700; color: var(--ink); }
+.tk-city-han { font-family: var(--font-brush); font-size: 18px; color: var(--gold); }
+.tk-city-meta {
+  font-size: 12px; color: var(--muted); padding: 3px 10px;
+  background: var(--lacquer-alt); border: 1px solid var(--line); border-radius: 3px;
+}
+
+.tk-city-stage-wrap {
+  position: relative; width: 100%; height: 100%;
+  background: #0f0b08; overflow: hidden;
+}
+.tk-city-bg {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center bottom;
+  image-rendering: pixelated; filter: brightness(0.86) contrast(1.04);
+}
+.tk-city-weather-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  image-rendering: pixelated; pointer-events: none; z-index: 3;
+}
+.tk-city-vignette {
+  position: absolute; inset: 0; pointer-events: none; z-index: 4;
+  background: radial-gradient(circle at 50% 45%, transparent 55%, rgba(12, 9, 6, 0.72) 100%),
+              linear-gradient(180deg, rgba(15, 11, 8, 0.35) 0%, transparent 22%, transparent 76%, rgba(15, 11, 8, 0.78) 100%);
+}
+
+/* Architectural Hotspots */
+.tk-hotspot {
+  position: absolute; transform: translate(-50%, -50%); z-index: 120;
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 36px; padding: 0 13px;
+  background: rgba(24, 18, 13, 0.92);
+  border: 1px solid var(--gold); border-left: 3px solid var(--vermilion);
+  border-radius: 4px; color: var(--ink);
+  font-family: var(--font-display); font-size: 13px; font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.65); cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+.tk-hotspot:hover {
+  transform: translate(-50%, -54%) scale(1.04);
+  border-color: var(--gold-hover);
+  background: rgba(46, 33, 22, 0.98);
+  z-index: 135;
+}
+.tk-hotspot-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 0 8px var(--gold);
+}
+
+/* Standing NPC Sprites */
+.tk-city-npc {
+  position: absolute; transform: translate(-50%, -100%); z-index: 70;
+  display: flex; flex-direction: column; align-items: center;
+  background: none; border: none; cursor: pointer; padding: 0;
+}
+.tk-city-npc:hover, .tk-city-npc:focus-visible {
+  z-index: 140 !important;
+}
+.tk-city-npc-label {
+  margin-bottom: 6px; padding: 3px 9px; border-radius: 3px;
+  background: rgba(24, 18, 13, 0.96); border: 1px solid rgba(196, 160, 98, 0.72);
+  color: var(--ink); font-family: var(--font-body); font-size: 11.5px; font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
+  opacity: 0; pointer-events: none; transform: translateY(4px);
+  transition: opacity 0.14s ease, transform 0.14s ease, border-color 0.14s ease;
+}
+.tk-city-npc-role {
+  display: block; font-size: 10px; font-weight: 400; color: var(--gold);
+}
+.tk-city-npc-sprite {
+  height: calc(104px * var(--npc-scale, 1)); width: auto; object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.78));
+  animation: tkCityNpcBreath 4.2s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+.tk-city-npc:nth-child(even) .tk-city-npc-sprite { animation-delay: 1.4s; }
+.tk-city-npc:hover .tk-city-npc-label,
+.tk-city-npc:focus-visible .tk-city-npc-label {
+  opacity: 1; transform: translateY(-4px); border-color: var(--gold-hover);
+}
+.tk-city-npc:hover .tk-city-npc-sprite {
+  filter: brightness(1.12) drop-shadow(0 10px 14px rgba(196, 160, 98, 0.45));
+}
+@keyframes tkCityNpcBreath {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-4px) scaleY(1.012); }
+}
+
+/* Mini Event Card (Du ngoạn phố) */
+.tk-city-event-card {
+  position: absolute; left: 24px; bottom: 20px; width: min(460px, calc(100% - 48px)); z-index: 150;
+  padding: 14px 18px; border-radius: 4px;
+  background: linear-gradient(180deg, var(--silk) 0%, var(--silk-deep) 100%);
+  border: 1px solid #9e845c; border-left: 5px solid var(--vermilion);
+  color: var(--paper-ink); box-shadow: 0 16px 38px rgba(0, 0, 0, 0.72);
+}
+.tk-event-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tk-event-title { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--paper-ink); }
+.tk-event-loc { font-size: 11px; font-weight: 600; color: #7c2416; }
+.tk-event-body { font-size: 13px; color: var(--paper-sub); margin: 6px 0; }
+.tk-event-reward { font-size: 11.5px; font-weight: 600; color: #2b5440; }
+
+/* Bottom Quick Dock */
+.tk-city-dock {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 0 20px; background: var(--lacquer); border-top: 1px solid var(--line); z-index: 10;
+}
+.tk-city-hint { font-size: 12.5px; color: var(--muted); }
+.tk-city-actions { display: flex; align-items: center; gap: 10px; }
+.tk-city-btn {
+  height: 38px; padding: 0 16px; border-radius: 4px;
+  background: linear-gradient(90deg, rgba(46, 33, 22, 0.95), rgba(34, 24, 17, 0.95));
+  border: 1px solid var(--gold); border-left: 3px solid var(--vermilion);
+  color: var(--ink); font-family: var(--font-body); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.tk-city-btn:hover { border-color: var(--gold-hover); background: var(--gold-soft); }

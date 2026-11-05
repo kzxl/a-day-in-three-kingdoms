@@ -13,6 +13,18 @@ public partial class MainWindow
 {
     private void RegisterModalPresenters()
     {
+        _kernel.Ui.RegisterModalPresenter("talk:npc:", commandId =>
+        {
+            var uri = CommandUri.Parse(commandId);
+            if (uri.TryGetParamLong(out var talkNpcId) || uri.TryGetTargetLong(out talkNpcId))
+            {
+                if (!TryOpenTalkScene(talkNpcId))
+                {
+                    MeetNpcFallback(talkNpcId);
+                }
+            }
+        });
+
         _kernel.Ui.RegisterModalPresenter("npc:modal:", commandId =>
         {
             var uri = CommandUri.Parse(commandId);
@@ -262,7 +274,7 @@ public partial class MainWindow
                 {
                     var entry = hub?.FindEntry(item.Id);
                     var icon = entry?.VisualIcon ?? "📦";
-                    var subCat = entry?.SubCategoryVi ?? item.Category;
+                    var subCat = entry?.SubCategoryVi ?? SimT.Contracts.Scenes.RoleTitleVi.FormatItemCategory(item.Category);
                     var summary = entry?.LoreDescriptionVi ?? item.NameVi;
                     bagItemList.Add(new ProtagonistBagItem(
                         item.Id,
@@ -293,7 +305,7 @@ public partial class MainWindow
                     {
                         var entry = h?.FindEntry(item.Id);
                         var icon = entry?.VisualIcon ?? "📦";
-                        var subCat = entry?.SubCategoryVi ?? item.Category;
+                        var subCat = entry?.SubCategoryVi ?? SimT.Contracts.Scenes.RoleTitleVi.FormatItemCategory(item.Category);
                         var summary = entry?.LoreDescriptionVi ?? item.NameVi;
                         list.Add(new ProtagonistBagItem(
                             item.Id,
@@ -466,6 +478,15 @@ public partial class MainWindow
 
     private void MeetNpcFromModal(long npcId)
     {
+        if (TryOpenTalkScene(npcId))
+        {
+            return;
+        }
+        MeetNpcFallback(npcId);
+    }
+
+    private void MeetNpcFallback(long npcId)
+    {
         if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
         {
             try
@@ -556,6 +577,8 @@ public partial class MainWindow
 
         var citadel = worldMap.Find(playerState.CurrentCityId);
         var citadelName = citadel?.NameVi ?? "Châu quận";
+
+        if (TryOpenDuelScene(npc, citadelName)) return;
 
         var duelWindow = new DuelBattleWindow(
             military,
