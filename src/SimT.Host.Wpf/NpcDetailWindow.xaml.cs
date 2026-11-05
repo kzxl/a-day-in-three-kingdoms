@@ -7,6 +7,18 @@ using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
 
+public sealed record ProtagonistBagItem(
+    long ItemId,
+    string Code,
+    string NameVi,
+    string CategoryVi,
+    string VisualIcon,
+    int Quantity,
+    long UnitPrice,
+    int WeightKg,
+    int ShelfLifeDays,
+    string Summary);
+
 public sealed record ProtagonistExtraData(
     CharacterVitals Vitals,
     CharacterSocial Social,
@@ -17,7 +29,9 @@ public sealed record ProtagonistExtraData(
     bool IsMarried,
     string? SpouseName,
     int ChildCount,
-    Func<long, string?>? NpcNameLookup = null);
+    Func<long, string?>? NpcNameLookup = null,
+    IReadOnlyList<ProtagonistBagItem>? BagItems = null,
+    Action<long>? OnInspectItem = null);
 
 public partial class NpcDetailWindow : Window
 {
@@ -319,6 +333,9 @@ public partial class NpcDetailWindow : Window
 
         // TAB 4: Relationship & Biography
         PopulateRelationship();
+
+        // TAB 5: Inventory & Items
+        PopulateInventory();
 
         BioText.Text = string.IsNullOrWhiteSpace(_npc.BioVi)
             ? "Nhân sĩ danh tiếng thời Tam Quốc, hành trạng được dân gian ca tụng."

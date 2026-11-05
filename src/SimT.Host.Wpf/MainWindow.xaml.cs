@@ -60,6 +60,7 @@ public partial class MainWindow : Window
     private void BuildRail()
     {
         var entries = _kernel.Ui.Screens
+            .Where(screen => screen.ScreenId != "content.item_hub")
             .Select(screen => new NavEntry(screen.ScreenId, screen.Title, GlyphFor(screen.ScreenId)))
             .ToList();
 

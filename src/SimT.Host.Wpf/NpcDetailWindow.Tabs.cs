@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -398,5 +399,167 @@ public partial class NpcDetailWindow
         if (r.Contains("thương") || r.Contains("buôn") || r.Contains("bản")) return "THƯƠNG";
         if (r.Contains("chủ") || r.Contains("vương") || r.Contains("đế")) return "CHÚA";
         return "SĨ";
+    }
+
+    private void PopulateInventory()
+    {
+        InventoryListPanel.Children.Clear();
+
+        if (!_isProtagonist)
+        {
+            InventoryTabItem.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        InventoryTabItem.Visibility = Visibility.Visible;
+        var bagItems = _protagonistExtra?.BagItems;
+
+        if (bagItems is null || bagItems.Count == 0)
+        {
+            InventoryItemCountText.Text = "HÀNH TRANG THỰC TẾ (0 MẶT HÀNG)";
+            InventoryValuationText.Text = "Trị giá: 0 Quan";
+            InventoryCityLabel.Text = $"📍 Tại: {_citadelName}";
+
+            var empty = new GameEmptyState(
+                "Hành Trang Trống Không",
+                "Trong túi đồ hiện không có vật phẩm hay nông sản nào tại thành này. Hãy ghé qua chợ, thương khố hoặc làm nhiệm vụ để mua bán.",
+                "🎒");
+            empty.Margin = new Thickness(0, 20, 0, 0);
+            InventoryListPanel.Children.Add(empty);
+            return;
+        }
+
+        var totalQty = bagItems.Sum(i => i.Quantity);
+        var totalVal = bagItems.Sum(i => i.Quantity * i.UnitPrice);
+        InventoryItemCountText.Text = $"HÀNH TRANG THỰC TẾ ({bagItems.Count} MẶT HÀNG · {totalQty} ĐƠN VỊ)";
+        InventoryValuationText.Text = $"Trị giá: {totalVal:N0} Quan";
+        InventoryCityLabel.Text = $"📍 Tại: {_citadelName}";
+
+        foreach (var item in bagItems)
+        {
+            var card = CreateInventoryItemCard(item);
+            InventoryListPanel.Children.Add(card);
+        }
+    }
+
+    private FrameworkElement CreateInventoryItemCard(ProtagonistBagItem item)
+    {
+        var border = new Border
+        {
+            Background = (Brush)FindResource("Surface"),
+            BorderBrush = (Brush)FindResource("Line"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12, 10, 12, 10),
+            Margin = new Thickness(0, 0, 0, 8),
+            Cursor = Cursors.Hand,
+            ToolTip = "Nhấp chuột để xem chi tiết kỳ vật, thông số & đồ giám"
+        };
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) });
+
+        // 1. Icon Box
+        var iconBorder = new Border
+        {
+            Width = 42,
+            Height = 42,
+            Background = (Brush)FindResource("SurfaceAlt"),
+            BorderBrush = (Brush)FindResource("AccentSoft"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        iconBorder.Child = new TextBlock
+        {
+            Text = item.VisualIcon,
+            FontSize = 22,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(iconBorder, 0);
+        grid.Children.Add(iconBorder);
+
+        // 2. Info stack
+        var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 8, 0) };
+        var titleRow = new StackPanel { Orientation = Orientation.Horizontal };
+        titleRow.Children.Add(new TextBlock
+        {
+            Text = item.NameVi,
+            FontWeight = FontWeights.Bold,
+            FontSize = 13.5,
+            Foreground = (Brush)FindResource("Text")
+        });
+        titleRow.Children.Add(new Border
+        {
+            Background = (Brush)FindResource("SurfaceAlt"),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(5, 1, 5, 1),
+            Margin = new Thickness(8, 0, 0, 0),
+            Child = new TextBlock
+            {
+                Text = item.CategoryVi,
+                FontSize = 10,
+                Foreground = (Brush)FindResource("Accent")
+            }
+        });
+        infoStack.Children.Add(titleRow);
+
+        var subText = new TextBlock
+        {
+            Text = $"Đơn giá: {item.UnitPrice:N0} Quan  ·  Khối lượng: {item.WeightKg} Cân  ·  Hạn dùng: {(item.ShelfLifeDays > 0 ? $"{item.ShelfLifeDays}N" : "Vĩnh cửu")}",
+            FontSize = 11,
+            Foreground = (Brush)FindResource("Muted"),
+            Margin = new Thickness(0, 3, 0, 0)
+        };
+        infoStack.Children.Add(subText);
+
+        Grid.SetColumn(infoStack, 1);
+        grid.Children.Add(infoStack);
+
+        // 3. Right Action / Valuation Box
+        var rightStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+        rightStack.Children.Add(new TextBlock
+        {
+            Text = $"x{item.Quantity}",
+            FontWeight = FontWeights.Bold,
+            FontSize = 14,
+            Foreground = (Brush)FindResource("Text"),
+            HorizontalAlignment = HorizontalAlignment.Right
+        });
+
+        var detailBtn = new Button
+        {
+            Content = "🔍 Xem Chi Tiết",
+            Style = (Style)FindResource("ChipButton"),
+            Margin = new Thickness(0, 4, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        detailBtn.Click += (s, e) =>
+        {
+            e.Handled = true;
+            _protagonistExtra?.OnInspectItem?.Invoke(item.ItemId);
+        };
+        rightStack.Children.Add(detailBtn);
+
+        Grid.SetColumn(rightStack, 2);
+        grid.Children.Add(rightStack);
+
+        border.Child = grid;
+
+        // Hover effect
+        border.MouseEnter += (s, e) => border.BorderBrush = (Brush)FindResource("Accent");
+        border.MouseLeave += (s, e) => border.BorderBrush = (Brush)FindResource("Line");
+
+        // Click on the entire card also opens detail
+        border.MouseLeftButtonUp += (s, e) =>
+        {
+            _protagonistExtra?.OnInspectItem?.Invoke(item.ItemId);
+        };
+
+        return border;
     }
 }

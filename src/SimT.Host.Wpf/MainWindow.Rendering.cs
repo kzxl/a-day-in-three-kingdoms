@@ -559,6 +559,35 @@ public partial class MainWindow
                 if (modalCmd is not null && long.TryParse(modalCmd.Id["npc:modal:".Length..], out var id))
                 {
                     TryOpenNpcModal(id);
+                    return;
+                }
+
+                var itemModalCmd = selected.Row.Commands.FirstOrDefault(c => c.Id.StartsWith("item:modal:"));
+                if (itemModalCmd is not null)
+                {
+                    var uri = CommandUri.Parse(itemModalCmd.Id);
+                    if (uri.TryGetParamLong(out var itemId) || uri.TryGetTargetLong(out itemId))
+                    {
+                        TryOpenItemDetailModal(itemId);
+                        return;
+                    }
+                }
+
+                if (_kernel.Capabilities.TryGet<IItemHubService>(CapabilityIds.ItemHub, out var hub) && hub is not null)
+                {
+                    var rowTitle = selected.Row.Title ?? (selected.Row.Cells.Count > 0 ? selected.Row.Cells[0] : null);
+                    if (!string.IsNullOrEmpty(rowTitle))
+                    {
+                        var entry = hub.Entries.FirstOrDefault(e =>
+                            string.Equals(e.Item.NameVi, rowTitle, StringComparison.OrdinalIgnoreCase) ||
+                            rowTitle.StartsWith(e.Item.NameVi, StringComparison.OrdinalIgnoreCase) ||
+                            (selected.Row.Cells.Count > 0 && string.Equals(e.Item.NameVi, selected.Row.Cells[0], StringComparison.OrdinalIgnoreCase)));
+                        if (entry is not null)
+                        {
+                            TryOpenItemDetailModal(entry.Item.Id);
+                            return;
+                        }
+                    }
                 }
             }
         };

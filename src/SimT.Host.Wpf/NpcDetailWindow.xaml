@@ -528,6 +528,34 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
+            <!-- TAB 5: 🎒 Hành Trang & Bảo Vật -->
+            <TabItem Header="🎒 Hành Trang &amp; Bảo Vật" x:Name="InventoryTabItem">
+                <Border Background="{StaticResource SurfaceAlt}" Padding="14,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Summary Bar -->
+                        <Border Grid.Row="0" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
+                            <DockPanel>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                                    <TextBlock x:Name="InventoryCityLabel" Text="📍 Tại: Lạc Dương" Foreground="{StaticResource Accent}" FontSize="12" FontWeight="SemiBold" Margin="0,0,12,0" />
+                                    <TextBlock x:Name="InventoryValuationText" Text="Trị giá: 0 Quan" Foreground="{StaticResource Gain}" FontSize="12" FontWeight="Bold" />
+                                </StackPanel>
+                                <TextBlock x:Name="InventoryItemCountText" Text="HÀNH TRANG THỰC TẾ (0 MẶT HÀNG)" Style="{StaticResource Overline}" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Items List -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="InventoryListPanel" Margin="0,0,6,0" />
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </TabItem>
         </TabControl>
 
         <!-- ===== Footer: Action Buttons ===== -->

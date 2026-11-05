@@ -105,7 +105,8 @@ internal sealed class StallScreen : IScreenContribution
                     new ScreenCommand($"buy:{item.Id}", "Mua 1", Cost: buyCost),
                     new ScreenCommand($"sell:{item.Id}", "Bán 1", Cost: buyCost),
                     new ScreenCommand($"buy:{item.Id}", "Mua…", RequiresQuantity: true, Preview: BuyPreview(buy, stock), Cost: buyCost),
-                    new ScreenCommand($"sell:{item.Id}", "Bán…", RequiresQuantity: true, Preview: SellPreview(sell, held), Cost: buyCost)
+                    new ScreenCommand($"sell:{item.Id}", "Bán…", RequiresQuantity: true, Preview: SellPreview(sell, held), Cost: buyCost),
+                    new ScreenCommand($"item:modal:{item.Id}", "Kỳ Vật 🔍", CommandKind.Secondary)
                 ],
                 Title: item.NameVi,
                 Details:
@@ -415,7 +416,8 @@ internal sealed class WarehouseScreen : IScreenContribution
                     new ScreenCommand($"store:{item.Id}", "Gửi…", RequiresQuantity: true,
                         Preview: StorePreview(info, item.Id, item.NameVi)),
                     new ScreenCommand($"take:{item.Id}", "Lấy…", RequiresQuantity: true,
-                        Preview: TakePreview(line.Quantity, held, item.NameVi))
+                        Preview: TakePreview(line.Quantity, held, item.NameVi)),
+                    new ScreenCommand($"item:modal:{item.Id}", "Kỳ Vật 🔍", CommandKind.Secondary)
                 ],
                 Title: item.NameVi,
                 Details:
@@ -446,11 +448,50 @@ internal sealed class WarehouseScreen : IScreenContribution
             ? Array.Empty<ScreenCommand>()
             : Array.Empty<ScreenCommand>();
 
+        var bagRows = new List<ScreenRow>();
+        foreach (var item in _items.All)
+        {
+            var held = _bag.Quantity(city.Id, item.Id);
+            if (held <= 0) continue;
+
+            bagRows.Add(new ScreenRow(
+                [
+                    item.NameVi,
+                    Fmt(held),
+                    "—",
+                    item.ShelfLifeDays <= 0 ? "bền" : Fmt(item.ShelfLifeDays),
+                    Fmt(held)
+                ],
+                [
+                    new ScreenCommand($"store:{item.Id}", "Gửi 1 Vào Kho"),
+                    new ScreenCommand($"store:{item.Id}", "Gửi…", RequiresQuantity: true,
+                        Preview: StorePreview(info, item.Id, item.NameVi)),
+                    new ScreenCommand($"item:modal:{item.Id}", "Kỳ Vật 🔍", CommandKind.Secondary)
+                ],
+                Title: item.NameVi,
+                Details:
+                [
+                    new ScreenDetail("Trong túi đồ", Fmt(held)),
+                    new ScreenDetail("Hạn dùng", item.ShelfLifeDays <= 0 ? "không hỏng" : $"{item.ShelfLifeDays} ngày"),
+                    new ScreenDetail("Giá trị ước tính", Fmt(item.BasePrice * held) + " quan")
+                ]));
+        }
+
+        var sections = new List<ScreenSection>
+        {
+            new ScreenSection($"Tồn Kho Thương Điếm ({rows.Count} mặt hàng)", Columns, rows)
+        };
+
+        if (bagRows.Count > 0)
+        {
+            sections.Add(new ScreenSection($"Hành Trang Sở Tại ({bagRows.Count} mặt hàng đang mang theo)", Columns, bagRows));
+        }
+
         return new ScreenModel(
             ScreenId,
             $"{Title} — {city.NameVi}",
             $"Sức chứa {info.Used}/{info.Capacity} · phí {info.MonthlyRent} quan/tháng · hàng dễ hỏng mất dần mỗi ngày",
-            [new ScreenSection("Tồn kho", Columns, rows)],
+            sections,
             commands,
             metrics,
             alerts);
@@ -595,7 +636,8 @@ internal sealed class PlayerStallScreen : IScreenContribution
                     new ScreenCommand($"stall:unstock:{item.Id}:1", "Thu hồi 1"),
                     new ScreenCommand($"stall:unstock:{item.Id}:{shelf.Quantity}", "Thu hồi hết"),
                     new ScreenCommand($"stall:markup:{item.Id}:10", "+10% Giá"),
-                    new ScreenCommand($"stall:markup:{item.Id}:-10", "−10% Giá")
+                    new ScreenCommand($"stall:markup:{item.Id}:-10", "−10% Giá"),
+                    new ScreenCommand($"item:modal:{item.Id}", "Kỳ Vật 🔍", CommandKind.Secondary)
                 ],
                 Title: item.NameVi,
                 Details:
@@ -629,7 +671,8 @@ internal sealed class PlayerStallScreen : IScreenContribution
                 [
                     new ScreenCommand($"stall:stock:{item.Id}:1", "Bày 1"),
                     new ScreenCommand($"stall:stock:{item.Id}:5", "Bày 5"),
-                    new ScreenCommand($"stall:stock:{item.Id}:{held}", "Bày hết")
+                    new ScreenCommand($"stall:stock:{item.Id}:{held}", "Bày hết"),
+                    new ScreenCommand($"item:modal:{item.Id}", "Kỳ Vật 🔍", CommandKind.Secondary)
                 ],
                 Title: item.NameVi,
                 Details:

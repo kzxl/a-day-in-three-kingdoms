@@ -151,6 +151,35 @@ public partial class MainWindow
             return null;
         };
 
+        var bagItemList = new List<ProtagonistBagItem>();
+        if (_kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var bag) && bag is not null &&
+            _kernel.Capabilities.TryGet<IItemCatalog>(CapabilityIds.ItemCatalog, out var catalog) && catalog is not null)
+        {
+            _kernel.Capabilities.TryGet<IItemHubService>(CapabilityIds.ItemHub, out var hub);
+            foreach (var item in catalog.All)
+            {
+                var qty = bag.Quantity(playerState.CurrentCityId, item.Id);
+                if (qty > 0)
+                {
+                    var entry = hub?.FindEntry(item.Id);
+                    var icon = entry?.VisualIcon ?? "📦";
+                    var subCat = entry?.SubCategoryVi ?? item.Category;
+                    var summary = entry?.LoreDescriptionVi ?? item.NameVi;
+                    bagItemList.Add(new ProtagonistBagItem(
+                        item.Id,
+                        item.Code,
+                        item.NameVi,
+                        subCat,
+                        icon,
+                        qty,
+                        item.BasePrice,
+                        item.Weight,
+                        item.ShelfLifeDays,
+                        summary));
+                }
+            }
+        }
+
         var extraData = new ProtagonistExtraData(
             v,
             s,
@@ -161,7 +190,9 @@ public partial class MainWindow
             isMarried,
             spouseName,
             childCount,
-            npcNameLookup);
+            npcNameLookup,
+            bagItemList,
+            itemId => TryOpenItemDetailModal(itemId));
 
         NpcDetailWindow.ShowNpc(
             this,
@@ -437,7 +468,7 @@ public partial class MainWindow
         RenderSelected();
     }
 
-    public void TryOpenItemDetailModal(long itemId)
+    public void TryOpenItemDetailModal(long itemId, Window? owner = null)
     {
         if (!_kernel.Capabilities.TryGet<IItemHubService>(CapabilityIds.ItemHub, out var hub) || hub is null)
         {
@@ -464,9 +495,10 @@ public partial class MainWindow
             bagQty = bag.Quantity(cityId, itemId);
         }
 
+        var activeOwner = owner ?? Application.Current.Windows.OfType<Window>().LastOrDefault(w => w.IsActive) ?? this;
         var win = new ItemDetailModalWindow(entry, bagQty)
         {
-            Owner = this
+            Owner = activeOwner
         };
         win.ShowDialog();
     }
