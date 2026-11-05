@@ -69,6 +69,14 @@ public partial class MainWindow
             return;
         }
 
+        if (entry.ScreenId == "cultivation.farm")
+        {
+            RenderFarmFieldScreen(model);
+            RefreshBadges();
+            AnimatePageTransition();
+            return;
+        }
+
         ScreenTitle.Text = model.Title;
         ScreenStatus.Text = model.StatusLine;
 
@@ -289,6 +297,77 @@ public partial class MainWindow
         if (milestoneSection is not null)
         {
             ContentPanel.Children.Add(BuildCard(Filtered(milestoneSection)));
+        }
+
+        ContentPanel.Children.Add(MonthFooter());
+        RestoreDetail(model);
+        RefreshBadges();
+        AnimatePageTransition();
+    }
+
+    private void RenderFarmFieldScreen(ScreenModel model)
+    {
+        ScreenTitle.Text = model.Title;
+        ScreenStatus.Text = model.StatusLine;
+
+        KpiStrip.Children.Clear();
+        foreach (var metric in model.Headline)
+        {
+            KpiStrip.Children.Add(BuildMetric(metric));
+        }
+
+        AlertFeed.ItemsSource = model.Attention.Count == 0
+            ? null
+            : model.Attention.Select(alert => new AlertVm(alert)).ToList();
+
+        GlobalCommands.Children.Clear();
+        foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
+        {
+            GlobalCommands.Children.Add(CommandButton(command, command.Id));
+        }
+
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+
+        ContentPanel.Children.Clear();
+
+        // 1. Visual Farmland Tile Grid Control
+        if (_kernel.Capabilities.TryGet<ICultivationEstate>(CapabilityIds.CultivationEstate, out var estate) && estate is not null &&
+            _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
+            _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
+        {
+            var farmCtrl = new Controls.GameFarmFieldControl(estate, map, player.CurrentCityId, _kernel.Clock);
+            farmCtrl.RentRequested += async plotId =>
+            {
+                await ExecuteScreenCommandAsync($"rent:{plotId}", "cultivation.farm");
+            };
+            farmCtrl.PlantRequested += async (plotId, cropCode) =>
+            {
+                await ExecuteScreenCommandAsync($"plant:{plotId}:{cropCode}", "cultivation.farm");
+            };
+            farmCtrl.HarvestRequested += async plotId =>
+            {
+                await ExecuteScreenCommandAsync($"harvest:{plotId}", "cultivation.farm");
+            };
+            farmCtrl.FertilizeRequested += async plotId =>
+            {
+                await ExecuteScreenCommandAsync($"fertilize:{plotId}", "cultivation.farm");
+            };
+            farmCtrl.BuySeedRequested += async (cropCode, qty) =>
+            {
+                await ExecuteScreenCommandAsync($"buy_seed:{player.CurrentCityId}:{cropCode}:{qty}", "cultivation.farm");
+            };
+            farmCtrl.BuyFertilizerRequested += async qty =>
+            {
+                await ExecuteScreenCommandAsync($"buy_fertilizer:{player.CurrentCityId}:{qty}", "cultivation.farm");
+            };
+            ContentPanel.Children.Add(farmCtrl);
+        }
+
+        // 2. Auxiliary Sections (Facilities, Harvest History) below the field
+        foreach (var section in model.Sections.Where(s => !s.Heading.Contains("QUỸ ĐẤT", StringComparison.OrdinalIgnoreCase) && !s.Heading.StartsWith("KHU VỰC CANH TÁC", StringComparison.OrdinalIgnoreCase)))
+        {
+            ContentPanel.Children.Add(BuildCard(Filtered(section)));
         }
 
         ContentPanel.Children.Add(MonthFooter());
