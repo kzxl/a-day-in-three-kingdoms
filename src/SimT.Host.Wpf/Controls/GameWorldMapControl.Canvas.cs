@@ -11,6 +11,7 @@ public sealed partial class GameWorldMapControl
     /// <summary>
     /// Direct3D / DrawingContext Canvas that plots citadels, terrain mountains,
     /// river streams, graticules, player beacon, and floating reconnaissance HUD.
+    /// Supports RPG-style Zoom In/Out (0.7x - 2.5x) anchored to mouse and Click-Drag Panning.
     /// </summary>
     private sealed class MapCanvas : FrameworkElement
     {
@@ -20,7 +21,17 @@ public sealed partial class GameWorldMapControl
         private long _hoveredCityId;
         private Point _mousePos;
 
+        // Pan and Zoom state
+        private double _panX;
+        private double _panY;
+        private double _zoom = 1.0;
+        private bool _isDragging;
+        private Point _lastDragPos;
+
         public event Action<long>? NodeSelected;
+        public event Action<double>? ZoomChanged;
+
+        public double Zoom => _zoom;
 
         // Frozen drawing assets for 60fps high performance (R_PERF)
         private static readonly Brush MapBgBrush = new LinearGradientBrush(
@@ -103,9 +114,24 @@ public sealed partial class GameWorldMapControl
             MouseLeave += (_, _) =>
             {
                 _hoveredCityId = 0;
+                if (_isDragging && !Mouse.LeftButton.HasFlag(MouseButtonState.Pressed) && !Mouse.RightButton.HasFlag(MouseButtonState.Pressed))
+                {
+                    _isDragging = false;
+                    ReleaseMouseCapture();
+                }
                 InvalidateVisual();
             };
+            LostMouseCapture += (_, _) =>
+            {
+                _isDragging = false;
+                Cursor = Cursors.Arrow;
+            };
+
             MouseLeftButtonDown += OnMouseLeftButtonDown;
+            MouseLeftButtonUp += OnMouseLeftButtonUp;
+            MouseRightButtonDown += OnMouseRightButtonDown;
+            MouseRightButtonUp += OnMouseRightButtonUp;
+            MouseWheel += OnMouseWheel;
         }
 
         public void SetSelection(long selectedId)
@@ -114,10 +140,123 @@ public sealed partial class GameWorldMapControl
             InvalidateVisual();
         }
 
+        public void ZoomIn()
+        {
+            ApplyZoom(Math.Clamp(_zoom * 1.20, 0.70, 2.50));
+        }
+
+        public void ZoomOut()
+        {
+            ApplyZoom(Math.Clamp(_zoom / 1.20, 0.70, 2.50));
+        }
+
+        public void ResetView()
+        {
+            _panX = 0;
+            _panY = 0;
+            _zoom = 1.0;
+            InvalidateVisual();
+            ZoomChanged?.Invoke(_zoom);
+        }
+
+        public void CenterOnCitadel(long citadelId)
+        {
+            var eco = _map.GetEcosystem(citadelId);
+            var w = ActualWidth > 0 ? ActualWidth : 750.0;
+            var h = ActualHeight > 0 ? ActualHeight : 480.0;
+            var scaleX = w / 750.0;
+            var scaleY = h / 480.0;
+
+            var targetWorldX = eco.MapX * scaleX;
+            var targetWorldY = eco.MapY * scaleY;
+            var cx = w * 0.5;
+            var cy = h * 0.5;
+
+            // Offset from center scaled by zoom
+            _panX = -(targetWorldX - cx) * _zoom;
+            _panY = -(targetWorldY - cy) * _zoom;
+
+            InvalidateVisual();
+        }
+
+        private void ApplyZoom(double targetZoom)
+        {
+            var ratio = targetZoom / _zoom;
+            _panX *= ratio;
+            _panY *= ratio;
+            _zoom = targetZoom;
+            InvalidateVisual();
+            ZoomChanged?.Invoke(_zoom);
+        }
+
+        private TransformGroup GetWorldTransform(double w, double h)
+        {
+            var cx = w * 0.5;
+            var cy = h * 0.5;
+            var group = new TransformGroup();
+            group.Children.Add(new TranslateTransform(-cx, -cy));
+            group.Children.Add(new ScaleTransform(_zoom, _zoom));
+            group.Children.Add(new TranslateTransform(cx + _panX, cy + _panY));
+            return group;
+        }
+
+        private void OnMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (!IsMouseOver)
+            {
+                if (IsMouseCaptured)
+                {
+                    _isDragging = false;
+                    ReleaseMouseCapture();
+                }
+                return;
+            }
+
+            var mouse = e.GetPosition(this);
+            if (mouse.X < 0 || mouse.X > ActualWidth || mouse.Y < 0 || mouse.Y > ActualHeight)
+            {
+                return;
+            }
+
+            var zoomDelta = e.Delta > 0 ? 1.15 : 0.87;
+            var targetZoom = Math.Clamp(_zoom * zoomDelta, 0.70, 2.50);
+
+            var cx = ActualWidth * 0.5;
+            var cy = ActualHeight * 0.5;
+
+            // Anchor zoom towards mouse cursor position
+            _panX = (_panX - (mouse.X - cx)) * (targetZoom / _zoom) + (mouse.X - cx);
+            _panY = (_panY - (mouse.Y - cy)) * (targetZoom / _zoom) + (mouse.Y - cy);
+            _zoom = targetZoom;
+
+            InvalidateVisual();
+            ZoomChanged?.Invoke(_zoom);
+            e.Handled = true;
+        }
+
         private void OnMouseMove(object sender, MouseEventArgs e)
         {
-            _mousePos = e.GetPosition(this);
-            var hit = HitTestCity(_mousePos);
+            var pos = e.GetPosition(this);
+            _mousePos = pos;
+
+            if (_isDragging)
+            {
+                if (e.LeftButton != MouseButtonState.Pressed && e.RightButton != MouseButtonState.Pressed)
+                {
+                    _isDragging = false;
+                    ReleaseMouseCapture();
+                    Cursor = Cursors.Arrow;
+                    return;
+                }
+
+                _panX += pos.X - _lastDragPos.X;
+                _panY += pos.Y - _lastDragPos.Y;
+                _lastDragPos = pos;
+                InvalidateVisual();
+                return;
+            }
+
+            var hit = HitTestCity(pos);
             if (hit != _hoveredCityId)
             {
                 _hoveredCityId = hit;
@@ -140,20 +279,60 @@ public sealed partial class GameWorldMapControl
                 NodeSelected?.Invoke(hit);
                 InvalidateVisual();
             }
+            else
+            {
+                // Drag pan on empty canvas space
+                _isDragging = true;
+                _lastDragPos = pos;
+                CaptureMouse();
+                Cursor = Cursors.SizeAll;
+            }
+        }
+
+        private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isDragging)
+            {
+                _isDragging = false;
+                ReleaseMouseCapture();
+                Cursor = HitTestCity(e.GetPosition(this)) > 0 ? Cursors.Hand : Cursors.Arrow;
+            }
+        }
+
+        private void OnMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _isDragging = true;
+            _lastDragPos = e.GetPosition(this);
+            CaptureMouse();
+            Cursor = Cursors.SizeAll;
+        }
+
+        private void OnMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isDragging)
+            {
+                _isDragging = false;
+                ReleaseMouseCapture();
+                Cursor = HitTestCity(e.GetPosition(this)) > 0 ? Cursors.Hand : Cursors.Arrow;
+            }
         }
 
         private long HitTestCity(Point p)
         {
-            var scaleX = ActualWidth > 0 ? ActualWidth / 750.0 : 1.0;
-            var scaleY = ActualHeight > 0 ? ActualHeight / 480.0 : 1.0;
+            var w = ActualWidth > 0 ? ActualWidth : 750.0;
+            var h = ActualHeight > 0 ? ActualHeight : 480.0;
+            var scaleX = w / 750.0;
+            var scaleY = h / 480.0;
+            var transform = GetWorldTransform(w, h);
 
             foreach (var c in _map.Citadels)
             {
                 var eco = _map.GetEcosystem(c.Id);
-                var cx = eco.MapX * scaleX;
-                var cy = eco.MapY * scaleY;
-                var dx = p.X - cx;
-                var dy = p.Y - cy;
+                var worldPt = new Point(eco.MapX * scaleX, eco.MapY * scaleY);
+                var screenPt = transform.Transform(worldPt);
+
+                var dx = p.X - screenPt.X;
+                var dy = p.Y - screenPt.Y;
                 if (dx * dx + dy * dy <= 24 * 24)
                 {
                     return c.Id;
@@ -174,29 +353,28 @@ public sealed partial class GameWorldMapControl
             dc.DrawRoundedRectangle(MapBgBrush, MapBorderPen, new Rect(0, 0, w, h), 8, 8);
             DrawGraticuleAndBorderOrnaments(dc, w, h);
 
-            // 2. Natural Geography: Ocean, Mountains & Great Rivers
-            DrawNaturalGeography(dc, w, h);
+            // 2. Push World Transform for Zoom & Pan
+            var worldTransform = GetWorldTransform(w, h);
+            dc.PushTransform(worldTransform);
 
-            // 3. Ancient Cartography Ornaments: Compass Rose
-            DrawCompassRose(dc, w, h);
+            // Natural Geography: Ocean, Mountains & Great Rivers
+            DrawNaturalGeography(dc, w, h);
 
             var scaleX = w / 750.0;
             var scaleY = h / 480.0;
 
-            // 4. Calculate Selected Travel Route Path
+            // Calculate Selected Travel Route Path
             var pathSet = new HashSet<long>();
-            var pathList = new List<long>();
             if (_selectedCityId > 0 && _selectedCityId != _currentCityId)
             {
                 var quote = _map.QuoteTravel(_currentCityId, _selectedCityId, TravelMode.Walk);
                 foreach (var id in quote.PathNodeIds)
                 {
                     pathSet.Add(id);
-                    pathList.Add(id);
                 }
             }
 
-            // 5. Draw Routes (Interstate Highways)
+            // Draw Routes (Interstate Highways)
             foreach (var route in _map.Routes)
             {
                 var eco1 = _map.GetEcosystem(route.FromCitadelId);
@@ -237,7 +415,7 @@ public sealed partial class GameWorldMapControl
                 dc.DrawText(dayText, new Point(mid.X - dayText.Width * 0.5, mid.Y - dayText.Height * 0.5));
             }
 
-            // 6. Draw Citadel Nodes with Ornate Architecture
+            // Draw Citadel Nodes with Ornate Architecture
             foreach (var c in _map.Citadels)
             {
                 var eco = _map.GetEcosystem(c.Id);
@@ -250,7 +428,13 @@ public sealed partial class GameWorldMapControl
                 DrawCitadelNode(dc, c, eco, pt, isCurrent, isSelected, isHovered);
             }
 
-            // 7. Floating Reconnaissance HUD Tooltip on Hover
+            // POP World Transform
+            dc.Pop();
+
+            // 3. Screen-Space Overlays (Compass Rose, HUD Tooltip)
+            DrawCompassRose(dc, w, h);
+
+            // Floating Reconnaissance HUD Tooltip on Hover
             if (_hoveredCityId > 0)
             {
                 DrawHoverReconnaissanceHud(dc, _hoveredCityId, _mousePos, w, h);

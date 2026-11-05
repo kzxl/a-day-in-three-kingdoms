@@ -101,10 +101,13 @@ public sealed partial class GameWorldMapControl : Border
         headerDock.Children.Add(titleStack);
         mainStack.Children.Add(headerDock);
 
-        // 2. Interactive Ornate Visual Map Canvas
+        // 2. Interactive Ornate Visual Map Canvas with Floating RPG Zoom HUD
+        var mapContainer = new Grid();
         _canvas = new MapCanvas(map, currentCityId, _selectedCityId);
         _canvas.NodeSelected += OnCanvasNodeSelected;
-        mainStack.Children.Add(_canvas);
+        mapContainer.Children.Add(_canvas);
+        mapContainer.Children.Add(CreateMapZoomHud());
+        mainStack.Children.Add(mapContainer);
 
         // 3. Strategic Dossier & Expedition Planning Console (2 Columns)
         var consoleBorder = new Border
@@ -504,5 +507,84 @@ public sealed partial class GameWorldMapControl : Border
             Foreground = new SolidColorBrush(Color.FromRgb(color.R, color.G, color.B))
         };
         return border;
+    }
+
+    private FrameworkElement CreateMapZoomHud()
+    {
+        var hudBorder = new Border
+        {
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 14, 14),
+            Background = new SolidColorBrush(Color.FromArgb(0xDD, 0x0F, 0x16, 0x22)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x88, 0xC5, 0xA0, 0x59)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(4)
+        };
+
+        var stack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+
+        var zoomInBtn = CreateMiniButton("➕", "Phóng to bản đồ (Cuộn chuột lên)", () => _canvas.ZoomIn());
+        var zoomOutBtn = CreateMiniButton("➖", "Thu nhỏ bản đồ (Cuộn chuột xuống)", () => _canvas.ZoomOut());
+        var centerBtn = CreateMiniButton("🎯", "Định vị đại thành bản thân đang trú ngụ", () => _canvas.CenterOnCitadel(_currentCityId));
+        var resetBtn = CreateMiniButton("⟲", "Toàn cảnh thiên hạ 15 châu quận", () => _canvas.ResetView());
+
+        var zoomLabel = new TextBlock
+        {
+            Text = "100%",
+            Width = 44,
+            TextAlignment = TextAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xE5, 0xB5, 0x48)),
+            ToolTip = "Tỷ lệ phóng thu hiện tại"
+        };
+
+        _canvas.ZoomChanged += zoom =>
+        {
+            zoomLabel.Text = $"{(int)Math.Round(zoom * 100)}%";
+        };
+
+        stack.Children.Add(zoomInBtn);
+        stack.Children.Add(zoomLabel);
+        stack.Children.Add(zoomOutBtn);
+
+        var separator = new Border
+        {
+            Width = 1,
+            Height = 16,
+            Background = new SolidColorBrush(Color.FromArgb(0x55, 0xC5, 0xA0, 0x59)),
+            Margin = new Thickness(4, 0, 4, 0)
+        };
+        stack.Children.Add(separator);
+
+        stack.Children.Add(centerBtn);
+        stack.Children.Add(resetBtn);
+
+        hudBorder.Child = stack;
+        return hudBorder;
+    }
+
+    private static Button CreateMiniButton(string text, string tooltip, Action onClick)
+    {
+        var btn = new Button
+        {
+            Content = text,
+            ToolTip = tooltip,
+            Width = 28,
+            Height = 28,
+            Margin = new Thickness(2),
+            Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x1A, 0x24, 0x33)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xEB, 0xF0, 0xF8)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x3D, 0x51, 0x6B)),
+            BorderThickness = new Thickness(1),
+            Cursor = Cursors.Hand,
+            FontSize = 12,
+            FontWeight = FontWeights.Bold
+        };
+        btn.Click += (_, _) => onClick();
+        return btn;
     }
 }
