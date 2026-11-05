@@ -129,29 +129,11 @@
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                         <StackPanel>
                             <!-- Arbitrage Header -->
-                            <TextBlock Text="💰 CƠ HỘI BUÔN CHUYẾN SINH LỜI (CHÊNH LỆCH GIÁ)"
+                            <TextBlock Text="💰 CƠ HỘI BUÔN CHUYẾN SINH LỜI (CHÊNH LỆCH GIÁ LIÊN THÀNH)"
                                        Style="{StaticResource Overline}" Foreground="{StaticResource Gain}" Margin="0,0,0,8" />
 
-                            <ItemsControl x:Name="CommodityArbitrageList" Margin="0,0,0,16">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
-                                                BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,6">
-                                            <DockPanel>
-                                                <TextBlock Text="{Binding Glyph}" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center" />
-                                                <StackPanel VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ItemNameVi}" FontWeight="Bold" FontSize="12.5" Foreground="{StaticResource Text}" />
-                                                    <TextBlock Text="{Binding PriceComparisonText}" Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
-                                                </StackPanel>
-                                                <Border Background="{StaticResource AccentSoft}" CornerRadius="4" Padding="8,4"
-                                                        HorizontalAlignment="Right" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ProfitMarginText}" FontWeight="Bold" FontSize="12" Foreground="{StaticResource Gain}" />
-                                                </Border>
-                                            </DockPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <!-- 2D Hardware-Accelerated Arbitrage Matrix Control -->
+                            <controls:GameArbitrageMatrixControl x:Name="ArbitrageMatrix" Margin="0,0,0,16" />
 
                             <!-- Contracts along this route -->
                             <TextBlock Text="📜 HỢP ĐỒNG VẬN TIÊU KHẢ DỤNG DỌC ĐƯỜNG"

@@ -2,14 +2,9 @@ using System.Windows;
 using System.Windows.Media;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
+using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
-
-public sealed record CommodityArbitrageVm(
-    string Glyph,
-    string ItemNameVi,
-    string PriceComparisonText,
-    string ProfitMarginText);
 
 public sealed record FreightContractVm(
     string TitleVi,
@@ -105,14 +100,17 @@ public partial class CaravanRouteDetailModalWindow : HubModalWindowBase
             ContractsList.ItemsSource = routeContracts;
         }
 
-        // Mock commodities arbitrage between two cities
-        CommodityArbitrageList.ItemsSource = new List<CommodityArbitrageVm>
+        // Populate 2D Hardware-Accelerated Arbitrage Matrix
+        var spreadItems = new List<ArbitrageSpreadItem>
         {
-            new("🌾", "Gạo Lương Nông", $"Mua {fromName}: 10 Quan ➔ Bán {toName}: 16 Quan", "+60% Lãi"),
-            new("🧂", "Muối Biển Tinh Chế", $"Mua {fromName}: 22 Quan ➔ Bán {toName}: 32 Quan", "+45% Lãi"),
-            new("🧵", "Tơ Lụa Giang Nam", $"Mua {fromName}: 65 Quan ➔ Bán {toName}: 95 Quan", "+46% Lãi"),
-            new("🍵", "Trà Xanh Thượng Hạng", $"Mua {fromName}: 28 Quan ➔ Bán {toName}: 39 Quan", "+39% Lãi")
+            new("RICE", "Gạo Lương Nông", "🌾", 10, 16, 2, 4, 40.0),
+            new("SALT", "Muối Biển Tinh Chế", "🧂", 22, 32, 3, 7, 31.8),
+            new("SILK", "Tơ Lụa Giang Nam", "🧵", 65, 95, 5, 25, 38.5),
+            new("TEA", "Trà Xanh Thượng Hạng", "🍵", 28, 39, 3, 8, 28.6),
+            new("HERB", "Dược Liệu Quý Sơn Cước", "🌿", 45, 68, 4, 19, 42.2),
+            new("WINE", "Rượu Nho Tây Vực", "🏺", 80, 115, 6, 29, 36.3)
         };
+        ArbitrageMatrix.SetMatrix(fromName, toName, spreadItems);
     }
 
     private void DispatchCaravan_Click(object sender, RoutedEventArgs e)
