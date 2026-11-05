@@ -217,7 +217,7 @@ public partial class MainWindow
         if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
             _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
         {
-            var mapCtrl = new Controls.GameWorldMapControl(map, player.CurrentCityId);
+            var mapCtrl = new Controls.GameWorldMapControl(map, player.CurrentCityId, _kernel);
             mapCtrl.TravelRequested += async (targetId, mode) =>
             {
                 var modeStr = mode switch
