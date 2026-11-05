@@ -63,6 +63,18 @@ public partial class FarmsteadDetailModalWindow : HubModalWindowBase
         FacilitiesList.ItemsSource = facilities;
 
         // 4. Crop Progress
+        var remainingDays = (plot.CropStatus == "growing")
+            ? (int)Math.Max(1L, (plot.ReadyDayIndex ?? _kernel.Today.DayIndex) - _kernel.Today.DayIndex)
+            : 0;
+        var cropDisplayName = plot.CropStatus == "ready" ? "Lúa Vàng Trĩu Hạt" : (plot.CropStatus == "growing" ? "Lúa Nước Kinh Sở" : "Chưa Gieo Trồng");
+        CropGrowthVisualizer.SetStatus(
+            cropName: cropDisplayName,
+            cropStatus: plot.CropStatus?.ToUpperInvariant(),
+            remainingDays: remainingDays,
+            totalDays: 30,
+            soilFertility: plot.Soil,
+            irrigationLevel: plot.IrrigationLevel);
+
         if (plot.CropStatus == "growing")
         {
             CropNameText.Text = "Lúa Nước Đang Lớn";

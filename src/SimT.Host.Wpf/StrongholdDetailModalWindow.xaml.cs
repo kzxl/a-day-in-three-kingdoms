@@ -77,6 +77,19 @@ public partial class StrongholdDetailModalWindow : HubModalWindowBase
         ChiefWarText.Text = _chief.War.ToString();
         ChiefLdrText.Text = _chief.Ldr.ToString();
         ChiefIntText.Text = _chief.Int.ToString();
+        ChiefRadarChart.SetCoreStats(new CharacterAttributes(
+            _chief.War,
+            _chief.Ldr,
+            _chief.Int,
+            20,
+            15,
+            25,
+            30 + _stronghold.DangerLevel * 5,
+            20 + _stronghold.DangerLevel * 5,
+            _chief.War,
+            50,
+            40,
+            30));
 
         BanditTroopCountText.Text = $"{_chief.TroopCount:N0} Quân Sĩ";
         TerrainNameText.Text = _chief.TerrainNameVi;

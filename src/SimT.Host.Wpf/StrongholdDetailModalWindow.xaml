@@ -17,6 +17,9 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- Ambient Battle Embers Canvas -->
+        <controls:GameAmbientParticlesControl Grid.RowSpan="3" Kind="BattleEmbers" Opacity="0.35" IsHitTestVisible="False" />
+
         <!-- ================= ROW 0: GAME HUB HEADER ================= -->
         <controls:GameHubHeader Grid.Row="0" x:Name="HubHeader" />
 
@@ -113,6 +116,9 @@
                                 </StackPanel>
                             </Border>
                         </UniformGrid>
+
+                        <!-- Chief 8-Pillar Radar Chart -->
+                        <local:RadarChartControl x:Name="ChiefRadarChart" Height="140" Margin="0,0,0,12" />
 
                         <!-- Horde Size & Terrain Info -->
                         <Border Background="{StaticResource Rail}" BorderBrush="{StaticResource Line}"
@@ -255,6 +261,7 @@
                                         FontWeight="Bold" Padding="10,8" Margin="4,0,0,0"
                                         Click="Branch_Click" Tag="Archers" />
                             </UniformGrid>
+
 
                             <!-- Live Counter Affinity Callout -->
                             <Border Grid.Row="2" x:Name="AffinityCalloutBorder" Background="{StaticResource Surface}"

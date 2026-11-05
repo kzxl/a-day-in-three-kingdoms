@@ -89,6 +89,16 @@ public partial class CitadelDetailModalWindow : HubModalWindowBase
         // 2. Demographics & Metrics
         GovernorNameText.Text = governorName;
         FactionAffiliationText.Text = $"Thuộc Thế Lực: {factionName}";
+        GovernorRadarChart.SetCoreStats(new CharacterAttributes(
+            War: Math.Clamp(defense * 3 + 40, 45, 95),
+            Ldr: Math.Clamp(order + 10, 50, 95),
+            Int: Math.Clamp(order + 15, 55, 95),
+            Pol: Math.Clamp(order + 20, 60, 98),
+            Dip: Math.Clamp(order + 10, 50, 90),
+            Com: Math.Clamp(defense * 2 + 50, 50, 90),
+            Log: Math.Clamp(defense * 2 + 55, 55, 92),
+            Cra: Math.Clamp(defense * 2 + 45, 45, 88),
+            Con: 70, Wil: 75, Prc: 70, Lck: 65));
         PopulationText.Text = $"{citadel.Id * 15000 + 85000:N0}";
         PublicOrderText.Text = $"{order}%";
         DefenseText.Text = $"Cấp {defense}";

@@ -39,35 +39,40 @@
                         <!-- Governor Card -->
                         <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
                                 BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Width="58" Height="58"
-                                        x:Name="GovernorAvatarBox"
-                                        Background="{StaticResource Bg}"
-                                        BorderBrush="{StaticResource Accent}" BorderThickness="2"
-                                        CornerRadius="8" Margin="0,0,12,0"
-                                        VerticalAlignment="Center">
-                                    <TextBlock x:Name="GovernorAvatarText" Text="官"
-                                               FontSize="28" FontWeight="Bold"
-                                               Foreground="{StaticResource Accent}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                                    <Border Grid.Column="0" Width="58" Height="58"
+                                            x:Name="GovernorAvatarBox"
+                                            Background="{StaticResource Bg}"
+                                            BorderBrush="{StaticResource Accent}" BorderThickness="2"
+                                            CornerRadius="8" Margin="0,0,12,0"
+                                            VerticalAlignment="Center">
+                                        <TextBlock x:Name="GovernorAvatarText" Text="官"
+                                                   FontSize="28" FontWeight="Bold"
+                                                   Foreground="{StaticResource Accent}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
 
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock x:Name="GovernorTitleText" Text="Thái Thú Đương Nhiệm"
-                                               FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{StaticResource Accent}" />
-                                    <TextBlock x:Name="GovernorNameText" Text="Quan Cai Quản"
-                                               FontSize="16" FontWeight="Bold"
-                                               Foreground="{StaticResource Text}" Margin="0,1,0,3" />
-                                    <TextBlock x:Name="FactionAffiliationText" Text="Thuộc Thế Lực: Triều Đình Hán Thất"
-                                               Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
-                                </StackPanel>
-                            </Grid>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock x:Name="GovernorTitleText" Text="Thái Thú Đương Nhiệm"
+                                                   FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Accent}" />
+                                        <TextBlock x:Name="GovernorNameText" Text="Quan Cai Quản"
+                                                   FontSize="16" FontWeight="Bold"
+                                                   Foreground="{StaticResource Text}" Margin="0,1,0,3" />
+                                        <TextBlock x:Name="FactionAffiliationText" Text="Thuộc Thế Lực: Triều Đình Hán Thất"
+                                                   Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Governor 8-Pillar Radar Chart -->
+                                <local:RadarChartControl x:Name="GovernorRadarChart" Height="130" Margin="0,8,0,0" />
+                            </StackPanel>
                         </Border>
 
                         <!-- Metrics Grid -->

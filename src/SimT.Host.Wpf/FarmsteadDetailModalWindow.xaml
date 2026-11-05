@@ -141,6 +141,9 @@
 
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                         <StackPanel>
+                            <!-- Hardware-accelerated Visual Crop Growth Cycle & Soil Arc Gauge -->
+                            <controls:GameCropGrowthVisualizer x:Name="CropGrowthVisualizer" Margin="0,0,0,16" />
+
                             <!-- Crop Progress Card -->
                             <TextBlock Text="🌾 GIAI ĐOẠN SINH TRƯỞNG &amp; MÙA VỤ"
                                        Style="{StaticResource Overline}" Foreground="{StaticResource Gain}" Margin="0,0,0,8" />

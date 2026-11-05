@@ -36,6 +36,9 @@
                         <TextBlock Text="THÔNG TIN LỘ TRÌNH &amp; PHÒNG BỊ TIÊU CỤC"
                                    Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="0,0,0,10" />
 
+                        <!-- Animated Winding Caravan Trail Canvas -->
+                        <controls:GameCaravanTrailControl x:Name="CaravanTrailCanvas" Margin="0,0,0,12" />
+
                         <!-- Origin to Destination Route Card -->
                         <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
                                 BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">

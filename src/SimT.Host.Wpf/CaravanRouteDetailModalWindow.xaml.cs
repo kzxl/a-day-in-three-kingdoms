@@ -66,6 +66,13 @@ public partial class CaravanRouteDetailModalWindow : HubModalWindowBase
         RouteDaysText.Text = $"{days} Ngày";
         AmbushRiskText.Text = $"{risk}% {(risk <= 20 ? "Thấp" : (risk <= 35 ? "Vừa" : "Cao"))}";
 
+        var fleetName = "Xa Mã Tiêu Đoàn";
+        if (_kernel.Capabilities.TryGet<ICaravanGuild>(CapabilityIds.CaravanGuild, out var initialGuild) && initialGuild is not null)
+        {
+            fleetName = initialGuild.Fleet.NameVi;
+        }
+        CaravanTrailCanvas.SetRoute(fromName, toName, days, risk, fleetName);
+
         // Fleet and Crew
         if (_kernel.Capabilities.TryGet<ICaravanGuild>(CapabilityIds.CaravanGuild, out var guild) && guild is not null)
         {

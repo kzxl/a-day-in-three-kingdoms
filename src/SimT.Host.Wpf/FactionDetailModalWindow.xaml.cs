@@ -73,9 +73,10 @@ public partial class FactionDetailModalWindow : HubModalWindowBase
         // 2. Leader
         var leaderName = "Minh Chủ Chư Hầu";
         var leaderAvatar = "主";
+        NpcDef? leader = null;
         if (_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var registry) && registry is not null)
         {
-            var leader = registry.Find(faction.LeaderNpcId);
+            leader = registry.Find(faction.LeaderNpcId);
             if (leader != null)
             {
                 leaderName = leader.NameVi;
@@ -87,6 +88,17 @@ public partial class FactionDetailModalWindow : HubModalWindowBase
         LeaderAvatarBox.BorderBrush = new SolidColorBrush(factionColor);
         LeaderNameText.Text = leaderName;
         FactionIdealText.Text = $"Lý Tưởng: {faction.IdealVi}";
+
+        if (leader != null)
+        {
+            WarlordRadarChart.SetCoreStats(leader.Attributes);
+        }
+        else
+        {
+            WarlordRadarChart.SetCoreStats(new CharacterAttributes(
+                War: 80, Ldr: 85, Int: 88, Pol: 82, Dip: 78, Com: 70, Log: 80, Cra: 65,
+                Con: 80, Wil: 85, Prc: 75, Lck: 80));
+        }
 
         FactionTroopsText.Text = $"{faction.TroopCount:N0}";
         FactionTreasuryText.Text = $"{faction.TreasuryCopper:N0} Quan";

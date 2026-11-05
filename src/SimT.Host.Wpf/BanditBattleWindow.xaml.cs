@@ -1,9 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using SimT.Contracts.Playing;
-using SimT.Contracts.Time;
 using SimT.Core.Kernel;
 
 namespace SimT.Host.Wpf;
@@ -17,8 +17,8 @@ public partial class BanditBattleWindow : HubModalWindowBase
     private readonly string _citadelName;
 
     private readonly BanditExpeditionResult _result;
-    private int _currentRoundIndex = 0;
-    private bool _battleEnded = false;
+    private int _currentRoundIndex;
+    private bool _battleEnded;
 
     public BanditBattleWindow(
         SimKernel kernel,
@@ -38,15 +38,14 @@ public partial class BanditBattleWindow : HubModalWindowBase
         // Execute expedition to commit game state (gold, loot, date advance, vitals)
         _result = _military.ExecuteBanditExpedition(_strongholdId, _playerBranch);
 
-        InitializeStage();
+        SetupInitialStage();
     }
 
-    private void InitializeStage()
+    private void SetupInitialStage()
     {
         var sh = _result.Stronghold;
         var chief = _result.Chief;
 
-        StrongholdTitle.Text = $"{sh.NameVi} · {sh.CitadelId}";
         if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
         {
             var cit = map.Find(sh.CitadelId);
@@ -72,6 +71,8 @@ public partial class BanditBattleWindow : HubModalWindowBase
 
         PlayerTroopBar.Maximum = _result.PlayerInitialTroops;
         PlayerTroopBar.Value = _result.PlayerInitialTroops;
+        PlayerTroopGhostBar.Maximum = _result.PlayerInitialTroops;
+        PlayerTroopGhostBar.Value = _result.PlayerInitialTroops;
         PlayerTroopValueText.Text = $"{_result.PlayerInitialTroops:N0} / {_result.PlayerInitialTroops:N0}";
 
         var pMaxHp = 100;
@@ -91,12 +92,14 @@ public partial class BanditBattleWindow : HubModalWindowBase
 
         BanditTroopBar.Maximum = _result.BanditInitialTroops;
         BanditTroopBar.Value = _result.BanditInitialTroops;
+        BanditTroopGhostBar.Maximum = _result.BanditInitialTroops;
+        BanditTroopGhostBar.Value = _result.BanditInitialTroops;
         BanditTroopValueText.Text = $"{_result.BanditInitialTroops:N0} / {_result.BanditInitialTroops:N0}";
 
         ChiefHpBar.Maximum = chief.MaxHp;
         ChiefHpBar.Value = chief.MaxHp;
         ChiefHpValueText.Text = $"{chief.MaxHp} / {chief.MaxHp}";
-        ChiefPalisadeInfoText.Text = $"⛰ Công sự: {chief.TerrainNameVi}";
+        ChiefSkillCalloutText.Text = $"⛰ Địa hình: {chief.TerrainNameVi} · {TroopBranchHelper.NameVi(chief.Branch)}";
 
         // Play initial round
         PlayNextRound();
@@ -117,18 +120,41 @@ public partial class BanditBattleWindow : HubModalWindowBase
         RoundCounterText.Text = $"HIỆP {log.RoundNumber} / {_result.Rounds}";
         ClashPhaseTitle.Text = $"HIỆP {log.RoundNumber} GIÁP CHIẾN";
 
-        // Animate Bars
+        // Animate Bars with Ghosting
         AnimateBar(PlayerTroopBar, log.PlayerTroopsRemaining);
+        AnimateGhostBar(PlayerTroopGhostBar, log.PlayerTroopsRemaining);
         PlayerTroopValueText.Text = $"{log.PlayerTroopsRemaining:N0} / {_result.PlayerInitialTroops:N0}";
 
         AnimateBar(PlayerHpBar, log.PlayerHpRemaining);
         PlayerHpValueText.Text = $"{log.PlayerHpRemaining} / {PlayerHpBar.Maximum}";
 
         AnimateBar(BanditTroopBar, log.BanditTroopsRemaining);
+        AnimateGhostBar(BanditTroopGhostBar, log.BanditTroopsRemaining);
         BanditTroopValueText.Text = $"{log.BanditTroopsRemaining:N0} / {_result.BanditInitialTroops:N0}";
 
         AnimateBar(ChiefHpBar, log.BanditHpRemaining);
         ChiefHpValueText.Text = $"{log.BanditHpRemaining} / {_result.Chief.MaxHp}";
+
+        // Clashing Thrust Animation
+        AnimateThrust(PlayerAvatarTransform, 14.0);
+        AnimateThrust(ChiefAvatarTransform, -14.0);
+
+        // Floating Damage Feedback
+        if (log.PlayerDamageDealt > 0)
+        {
+            SpawnFloatingCombatNumber($"-{log.PlayerDamageDealt:N0} ⚔️", (Brush)FindResource("Gain"), x: 620, y: 80);
+        }
+        if (log.BanditDamageDealt > 0)
+        {
+            SpawnFloatingCombatNumber($"-{log.BanditDamageDealt:N0} 🛡️", (Brush)FindResource("Loss"), x: 120, y: 80);
+        }
+
+        // Skill Activation & Screen Shake
+        if (!string.IsNullOrEmpty(log.SkillTriggeredVi))
+        {
+            TriggerScreenShake(5.0);
+            SpawnFloatingCombatNumber($"⚡ {log.SkillTriggeredVi}", (Brush)FindResource("Accent"), x: 340, y: 35, isSkill: true);
+        }
 
         // Narrative Display
         NarrativeDisplayText.Text = log.NarrativeVi;
@@ -208,8 +234,72 @@ public partial class BanditBattleWindow : HubModalWindowBase
 
     private static void AnimateBar(ProgressBar bar, double targetValue)
     {
-        var anim = new DoubleAnimation(bar.Value, Math.Max(0, targetValue), TimeSpan.FromMilliseconds(250));
-        bar.BeginAnimation(System.Windows.Controls.Primitives.RangeBase.ValueProperty, anim);
+        var anim = new DoubleAnimation(bar.Value, Math.Max(0, targetValue), TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        bar.BeginAnimation(RangeBase.ValueProperty, anim);
+    }
+
+    private static void AnimateGhostBar(ProgressBar ghostBar, double targetValue)
+    {
+        var anim = new DoubleAnimation(ghostBar.Value, Math.Max(0, targetValue), TimeSpan.FromMilliseconds(450))
+        {
+            BeginTime = TimeSpan.FromMilliseconds(200),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        ghostBar.BeginAnimation(RangeBase.ValueProperty, anim);
+    }
+
+    private static void AnimateThrust(TranslateTransform tt, double dx)
+    {
+        var anim = new DoubleAnimation(0, dx, TimeSpan.FromMilliseconds(90))
+        {
+            AutoReverse = true,
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+        tt.BeginAnimation(TranslateTransform.XProperty, anim);
+    }
+
+    private void TriggerScreenShake(double intensity)
+    {
+        var anim = new DoubleAnimation(-intensity, intensity, TimeSpan.FromMilliseconds(40))
+        {
+            AutoReverse = true,
+            RepeatBehavior = new RepeatBehavior(2),
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+        };
+        anim.Completed += (_, _) => StageShakeTransform.BeginAnimation(TranslateTransform.XProperty, null);
+        StageShakeTransform.BeginAnimation(TranslateTransform.XProperty, anim);
+    }
+
+    private void SpawnFloatingCombatNumber(string text, Brush brush, double x, double y, bool isSkill = false)
+    {
+        var tb = new TextBlock
+        {
+            Text = text,
+            FontSize = isSkill ? 14 : 13,
+            FontWeight = FontWeights.Bold,
+            Foreground = brush,
+            RenderTransform = new TranslateTransform(0, 0)
+        };
+
+        Canvas.SetLeft(tb, x);
+        Canvas.SetTop(tb, y);
+        CombatVfxCanvas.Children.Add(tb);
+
+        var moveAnim = new DoubleAnimation(0, -32, TimeSpan.FromMilliseconds(750))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        var fadeAnim = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(750));
+        fadeAnim.Completed += (_, _) => CombatVfxCanvas.Children.Remove(tb);
+
+        if (tb.RenderTransform is TranslateTransform tt)
+        {
+            tt.BeginAnimation(TranslateTransform.YProperty, moveAnim);
+        }
+        tb.BeginAnimation(OpacityProperty, fadeAnim);
     }
 
     private void NextRound_Click(object sender, RoutedEventArgs e)

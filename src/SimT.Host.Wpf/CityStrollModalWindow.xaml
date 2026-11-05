@@ -1,6 +1,7 @@
 <Window x:Class="SimT.Host.Wpf.CityStrollModalWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:SimT.Host.Wpf.Controls"
         Title="Kỳ Ngộ Du Ngoạn Phố Phường — Tam Quốc Tiêu Dao Ký"
         Height="680" Width="820"
         MinHeight="560" MinWidth="740"
@@ -15,6 +16,9 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+
+        <!-- Ambient Falling Petals Canvas -->
+        <controls:GameAmbientParticlesControl Grid.RowSpan="3" Kind="StrollPetals" Opacity="0.45" IsHitTestVisible="False" />
 
         <!-- ===== Row 0: Scene Header: Event Glyph, Title, Category Badge & Venue ===== -->
         <Border Grid.Row="0" x:Name="HeaderBorder" Background="{StaticResource SurfaceAlt}"

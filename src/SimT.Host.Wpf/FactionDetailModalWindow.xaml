@@ -39,35 +39,40 @@
                         <!-- Warlord Card -->
                         <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
                                 BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
 
-                                <Border Grid.Column="0" Width="64" Height="64"
-                                        x:Name="LeaderAvatarBox"
-                                        Background="{StaticResource Bg}"
-                                        BorderBrush="{StaticResource Accent}" BorderThickness="2"
-                                        CornerRadius="8" Margin="0,0,14,0"
-                                        VerticalAlignment="Center">
-                                    <TextBlock x:Name="LeaderAvatarText" Text="主"
-                                               FontSize="32" FontWeight="Bold"
-                                               Foreground="{StaticResource Accent}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
+                                    <Border Grid.Column="0" Width="64" Height="64"
+                                            x:Name="LeaderAvatarBox"
+                                            Background="{StaticResource Bg}"
+                                            BorderBrush="{StaticResource Accent}" BorderThickness="2"
+                                            CornerRadius="8" Margin="0,0,14,0"
+                                            VerticalAlignment="Center">
+                                        <TextBlock x:Name="LeaderAvatarText" Text="主"
+                                                   FontSize="32" FontWeight="Bold"
+                                                   Foreground="{StaticResource Accent}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
 
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock x:Name="LeaderTitleText" Text="Minh Chủ Chư Hầu"
-                                               FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{StaticResource Accent}" />
-                                    <TextBlock x:Name="LeaderNameText" Text="Tào Tháo (Mạnh Đức)"
-                                               FontSize="18" FontWeight="Bold"
-                                               Foreground="{StaticResource Text}" Margin="0,1,0,3" />
-                                    <TextBlock x:Name="FactionIdealText" Text="Lý Tưởng: Thâu Tóm Sơn Hà"
-                                               Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
-                                </StackPanel>
-                            </Grid>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock x:Name="LeaderTitleText" Text="Minh Chủ Chư Hầu"
+                                                   FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Accent}" />
+                                        <TextBlock x:Name="LeaderNameText" Text="Tào Tháo (Mạnh Đức)"
+                                                   FontSize="18" FontWeight="Bold"
+                                                   Foreground="{StaticResource Text}" Margin="0,1,0,3" />
+                                        <TextBlock x:Name="FactionIdealText" Text="Lý Tưởng: Thâu Tóm Sơn Hà"
+                                                   Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Warlord 8-Pillar Radar Chart -->
+                                <local:RadarChartControl x:Name="WarlordRadarChart" Height="130" Margin="0,8,0,0" />
+                            </StackPanel>
                         </Border>
 
                         <!-- Military & Treasury Metrics -->
