@@ -334,27 +334,26 @@ public sealed class GameTable : Grid
 
     private static FrameworkElement BuildLeadingIcon(ScreenRow row, string firstCellText)
     {
-        var isNpcRow = row.Commands.Any(c => c.Id.StartsWith("talk:npc:", StringComparison.Ordinal) || c.Id.StartsWith("npc:modal:", StringComparison.Ordinal) || c.Id.StartsWith("duel:", StringComparison.Ordinal));
-        if (isNpcRow || (!string.IsNullOrWhiteSpace(row.IconHint) && row.IconHint.StartsWith("npc:", StringComparison.Ordinal)))
-            return GamePortraitCard.BuildAvatarElement(ResolveNpcCodeFromName(firstCellText), row.Cells.Count > 1 ? row.Cells[1] : null, 24);
+        var isItemRow = row.Commands.Any(c =>
+            c.Id.StartsWith("buy:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("sell:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("npc_buy:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("item:modal:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("store:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("take:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("stall:", StringComparison.Ordinal));
+        var isNpcRow = !isItemRow && row.Commands.Any(c =>
+            c.Id.StartsWith("talk:npc:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("npc:modal:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("duel:", StringComparison.Ordinal));
+        if (isNpcRow || (!isItemRow && !string.IsNullOrWhiteSpace(row.IconHint) && row.IconHint.StartsWith("npc:", StringComparison.Ordinal)))
+            return GamePortraitCard.BuildAvatarElement(row, 24);
 
         return new Border
         {
             Width = 22, Height = 22, Background = HeaderBg, BorderBrush = HeaderBorder, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
             Child = new Path { Data = Geometry.Parse(GameItemSlot.ResolveCategoryIconPath(firstCellText, row.IconHint)), Stroke = BronzeBrush, StrokeThickness = 1.4, Width = 12, Height = 12, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
         };
-    }
-
-    private static string? ResolveNpcCodeFromName(string text)
-    {
-        var lower = text.ToLowerInvariant();
-        if (lower.Contains("lưu bị")) return "liu_bei";
-        if (lower.Contains("quan vũ")) return "guan_yu";
-        if (lower.Contains("trương phi")) return "zhang_fei";
-        if (lower.Contains("gia cát lượng")) return "zhuge_liang";
-        if (lower.Contains("tào tháo")) return "cao_cao";
-        if (lower.Contains("lữ bố")) return "lu_bu";
-        return null;
     }
 
     private void ApplyColumnLayout(Grid g)

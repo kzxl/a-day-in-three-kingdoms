@@ -57,9 +57,31 @@ function actionLabelVi(act) {
   }
 }
 
-function clamp90(str) {
-  const s = stripEmoji(str);
-  return s.length <= 90 ? s : `${s.slice(0, 89)}…`;
+export function splitNarrativeSentences(str, maxLen = 90) {
+  const clean = stripEmoji(str);
+  if (!clean) return [];
+  if (clean.length <= maxLen) return [clean];
+  const rawSentences = clean.split(/(?<=[.!?;。！？])\s+|\s+[·—]\s+/).map((s) => s.trim()).filter(Boolean);
+  const out = [];
+  for (const sentence of rawSentences) {
+    if (sentence.length <= maxLen) { out.push(sentence); continue; }
+    let rest = sentence;
+    while (rest.length > maxLen) {
+      let cut = rest.lastIndexOf(', ', maxLen - 1);
+      if (cut < Math.floor(maxLen * 0.4)) cut = rest.lastIndexOf(' ', maxLen);
+      if (cut <= 0) cut = maxLen;
+      const head = rest.slice(0, cut + (rest[cut] === ',' ? 1 : 0)).trim();
+      if (head) out.push(head);
+      rest = rest.slice(cut + 1).trim();
+    }
+    if (rest) out.push(rest);
+  }
+  return out;
+}
+
+function formatNarrativeHtml(str, maxLen = 90) {
+  const lines = splitNarrativeSentences(str, maxLen);
+  return lines.map((line) => `<span class="tk-duel-narrative-line">${escapeHtml(line)}</span>`).join('');
 }
 
 function chooseWeaponMod(branch, action) {
@@ -79,12 +101,8 @@ export function buildEffectOptions(mod, overrides = {}) {
 }
 
 export function safeCreateFx(mod, overrides = {}) {
-  try {
-    return createFx(mod, buildEffectOptions(mod, overrides));
-  } catch (err) {
-    console.warn('[DuelScene] Bỏ qua hiệu ứng lỗi:', mod?.meta?.name || 'unknown', err);
-    return null;
-  }
+  try { return createFx(mod, buildEffectOptions(mod, overrides)); }
+  catch (err) { console.warn('[DuelScene] Bỏ qua hiệu ứng lỗi:', mod?.meta?.name || 'unknown', err); return null; }
 }
 
 function pushFx(mod, overrides) {
@@ -198,7 +216,7 @@ async function runReplay(container, scene) {
     if (actRow) {
       actRow.innerHTML = `<span>${escapeHtml(scene.player.nameVi)}: ${actionLabelVi(r.playerAction)} (-${r.playerDamageDealt} HP)</span><span>${escapeHtml(scene.opponent.nameVi)}: ${actionLabelVi(r.opponentAction)} (-${r.opponentDamageDealt} HP)</span>`;
     }
-    if (narEl) narEl.textContent = clamp90(r.narrativeVi);
+    if (narEl) narEl.innerHTML = formatNarrativeHtml(r.narrativeVi, 90);
     if (noteEl) {
       noteEl.textContent = r.isCritical
         ? 'Đòn chí mạng kinh thiên động địa trên lôi đài!'
@@ -261,7 +279,7 @@ function renderDuelScene(container, scene, bridge) {
   const choicesHtml = choices.map((c, idx) => {
     const isBranch = String(c.id || '').startsWith('branch:');
     const iconHtml = isBranch ? branchSvgIcon(c.id) : `<span class="tk-choice-num">${HAN_NUMERALS[idx] || (idx + 1)}</span>`;
-    return `<button type="button" class="tk-choice" data-choice-id="${escapeHtml(c.id)}" ${c.enabled === false ? 'disabled' : ''}>${iconHtml}<span class="tk-choice-label tk-one">${escapeHtml(c.labelVi)}</span>${c.hintVi ? `<span class="tk-choice-tag tk-one">${escapeHtml(c.hintVi)}</span>` : ''}</button>`;
+    return `<button type="button" class="tk-choice" data-choice-id="${escapeHtml(c.id)}" ${c.enabled === false ? 'disabled' : ''}>${iconHtml}<span class="tk-choice-label">${escapeHtml(c.labelVi)}</span>${c.hintVi ? `<span class="tk-choice-tag">${escapeHtml(c.hintVi)}</span>` : ''}</button>`;
   }).join('');
 
   container.innerHTML = `
@@ -306,8 +324,8 @@ function renderDuelScene(container, scene, bridge) {
           <canvas class="tk-duel-canvas" id="tk-duel-canvas" width="480" height="270"></canvas>
           <div class="tk-duel-banner" id="tk-duel-banner" hidden>
             <div class="tk-banner-stamp">${escapeHtml(stampText)}</div>
-            <div class="tk-banner-sub tk-one">${escapeHtml(hasResult ? clamp90(scene.result.combatSummaryVi) : '')}</div>
-            <div class="tk-banner-reward tk-one">${escapeHtml(rewardVi)}</div>
+            <div class="tk-banner-sub">${hasResult ? formatNarrativeHtml(scene.result.combatSummaryVi, 90) : ''}</div>
+            <div class="tk-banner-reward">${escapeHtml(rewardVi)}</div>
           </div>
         </div>
       </div>
@@ -315,8 +333,8 @@ function renderDuelScene(container, scene, bridge) {
       <footer class="tk-duel-dock">
         <div class="tk-duel-logbox">
           <div class="tk-duel-actions-row" id="tk-duel-actions"><span>${escapeHtml(p.nameVi)} chuẩn bị xuất chiêu</span><span>${escapeHtml(o.nameVi)} thủ thế nghênh địch</span></div>
-          <p class="tk-duel-narrative tk-one" id="tk-duel-narrative">${escapeHtml(hasResult ? 'Trống trận vang rền, hai võ sĩ lao vào giao phong!' : 'Hãy chọn binh chủng xuất chiến để bắt đầu tỷ võ lôi đài.')}</p>
-          <div class="tk-duel-Note tk-one" id="tk-duel-note">${cleanMatchup}</div>
+          <div class="tk-duel-narrative" id="tk-duel-narrative">${formatNarrativeHtml(hasResult ? 'Trống trận vang rền, hai võ sĩ lao vào giao phong!' : 'Hãy chọn binh chủng xuất chiến để bắt đầu tỷ võ lôi đài.', 90)}</div>
+          <div class="tk-duel-Note" id="tk-duel-note">${cleanMatchup}</div>
         </div>
         <div class="tk-choices-col tk-duel-choices">${choicesHtml}</div>
       </footer>

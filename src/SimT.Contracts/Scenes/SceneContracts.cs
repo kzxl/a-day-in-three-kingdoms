@@ -248,6 +248,29 @@ public static class RoleTitleVi
         };
     }
 
+    public static string FormatItemCategory(string? rawCategory)
+    {
+        if (string.IsNullOrWhiteSpace(rawCategory))
+            return "Hàng hóa";
+
+        return rawCategory.Trim().ToLowerInvariant() switch
+        {
+            "grain" or "luong_thuc" => "Lương thực & Nhu yếu",
+            "food" or "thuc_pham" => "Thực phẩm & Đồ uống",
+            "luxury" or "xa_xi" => "Thượng phẩm & Xa xỉ",
+            "textile" or "to_lua" => "Tơ lụa & Vải vóc",
+            "medicine" or "duoc_lieu" => "Dược liệu & Thuốc men",
+            "material" or "metal" or "khoang_san" => "Khoáng sản & Vật liệu",
+            "seed" or "vat_tu" => "Hạt giống & Cây trồng",
+            "farming" or "supply" or "nong_nghiep" => "Vật tư Nông nghiệp",
+            "tool" or "nong_cu" => "Nông cụ & Khí cụ",
+            "weapon" or "binh_khi" => "Binh khí & Quân trang",
+            "book" or "thu_tich" => "Thư tịch & Bí kíp",
+            "all" => "Tất cả kỳ vật",
+            _ => rawCategory.Trim()
+        };
+    }
+
     private static bool IsAllAsciiUpper(string text)
     {
         foreach (var ch in text)

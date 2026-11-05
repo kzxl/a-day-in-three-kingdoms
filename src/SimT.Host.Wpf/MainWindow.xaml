@@ -27,7 +27,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="276" />
+            <ColumnDefinition Width="288" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
@@ -46,12 +46,13 @@
 
                 <DockPanel Grid.Row="0">
                     <controls:GameButton DockPanel.Dock="Right" Label="Cài đặt" Variant="Secondary" IsCompact="True"
+                                         Margin="10,0,0,0"
                                          IconPathData="M12,8 A4,4 0 1,0 12,16 A4,4 0 1,0 12,8 M12,2 L12,5 M12,19 L12,22 M2,12 L5,12 M19,12 L22,12 M4.9,4.9 L7,7 M17,17 L19.1,19.1 M19.1,4.9 L17,7 M7,17 L4.9,19.1"
                                          Click="Settings_Click" VerticalAlignment="Center"
                                          ToolTip="Quản lý DLC Tam Quốc, kiểm tra toàn vẹn Invariants &amp; tùy chọn game" />
-                    <StackPanel VerticalAlignment="Center">
+                    <StackPanel VerticalAlignment="Center" Margin="0,0,6,0">
                         <TextBlock Text="MỘT NGÀY Ở TAM QUỐC" FontFamily="Noto Serif, Georgia, Segoe UI"
-                                   FontSize="13.5" FontWeight="Bold" Foreground="{StaticResource Accent}" />
+                                   FontSize="12" FontWeight="Bold" Foreground="{StaticResource Accent}" />
                         <TextBlock x:Name="CampaignText" Style="{StaticResource Caption}" Margin="0,1,0,0"
                                    TextTrimming="CharacterEllipsis" />
                     </StackPanel>

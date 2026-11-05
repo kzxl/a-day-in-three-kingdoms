@@ -123,4 +123,19 @@ public sealed class NpcStallTests : IDisposable
         var restocked = market.OffersAt(cityId).First(o => o.Id == offer.Id).Quantity;
         Assert.Equal(offer.MaxQuantity, restocked);
     }
+
+    [Fact]
+    public void StallScreen_renders_all_item_categories_in_vietnamese_without_raw_keys()
+    {
+        using var kernel = Boot();
+        var stallScreen = kernel.Ui.Screens.Single(s => s.ScreenId == "market.stall").Render();
+
+        var headings = stallScreen.Sections.Select(s => s.Heading).ToList();
+        Assert.Contains(headings, h => h.Contains("Hạt Giống", StringComparison.Ordinal));
+        Assert.Contains(headings, h => h.Contains("Vật Tư Nông Nghiệp", StringComparison.Ordinal));
+        Assert.Contains(headings, h => h.Contains("Nông Cụ", StringComparison.Ordinal));
+        Assert.DoesNotContain(headings, h => string.Equals(h, "seed", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(headings, h => string.Equals(h, "farming", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(headings, h => string.Equals(h, "tool", StringComparison.OrdinalIgnoreCase));
+    }
 }

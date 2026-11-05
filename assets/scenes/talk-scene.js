@@ -62,7 +62,7 @@ function renderTalkScene(container, scene, bridge) {
   const choicesHtml = choices.map((c, idx) => {
     const num = HAN_NUMERALS[idx] || String(idx + 1);
     const hint = c.hintVi
-      ? `<span class="tk-choice-tag tk-one">${escapeHtml(c.hintVi)}</span>`
+      ? `<span class="tk-choice-tag">${escapeHtml(c.hintVi)}</span>`
       : '';
     return `
       <button type="button"
@@ -70,7 +70,7 @@ function renderTalkScene(container, scene, bridge) {
               data-choice-id="${escapeHtml(c.id)}"
               ${c.enabled === false ? 'disabled' : ''}>
         <span class="tk-choice-num">${num}</span>
-        <span class="tk-choice-label tk-one">${escapeHtml(c.labelVi)}</span>
+        <span class="tk-choice-label">${escapeHtml(c.labelVi)}</span>
         ${hint}
       </button>
     `;
@@ -142,7 +142,7 @@ function renderTalkScene(container, scene, bridge) {
             </div>
           </div>
 
-          <p class="tk-dialog-line tk-one" id="tk-talk-line">“${escapeHtml(lines[0])}”</p>
+          <p class="tk-dialog-line" id="tk-talk-line">“${escapeHtml(lines[0])}”</p>
 
           <div class="tk-dialog-foot">
             <span class="tk-line-count tk-num" id="tk-talk-count">1 / ${lines.length}</span>

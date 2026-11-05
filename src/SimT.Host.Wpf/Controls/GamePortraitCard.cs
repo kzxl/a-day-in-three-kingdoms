@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ShapePath = System.Windows.Shapes.Path;
+using SimT.Contracts.Playing;
 using SimT.Contracts.Scenes;
 using SimT.Contracts.Ui;
 
@@ -150,9 +151,20 @@ public sealed class GamePortraitCard : Border
         MouseLeftButtonUp += (_, _) => CardSelected?.Invoke();
     }
 
+    public static Border BuildAvatarElement(ScreenRow row, double size = 34, INpcRegistry? registry = null)
+    {
+        var (_, faceRel, spriteRel) = SceneArtCatalog.ResolveRowNpcArt(row, registry);
+        return BuildAvatarBorderFromPaths(faceRel, spriteRel, size);
+    }
+
     public static Border BuildAvatarElement(string? npcCode, string? role, double size = 34, string? nameVi = null)
     {
         var (_, faceRel, spriteRel) = SceneArtCatalog.ResolveNpcArt(npcCode, role, nameVi: nameVi);
+        return BuildAvatarBorderFromPaths(faceRel, spriteRel, size);
+    }
+
+    private static Border BuildAvatarBorderFromPaths(string faceRel, string spriteRel, double size)
+    {
         var imgSource = TryLoadSceneImage(faceRel) ?? TryLoadSceneImage(spriteRel);
 
         var frame = new Border
@@ -173,7 +185,8 @@ public sealed class GamePortraitCard : Border
             {
                 Source = imgSource,
                 Stretch = Stretch.UniformToFill,
-                VerticalAlignment = VerticalAlignment.Top
+                VerticalAlignment = VerticalAlignment.Top,
+                Tag = faceRel
             };
         }
         else
@@ -191,6 +204,7 @@ public sealed class GamePortraitCard : Border
             };
         }
 
+        frame.Tag = faceRel;
         return frame;
     }
 
@@ -202,7 +216,9 @@ public sealed class GamePortraitCard : Border
         try
         {
             var normalized = relativeArtPath.Replace('/', System.IO.Path.DirectorySeparatorChar);
-            var fullPath = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "scenes", normalized);
+            var scenesDir = SceneArtCatalog.FindSceneAssetsDirectory()
+                ?? System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "scenes");
+            var fullPath = System.IO.Path.Combine(scenesDir, normalized);
             if (!File.Exists(fullPath))
             {
                 ImageCache[relativeArtPath] = null;

@@ -1,5 +1,6 @@
 using SimT.Contracts.Playing;
 using SimT.Contracts.Scenes;
+using SimT.Contracts.Ui;
 using Xunit;
 
 namespace SimT.Core.Tests;
@@ -82,5 +83,41 @@ public sealed class SceneContractsTests
 
         Assert.True(SceneTrustGuard.IsAllowedMessage(new SceneClientMessage("choice", "duel:2", "branch:Infantry"), duel));
         Assert.False(SceneTrustGuard.IsAllowedMessage(new SceneClientMessage("choice", "duel:2", "branch:Invalid"), duel));
+    }
+
+    [Fact]
+    public void SceneArtCatalog_UnifiesSceneAndWpfRowPortraitResolution_ForThaiDiemHoaHungTuMaY()
+    {
+        Assert.True(SceneArtCatalog.IsManifestLoadedFromDisk);
+
+        // 1. Thái Diễm -> lady portrait
+        var thaiDiemRow = new ScreenRow(
+            ["Thái Diễm (Thái Văn Cơ)", "Thái Văn Cơ (蔡琰)", "Hồ Gia Thập Bát Phách • Tuyệt Đại Tài Nữ", "Lạc Dương", "35", "40", "92", "65"],
+            [new ScreenCommand("talk:npc:94", "Bái phỏng"), new ScreenCommand("npc:modal:94", "Hồ Sơ")],
+            Title: "Thái Diễm (Thái Văn Cơ) — Thái Văn Cơ",
+            Details: [new ScreenDetail("Thân Phận", "Hồ Gia Thập Bát Phách • Tuyệt Đại Tài Nữ")]);
+        var thaiDiemMeta = SceneArtCatalog.ExtractRowNpcMetadata(thaiDiemRow);
+        Assert.Equal("lady", thaiDiemMeta.Archetype);
+        Assert.Equal("art/portraits/lady/face.webp", thaiDiemMeta.PortraitFace);
+
+        // 2. Hoa Hùng -> general portrait
+        var hoaHungRow = new ScreenRow(
+            ["Hoa Hùng", "Hoa Hùng (華雄)", "Tây Lương Kiêu Tướng • Trảm Tướng Tị Thủy Quan", "Lạc Dương", "92", "80", "45", "30"],
+            [new ScreenCommand("talk:npc:92", "Bái phỏng"), new ScreenCommand("npc:modal:92", "Hồ Sơ")],
+            Title: "Hoa Hùng — Hoa Hùng",
+            Details: [new ScreenDetail("Thân Phận", "Tây Lương Kiêu Tướng • Trảm Tướng Tị Thủy Quan")]);
+        var hoaHungMeta = SceneArtCatalog.ExtractRowNpcMetadata(hoaHungRow);
+        Assert.Equal("general", hoaHungMeta.Archetype);
+        Assert.Equal("art/portraits/general/face.webp", hoaHungMeta.PortraitFace);
+
+        // 3. Tư Mã Ý -> scholar portrait
+        var tuMaYRow = new ScreenRow(
+            ["Tư Mã Ý (Trọng Đạt)", "Trọng Đạt (司馬懿)", "Tấn Cao Tổ • Lang Cố Chi Tướng Trấn Thủ Trung Nguyên", "Lạc Dương", "68", "96", "98", "82"],
+            [new ScreenCommand("talk:npc:38", "Bái phỏng"), new ScreenCommand("npc:modal:38", "Hồ Sơ")],
+            Title: "Tư Mã Ý (Trọng Đạt) — Trọng Đạt",
+            Details: [new ScreenDetail("Thân Phận", "Tấn Cao Tổ • Lang Cố Chi Tướng Trấn Thủ Trung Nguyên")]);
+        var tuMaYMeta = SceneArtCatalog.ExtractRowNpcMetadata(tuMaYRow);
+        Assert.Equal("scholar", tuMaYMeta.Archetype);
+        Assert.Equal("art/portraits/scholar/face.webp", tuMaYMeta.PortraitFace);
     }
 }

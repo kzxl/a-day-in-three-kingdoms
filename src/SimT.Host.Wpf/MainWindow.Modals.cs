@@ -175,7 +175,7 @@ public partial class MainWindow
                 {
                     var entry = hub?.FindEntry(item.Id);
                     var icon = entry?.VisualIcon ?? "📦";
-                    var subCat = entry?.SubCategoryVi ?? item.Category;
+                    var subCat = entry?.SubCategoryVi ?? SimT.Contracts.Scenes.RoleTitleVi.FormatItemCategory(item.Category);
                     var summary = entry?.LoreDescriptionVi ?? item.NameVi;
                     bagItemList.Add(new ProtagonistBagItem(
                         item.Id,
@@ -206,7 +206,7 @@ public partial class MainWindow
                     {
                         var entry = h?.FindEntry(item.Id);
                         var icon = entry?.VisualIcon ?? "📦";
-                        var subCat = entry?.SubCategoryVi ?? item.Category;
+                        var subCat = entry?.SubCategoryVi ?? SimT.Contracts.Scenes.RoleTitleVi.FormatItemCategory(item.Category);
                         var summary = entry?.LoreDescriptionVi ?? item.NameVi;
                         list.Add(new ProtagonistBagItem(
                             item.Id,

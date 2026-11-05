@@ -39,7 +39,7 @@ public partial class ItemDetailModalWindow : Window
         _onChanged = onChanged;
 
         IconGlyphText.Text = entry.VisualIcon;
-        CategoryTagSmall.Text = entry.Item.Category.ToUpperInvariant();
+        CategoryTagSmall.Text = SimT.Contracts.Scenes.RoleTitleVi.FormatItemCategory(entry.Item.Category).ToUpperInvariant();
 
         NameViText.Text = entry.Item.NameVi;
         NameEnText.Text = entry.Item.NameEn.ToUpperInvariant();

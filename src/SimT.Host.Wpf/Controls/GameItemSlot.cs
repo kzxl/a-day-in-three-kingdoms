@@ -190,15 +190,15 @@ public sealed class GameItemSlot : Border
         var key = $"{nameVi} {category}".ToLowerInvariant();
         if (key.Contains("lụa") || key.Contains("gấm") || key.Contains("vải"))
             return "M4,6 C8,4 16,8 20,6 L20,18 C16,20 8,16 4,18 Z M8,7 L8,17 M16,7 L16,17";
-        if (key.Contains("trà") || key.Contains("dược") || key.Contains("thảo"))
+        if (key.Contains("trà") || key.Contains("dược") || key.Contains("thảo") || key.Contains("giống") || key.Contains("seed") || key.Contains("cây trồng"))
             return "M12,20 L12,9 M12,15 C7,15 5,10 6,5 C10,5 12,9 12,15 M12,12 C17,12 19,8 18,4 C14,4 12,7 12,12";
         if (key.Contains("rượu") || key.Contains("tửu") || key.Contains("bình"))
             return "M9,3 L15,3 M10,3 L10,7 L7,11 L7,19 C7,20.5 8.5,21 12,21 C15.5,21 17,20.5 17,19 L17,11 L14,7 L14,3";
-        if (key.Contains("kiếm") || key.Contains("đao") || key.Contains("thương") || key.Contains("cung") || key.Contains("vũ khí") || key.Contains("sắt"))
+        if (key.Contains("kiếm") || key.Contains("đao") || key.Contains("thương") || key.Contains("cung") || key.Contains("vũ khí") || key.Contains("sắt") || key.Contains("cuốc") || key.Contains("liềm") || key.Contains("nông cụ") || key.Contains("tool"))
             return "M4,20 L19,5 M14,5 L19,5 L19,10 M6,14 L10,18";
         if (key.Contains("ngựa") || key.Contains("mã"))
             return "M5,18 L5,11 L9,7 L15,5 L19,8 L17,12 L13,12 L13,18 M9,18 L9,14";
-        if (key.Contains("gạo") || key.Contains("lương") || key.Contains("lúa") || key.Contains("muối"))
+        if (key.Contains("gạo") || key.Contains("lương") || key.Contains("lúa") || key.Contains("muối") || key.Contains("phân bón") || key.Contains("nông nghiệp") || key.Contains("farming"))
             return "M6,9 L18,9 L19,20 L5,20 Z M8,9 C8,5 16,5 16,9";
         return "M12,3 L20,7.5 L20,16.5 L12,21 L4,16.5 L4,7.5 Z M12,12 L20,7.5 M12,12 L4,7.5 M12,12 L12,21";
     }

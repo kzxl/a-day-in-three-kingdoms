@@ -176,21 +176,22 @@ public partial class MainWindow
         if (npcRows.Count == 0)
             return null;
 
+        SimT.Contracts.Playing.INpcRegistry? npcRegistry = null;
+        _kernel.Capabilities.TryGet(SimT.Contracts.Playing.CapabilityIds.NpcRegistry, out npcRegistry);
+
         var wrap = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
         foreach (var row in npcRows)
         {
-            var name = row.Cells.Count > 0 ? row.Cells[0] : (row.Title ?? "Nhân sĩ");
-            var role = row.Cells.Count > 1 ? row.Cells[1] : "Danh sĩ";
-            var sub = row.Cells.Count > 2 ? row.Cells[2] : null;
+            var meta = SimT.Contracts.Scenes.SceneArtCatalog.ExtractRowNpcMetadata(row, npcRegistry);
             var aff = ExtractAffectionFromRow(row);
 
             var card = new GamePortraitCard(
-                nameVi: name,
-                roleVi: role,
-                subtitleVi: sub,
+                nameVi: meta.NameVi,
+                roleVi: meta.RoleVi,
+                subtitleVi: meta.SubtitleVi,
                 affectionValue: aff,
                 affectionMax: 100,
-                npcCodeOrRole: role,
+                npcCodeOrRole: meta.NpcCode ?? meta.Archetype,
                 commands: row.Commands,
                 tooltipStats: row.Info.Take(4).Select(d => (d.Label, d.Value)).ToList());
 

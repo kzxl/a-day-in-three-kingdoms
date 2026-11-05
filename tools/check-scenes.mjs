@@ -18,7 +18,7 @@ const rootDir = path.resolve(__dirname, '..');
 const scenesDir = path.join(rootDir, 'assets', 'scenes');
 
 const { createFrame, clearFrame, createFx, composite } = await import('../assets/scenes/vendor/pixelfx/src/core/index.js');
-const { buildEffectOptions, safeCreateFx } = await import('../assets/scenes/duel-scene.js');
+const { buildEffectOptions, safeCreateFx, splitNarrativeSentences } = await import('../assets/scenes/duel-scene.js');
 
 import * as swordSlash from '../assets/scenes/vendor/pixelfx/src/fx/melee/sword-slash.js';
 import * as thrustFx from '../assets/scenes/vendor/pixelfx/src/fx/melee/thrust.js';
@@ -85,4 +85,12 @@ for (const [k, obj] of Object.entries(manifest.portraits || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.face)), `Missing portrait face ${k}: ${obj.face}`);
 }
 
-console.log(`check-scenes: verified ${effects.length} pixelfx effects x 12 frames and manifest assets OK.`);
+const longNarrative = 'Hiệp 1: Lữ Khách vung thương đâm thẳng gây 28 sát thương! Hoa Hùng gầm lớn múa đại đao phản kích dữ dội gây 22 sát thương trên lôi đài Lạc Dương.';
+const splitLines = splitNarrativeSentences(longNarrative, 90);
+assert.ok(splitLines.length >= 2, 'Expected long narrative to split into >= 2 sentences');
+for (const line of splitLines) {
+  assert.ok(line.length <= 90, `Split sentence exceeds 90 chars (${line.length}): ${line}`);
+  assert.ok(!line.includes('…'), `Split sentence must not truncate with ellipsis: ${line}`);
+}
+
+console.log(`check-scenes: verified ${effects.length} pixelfx effects x 12 frames, narrative splitter, and manifest assets OK.`);
