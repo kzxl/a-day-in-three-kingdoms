@@ -61,6 +61,14 @@ public partial class MainWindow
             return;
         }
 
+        if (entry.ScreenId == "player.destiny")
+        {
+            RenderDestinyTreeScreen(model);
+            RefreshBadges();
+            AnimatePageTransition();
+            return;
+        }
+
         ScreenTitle.Text = model.Title;
         ScreenStatus.Text = model.StatusLine;
 
@@ -228,6 +236,66 @@ public partial class MainWindow
     }
 
 
+
+    private void RenderDestinyTreeScreen(ScreenModel model)
+    {
+        ScreenTitle.Text = model.Title;
+        ScreenStatus.Text = model.StatusLine;
+
+        KpiStrip.Children.Clear();
+        foreach (var metric in model.Headline)
+        {
+            KpiStrip.Children.Add(BuildMetric(metric));
+        }
+
+        AlertFeed.ItemsSource = model.Attention.Count == 0
+            ? null
+            : model.Attention.Select(alert => new AlertVm(alert)).ToList();
+
+        GlobalCommands.Children.Clear();
+        foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
+        {
+            GlobalCommands.Children.Add(CommandButton(command, command.Id));
+        }
+
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+
+        ContentPanel.Children.Clear();
+
+        // 1. Interactive PoE-Style Visual Destiny Tree Canvas Control
+        if (_kernel.Capabilities.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var destiny) && destiny is not null)
+        {
+            var treeCtrl = new Controls.GameDestinyTreeControl(destiny);
+            treeCtrl.LearnRequested += async nodeId =>
+            {
+                await ExecuteScreenCommandAsync($"destiny:learn:{nodeId}", "player.destiny");
+            };
+            treeCtrl.RespecRequested += async () =>
+            {
+                await ExecuteScreenCommandAsync("destiny:respec", "player.destiny");
+            };
+            treeCtrl.EvaluateRequested += async () =>
+            {
+                await ExecuteScreenCommandAsync("destiny:evaluate", "player.destiny");
+            };
+            ContentPanel.Children.Add(treeCtrl);
+        }
+
+        // 2. Tabular Milestones & Breakthrough Achievements
+        var milestoneSection = model.Sections.FirstOrDefault(s => s.Heading.Contains("KỲ NGỘ", StringComparison.OrdinalIgnoreCase))
+            ?? model.Sections.LastOrDefault();
+
+        if (milestoneSection is not null)
+        {
+            ContentPanel.Children.Add(BuildCard(Filtered(milestoneSection)));
+        }
+
+        ContentPanel.Children.Add(MonthFooter());
+        RestoreDetail(model);
+        RefreshBadges();
+        AnimatePageTransition();
+    }
 
     private GameMetricCard BuildMetric(ScreenMetric metric) => new(metric);
 
