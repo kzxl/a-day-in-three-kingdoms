@@ -64,7 +64,7 @@ public sealed class EconomyModule : ISimModule
         context.Ui.AddCommandHandler(new CaravanCommandHandler(caravanService, player));
 
         context.Ui.AddScreen(new FarmScreen(farmService, map, player, context.Clock));
-        context.Ui.AddCommandHandler(new FarmCommandHandler(farmService, player));
+        context.Ui.AddCommandHandler(new FarmCommandHandler(farmService, player, marketService));
 
         context.Ui.AddScreen(new ProfessionScreen(professionService, items, player));
         context.Ui.AddCommandHandler(new ProfessionCommandHandler(professionService, player));

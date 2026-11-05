@@ -72,6 +72,8 @@ internal sealed class FarmService : ICultivationEstate
                     row.GetInt32(9));
             });
 
+    public IBag Bag => _bag;
+
     public IReadOnlyList<HarvestLogDef> HarvestLogs =>
         _db.Query(
             """
@@ -436,6 +438,45 @@ internal sealed class FarmService : ICultivationEstate
 
         _log.Info($"harvested plot {plotId}: +{yieldQuantity}, soil {plot.Soil} -> {soilAfter}");
         return FarmResult.Success($"Gặt được {yieldQuantity} {cropSpec.Code}, đất còn {soilAfter}/100.");
+    }
+
+
+    public FarmResult HarvestAndStore(long plotId, long cityId, IMarketWarehouse? warehouse = null)
+    {
+        var plot = FindPlot(plotId);
+        if (plot is null)
+        {
+            return FarmResult.Failure("Không có khu ruộng này.");
+        }
+
+        var cropSpec = CropSpec.All.FirstOrDefault(spec =>
+            _db.ScalarLong(
+                "SELECT COUNT(*) FROM fm_crop WHERE plot_id=@plot AND status='READY' AND item_id=@item",
+                new DbArgs().Add("@plot", plotId).Add("@item", spec.OutputItemId)) > 0);
+
+        var yieldQuantity = plot.YieldQuantity ?? 0;
+        var harvestRes = Harvest(plotId, cityId);
+        if (!harvestRes.Ok)
+        {
+            return harvestRes;
+        }
+
+        if (warehouse != null && cropSpec != null)
+        {
+            var warehouseInfo = warehouse.Info(cityId);
+            if (warehouseInfo != null)
+            {
+                var stored = warehouse.Store(cityId, cropSpec.OutputItemId, yieldQuantity, out var storeMsg);
+                if (stored)
+                {
+                    return FarmResult.Success($"{harvestRes.Message} Đã tự động cất {yieldQuantity} nông sản vào Kho Thành Thị ({warehouseInfo.Used + yieldQuantity}/{warehouseInfo.Capacity}).");
+                }
+                return FarmResult.Success($"{harvestRes.Message} Nhập kho thất bại ({storeMsg}), nông sản vẫn được giữ trong hành trang.");
+            }
+            return FarmResult.Success($"{harvestRes.Message} (Chưa thuê kho tại thành này nên nông sản được giữ trong hành trang).");
+        }
+
+        return harvestRes;
     }
 
     public FarmResult Fertilise(long plotId, long cityId)

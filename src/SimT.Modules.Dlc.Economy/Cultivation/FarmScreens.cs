@@ -285,11 +285,13 @@ internal sealed class FarmCommandHandler : IScreenCommandHandler
 {
     private readonly FarmService _service;
     private readonly IPlayerState _player;
+    private readonly IMarketWarehouse? _warehouse;
 
-    public FarmCommandHandler(FarmService service, IPlayerState player)
+    public FarmCommandHandler(FarmService service, IPlayerState player, IMarketWarehouse? warehouse = null)
     {
         _service = service;
         _player = player;
+        _warehouse = warehouse;
     }
 
     public string ScreenId => "cultivation.farm";
@@ -360,6 +362,7 @@ internal sealed class FarmCommandHandler : IScreenCommandHandler
             "rent" => _service.Rent(plotId, city).Message,
             "plant" => _service.Plant(plotId, city, parts.Length > 2 ? parts[2] : null).Message,
             "harvest" => _service.Harvest(plotId, city).Message,
+            "harvest_store" => _service.HarvestAndStore(plotId, city, _warehouse).Message,
             "fertilise" => _service.Fertilise(plotId, city).Message,
             "irrigate" => _service.Irrigate(plotId, city).Message,
             var verb => $"Động từ '{verb}' không thuộc DLC cultivation."
