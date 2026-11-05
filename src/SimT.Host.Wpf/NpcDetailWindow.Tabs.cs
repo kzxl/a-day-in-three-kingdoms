@@ -142,7 +142,16 @@ public partial class NpcDetailWindow
 
         foreach (var skill in filtered)
         {
-            SkillsListPanel.Children.Add(new GameSkillCard(skill));
+            var card = new GameSkillCard(skill);
+            card.InspectRequested += sk =>
+            {
+                var modal = new SkillDetailModalWindow(sk, _npc, _isProtagonist)
+                {
+                    Owner = this
+                };
+                modal.ShowDialog();
+            };
+            SkillsListPanel.Children.Add(card);
         }
     }
 

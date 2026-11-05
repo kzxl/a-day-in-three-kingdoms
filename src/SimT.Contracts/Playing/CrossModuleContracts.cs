@@ -211,7 +211,8 @@ public sealed record NpcSkillDef(
     string Category,
     int Tier,
     string Description,
-    string EffectSummary);
+    string EffectSummary,
+    int Level = 1);
 
 /// <summary>Full demographic and canonical attributes of an NPC owned by <c>base.npc</c>.</summary>
 public sealed record NpcDef(

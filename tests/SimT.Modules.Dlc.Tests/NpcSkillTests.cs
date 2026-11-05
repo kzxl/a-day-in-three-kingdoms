@@ -268,4 +268,48 @@ public sealed class NpcSkillTests : IDisposable
         Assert.NotNull(prog);
         Assert.True(prog.Proficiency > 1);
     }
+
+    [Fact]
+    public void Npc_skills_have_levels_and_historical_legends_reach_high_mastery()
+    {
+        using var kernel = _host.Boot();
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        // Every NPC skill has a valid level between 1 and 10
+        foreach (var npc in registry.All)
+        {
+            foreach (var sk in npc.Skills)
+            {
+                Assert.InRange(sk.Level, 1, 10);
+            }
+        }
+
+        // Guan Yu: Vo Thanh has peak Lv.10
+        var guanYu = registry.FindByCode("npc_0003");
+        Assert.NotNull(guanYu);
+        var voThanh = guanYu.Skills.FirstOrDefault(s => s.Code == "vo_thanh");
+        Assert.NotNull(voThanh);
+        Assert.Equal(10, voThanh.Level);
+
+        // Liu Bei: Nhan Duc has Lv.10
+        var liuBei = registry.FindByCode("npc_0001");
+        Assert.NotNull(liuBei);
+        var nhanDuc = liuBei.Skills.FirstOrDefault(s => s.Code == "nhan_duc");
+        Assert.NotNull(nhanDuc);
+        Assert.Equal(10, nhanDuc.Level);
+
+        // Dynamic registration also respects skill levels
+        var dynamicNpc = registry.RegisterDynamicNpc(
+            "npc_dyn_test",
+            "Thiết Trảo Hùng",
+            "Du Hiệp",
+            1,
+            new CharacterAttributes(70, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50),
+            skills: [new NpcSkillDef("thiet_trao", "Thiết Trảo", "martial", 3, "Thương pháp hổ báo", "Sát thương +10", Level: 6)]);
+
+        Assert.NotNull(dynamicNpc);
+        var dynamicSkill = dynamicNpc.Skills.FirstOrDefault(s => s.Code == "thiet_trao");
+        Assert.NotNull(dynamicSkill);
+        Assert.Equal(6, dynamicSkill.Level);
+    }
 }

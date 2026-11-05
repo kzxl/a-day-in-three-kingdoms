@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using SimT.Contracts.Playing;
 
@@ -11,12 +12,18 @@ namespace SimT.Host.Wpf.Controls;
 /// </summary>
 public sealed class GameSkillCard : Border
 {
+    private NpcSkillDef? _skill;
     private readonly TextBlock _titleText;
     private readonly TextBlock _starText;
+    private readonly Border _levelBorder;
+    private readonly TextBlock _levelText;
     private readonly TextBlock _catText;
     private readonly Border _catBorder;
     private readonly TextBlock _descText;
     private readonly TextBlock _effectText;
+    private readonly Button _inspectBtn;
+
+    public event Action<NpcSkillDef>? InspectRequested;
 
     public GameSkillCard()
     {
@@ -46,13 +53,34 @@ public sealed class GameSkillCard : Border
         };
         badgeStack.Children.Add(_starText);
 
+        _levelBorder = new Border
+        {
+            Background = (Brush)Application.Current.FindResource("AccentSoft"),
+            BorderBrush = (Brush)Application.Current.FindResource("Accent"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(6, 2, 6, 2),
+            Margin = new Thickness(0, 0, 8, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        _levelText = new TextBlock
+        {
+            FontSize = 10.5,
+            FontWeight = FontWeights.Bold,
+            Foreground = (Brush)Application.Current.FindResource("Accent")
+        };
+        _levelBorder.Child = _levelText;
+        badgeStack.Children.Add(_levelBorder);
+
         _catBorder = new Border
         {
             Background = (Brush)Application.Current.FindResource("Surface"),
             BorderBrush = (Brush)Application.Current.FindResource("Line"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(6, 2, 6, 2)
+            Padding = new Thickness(6, 2, 6, 2),
+            Margin = new Thickness(0, 0, 8, 0),
+            VerticalAlignment = VerticalAlignment.Center
         };
         _catText = new TextBlock
         {
@@ -61,6 +89,22 @@ public sealed class GameSkillCard : Border
         };
         _catBorder.Child = _catText;
         badgeStack.Children.Add(_catBorder);
+
+        _inspectBtn = new Button
+        {
+            Content = "🔍 Chi Tiết",
+            Style = (Style)Application.Current.FindResource("GhostButton"),
+            Padding = new Thickness(8, 2, 8, 2),
+            FontSize = 10.5,
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Mở cửa sổ giám định chi tiết tuyệt kỹ & thập trọng cảnh giới"
+        };
+        _inspectBtn.Click += (s, e) =>
+        {
+            e.Handled = true;
+            if (_skill != null) InspectRequested?.Invoke(_skill);
+        };
+        badgeStack.Children.Add(_inspectBtn);
         headerDock.Children.Add(badgeStack);
 
         _titleText = new TextBlock
@@ -100,6 +144,16 @@ public sealed class GameSkillCard : Border
 
         Child = stack;
 
+        Cursor = Cursors.Hand;
+        ToolTip = "Bấm để mở cửa sổ giám định chi tiết tuyệt kỹ & thập trọng cảnh giới";
+        MouseLeftButtonUp += (_, e) =>
+        {
+            if (_skill != null)
+            {
+                InspectRequested?.Invoke(_skill);
+            }
+        };
+
         MouseEnter += (_, _) => BorderBrush = (Brush)Application.Current.FindResource("LineSoft") ?? Brushes.SlateGray;
         MouseLeave += (_, _) => BorderBrush = (Brush)Application.Current.FindResource("Line");
     }
@@ -111,8 +165,10 @@ public sealed class GameSkillCard : Border
 
     public void Configure(NpcSkillDef skill)
     {
+        _skill = skill;
         _titleText.Text = skill.NameVi;
         _starText.Text = new string('★', Math.Clamp(skill.Tier, 1, 5));
+        _levelText.Text = $"Lv.{skill.Level} · {SkillRankTitles.ForLevel(skill.Level)}";
         _descText.Text = skill.Description;
         _effectText.Text = $"⚡ Hiệu Quả: {skill.EffectSummary}";
 

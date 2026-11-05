@@ -996,7 +996,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
                     "governor" => "governance",
                     "strategist" => "strategist",
                     _ => "special"
-                }, 3, arch.SkillDesc, arch.SkillEffect)
+                }, 3, arch.SkillDesc, arch.SkillEffect, Level: Math.Clamp(2 + rng.Next(4), 1, 10))
             };
 
             var newNpc = _registry.RegisterDynamicNpc(

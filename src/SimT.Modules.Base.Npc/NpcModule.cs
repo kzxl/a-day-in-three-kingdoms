@@ -35,9 +35,9 @@ public sealed class NpcModule : ISimModule
             _db = db;
 
             var skillRows = db.Query(
-                @"SELECT npc_id, code, name_vi, category, tier, description, effect_summary
+                @"SELECT npc_id, code, name_vi, category, tier, description, effect_summary, COALESCE(level, 1)
                   FROM np_skill
-                  ORDER BY tier DESC, id ASC",
+                  ORDER BY tier DESC, level DESC, id ASC",
                 row => (
                     NpcId: row.GetInt64(0),
                     Skill: new NpcSkillDef(
@@ -46,7 +46,8 @@ public sealed class NpcModule : ISimModule
                         row.GetString(3),
                         row.GetInt32(4),
                         row.GetString(5),
-                        row.GetString(6))));
+                        row.GetString(6),
+                        row.GetInt32(7))));
 
             var skillsByNpc = new Dictionary<long, List<NpcSkillDef>>();
             foreach (var item in skillRows)
@@ -244,8 +245,8 @@ public sealed class NpcModule : ISimModule
                 foreach (var sk in skillList)
                 {
                     _db.Execute(
-                        @"INSERT OR IGNORE INTO np_skill (npc_id, code, name_vi, category, tier, description, effect_summary)
-                          VALUES (@npcId, @code, @name, @category, @tier, @desc, @effect)",
+                        @"INSERT OR IGNORE INTO np_skill (npc_id, code, name_vi, category, tier, description, effect_summary, level)
+                          VALUES (@npcId, @code, @name, @category, @tier, @desc, @effect, @lvl)",
                         new DbArgs()
                             .Add("@npcId", newId)
                             .Add("@code", sk.Code)
@@ -253,7 +254,8 @@ public sealed class NpcModule : ISimModule
                             .Add("@category", sk.Category)
                             .Add("@tier", sk.Tier)
                             .Add("@desc", sk.Description)
-                            .Add("@effect", sk.EffectSummary));
+                            .Add("@effect", sk.EffectSummary)
+                            .Add("@lvl", Math.Clamp(sk.Level, 1, 10)));
                 }
 
                 var npc = new NpcDef(

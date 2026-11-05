@@ -1,0 +1,165 @@
+<Window x:Class="SimT.Host.Wpf.SkillDetailModalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Điển Tịch Tuyệt Kỹ · Chi Tiết Kỹ Năng &amp; Thập Trọng Cảnh Giới"
+        Height="700" Width="780"
+        MinHeight="600" MinWidth="700"
+        Background="{StaticResource Bg}"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        PreviewKeyDown="Window_PreviewKeyDown">
+
+    <Grid Margin="18,14,18,14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ===== Header: Glyph, Name, Code, Badges & Level ===== -->
+        <Border Grid.Row="0" Background="{StaticResource SurfaceAlt}"
+                BorderBrush="{StaticResource Line}" BorderThickness="1"
+                CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Icon Box -->
+                <Border Grid.Column="0" Width="68" Height="68"
+                        Background="{StaticResource Surface}"
+                        BorderBrush="{StaticResource Accent}" BorderThickness="2"
+                        CornerRadius="8" Margin="0,0,14,0"
+                        VerticalAlignment="Center">
+                    <Grid>
+                        <TextBlock x:Name="IconGlyphText" Text="⚔️"
+                                   FontSize="32"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Border Background="{StaticResource AccentSoft}" CornerRadius="0,0,6,0"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                Padding="4,1">
+                            <TextBlock x:Name="CategoryTagSmall" Text="VÕ ĐẠO" FontSize="9"
+                                       Foreground="{StaticResource Accent}" FontWeight="Bold" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Names & Overview -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="SkillNameText" Style="{StaticResource Display}" FontSize="20"
+                                   Foreground="{StaticResource Text}" VerticalAlignment="Bottom" />
+                        <TextBlock x:Name="SkillCodeText" Style="{StaticResource Caption}"
+                                   Foreground="{StaticResource Muted}" Margin="10,0,0,3"
+                                   VerticalAlignment="Bottom" />
+                    </StackPanel>
+
+                    <!-- Category, Stars, Level Badge Row -->
+                    <WrapPanel Margin="0,6,0,0">
+                        <Border x:Name="CategoryBadge" Background="{StaticResource Surface}" CornerRadius="4" Padding="8,2" Margin="0,0,8,4">
+                            <TextBlock x:Name="CategoryText" FontSize="11" FontWeight="Bold" />
+                        </Border>
+                        <Border Background="{StaticResource Surface}" CornerRadius="4" Padding="8,2" Margin="0,0,8,4">
+                            <TextBlock x:Name="TierStarsText" FontSize="11" Foreground="{StaticResource Gain}" FontWeight="SemiBold" />
+                        </Border>
+                        <Border x:Name="LevelBadge" Background="{StaticResource AccentSoft}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,8,4">
+                            <TextBlock x:Name="LevelRankText" FontSize="11" Foreground="{StaticResource Accent}" FontWeight="Bold" />
+                        </Border>
+                    </WrapPanel>
+                </StackPanel>
+
+                <!-- Right Close Quick Button -->
+                <Button Grid.Column="2" Content="✕" Style="{StaticResource GhostButton}"
+                        Padding="8,4" FontSize="14" VerticalAlignment="Top"
+                        Click="CloseButton_Click" ToolTip="Đóng cửa sổ (ESC)" />
+            </Grid>
+        </Border>
+
+        <!-- ===== Main Body: Scrollable Content Cards ===== -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+            <StackPanel>
+                <!-- Card 1: Description & Primary Effect -->
+                <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                        BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="ĐẶC KỸ TRUYỀN THỪA &amp; TÂM ĐẮC VÕ HỌC" Style="{StaticResource Overline}" Margin="0,0,0,6" />
+                        <TextBlock x:Name="DescriptionText" TextWrapping="Wrap" FontSize="13"
+                                   Foreground="{StaticResource Text}" LineHeight="20" Margin="0,0,0,10" />
+
+                        <Border Background="{StaticResource AccentSoft}" BorderBrush="{StaticResource Accent}"
+                                BorderThickness="1" CornerRadius="6" Padding="12,10">
+                            <DockPanel>
+                                <TextBlock Text="⚡" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <StackPanel>
+                                    <TextBlock Text="HIỆU QUẢ THỰC CHIẾN &amp; CHIẾN THUẬT" Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" />
+                                    <TextBlock x:Name="EffectSummaryText" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Text}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 2: 10-Tier Mastery Ladder -->
+                <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                        BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,10">
+                    <StackPanel>
+                        <DockPanel Margin="0,0,0,8">
+                            <TextBlock Text="THẬP TRỌNG CẢNH GIỚI TU LUYỆN (10 TIẾN TRÌNH)" Style="{StaticResource Overline}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="CurrentLevelIndicatorText" Style="{StaticResource Caption}"
+                                       Foreground="{StaticResource Accent}" FontWeight="Bold"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </DockPanel>
+
+                        <!-- Progress Bar Bar -->
+                        <Border Background="{StaticResource Rail}" Height="6" CornerRadius="3" Margin="0,0,0,10">
+                            <ProgressBar x:Name="LevelProgressBar" Height="6" Minimum="1" Maximum="10"
+                                         Foreground="{StaticResource Accent}" Background="Transparent" BorderThickness="0" />
+                        </Border>
+
+                        <!-- Level Ladder Rows -->
+                        <StackPanel x:Name="LevelLadderPanel" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Card 3: Owner / Mentorship Context -->
+                <Border x:Name="OwnerContextBorder" Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                        BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,4">
+                    <StackPanel>
+                        <TextBlock Text="CHỦ NHÂN SỞ HỮU &amp; BÁI SƯ HỌC ĐẠO" Style="{StaticResource Overline}" Margin="0,0,0,6" />
+                        <DockPanel>
+                            <Border Width="40" Height="40" Background="{StaticResource Surface}"
+                                    BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6"
+                                    Margin="0,0,12,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="OwnerGlyphText" Text="👤" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="OwnerNameText" FontSize="14" FontWeight="Bold" Foreground="{StaticResource Text}" />
+                                <TextBlock x:Name="OwnerDetailText" Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </DockPanel>
+                        <TextBlock x:Name="MentorshipTipText" Style="{StaticResource Caption}"
+                                   Foreground="{StaticResource Faint}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== Footer: Action Button ===== -->
+        <Border Grid.Row="2" Background="{StaticResource SurfaceAlt}"
+                BorderBrush="{StaticResource Line}" BorderThickness="1"
+                CornerRadius="8" Padding="12,10">
+            <DockPanel>
+                <TextBlock Text="💡 Phím tắt: Nhấn [ESC] để đóng cửa sổ nhanh"
+                           Style="{StaticResource Caption}" Foreground="{StaticResource Faint}"
+                           VerticalAlignment="Center" />
+                <Button Content="Đóng (ESC)" Style="{StaticResource PrimaryButton}"
+                        Padding="18,6" HorizontalAlignment="Right"
+                        Click="CloseButton_Click" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
