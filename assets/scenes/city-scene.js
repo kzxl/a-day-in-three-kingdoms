@@ -167,9 +167,9 @@ function renderCityScene(container, scene, bridge) {
   container.querySelectorAll('.tk-city-walker').forEach((el, i) => {
     const spEl = el.querySelector('[data-walker-sp]');
     const isFirst = i % 2 === 0;
-    const min = isFirst ? Math.round(stageW * 0.21) : Math.round(stageW * 0.56);
-    const max = isFirst ? Math.round(stageW * 0.51) : Math.round(stageW * 0.84);
-    const startX = isFirst ? Math.round(stageW * 0.33) : Math.round(stageW * 0.71);
+    const min = isFirst ? Math.round(stageW * 0.20) : Math.round(stageW * 0.62);
+    const max = isFirst ? Math.round(stageW * 0.41) : Math.round(stageW * 0.82);
+    const startX = isFirst ? Math.round(stageW * 0.28) : Math.round(stageW * 0.72);
     el.style.left = `${startX - 170}px`;
     walkers.push({
       el,

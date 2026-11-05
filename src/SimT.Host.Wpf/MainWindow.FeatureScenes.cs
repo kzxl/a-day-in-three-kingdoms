@@ -300,7 +300,57 @@ public partial class MainWindow
         };
     }
 
-    public bool TryOpenDossierScene(string? recommendation = null, long selectedNpcId = 0) => false;
+    private static readonly string[] FeaturedProfileCodes =
+        ["npc_0223", "npc_0205", "npc_0206", "npc_0207", "npc_0221", "npc_0222", "npc_0224", "npc_0225"];
+
+    public bool TryOpenDossierScene(string? recommendation = null, long selectedNpcId = 0)
+    {
+        if (!SceneOverlay.IsAvailable ||
+            !_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) || reg is null ||
+            !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) || map is null ||
+            !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
+            return false;
+
+        var cityId = playerState.CurrentCityId;
+        var cityName = map.Find(cityId)?.NameVi ?? "Lạc Dương";
+        _kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social);
+        _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs);
+
+        var relMap = social?.AllRelationships().ToDictionary(r => r.NpcId) ?? new Dictionary<long, RelationshipDef>();
+        var ordered = new List<NpcDef>();
+        var seen = new HashSet<long>();
+
+        foreach (var code in FeaturedProfileCodes)
+            if (reg.FindByCode(code) is { } pNpc && seen.Add(pNpc.Id)) ordered.Add(pNpc);
+        foreach (var lNpc in reg.FindByCitadel(cityId))
+            if (seen.Add(lNpc.Id)) ordered.Add(lNpc);
+        foreach (var aNpc in reg.All)
+            if (seen.Add(aNpc.Id)) ordered.Add(aNpc);
+
+        var views = ordered.Select(npc =>
+        {
+            relMap.TryGetValue(npc.Id, out var rel);
+            var aff = rel?.Affinity ?? 0;
+            var (_, face, _) = SceneArtCatalog.ResolveNpcArt(npc);
+            var profile = SceneArtCatalog.ResolveProfileArt(npc);
+            var sk = npc.Skills.FirstOrDefault();
+            var a = npc.Attributes;
+            var tier = aff >= 80 ? "Tri kỷ" : aff >= 60 ? "Thân thiết" : aff >= 35 ? "Quen biết" : rel is not null ? "Đã gặp" : "Chưa gặp";
+            return new DossierNpcView(
+                npc.Id, npc.Code, npc.NameVi, npc.NameHan ?? string.Empty, npc.StyleNameVi ?? "—",
+                RoleTitleVi.FormatPersonality(npc.Personality), "Quần Hùng", RoleTitleVi.Format(npc.Role),
+                map.Find(npc.CitadelId)?.NameVi ?? cityName, npc.CitadelId == cityId, rel is not null,
+                aff, tier, face, profile, sk?.NameVi ?? "Nội Chính Tinh Thông", "A",
+                sk?.EffectSummary ?? "Gia tăng hiệu suất công việc và uy vọng tại thành trì.",
+                string.IsNullOrWhiteSpace(npc.BioVi) ? "Nhân sĩ danh tiếng thời Tam Quốc, hành trạng được dân gian ca tụng." : npc.BioVi,
+                a.War, a.Ldr, a.Int, a.Pol, a.Dip, a.Com, a.Log, a.Cra);
+        }).ToList();
+
+        var prc = attrs?.EffectivePrc ?? 50;
+        var rec = recommendation ?? $"Đang tại {cityName}: chọn danh sĩ để xem ảnh chân dung riêng, biểu đồ bát diện năng lực, bái phỏng hoặc so tài.";
+        return SceneOverlay.ShowDossierScene(new DossierScene(
+            cityName, relMap.Count, reg.All.Count, $"{prc} điểm", rec, selectedNpcId, views));
+    }
 
     private async void HandleMapSceneMessage(string type, string id, MapScene _)
     {
@@ -330,7 +380,24 @@ public partial class MainWindow
         TryOpenMarketScene(selectedItemId: itemId);
     }
 
-    private void HandleDossierSceneMessage(string type, string id, DossierScene _)
+    private async void HandleDossierSceneMessage(string type, string id, DossierScene _)
     {
+        if (type == "navigate" && id.StartsWith("npc:", StringComparison.Ordinal) && long.TryParse(id["npc:".Length..], out var talkId))
+        {
+            TryOpenTalkScene(talkId);
+            return;
+        }
+        if (type != "choice") return;
+        if (id.StartsWith("visit:", StringComparison.Ordinal) && long.TryParse(id["visit:".Length..], out var visitId))
+        {
+            await ExecuteScreenCommandAsync($"chat:{visitId}", "social.network");
+            TryOpenDossierScene(selectedNpcId: visitId);
+        }
+        else if (id.StartsWith("spar:", StringComparison.Ordinal) && long.TryParse(id["spar:".Length..], out var sparId) &&
+                 _kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) && reg?.Find(sparId) is { } npc)
+        {
+            var city = _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) ? map?.Find(npc.CitadelId)?.NameVi ?? "Lạc Dương" : "Lạc Dương";
+            TryOpenDuelScene(npc, city);
+        }
     }
 }

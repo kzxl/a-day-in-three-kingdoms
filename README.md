@@ -109,7 +109,10 @@ only through capabilities, and registers its own screens. Disabling one in
     - 👋 *Lễ Độ Cáo Từ* (Courteous Leave): Depart peacefully without commitment.
 - **Two-Way Warehouse & Bag Exchange**: Move items seamlessly between personal bag and citadel warehouse via `ItemDetailModalWindow`, `NpcDetailWindow`, and `ItemHubScreen`.
 - **Item Encyclopedia & Inspection**: Click on any item across inventory and warehouse to view ASCII art illustrations, deep lore descriptions, sourcing origins, and item statistics.
-- **ROTK Segmented Domain Navigation**: Categorized header domain tabs (Nội Chính, Thương Mại, Võ Nghiệp, Quan Hệ, Bản Đồ...) providing clean, authentic strategy RPG navigation.
+- **ROTK Collapsible 5-Group Rail & Contextual Recommendations**: Left navigation rail organized into 5 collapsible groups (Hành Trình, Bản Thân, Buôn Bán, Nhân Duyên, Danh Nghiệp) with Hanzi seals, 1-line subtitle hints, attention badges, and a contextual `"NÊN LÀM"` recommendation banner at the top of every screen.
+- **Full-Body Sprite Animation & Interactive WebView2 Scenes**:
+  - **Sprite Animation Runner (`assets/scenes/sprite-anim.js`)**: Renders `3072×256` 12-frame pixel sheets (`idle: [0..3]`, `walk: [4..11]`) and `768×256` 3-frame sheets (`attack`, `hurt`, `victory`) on crisp `image-rendering: pixelated` canvases (`STEP = 25.6` at `scale 2.85` in Duel, `STEP = 18` at `scale 2` in City, with natural walk-frame bobbing and portrait blink/talk frames).
+  - **Interactive Feature Scenes**: World Map (`world.map` with `thien_ha.webp`, Dijkstra shortest path on `wd_route`, Walk/Horse/Caravan quotes, and token travel animation), Social Network (`social.network` with concentric affinity rings, 6 skill slots `1S / 2A / 3B-C`, letters, and retainers), Market Stall (`market.stall` with 10-day SVG price sparklines and top-3 city arbitrage calculator), and Character Dossier (`npc.directory` with custom `art/profiles/*.webp` portraits, 8-axis SVG radar chart, special skills, and biography).
 - **Economic & Market Simulation**:
   - 30-day months, 12-month years; day advance with `DayAdvanced` per day and one idempotent `MonthClosed` per boundary.
   - 24 trade goods with regional and seasonal pricing, 60% buy-back, and a price that reacts to supply.

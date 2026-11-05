@@ -29,16 +29,17 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Avatar Seal -->
-                <Border Grid.Column="0" Width="68" Height="68"
+                <Border Grid.Column="0" Width="88" Height="88"
                         Background="{StaticResource Surface}"
                         BorderBrush="{StaticResource Accent}" BorderThickness="2"
                         CornerRadius="8" Margin="0,0,14,0"
-                        VerticalAlignment="Center">
+                        VerticalAlignment="Center" ClipToBounds="True">
                     <Grid>
                         <TextBlock x:Name="AvatarCharText" Text="武"
                                    FontSize="36" FontWeight="Bold"
                                    Foreground="{StaticResource Accent}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Image x:Name="ProfilePortraitImage" Stretch="UniformToFill" Visibility="Collapsed" />
                         <Border Background="{StaticResource AccentSoft}" CornerRadius="0,0,6,0"
                                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                 Padding="4,1">

@@ -1,0 +1,370 @@
+/* ============================================================================
+   Dossier Scene (Danh Sĩ & Hồ sơ — HoSo.dc.html)
+   ============================================================================ */
+.tk-stage-dossier {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 22px;
+  gap: 12px;
+  background: #15110d;
+  color: #eadfc6;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.tk-stage-dossier[hidden] {
+  display: none !important;
+}
+
+.dossier-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.dossier-head h1 {
+  margin: 0;
+  font: 700 26px 'Noto Serif', serif;
+  color: #f3e6cc;
+}
+
+.dossier-head-sub {
+  font-size: 14px;
+  color: #b9aa8c;
+  margin-top: 2px;
+}
+
+.dossier-head-meta {
+  display: flex;
+  gap: 14px;
+  font-size: 13px;
+  color: #b9aa8c;
+}
+
+.dossier-head-meta b {
+  color: #e8b75c;
+}
+
+.dossier-rec-bar {
+  padding: 10px 14px;
+  background: #241a13;
+  border-left: 3px solid #e8b75c;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.dossier-rec-bar b {
+  color: #e8b75c;
+  margin-right: 8px;
+}
+
+.dossier-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 14px;
+}
+
+.dossier-list-col {
+  width: 330px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.dossier-search {
+  width: 100%;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  color: #eadfc6;
+  font: 400 13.5px 'Be Vietnam Pro', sans-serif;
+  outline: none;
+}
+
+.dossier-search:focus {
+  border-color: #c4a062;
+}
+
+.dossier-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 2px;
+}
+
+.dossier-row {
+  width: 100%;
+  height: 68px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  background: #1d1611;
+  border: 1px solid #2c2118;
+  color: #eadfc6;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+
+.dossier-row:hover {
+  border-color: #c4a062;
+}
+
+.dossier-row.active {
+  background: #2a1f16;
+  border-color: #e8b75c;
+}
+
+.dossier-row img {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border: 1px solid #6a4f2e;
+  box-sizing: border-box;
+  object-fit: cover;
+  background: #140f0b;
+}
+
+.dossier-row-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.dossier-row-name {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dossier-row-sub {
+  display: block;
+  font-size: 12px;
+  color: #b9aa8c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dossier-row-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: #241a13;
+  border: 1px solid #3a2c20;
+  color: #c4a062;
+  white-space: nowrap;
+}
+
+.dossier-card {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 18px;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  display: flex;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.dossier-left-pane {
+  width: 260px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dossier-portrait-frame {
+  padding: 6px;
+  background: #241a13;
+  border: 1px solid #6a4f2e;
+}
+
+.dossier-portrait-frame img {
+  width: 246px;
+  height: 246px;
+  display: block;
+  object-fit: cover;
+  background: #140f0b;
+}
+
+.dossier-aff-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 2px;
+}
+
+.dossier-bar {
+  height: 8px;
+  background: #2a1f16;
+  flex: 1;
+}
+
+.dossier-bar i {
+  display: block;
+  height: 8px;
+  background: #c4a062;
+  transition: width 0.3s ease;
+}
+
+.dossier-btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.dossier-btn {
+  height: 42px;
+  flex: 1;
+  border: 1px solid #6a4f2e;
+  background: #241a13;
+  color: #eadfc6;
+  font: 600 13.5px 'Be Vietnam Pro', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dossier-btn:hover {
+  border-color: #c4a062;
+}
+
+.dossier-btn.pri {
+  background: #a8321f;
+  border-color: #c4a062;
+  color: #f3e6cc;
+}
+
+.dossier-btn.full {
+  flex: none;
+  width: 100%;
+}
+
+.dossier-skill-box {
+  margin-top: auto;
+  padding: 10px 12px;
+  background: #241a13;
+  border: 1px solid #3a2c20;
+}
+
+.dossier-skill-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b9aa8c;
+}
+
+.dossier-skill-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 4px;
+  color: #e8b75c;
+}
+
+.dossier-skill-desc {
+  font-size: 13px;
+  margin-top: 4px;
+  line-height: 1.45;
+  color: #eadfc6;
+}
+
+.dossier-right-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dossier-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.dossier-name {
+  font: 700 28px 'Noto Serif', serif;
+  color: #f3e6cc;
+  white-space: nowrap;
+}
+
+.dossier-han {
+  font: 24px 'Ma Shan Zheng', 'Noto Serif', serif;
+  color: #c4a062;
+}
+
+.dossier-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dossier-chip {
+  padding: 3px 8px;
+  background: #241a13;
+  border: 1px solid #3a2c20;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.dossier-radar-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.dossier-stats-list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.dossier-stat-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.dossier-stat-lbl {
+  width: 78px;
+  white-space: nowrap;
+}
+
+.dossier-stat-val {
+  width: 28px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.dossier-bio-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b9aa8c;
+  margin-top: 4px;
+}
+
+.dossier-bio-text {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: #eadfc6;
+}
