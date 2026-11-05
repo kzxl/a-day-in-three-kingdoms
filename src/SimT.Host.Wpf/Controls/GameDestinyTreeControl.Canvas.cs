@@ -38,6 +38,8 @@ public sealed partial class GameDestinyTreeControl
             ["daochu_minor_margin"] = (175, 42),
             ["daochu_notable_rumor"] = (255, 0),
             ["daochu_keystone_merchant_king"] = (345, 0),
+            ["daochu_mastery_monopoly"] = (425, -67),
+            ["daochu_mastery_silver_vault"] = (425, 67),
 
             // 2. Bá Đạo (South, 90 deg)
             ["badao_root"] = (0, 90),
@@ -45,6 +47,8 @@ public sealed partial class GameDestinyTreeControl
             ["badao_minor_yield"] = (42, 175),
             ["badao_notable_steward"] = (0, 255),
             ["badao_keystone_military_farm"] = (0, 345),
+            ["badao_mastery_granary"] = (-67, 425),
+            ["badao_mastery_iron_discipline"] = (67, 425),
 
             // 3. Vương Đạo (West, 180 deg)
             ["vuongdao_root"] = (-90, 0),
@@ -52,6 +56,8 @@ public sealed partial class GameDestinyTreeControl
             ["vuongdao_minor_retainer"] = (-175, 42),
             ["vuongdao_notable_court"] = (-255, 0),
             ["vuongdao_keystone_peach_garden"] = (-345, 0),
+            ["vuongdao_mastery_virtue_sage"] = (-425, -67),
+            ["vuongdao_mastery_prime_minister"] = (-425, 67),
 
             // 4. Binh Gia (North, 270 deg)
             ["binhgia_root"] = (0, -90),
@@ -59,6 +65,8 @@ public sealed partial class GameDestinyTreeControl
             ["binhgia_minor_bandit"] = (42, -175),
             ["binhgia_notable_spoils"] = (0, -255),
             ["binhgia_keystone_warlord"] = (0, -345),
+            ["binhgia_mastery_iron_strike"] = (-67, -425),
+            ["binhgia_mastery_sweeping_conquer"] = (67, -425),
 
             // 5. Mặc Gia (South-East, 45 deg)
             ["macgia_root"] = (68, 68),
@@ -66,13 +74,17 @@ public sealed partial class GameDestinyTreeControl
             ["macgia_minor_speed"] = (95, 160),
             ["macgia_notable_ice_cellar"] = (195, 195),
             ["macgia_keystone_wooden_ox"] = (265, 265),
+            ["macgia_mastery_divine_fleet"] = (356, 258),
+            ["macgia_mastery_eternal_cellar"] = (258, 356),
 
             // 6. Đạo Gia (North-West, 225 deg)
             ["daogia_root"] = (-68, -68),
             ["daogia_minor_longevity"] = (-160, -95),
             ["daogia_minor_vitality"] = (-95, -160),
             ["daogia_notable_astronomy"] = (-195, -195),
-            ["daogia_keystone_five_animals"] = (-265, -265)
+            ["daogia_keystone_five_animals"] = (-265, -265),
+            ["daogia_mastery_immortal_breath"] = (-356, -258),
+            ["daogia_mastery_cosmic_insight"] = (-258, -356)
         };
 
         // Frozen drawing assets
@@ -203,6 +215,7 @@ public sealed partial class GameDestinyTreeControl
 
         private static double GetNodeRadius(DestinyNodeTier tier) => tier switch
         {
+            DestinyNodeTier.Mastery => 23.5,
             DestinyNodeTier.Keystone => 21.0,
             DestinyNodeTier.Notable => 15.5,
             DestinyNodeTier.Minor => 11.5,
@@ -309,7 +322,7 @@ public sealed partial class GameDestinyTreeControl
             }
 
             var zoomDelta = e.Delta > 0 ? 1.12 : 0.89;
-            var targetZoom = Math.Clamp(_zoom * zoomDelta, 0.65, 1.85);
+            var targetZoom = Math.Clamp(_zoom * zoomDelta, 0.55, 1.85);
 
             var mouse = e.GetPosition(this);
             var cx = ActualWidth * 0.5;
@@ -340,7 +353,7 @@ public sealed partial class GameDestinyTreeControl
             dc.DrawRectangle(TreeBgBrush, null, new Rect(0, 0, w, h));
 
             // 2. Concentric Orbital Rings (PoE Constellation aesthetic)
-            double[] orbitalRadii = [90.0, 175.0, 255.0, 345.0];
+            double[] orbitalRadii = [90.0, 175.0, 255.0, 345.0, 435.0];
             foreach (var r in orbitalRadii)
             {
                 dc.DrawEllipse(null, RingGuidePen, centerPoint, r * _zoom, r * _zoom);
@@ -351,7 +364,7 @@ public sealed partial class GameDestinyTreeControl
             foreach (var deg in angles)
             {
                 var rad = deg * Math.PI / 180.0;
-                var pEnd = new Point(centerPoint.X + Math.Cos(rad) * 360 * _zoom, centerPoint.Y + Math.Sin(rad) * 360 * _zoom);
+                var pEnd = new Point(centerPoint.X + Math.Cos(rad) * 475 * _zoom, centerPoint.Y + Math.Sin(rad) * 475 * _zoom);
                 dc.DrawLine(AxisGuidePen, centerPoint, pEnd);
             }
 
@@ -444,7 +457,14 @@ public sealed partial class GameDestinyTreeControl
                 borderPen.Freeze();
 
                 // Draw shape based on Tier
-                if (node.Tier == DestinyNodeTier.Keystone)
+                if (node.Tier == DestinyNodeTier.Mastery)
+                {
+                    DrawHexagon(dc, fillBrush, borderPen, pt, radius * 1.32);
+                    var haloPen = new Pen(new SolidColorBrush(Color.FromArgb(0x55, schoolColor.R, schoolColor.G, schoolColor.B)), 2.2 * _zoom);
+                    haloPen.Freeze();
+                    dc.DrawEllipse(null, haloPen, pt, radius + 6.0 * _zoom, radius + 6.0 * _zoom);
+                }
+                else if (node.Tier == DestinyNodeTier.Keystone)
                 {
                     // Ornate Diamond for Keystones
                     DrawDiamond(dc, fillBrush, borderPen, pt, radius * 1.25);
@@ -466,6 +486,7 @@ public sealed partial class GameDestinyTreeControl
                 // Node Inner Glyph
                 string glyph = node.Tier switch
                 {
+                    DestinyNodeTier.Mastery => "✵",
                     DestinyNodeTier.Keystone => "✦",
                     DestinyNodeTier.Notable => "★",
                     DestinyNodeTier.Root when node.School == DestinySchool.Universal => "☯",
@@ -486,7 +507,7 @@ public sealed partial class GameDestinyTreeControl
                 dc.DrawText(ftGlyph, new Point(pt.X - ftGlyph.Width * 0.5, pt.Y - ftGlyph.Height * 0.5));
 
                 // Node Name Label
-                var showLabel = node.Tier is DestinyNodeTier.Keystone or DestinyNodeTier.Notable || isSelected || isHovered;
+                var showLabel = node.Tier is DestinyNodeTier.Mastery or DestinyNodeTier.Keystone or DestinyNodeTier.Notable || isSelected || isHovered;
                 if (showLabel)
                 {
                     var labelBrush = isLearned ? GoldTextBrush : (canLearn ? WhiteTextBrush : MutedTextBrush);
@@ -495,7 +516,7 @@ public sealed partial class GameDestinyTreeControl
                         node.NameVi,
                         Vietnamese,
                         FlowDirection.LeftToRight,
-                        new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, node.Tier == DestinyNodeTier.Keystone ? FontWeights.Bold : FontWeights.SemiBold, FontStretches.Normal),
+                        new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, node.Tier is DestinyNodeTier.Mastery or DestinyNodeTier.Keystone ? FontWeights.Bold : FontWeights.SemiBold, FontStretches.Normal),
                         fontSize,
                         labelBrush,
                         1.0);
@@ -525,6 +546,23 @@ public sealed partial class GameDestinyTreeControl
                 ctx.LineTo(pRight, isStroked: true, isSmoothJoin: false);
                 ctx.LineTo(pBottom, isStroked: true, isSmoothJoin: false);
                 ctx.LineTo(pLeft, isStroked: true, isSmoothJoin: false);
+            }
+            geo.Freeze();
+            dc.DrawGeometry(fill, border, geo);
+        }
+
+        private static void DrawHexagon(DrawingContext dc, Brush fill, Pen border, Point center, double radius)
+        {
+            var geo = new StreamGeometry();
+            using (var ctx = geo.Open())
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    var angle = (i * 60 - 30) * Math.PI / 180.0;
+                    var pt = new Point(center.X + radius * Math.Cos(angle), center.Y + radius * Math.Sin(angle));
+                    if (i == 0) ctx.BeginFigure(pt, isFilled: true, isClosed: true);
+                    else ctx.LineTo(pt, isStroked: true, isSmoothJoin: true);
+                }
             }
             geo.Freeze();
             dc.DrawGeometry(fill, border, geo);

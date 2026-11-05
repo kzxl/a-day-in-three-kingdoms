@@ -263,6 +263,7 @@ internal sealed class PlayerDestinyService : IPlayerDestiny
         {
             if (wallet.Balance >= 10000) MarkMilestone("ms_wealth_1", today);
             if (wallet.Balance >= 50000) MarkMilestone("ms_wealth_2", today);
+            if (wallet.Balance >= 100000) MarkMilestone("ms_wealth_3", today);
         }
 
         // 2. Exploration milestones
@@ -273,18 +274,22 @@ internal sealed class PlayerDestinyService : IPlayerDestiny
                 DbArgs.Empty);
             if (visitedCount >= 5) MarkMilestone("ms_explore_1", today);
             if (visitedCount >= 15) MarkMilestone("ms_explore_2", today);
+            if (visitedCount >= 20) MarkMilestone("ms_explore_3", today);
         }
 
         // 3. Court office
         if (_capabilities.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice, out var court) && court is not null)
         {
             if (court.OfficeId > 0) MarkMilestone("ms_court_1", today);
+            if (court.OfficeId >= 4) MarkMilestone("ms_court_2", today);
         }
 
         // 4. Martial bandit defeat
         if (_capabilities.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var military) && military is not null)
         {
-            if (military.AllStrongholds().Any(s => s.ClearedCount > 0)) MarkMilestone("ms_martial_1", today);
+            var strongholds = military.AllStrongholds();
+            if (strongholds.Any(s => s.ClearedCount > 0)) MarkMilestone("ms_martial_1", today);
+            if (strongholds.Count(s => s.ClearedCount > 0) >= 3) MarkMilestone("ms_martial_2", today);
         }
 
         // 5. Social sworn brother
@@ -293,11 +298,9 @@ internal sealed class PlayerDestinyService : IPlayerDestiny
             if (social.GetSwornBrothers().Count > 0) MarkMilestone("ms_social_1", today);
         }
 
-        // 6. Lifespan milestone (30 days of survival)
-        if (today >= 30)
-        {
-            MarkMilestone("ms_life_1", today);
-        }
+        // 6. Lifespan milestone
+        if (today >= 30) MarkMilestone("ms_life_1", today);
+        if (today >= 60) MarkMilestone("ms_life_2", today);
     }
 
     private void MarkMilestone(string code, int day)
@@ -333,5 +336,12 @@ internal sealed class PlayerDestinyService : IPlayerDestiny
         return _db.ScalarLong(
             "SELECT COUNT(1) FROM pl_destiny_talent WHERE player_id = @id AND node_id = @node",
             new DbArgs().Add("@id", _playerId).Add("@node", keystoneId)) > 0;
+    }
+
+    public bool HasMastery(string masteryId)
+    {
+        return _db.ScalarLong(
+            "SELECT COUNT(1) FROM pl_destiny_talent WHERE player_id = @id AND node_id = @node",
+            new DbArgs().Add("@id", _playerId).Add("@node", masteryId)) > 0;
     }
 }

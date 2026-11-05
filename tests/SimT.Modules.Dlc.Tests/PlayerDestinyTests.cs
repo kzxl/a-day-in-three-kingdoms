@@ -21,7 +21,7 @@ public sealed class PlayerDestinyTests : IDisposable
         var destiny = GetDestiny(kernel);
 
         Assert.NotNull(destiny);
-        Assert.True(destiny.AllNodes.Count >= 30, $"Expected at least 30 nodes, found {destiny.AllNodes.Count}.");
+        Assert.True(destiny.AllNodes.Count >= 43, $"Expected at least 43 nodes, found {destiny.AllNodes.Count}.");
         Assert.True(destiny.State.LearnedNodeIds.Contains("destiny_root"));
 
         var schools = destiny.AllNodes.Select(n => n.School).Distinct().ToHashSet();
@@ -104,5 +104,52 @@ public sealed class PlayerDestinyTests : IDisposable
 
         var evalResult = handler.Execute("destiny:evaluate");
         Assert.NotNull(evalResult);
+    }
+
+    [Fact]
+    public void Deep_mastery_nodes_enforce_keystone_and_school_thresholds_and_unlock_properly()
+    {
+        using var kernel = _host.Boot();
+        var destiny = GetDestiny(kernel);
+
+        // Cannot learn deep mastery directly
+        var canLearn = destiny.CanLearnNode("daochu_mastery_monopoly", out var reason);
+        Assert.False(canLearn);
+        Assert.NotNull(reason);
+        Assert.False(destiny.HasMastery("daochu_mastery_monopoly"));
+
+        // Grant wealth and advance time to complete multiple milestones
+        kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet)!.Pay(150000, "test", "test");
+        kernel.AdvanceDays(65);
+        destiny.EvaluateMilestones();
+
+        Assert.True(destiny.State.UniversalPointsAvailable >= 5);
+
+        // Unlock path: daochu_root -> daochu_minor_bargain -> daochu_notable_rumor -> daochu_keystone_merchant_king
+        Assert.True(destiny.LearnNode("daochu_root").Success);
+        Assert.True(destiny.LearnNode("daochu_minor_bargain").Success);
+        Assert.True(destiny.LearnNode("daochu_minor_margin").Success);
+        Assert.True(destiny.LearnNode("daochu_notable_rumor").Success);
+        Assert.True(destiny.LearnNode("daochu_keystone_merchant_king").Success);
+        Assert.True(destiny.HasKeystone("daochu_keystone_merchant_king"));
+
+        // Now deep mastery is eligible!
+        var canLearnMastery = destiny.CanLearnNode("daochu_mastery_monopoly", out var masteryReason);
+        Assert.True(canLearnMastery, masteryReason);
+
+        var (success, msg) = destiny.LearnNode("daochu_mastery_monopoly");
+        Assert.True(success, msg);
+        Assert.True(destiny.HasMastery("daochu_mastery_monopoly"));
+
+        // Modifier check: daochu_root (3) + daochu_minor_bargain (3) + daochu_mastery_monopoly (5) = 11%
+        var discount = destiny.GetModifier("price_buy_discount");
+        Assert.Equal(11, discount);
+
+        // Respec test resets masteries cleanly
+        var (respecOk, _) = destiny.RespecAll();
+        Assert.True(respecOk);
+        Assert.False(destiny.HasMastery("daochu_mastery_monopoly"));
+        Assert.False(destiny.HasKeystone("daochu_keystone_merchant_king"));
+        Assert.Equal(0, destiny.GetModifier("price_buy_discount"));
     }
 }

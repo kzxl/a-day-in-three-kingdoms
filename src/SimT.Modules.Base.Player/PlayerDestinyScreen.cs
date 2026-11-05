@@ -140,9 +140,18 @@ internal sealed class PlayerDestinyScreen : IScreenContribution
             .Select(n => $"[{n.NameVi}]")
             .ToList();
 
-        var keystoneSummary = activeKeystones.Count > 0
-            ? $"Keystone Đang Kích Hoạt: {string.Join(", ", activeKeystones)}"
-            : "Chưa kích hoạt Keystone nào. Hãy định hình đường đi trên cây thiên mệnh!";
+        var activeMasteries = allNodes
+            .Where(n => n.Tier == DestinyNodeTier.Mastery && state.LearnedNodeIds.Contains(n.Id))
+            .Select(n => $"[✵ {n.NameVi}]")
+            .ToList();
+
+        var highlights = new List<string>();
+        if (activeKeystones.Count > 0) highlights.Add($"Keystone: {string.Join(", ", activeKeystones)}");
+        if (activeMasteries.Count > 0) highlights.Add($"Đại Tông Sư: {string.Join(", ", activeMasteries)}");
+
+        var keystoneSummary = highlights.Count > 0
+            ? string.Join(" · ", highlights)
+            : "Chưa kích hoạt Keystone hoặc Mastery nào. Hãy định hình đường đi trên cây thiên mệnh!";
 
         return new ScreenModel(
             ScreenId,
@@ -191,6 +200,7 @@ internal sealed class PlayerDestinyScreen : IScreenContribution
         DestinyNodeTier.Minor => "Tiểu Khí",
         DestinyNodeTier.Notable => "Đại Huệ",
         DestinyNodeTier.Keystone => "KEYSTONE",
+        DestinyNodeTier.Mastery => "ĐẠI TÔNG SƯ ✵",
         _ => "Căn Bản"
     };
 

@@ -105,7 +105,7 @@ public sealed partial class GameDestinyTreeControl : Border
         });
         titleStack.Children.Add(new TextBlock
         {
-            Text = "Mạng Lưới 31 Bí Pháp Bị Động Khai Mở Khí Vận 6 Đại Học Phái Bách Gia",
+            Text = "Mạng Lưới 43 Bí Pháp Bị Động Khai Mở Khí Vận 6 Đại Học Phái Bách Gia",
             FontSize = 14,
             FontWeight = FontWeights.Bold,
             Foreground = (Brush)Application.Current.FindResource("Text"),
@@ -371,6 +371,7 @@ public sealed partial class GameDestinyTreeControl : Border
         _inspTierBadge.Visibility = Visibility.Visible;
         var tierStr = node.Tier switch
         {
+            DestinyNodeTier.Mastery => "✵ Mastery Đại Tông Sư (Bí Pháp Cực Đỉnh)",
             DestinyNodeTier.Keystone => "✦ Keystone Tông Sư",
             DestinyNodeTier.Notable => "★ Trọng Điểm Chân Truyền",
             DestinyNodeTier.Minor => "Tiểu Tiết Bí Pháp",
@@ -378,6 +379,7 @@ public sealed partial class GameDestinyTreeControl : Border
         };
         var tierColor = node.Tier switch
         {
+            DestinyNodeTier.Mastery => Color.FromRgb(0xFF, 0xB7, 0x03),
             DestinyNodeTier.Keystone => Color.FromRgb(0xF5, 0xD0, 0x61),
             DestinyNodeTier.Notable => Color.FromRgb(0x4A, 0x90, 0xE2),
             DestinyNodeTier.Minor => Color.FromRgb(0x8A, 0x97, 0xA8),

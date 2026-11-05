@@ -22,7 +22,8 @@ public enum DestinyNodeTier
     Root = 0,
     Minor = 1,
     Notable = 2,
-    Keystone = 3
+    Keystone = 3,
+    Mastery = 4
 }
 
 /// <summary>
@@ -95,4 +96,7 @@ public interface IPlayerDestiny
 
     /// <summary>Checks whether a specific game-altering keystone is active.</summary>
     bool HasKeystone(string keystoneId);
+
+    /// <summary>Checks whether a specific apex mastery talent is active.</summary>
+    bool HasMastery(string masteryId);
 }
