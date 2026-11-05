@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <RootNamespace>SimT.Modules.Dlc.Professions</RootNamespace>
+    <RootNamespace>SimT.Modules.Dlc.Economy</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SimT.Modules.Market.Tests" />
     <InternalsVisibleTo Include="SimT.Modules.Dlc.Tests" />
   </ItemGroup>
 

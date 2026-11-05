@@ -2,7 +2,7 @@ using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 
-namespace SimT.Modules.Dlc.Cultivation;
+namespace SimT.Modules.Dlc.Economy;
 
 internal sealed class FarmScreen : IScreenContribution
 {

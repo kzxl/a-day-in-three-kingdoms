@@ -14,6 +14,7 @@ public partial class DlcSettingsWindow : Window
 
     private static readonly Dictionary<string, (string NameVi, string Glyph, string Desc)> KnownModules = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["dlc.economy"] = ("Thương Đạo & Bách Nghiệp", "🪙", "Đại trụ cột kinh tế: Điền trang nông sản, bách nghệ chế tác, giao thương thị trường và thương đoàn viễn chinh."),
         ["dlc.market"] = ("Thương Nghiệp & Thị Trường", "🎪", "Hệ thống mua sỉ/bán sỉ, quản lý kho bãi lưu trữ hàng hóa và mở quầy bán lẻ tư nhân."),
         ["dlc.caravan"] = ("Thương Đoàn Viễn Chinh", "⇢", "Tổ chức thương đội vận tải hàng hóa liên thành, thuê tiêu sư hộ vệ và nhận hợp đồng giao thương."),
         ["dlc.professions"] = ("Bách Nghệ & Chế Tác", "⚒", "Hệ thống 5 nghề thủ công (Rèn, Mộc, Y, Bói, Tửu) với kỹ năng chế tác thần binh và thương phẩm."),

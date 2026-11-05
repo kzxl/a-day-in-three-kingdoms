@@ -1,6 +1,6 @@
 using SimT.Contracts.Playing;
 
-namespace SimT.Modules.Dlc.Cultivation;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>A crop a plot can grow: what it yields, how long it takes, how much land it needs, and the required seed item.</summary>
 internal sealed record CropSpec(

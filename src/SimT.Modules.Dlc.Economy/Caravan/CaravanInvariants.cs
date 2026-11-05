@@ -1,7 +1,7 @@
 using SimT.Contracts.Data;
 using SimT.Contracts.Diagnostics;
 
-namespace SimT.Modules.Dlc.Caravan;
+namespace SimT.Modules.Dlc.Economy;
 
 internal static class CaravanInvariants
 {

@@ -2,7 +2,7 @@ using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 
-namespace SimT.Modules.Dlc.Caravan;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>Route board: what can be shipped or walked to from here, contracts, and what is already moving.</summary>
 internal sealed class CaravanScreen : IScreenContribution

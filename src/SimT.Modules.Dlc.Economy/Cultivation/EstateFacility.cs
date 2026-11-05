@@ -1,6 +1,6 @@
 using SimT.Contracts.Playing;
 
-namespace SimT.Modules.Dlc.Cultivation;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>
 /// Specifications and benefits for multi-tier estate facilities (Công Trình Điền Trang / Ổ Bảo).

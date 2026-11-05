@@ -28,8 +28,7 @@ public sealed class LedgerAuditTests : IDisposable
 
         var modules = kernel.Ledger.Recent(50).Select(line => line.ModuleId).ToHashSet(StringComparer.Ordinal);
 
-        Assert.Contains("dlc.market", modules);
-        Assert.Contains("dlc.professions", modules);
+        Assert.Contains("dlc.economy", modules);
         Assert.Contains("dlc.lineage", modules);
     }
 

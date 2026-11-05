@@ -6,7 +6,7 @@ using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts;
 
-namespace SimT.Modules.Dlc.Caravan;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>
 /// Freight, trade routes, retainers escort, and logistics contracts.

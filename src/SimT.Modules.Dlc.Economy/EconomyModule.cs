@@ -1,0 +1,96 @@
+using SimT.Contracts.Modules;
+using SimT.Contracts.Playing;
+using SimT.Contracts.Time;
+using SimT.Contracts.Ui;
+
+namespace SimT.Modules.Dlc.Economy;
+
+/// <summary>
+/// dlc.economy — the consolidated economy pillar module.
+/// Unifies Market (trade, warehouses, player stall, dynamic pricing),
+/// Caravan (freight, contracts, fleet management),
+/// Cultivation (seasonal crops, plots, soil recovery),
+/// and Professions (crafting, equipment, mastery tiers, workshops).
+/// </summary>
+public sealed class EconomyModule : ISimModule
+{
+    public void Start(ModuleContext context)
+    {
+        var items = context.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
+        var map = context.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
+        var wallet = context.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var npcs = context.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var nr) ? nr : null;
+        var attributes = context.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attr) ? attr : null;
+        var social = context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var sn) ? sn : null;
+        var chronicle = context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var sc) ? sc : null;
+
+        // 1. Market Service
+        var marketService = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log, npcs);
+        marketService.EnsureListings(items, map);
+        context.Capabilities.Provide(CapabilityIds.MarketTrade, marketService);
+        context.Capabilities.Provide(CapabilityIds.MarketPortfolio, marketService);
+        context.Capabilities.Provide(CapabilityIds.MarketWarehouse, marketService);
+        context.Capabilities.Provide(CapabilityIds.PlayerStall, marketService);
+        context.Capabilities.Provide(CapabilityIds.NpcMarket, marketService);
+
+        // 2. Caravan Service
+        var freightPerUnit = context.Config.GetLong("freightPerUnit", CaravanService.DefaultFreightPerUnit);
+        var caravanService = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, player, context.Ids, context.Log, context.ActionTime, freightPerUnit, npcs);
+        context.Capabilities.Provide(CapabilityIds.CaravanGuild, caravanService);
+
+        // 3. Farm / Cultivation Service
+        var farmService = new FarmService(context.Db, context.Clock, wallet, bag, items, context.Ids, context.ActionTime, context.Log);
+        farmService.ValidateCrops();
+        farmService.EnsurePlots(map);
+        context.Capabilities.Provide(CapabilityIds.CultivationEstate, farmService);
+
+        // 4. Profession Service
+        var professionService = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes, map, npcs, social, chronicle);
+        professionService.ValidateCatalog();
+        context.Capabilities.Provide(CapabilityIds.ProfessionGuild, professionService);
+        context.Capabilities.Provide(CapabilityIds.PlayerEquipment, professionService);
+
+        // UI Screens & Command Handlers
+        context.Ui.AddScreen(new StallScreen(marketService, marketService, items, map, bag, player, context.Clock, wallet, context.ActionTime, npcs));
+        context.Ui.AddScreen(new PlayerStallScreen(marketService, marketService, items, map, bag, player, context.Clock, wallet, context.ActionTime));
+        context.Ui.AddScreen(new WarehouseScreen(marketService, items, map, bag, player, context.ActionTime));
+        context.Ui.AddCommandHandler(new MarketCommandHandler("market.stall", marketService, player));
+        context.Ui.AddCommandHandler(new MarketCommandHandler("market.player_stall", marketService, player));
+        context.Ui.AddCommandHandler(new MarketCommandHandler("market.warehouse", marketService, player));
+
+        context.Ui.AddScreen(new CaravanScreen(caravanService, map, bag, player, context.Clock, items, npcs));
+        context.Ui.AddCommandHandler(new CaravanCommandHandler(caravanService, player));
+
+        context.Ui.AddScreen(new FarmScreen(farmService, map, player, context.Clock));
+        context.Ui.AddCommandHandler(new FarmCommandHandler(farmService, player));
+
+        context.Ui.AddScreen(new ProfessionScreen(professionService, items, player));
+        context.Ui.AddCommandHandler(new ProfessionCommandHandler(professionService, player));
+
+        // Event Subscriptions
+        context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyRent(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyStallRent(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed => marketService.RestockMonthly(closed.Date));
+        context.Events.Subscribe<DayAdvanced>(day => marketService.SpoilOneDay(day.Date));
+        context.Events.Subscribe<DayAdvanced>(day => marketService.DailyRetailSales(day.Date));
+        context.Events.Subscribe<DayAdvanced>(day => marketService.RecordDailyPrices(day.Date));
+
+        context.Events.Subscribe<DayAdvanced>(day => caravanService.OnDay(day.Date));
+
+        context.Events.Subscribe<DayAdvanced>(day => farmService.OnDay(day.Date));
+        context.Events.Subscribe<MonthClosed>(closed => farmService.ChargeMonthlyRent(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed => farmService.RecoverSoil(closed.Date));
+
+        context.Events.Subscribe<MonthClosed>(closed => professionService.OnMonth(closed.Date));
+
+        // Invariants
+        foreach (var invariant in EconomyInvariants.All())
+        {
+            context.AddInvariant(invariant);
+        }
+
+        context.Log.Info($"economy pillar ready: market({items.All.Count} items), caravan, cultivation({farmService.Plots.Count} plots), professions({professionService.Trades.Count} trades)");
+    }
+}

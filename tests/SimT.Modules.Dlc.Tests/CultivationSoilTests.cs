@@ -1,6 +1,6 @@
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
-using SimT.Modules.Dlc.Cultivation;
+using SimT.Modules.Dlc.Economy;
 
 namespace SimT.Modules.Dlc.Tests;
 

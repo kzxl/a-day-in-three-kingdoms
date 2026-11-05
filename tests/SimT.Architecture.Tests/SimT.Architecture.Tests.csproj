@@ -20,11 +20,8 @@
     <ProjectReference Include="..\..\src\SimT.Modules.Base.World\SimT.Modules.Base.World.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Player\SimT.Modules.Base.Player.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Market\SimT.Modules.Dlc.Market.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Caravan\SimT.Modules.Dlc.Caravan.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Professions\SimT.Modules.Dlc.Professions.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Economy\SimT.Modules.Dlc.Economy.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Lineage\SimT.Modules.Dlc.Lineage.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Cultivation\SimT.Modules.Dlc.Cultivation.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Politics\SimT.Modules.Dlc.Politics.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Society\SimT.Modules.Dlc.Society.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Social\SimT.Modules.Dlc.Social.csproj" />

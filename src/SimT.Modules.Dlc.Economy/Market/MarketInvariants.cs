@@ -1,7 +1,7 @@
 using SimT.Contracts.Data;
 using SimT.Contracts.Diagnostics;
 
-namespace SimT.Modules.Dlc.Market;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>
 /// Rules that only make sense because this DLC owns these tables. They run through the kernel

@@ -6,7 +6,7 @@ using SimT.Contracts.Logging;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
-namespace SimT.Modules.Dlc.Cultivation;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>
 /// Rented land, multi-crop agriculture, irrigation systems, and harvest records.

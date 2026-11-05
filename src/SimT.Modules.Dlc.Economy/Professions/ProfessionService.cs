@@ -5,7 +5,7 @@ using SimT.Contracts.Logging;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
-namespace SimT.Modules.Dlc.Professions;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>
 /// Day labour, trades, equipment crafting, workshop automation, and guild commissions.

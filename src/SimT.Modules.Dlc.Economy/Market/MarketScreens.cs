@@ -2,7 +2,7 @@ using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 
-namespace SimT.Modules.Dlc.Market;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>
 /// Stall screen: headline numbers, the goods on the shelf, and one row per item carrying its own

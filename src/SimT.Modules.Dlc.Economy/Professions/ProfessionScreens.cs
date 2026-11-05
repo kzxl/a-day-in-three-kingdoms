@@ -1,7 +1,7 @@
 using SimT.Contracts.Playing;
 using SimT.Contracts.Ui;
 
-namespace SimT.Modules.Dlc.Professions;
+namespace SimT.Modules.Dlc.Economy;
 
 internal sealed class ProfessionScreen : IScreenContribution
 {

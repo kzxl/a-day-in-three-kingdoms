@@ -5,7 +5,7 @@ using SimT.Contracts.Logging;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
-namespace SimT.Modules.Dlc.Market;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>
 /// Trade + warehouse rules for <c>dlc.market</c>. Everything it touches is reached through a

@@ -1,6 +1,6 @@
 using SimT.Contracts.Playing;
 
-namespace SimT.Modules.Dlc.Market;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>
 /// Price model in integer arithmetic so a replay is bit-identical. No decimal, no double, no

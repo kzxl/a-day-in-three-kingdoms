@@ -1,12 +1,10 @@
-using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
-using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 
-namespace SimT.Modules.Dlc.Market;
+namespace SimT.Modules.Dlc.Economy;
 
 /// <summary>
-/// One handler instance per screen. Command ids are <c>verb:itemId</c>, so the screen model
+/// One handler instance per market screen. Command ids are <c>verb:itemId</c>, so the screen model
 /// stays data-only and the host needs no knowledge of market verbs.
 /// </summary>
 internal sealed class MarketCommandHandler : IScreenCommandHandler
@@ -33,7 +31,7 @@ internal sealed class MarketCommandHandler : IScreenCommandHandler
             return rentMessage;
         }
 
-        // Forms: verb:item  and  verb:item:quantity
+        // Forms: verb:item and verb:item:quantity
         if (string.Equals(commandId, "stall:rent", StringComparison.Ordinal) || string.Equals(commandId, "rent_stall", StringComparison.Ordinal))
         {
             _service.RentStall(cityId, out var rentMsg);
@@ -103,52 +101,5 @@ internal sealed class MarketCommandHandler : IScreenCommandHandler
             default:
                 return $"Động từ '{verb}' không thuộc DLC market.";
         }
-    }
-}
-
-/// <summary>
-/// dlc.market — the first DLC. It requires three base modules and reaches them only through
-/// capabilities, so it can be removed from the product manifest without touching Core.
-/// </summary>
-public sealed class MarketModule : ISimModule
-{
-    public void Start(ModuleContext context)
-    {
-        var items = context.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
-        var map = context.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
-        var wallet = context.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
-        var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
-        var player = context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
-
-        var npcs = context.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var nr) ? nr : null;
-        var service = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log, npcs);
-        service.EnsureListings(items, map);
-
-        context.Capabilities.Provide(CapabilityIds.MarketTrade, service);
-        context.Capabilities.Provide(CapabilityIds.MarketPortfolio, service);
-        context.Capabilities.Provide(CapabilityIds.MarketWarehouse, service);
-        context.Capabilities.Provide(CapabilityIds.PlayerStall, service);
-        context.Capabilities.Provide(CapabilityIds.NpcMarket, service);
-
-        context.Ui.AddScreen(new StallScreen(service, service, items, map, bag, player, context.Clock, wallet, context.ActionTime, npcs));
-        context.Ui.AddScreen(new PlayerStallScreen(service, service, items, map, bag, player, context.Clock, wallet, context.ActionTime));
-        context.Ui.AddScreen(new WarehouseScreen(service, items, map, bag, player, context.ActionTime));
-        context.Ui.AddCommandHandler(new MarketCommandHandler("market.stall", service, player));
-        context.Ui.AddCommandHandler(new MarketCommandHandler("market.player_stall", service, player));
-        context.Ui.AddCommandHandler(new MarketCommandHandler("market.warehouse", service, player));
-
-        context.Events.Subscribe<MonthClosed>(closed => service.ChargeMonthlyRent(closed.Date));
-        context.Events.Subscribe<MonthClosed>(closed => service.ChargeMonthlyStallRent(closed.Date));
-        context.Events.Subscribe<MonthClosed>(closed => service.RestockMonthly(closed.Date));
-        context.Events.Subscribe<DayAdvanced>(day => service.SpoilOneDay(day.Date));
-        context.Events.Subscribe<DayAdvanced>(day => service.DailyRetailSales(day.Date));
-        context.Events.Subscribe<DayAdvanced>(day => service.RecordDailyPrices(day.Date));
-
-        foreach (var invariant in MarketInvariants.All())
-        {
-            context.AddInvariant(invariant);
-        }
-
-        context.Log.Info($"market ready: {items.All.Count} items, {map.Citadels.Count} citadels");
     }
 }
