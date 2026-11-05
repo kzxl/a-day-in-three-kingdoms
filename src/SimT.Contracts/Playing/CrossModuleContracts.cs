@@ -14,6 +14,7 @@ public static class CapabilityIds
     public const string PlayerAttributes = "player.attributes";
     public const string PlayerReputation = "player.reputation";
     public const string ItemCatalog = "content.items";
+    public const string ItemHub = "content.item_hub";
     public const string WorldMap = "world.map";
     public const string MarketTrade = "market.trade";
     public const string MarketWarehouse = "market.warehouse";
@@ -238,6 +239,32 @@ public interface IItemCatalog
     ItemDef? Find(long itemId);
 
     ItemDef? FindByCode(string code);
+}
+
+/// <summary>Detailed item specifications, lore, visual illustrations, and upgrade path.</summary>
+public sealed record ItemHubEntry(
+    ItemDef Item,
+    string SubCategoryVi,
+    string VisualIcon,
+    string IllustrationArt,
+    string LoreDescriptionVi,
+    IReadOnlyDictionary<string, string> DetailedStats,
+    string SourcingVi,
+    string UsageVi,
+    string UpgradeRoadmapVi);
+
+/// <summary>Central item information, lore codex, and upgrade roadmap service owned by <c>base.content</c>.</summary>
+public interface IItemHubService
+{
+    IReadOnlyList<ItemHubEntry> Entries { get; }
+
+    ItemHubEntry? FindEntry(long itemId);
+
+    ItemHubEntry? FindEntryByCode(string code);
+
+    IReadOnlyList<ItemHubEntry> FilterByCategory(string? categoryKey);
+
+    void RegisterCustomEntry(ItemHubEntry entry);
 }
 
 /// <summary>Read-only map owned by <c>base.world</c>.</summary>

@@ -14,7 +14,15 @@ public sealed class ContentModule : ISimModule
     {
         var catalog = new ItemCatalog(context.Db);
         context.Capabilities.Provide(CapabilityIds.ItemCatalog, catalog);
-        context.Log.Info($"catalog ready with {catalog.All.Count} items");
+
+        var hub = new ItemHubService(catalog);
+        context.Capabilities.Provide(CapabilityIds.ItemHub, hub);
+
+        var screen = new ItemHubScreen(hub, context.Capabilities);
+        context.Ui.AddScreen(screen);
+        context.Ui.AddCommandHandler(screen);
+
+        context.Log.Info($"catalog ready with {catalog.All.Count} items, item hub ready with {hub.Entries.Count} entries");
     }
 
     private sealed class ItemCatalog : IItemCatalog

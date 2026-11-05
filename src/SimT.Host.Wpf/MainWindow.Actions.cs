@@ -182,6 +182,19 @@ public partial class MainWindow
                 TryOpenLetterModal(letterId);
             }
         });
+
+        _kernel.Ui.RegisterModalPresenter("item:modal:", commandId =>
+        {
+            var raw = commandId["item:modal:".Length..].Trim();
+            if (long.TryParse(raw, out var itemId))
+            {
+                TryOpenItemDetailModal(itemId);
+            }
+            else
+            {
+                TryOpenItemDetailModalByCode(raw);
+            }
+        });
     }
 
     private async void RowCommand_Click(object sender, RoutedEventArgs e)
@@ -639,5 +652,51 @@ public partial class MainWindow
         _kernel.Save();
         UpdateHeader();
         RenderSelected();
+    }
+
+    public void TryOpenItemDetailModal(long itemId)
+    {
+        if (!_kernel.Capabilities.TryGet<IItemHubService>(CapabilityIds.ItemHub, out var hub) || hub is null)
+        {
+            StatusText.Text = "Hệ thống Đồ Giám Kỳ Vật chưa khả dụng.";
+            return;
+        }
+
+        var entry = hub.FindEntry(itemId);
+        if (entry is null)
+        {
+            StatusText.Text = $"Không tìm thấy thông tin kỳ vật #{itemId}.";
+            return;
+        }
+
+        var cityId = 1L;
+        if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
+        {
+            cityId = player.CurrentCityId;
+        }
+
+        var bagQty = 0;
+        if (_kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var bag) && bag is not null)
+        {
+            bagQty = bag.Quantity(cityId, itemId);
+        }
+
+        var win = new ItemDetailModalWindow(entry, bagQty)
+        {
+            Owner = this
+        };
+        win.ShowDialog();
+    }
+
+    public void TryOpenItemDetailModalByCode(string code)
+    {
+        if (_kernel.Capabilities.TryGet<IItemHubService>(CapabilityIds.ItemHub, out var hub) && hub is not null)
+        {
+            var entry = hub.FindEntryByCode(code);
+            if (entry is not null)
+            {
+                TryOpenItemDetailModal(entry.Item.Id);
+            }
+        }
     }
 }

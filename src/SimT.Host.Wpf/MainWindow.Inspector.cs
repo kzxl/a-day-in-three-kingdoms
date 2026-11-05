@@ -90,6 +90,73 @@ public partial class MainWindow
             }
         }
 
+        // Item Hub Codex & Illustration Integration
+        if (_kernel.Capabilities.TryGet<IItemHubService>(CapabilityIds.ItemHub, out var hub) && hub is not null)
+        {
+            ItemHubEntry? matchedEntry = null;
+            var modalCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("item:modal:"));
+            if (modalCmd is not null && long.TryParse(modalCmd.Id["item:modal:".Length..], out var mId))
+            {
+                matchedEntry = hub.FindEntry(mId);
+            }
+
+            if (matchedEntry is null)
+            {
+                matchedEntry = hub.Entries.FirstOrDefault(e =>
+                    string.Equals(e.Item.NameVi, title, StringComparison.OrdinalIgnoreCase)
+                    || title.Contains(e.Item.NameVi, StringComparison.OrdinalIgnoreCase)
+                    || (row.Cells.Count > 2 && string.Equals(e.Item.NameVi, row.Cells[2], StringComparison.OrdinalIgnoreCase))
+                    || (row.Cells.Count > 1 && string.Equals(e.Item.NameVi, row.Cells[1], StringComparison.OrdinalIgnoreCase))
+                    || (row.Cells.Count > 0 && string.Equals(e.Item.NameVi, row.Cells[0], StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (matchedEntry is not null)
+            {
+                var bannerBorder = new Border
+                {
+                    Background = (Brush)FindResource("SurfaceAlt"),
+                    BorderBrush = (Brush)FindResource("AccentSoft"),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(10, 8, 10, 8),
+                    Margin = new Thickness(0, 10, 0, 10)
+                };
+
+                var bannerStack = new StackPanel();
+                bannerStack.Children.Add(new TextBlock
+                {
+                    Text = $"{matchedEntry.VisualIcon} {matchedEntry.Item.NameVi} · {matchedEntry.SubCategoryVi}",
+                    FontWeight = FontWeights.Bold,
+                    Foreground = (Brush)FindResource("Accent"),
+                    FontSize = 12,
+                    Margin = new Thickness(0, 0, 0, 4)
+                });
+
+                bannerStack.Children.Add(new TextBlock
+                {
+                    Text = matchedEntry.IllustrationArt.Trim(),
+                    FontFamily = new FontFamily("Consolas, Cascadia Mono, Lucida Console, Courier New"),
+                    FontSize = 10.5,
+                    LineHeight = 14,
+                    Foreground = (Brush)FindResource("Accent"),
+                    Margin = new Thickness(0, 0, 0, 6)
+                });
+
+                var modalQuickBtn = new Button
+                {
+                    Content = "🔍 Xem Đồ Giám Chi Tiết & Thông Số",
+                    Style = (Style)FindResource("ChipButton"),
+                    HorizontalAlignment = HorizontalAlignment.Stretch
+                };
+                var entryId = matchedEntry.Item.Id;
+                modalQuickBtn.Click += (_, _) => TryOpenItemDetailModal(entryId);
+                bannerStack.Children.Add(modalQuickBtn);
+
+                bannerBorder.Child = bannerStack;
+                InspectorBody.Children.Add(bannerBorder);
+            }
+        }
+
         if (row.Commands.Count > 0)
         {
             InspectorBody.Children.Add(new Border
