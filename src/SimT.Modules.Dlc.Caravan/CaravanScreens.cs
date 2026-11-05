@@ -315,7 +315,8 @@ internal sealed class CaravanScreen : IScreenContribution
                 new ScreenMetric("Áp tiêu nhận", Fmt(activeContracts), "hợp đồng"),
                 new ScreenMetric("Trong túi", Fmt(held), "đơn vị")
             ],
-            alerts);
+            alerts,
+            $"Chọn tuyến đường có chênh lệch giá cao và thuê hộ vệ đi kèm trước khi phái thương đoàn xuất phát từ {city.NameVi}.");
     }
 }
 

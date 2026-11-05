@@ -441,6 +441,11 @@ internal sealed class SocialScreen : IScreenContribution
 
         var status = $"Đang tại {currentCitadelName} · Gặp gỡ {localNpcs.Count} nhân sĩ · Đàm đạo tăng hảo cảm & điểm kỹ năng.";
 
+        var topLocalNpc = localNpcs.FirstOrDefault();
+        var recommendation = topLocalNpc is not null
+            ? $"{topLocalNpc.NameVi} đang ở cùng thành {currentCitadelName} — hãy đàm đạo hoặc tặng quà hợp sở thích để tăng hảo cảm và lĩnh ngộ tuyệt kỹ."
+            : $"Hãy ghé các thành lớn để gặp gỡ danh sĩ, đàm đạo nâng hảo cảm và trang bị tuyệt kỹ vào 6 ô trống.";
+
         return new ScreenModel(
             ScreenId,
             Title,
@@ -448,7 +453,8 @@ internal sealed class SocialScreen : IScreenContribution
             sections,
             screenActions,
             metrics,
-            alerts);
+            alerts,
+            recommendation);
     }
 
     private static string GetSkillLevelTitle(int level) => level switch

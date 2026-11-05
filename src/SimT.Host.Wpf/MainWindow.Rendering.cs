@@ -29,6 +29,8 @@ public partial class MainWindow
             return;
         }
 
+        EnsureActiveGroupExpanded(entry);
+
         if (!string.Equals(_screenId, entry.ScreenId, StringComparison.Ordinal))
         {
             _detailKey = null;
@@ -60,6 +62,7 @@ public partial class MainWindow
         {
             ScreenTitle.Text = entry.Title;
             ScreenStatus.Text = "Module cung cấp màn hình này đang tắt.";
+            UpdateRecommendationBanner(null);
             KpiStrip.Children.Clear();
             AlertFeed.ItemsSource = null;
             GlobalCommands.Children.Clear();
@@ -68,6 +71,7 @@ public partial class MainWindow
         }
 
         var model = contribution.Render();
+        UpdateRecommendationBanner(model.Recommendation);
 
         if (entry.ScreenId == "world.map")
         {
@@ -179,12 +183,26 @@ public partial class MainWindow
         PageRoot.BeginAnimation(OpacityProperty, animOpacity);
     }
 
+    private void UpdateRecommendationBanner(string? recommendation)
+    {
+        if (string.IsNullOrWhiteSpace(recommendation))
+        {
+            RecommendationBanner.Visibility = Visibility.Collapsed;
+            RecommendationText.Text = string.Empty;
+            return;
+        }
+
+        RecommendationText.Text = recommendation;
+        RecommendationBanner.Visibility = Visibility.Visible;
+    }
+
     private void RenderLedger()
     {
         var lines = _kernel.Ledger.Recent(300);
 
         ScreenTitle.Text = "Sổ Cái";
         ScreenStatus.Text = $"{lines.Count} bút toán gần nhất · mọi khoản tiền đi qua một nơi duy nhất";
+        UpdateRecommendationBanner("Đối chiếu dòng tiền thu chi mỗi tháng để cân đối chi phí kho bãi, ruộng đất và bổng lộc gia thần.");
         KpiStrip.Children.Clear();
         KpiStrip.Children.Add(BuildMetric(new ScreenMetric("Số dư", _kernel.Ledger.Balance.ToString("N0", Vietnamese), "quan")));
         KpiStrip.Children.Add(BuildMetric(new ScreenMetric("Trong két", _kernel.Ledger.Safe.ToString("N0", Vietnamese), "quan")));
@@ -563,6 +581,7 @@ public partial class MainWindow
     {
         ScreenTitle.Text = "Trong Thành";
         ScreenStatus.Text = "Trung tâm thành trì · bấm địa điểm hoặc danh sĩ để tương tác";
+        UpdateRecommendationBanner("Bấm vào danh sĩ trên phố để trò chuyện hoặc bấm các địa điểm (Chợ, Kho Hàng, Lôi Đài, Quan Phủ) để mở nhanh chức năng.");
         KpiStrip.Children.Clear();
         AlertFeed.ItemsSource = null;
         GlobalCommands.Children.Clear();

@@ -159,7 +159,10 @@ internal sealed class PlayerDestinyScreen : IScreenContribution
             $"Ngân sách thiên mệnh: {state.UniversalPointsAvailable} điểm tự do. {keystoneSummary}",
             sections,
             globalCommands,
-            metrics);
+            metrics,
+            Recommendation: state.UniversalPointsAvailable > 0
+                ? $"Bạn đang có {state.UniversalPointsAvailable} điểm Thiên Mệnh chưa dùng — hãy khai mở nút mệnh cách phù hợp với hướng phát triển."
+                : "Hoàn thành kỳ ngộ và rèn luyện bách nghệ để tích lũy thêm điểm Thiên Mệnh.");
     }
 
     private static string FormatResonancePoints(IReadOnlyDictionary<DestinySchool, int> resonance)

@@ -99,7 +99,8 @@ public sealed record ScreenModel(
     IReadOnlyList<ScreenSection> Sections,
     IReadOnlyList<ScreenCommand> Commands,
     IReadOnlyList<ScreenMetric>? Metrics = null,
-    IReadOnlyList<ScreenAlert>? Alerts = null)
+    IReadOnlyList<ScreenAlert>? Alerts = null,
+    string? Recommendation = null)
 {
     public static ScreenModel Empty(string screenId, string title, string statusLine = "") =>
         new(screenId, title, statusLine, Array.Empty<ScreenSection>(), Array.Empty<ScreenCommand>());

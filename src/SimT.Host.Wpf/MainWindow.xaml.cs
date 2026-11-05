@@ -64,59 +64,64 @@ public partial class MainWindow : Window
 
     // ---------------------------------------------------------------- rail
 
+    private readonly List<NavGroupVm> _navGroups = [];
+
     private void BuildRail()
     {
+        _navGroups.Clear();
+        var gCity = new NavGroupVm("Trong thành", "城", "Đi lại, xem thân thế", isExpanded: true);
+        var gBiz = new NavGroupVm("Kinh doanh", "商", "Mua bán, làm ra của");
+        var gSocial = new NavGroupVm("Nhân duyên", "人", "Kết giao, gia đình");
+        var gMartial = new NavGroupVm("Quan võ", "武", "Làm quan, đánh trận");
+        var gLedger = new NavGroupVm("Sổ sách", "書", "Tra cứu");
+        _navGroups.AddRange([gCity, gBiz, gSocial, gMartial, gLedger]);
+
         var screenLookup = _kernel.Ui.Screens.ToDictionary(s => s.ScreenId, StringComparer.Ordinal);
         var entries = new List<NavEntry>
         {
-            new(CityHubScreenId, "Trong thành", "Trong thành", IconPathFor(CityHubScreenId))
+            new(CityHubScreenId, "Trong thành", "Dạo phố, gặp người", "城", gCity, IconPathFor(CityHubScreenId))
         };
 
-        var orderedSpecs = new (string ScreenId, string FallbackTitle, string Group)[]
+        var orderedSpecs = new (string ScreenId, string FallbackTitle, string Description, string SealHan, NavGroupVm Group)[]
         {
-            ("world.map", "Bản Đồ", "Trong thành"),
-            ("player.destiny", "Mệnh Cách", "Trong thành"),
-            ("player.reputation", "Danh Vọng", "Trong thành"),
+            ("world.map", "Bản Đồ", "Chọn đường sang thành khác", "圖", gCity),
+            ("player.destiny", "Mệnh Cách", "Cộng điểm thiên mệnh", "命", gCity),
+            ("player.reputation", "Danh Vọng", "Uy tín từng vùng", "名", gCity),
 
-            ("market.stall", "Chợ", "Kinh doanh"),
-            ("market.player_stall", "Sạp Hàng", "Kinh doanh"),
-            ("market.warehouse", "Kho Hàng", "Kinh doanh"),
-            ("caravan.routes", "Thương Đoàn", "Kinh doanh"),
-            ("professions.trades", "Nghề Nghiệp", "Kinh doanh"),
-            ("cultivation.farm", "Điền Trang", "Kinh doanh"),
+            ("market.stall", "Chợ", "Mua bán theo giá từng thành", "市", gBiz),
+            ("market.player_stall", "Sạp Hàng", "Mở tiệm, bày hàng của bạn", "攤", gBiz),
+            ("market.warehouse", "Kho Hàng", "Gửi hàng tránh hư hỏng", "倉", gBiz),
+            ("caravan.routes", "Thương Đoàn", "Chở hàng sang thành khác", "隊", gBiz),
+            ("professions.trades", "Nghề Nghiệp", "Làm công, rèn, nấu, câu", "藝", gBiz),
+            ("cultivation.farm", "Điền Trang", "Thuê ruộng, gieo, gặt", "田", gBiz),
 
-            ("npc.directory", "Danh Sĩ", "Nhân duyên"),
-            ("social.network", "Nhân Duyên", "Nhân duyên"),
-            ("lineage.family", "Gia Tộc", "Nhân duyên"),
-            ("society.chronicle", "Thiên Hạ", "Nhân duyên"),
+            ("npc.directory", "Danh Sĩ", "Danh bạ mọi nhân vật", "士", gSocial),
+            ("social.network", "Nhân Duyên", "Kết giao, tuyệt kỹ, thư từ", "緣", gSocial),
+            ("lineage.family", "Gia Tộc", "Cưới hỏi, con cái", "家", gSocial),
+            ("society.chronicle", "Thiên Hạ", "Tin tức khắp nơi", "世", gSocial),
 
-            ("politics.court", "Quan Trường", "Quan võ"),
-            ("military.arena", "Binh Nghiệp", "Quan võ"),
+            ("politics.court", "Quan Trường", "Xin chức, lĩnh bổng", "官", gMartial),
+            ("military.arena", "Binh Nghiệp", "Lôi đài, dẹp giặc", "兵", gMartial),
 
-            ("content.item_hub", "Đồ Giám", "Sổ sách")
+            ("content.item_hub", "Đồ Giám", "Tra vật phẩm", "鑑", gLedger)
         };
 
         var added = new HashSet<string>(StringComparer.Ordinal) { CityHubScreenId, LedgerScreenId };
-        foreach (var (id, fallbackTitle, group) in orderedSpecs)
+        foreach (var (id, fallbackTitle, desc, seal, group) in orderedSpecs)
         {
-            if (screenLookup.TryGetValue(id, out var screen))
-            {
-                entries.Add(new NavEntry(id, ShortRailTitle(id, screen.Title), group, IconPathFor(id)));
-                added.Add(id);
-            }
-            else
-            {
-                entries.Add(new NavEntry(id, fallbackTitle, group, IconPathFor(id)));
-                added.Add(id);
-            }
+            var title = screenLookup.TryGetValue(id, out var screen)
+                ? ShortRailTitle(id, screen.Title)
+                : fallbackTitle;
+            entries.Add(new NavEntry(id, title, desc, seal, group, IconPathFor(id)));
+            added.Add(id);
         }
 
         foreach (var extra in _kernel.Ui.Screens.Where(s => !added.Contains(s.ScreenId)))
         {
-            entries.Add(new NavEntry(extra.ScreenId, extra.Title, "Sổ sách", IconPathFor(extra.ScreenId)));
+            entries.Add(new NavEntry(extra.ScreenId, extra.Title, "Tra cứu thông tin", "卷", gLedger, IconPathFor(extra.ScreenId)));
         }
 
-        entries.Add(new NavEntry(LedgerScreenId, "Sổ Cái", "Sổ sách", IconPathFor(LedgerScreenId)));
+        entries.Add(new NavEntry(LedgerScreenId, "Sổ Cái", "Thu chi của bạn", "帳", gLedger, IconPathFor(LedgerScreenId)));
 
         var view = CollectionViewSource.GetDefaultView(entries);
         view.GroupDescriptions.Clear();
@@ -124,6 +129,20 @@ public partial class MainWindow : Window
 
         NavList.ItemsSource = entries;
         NavList.SelectedIndex = 0;
+    }
+
+    private void NavGroupHeader_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: NavGroupVm group })
+        {
+            group.IsExpanded = !group.IsExpanded;
+            e.Handled = true;
+        }
+    }
+
+    private void EnsureActiveGroupExpanded(NavEntry activeEntry)
+    {
+        activeEntry.GroupInfo.IsExpanded = true;
     }
 
     private static string ShortRailTitle(string screenId, string rawTitle) => screenId switch
@@ -264,6 +283,11 @@ public partial class MainWindow : Window
         foreach (var entry in entries)
         {
             entry.SetBadge(counts.GetValueOrDefault(entry.ScreenId));
+        }
+
+        foreach (var group in _navGroups)
+        {
+            group.RefreshGroupBadge();
         }
     }
 

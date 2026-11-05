@@ -269,20 +269,21 @@
     <Style x:Key="NavItem" TargetType="ListBoxItem">
         <Setter Property="Foreground" Value="{StaticResource Muted}" />
         <Setter Property="FontSize" Value="12.5" />
-        <Setter Property="MinHeight" Value="36" />
-        <Setter Property="Padding" Value="9,5" />
-        <Setter Property="Margin" Value="0" />
+        <Setter Property="MinHeight" Value="38" />
+        <Setter Property="Padding" Value="8,5" />
+        <Setter Property="Margin" Value="0,1,0,1" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Visibility" Value="{Binding ItemVisibility}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="Chrome" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                    <Border x:Name="Chrome" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="3" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Border x:Name="Mark" Grid.Column="0" Background="Transparent" CornerRadius="2" Margin="0,1,8,1" />
+                            <Border x:Name="Mark" Grid.Column="0" Background="Transparent" CornerRadius="2" Margin="0,1,7,1" />
                             <ContentPresenter Grid.Column="1" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
@@ -292,8 +293,8 @@
                             <Setter Property="Foreground" Value="{StaticResource Ink}" />
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceAlt}" />
-                            <Setter TargetName="Mark" Property="Background" Value="{StaticResource Loss}" />
+                            <Setter TargetName="Chrome" Property="Background" Value="#281E15" />
+                            <Setter TargetName="Mark" Property="Background" Value="{StaticResource Accent}" />
                             <Setter Property="Foreground" Value="{StaticResource Ink}" />
                         </Trigger>
                     </ControlTemplate.Triggers>

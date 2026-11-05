@@ -131,7 +131,8 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
             sections,
             commands,
             metrics,
-            alerts);
+            alerts,
+            $"Theo dõi biến động nhân sĩ tại {currentCitadelName} và bảng phú hào thiên hạ để nắm bắt cơ hội buôn bán hoặc kết giao.");
     }
 
     private ScreenModel RenderLeaderboard(long currentCityId, string currentCitadelName)
@@ -231,7 +232,8 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
             sections,
             commands,
             metrics,
-            alerts);
+            alerts,
+            $"Theo dõi biến động nhân sĩ tại {currentCitadelName} và bảng phú hào thiên hạ để nắm bắt cơ hội buôn bán hoặc kết giao.");
     }
 
     private ScreenModel RenderKarmaScreen(long currentCityId, string currentCitadelName)
@@ -377,7 +379,8 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
             sections,
             commands,
             metrics,
-            alerts);
+            alerts,
+            $"Theo dõi biến động nhân sĩ tại {currentCitadelName} và bảng phú hào thiên hạ để nắm bắt cơ hội buôn bán hoặc kết giao.");
     }
 
     private static ScreenRow ToRow(SocietyLogEntry e)

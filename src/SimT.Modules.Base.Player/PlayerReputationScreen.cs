@@ -142,7 +142,8 @@ internal sealed class PlayerReputationScreen : IScreenContribution
             Sections: sections,
             Commands: commands,
             Metrics: headline,
-            Alerts: attention);
+            Alerts: attention,
+            Recommendation: "Phát chẩn cứu bần hoặc mở yến tiệc hào kiệt tại các châu quận để nâng cao uy danh và hưởng ưu đãi thuế khóa.");
     }
 
     private static ScreenRow BuildTierRow(

@@ -95,7 +95,7 @@
                 <controls:GamePlayerHudCard x:Name="PlayerHudCard" Grid.Row="2" Visibility="Collapsed" />
                 <controls:GameTreasuryCard x:Name="TreasuryCard" Grid.Row="3" Visibility="Collapsed" />
 
-                <!-- Grouped navigation list (2-column grid per group so all 18 screens fit without scrolling) -->
+                <!-- Grouped navigation list (5 collapsible groups per Rail.dc.html) -->
                 <ListBox x:Name="NavList" Grid.Row="4" Margin="0,4,0,0"
                          ItemContainerStyle="{StaticResource NavItem}"
                          SelectionChanged="Nav_SelectionChanged">
@@ -103,13 +103,51 @@
                         <GroupStyle>
                             <GroupStyle.HeaderTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Name}" Style="{StaticResource Overline}"
-                                               Foreground="{StaticResource Accent}" Margin="4,7,0,2" />
+                                    <Border Background="#231A13" BorderBrush="{StaticResource Line}"
+                                            BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,5,0,2"
+                                            Cursor="Hand" Tag="{Binding Items[0].GroupInfo}"
+                                            MouseLeftButtonDown="NavGroupHeader_Click">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="22" Height="22" CornerRadius="3"
+                                                    Background="#2B1410" BorderBrush="#7A2E20" BorderThickness="1"
+                                                    VerticalAlignment="Center" Margin="0,0,8,0">
+                                                <TextBlock Text="{Binding Items[0].GroupInfo.SealHan}"
+                                                           FontFamily="Noto Serif, Georgia, Segoe UI"
+                                                           FontSize="12" FontWeight="Bold" Foreground="#E07B67"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Items[0].GroupInfo.Name}"
+                                                           FontSize="12.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource Ink}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Items[0].GroupInfo.Hint}"
+                                                           FontSize="10.5" Foreground="{StaticResource Faint}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <Border Grid.Column="2" Background="#3A1D14" BorderBrush="#7A3824"
+                                                    BorderThickness="1" CornerRadius="8" Padding="6,1" Margin="6,0,6,0"
+                                                    Visibility="{Binding Items[0].GroupInfo.BadgeVisibility}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Items[0].GroupInfo.Badge}"
+                                                           FontSize="10" FontWeight="Bold" Foreground="#F2A98E" />
+                                            </Border>
+                                            <TextBlock Grid.Column="3" Text="{Binding Items[0].GroupInfo.ChevronText}"
+                                                       FontSize="11" Foreground="{StaticResource Faint}"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
                                 </DataTemplate>
                             </GroupStyle.HeaderTemplate>
                             <GroupStyle.Panel>
                                 <ItemsPanelTemplate>
-                                    <UniformGrid Columns="2" />
+                                    <StackPanel />
                                 </ItemsPanelTemplate>
                             </GroupStyle.Panel>
                         </GroupStyle>
@@ -122,18 +160,29 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Path Grid.Column="0" Data="{Binding IconGeometry}"
-                                      Stroke="{StaticResource Accent}" StrokeThickness="1.4"
-                                      Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0"
-                                      VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="1" Text="{Binding Title}"
-                                           FontSize="12" VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis" />
-                                <Border Grid.Column="2" Background="{StaticResource AccentSoft}"
-                                        CornerRadius="8" Padding="5,1" Margin="3,0,0,0"
+                                <Border Grid.Column="0" Width="22" Height="22" CornerRadius="3"
+                                        Background="#241C13" BorderBrush="#524029" BorderThickness="1"
+                                        Margin="0,0,8,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding SealHan}"
+                                               FontFamily="Noto Serif, Georgia, Segoe UI"
+                                               FontSize="11.5" FontWeight="Bold"
+                                               Foreground="{StaticResource Accent}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}"
+                                               FontSize="12.5" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Ink}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Description}"
+                                               FontSize="10.5" Foreground="{StaticResource Faint}"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <Border Grid.Column="2" Background="#2A1F12" BorderBrush="#6B5330"
+                                        BorderThickness="1" CornerRadius="8" Padding="6,1" Margin="6,0,0,0"
                                         Visibility="{Binding BadgeVisibility}" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Badge}" FontSize="9.5"
-                                               Foreground="{StaticResource Accent}" />
+                                    <TextBlock Text="{Binding Badge}" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="#E2C27D" />
                                 </Border>
                             </Grid>
                         </DataTemplate>
@@ -179,6 +228,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -205,21 +255,39 @@
             <!-- Tactical 30-day timeline with animated day sliding -->
             <controls:GameCalendarBar x:Name="CalendarBar" Grid.Row="1" Margin="0,10,0,0" />
 
-            <WrapPanel x:Name="KpiStrip" Grid.Row="2" Margin="0,12,0,0" />
+            <!-- "Nên làm" contextual recommendation bar -->
+            <Border x:Name="RecommendationBanner" Grid.Row="2" Margin="0,10,0,0" Padding="12,9"
+                    Background="#221A12" BorderBrush="#4A3924" BorderThickness="1" CornerRadius="5"
+                    Visibility="Collapsed">
+                <DockPanel>
+                    <Border DockPanel.Dock="Left" Width="3" CornerRadius="2"
+                            Background="{StaticResource Accent}" Margin="0,1,10,1" />
+                    <Border DockPanel.Dock="Left" Background="#2A1F12" BorderBrush="#6B5330"
+                            BorderThickness="1" CornerRadius="3" Padding="7,2" Margin="0,0,10,0"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="NÊN LÀM" FontSize="10" FontWeight="Bold"
+                                   Foreground="#E2C27D" />
+                    </Border>
+                    <TextBlock x:Name="RecommendationText" Foreground="{StaticResource Ink}"
+                               FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
 
-            <ItemsControl x:Name="AlertFeed" Grid.Row="3" Margin="0,4,0,0"
+            <WrapPanel x:Name="KpiStrip" Grid.Row="3" Margin="0,12,0,0" />
+
+            <ItemsControl x:Name="AlertFeed" Grid.Row="4" Margin="0,4,0,0"
                           ItemTemplate="{StaticResource AlertRow}" />
 
-            <StackPanel x:Name="GlobalCommands" Grid.Row="4" Orientation="Horizontal" Margin="0,12,0,0" />
+            <StackPanel x:Name="GlobalCommands" Grid.Row="5" Orientation="Horizontal" Margin="0,12,0,0" />
 
-            <ScrollViewer Grid.Row="5" Margin="0,14,0,0"
+            <ScrollViewer Grid.Row="6" Margin="0,14,0,0"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel x:Name="ContentPanel" />
             </ScrollViewer>
 
             <!-- StatusText kept collapsed for compat; GameToastHost handles floating notifications -->
-            <Border Grid.Row="6" Visibility="Collapsed">
+            <Border Grid.Row="7" Visibility="Collapsed">
                 <TextBlock x:Name="StatusText" Style="{StaticResource Caption}" Text="Sẵn sàng." />
             </Border>
         </Grid>

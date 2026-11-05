@@ -129,7 +129,10 @@ internal sealed class FamilyScreen : IScreenContribution
                 new ScreenMetric("Từ đường", $"Cấp {_service.ShrineLevel}/5", "từ đường gia tộc"),
                 new ScreenMetric("Phí tháng", _service.MonthlyUpkeep.ToString(System.Globalization.CultureInfo.InvariantCulture), "quan/tháng")
             ],
-            alerts);
+            alerts,
+            !_service.IsMarried
+                ? "Kết duyên lương phối và tu sửa từ đường để khai mở huyết mạch gia tộc và bồi dưỡng người kế vị."
+                : "Bồi dưỡng con cái theo thầy giỏi và tu sửa từ đường gia tộc để gia tăng gia uy.");
     }
 }
 
