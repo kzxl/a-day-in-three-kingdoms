@@ -76,6 +76,7 @@ public partial class MainWindow
         if (entry.ScreenId == "world.map")
         {
             RenderWorldMapScreen(model);
+            TryOpenMapScene(model.Recommendation);
             RefreshBadges();
             AnimatePageTransition();
             return;

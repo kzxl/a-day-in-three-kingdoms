@@ -320,6 +320,10 @@ public static class SceneTrustGuard
         TalkScene talk => talk.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         DuelScene duel => duel.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         CityScene city => city.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
+        MapScene map => IsValidMapChoice(id, map),
+        SocialScene social => IsValidSocialChoice(id, social),
+        MarketScene market => IsValidMarketChoice(id, market),
+        DossierScene dossier => IsValidDossierChoice(id, dossier),
         _ => false
     };
 
@@ -330,6 +334,74 @@ public static class SceneTrustGuard
                               string.Equals(h.Id, id, StringComparison.Ordinal) ||
                               string.Equals(h.TargetScreenId, id, StringComparison.Ordinal))
                           || city.Npcs.Any(n => string.Equals($"npc:{n.NpcId}", id, StringComparison.Ordinal)),
+        SocialScene social => social.Nodes.Any(n => string.Equals($"npc:{n.NpcId}", id, StringComparison.Ordinal)),
+        DossierScene dossier => dossier.Npcs.Any(n => string.Equals($"npc:{n.Id}", id, StringComparison.Ordinal)),
         _ => false
     };
+
+    private static bool IsValidMapChoice(string id, MapScene map)
+    {
+        if (!id.StartsWith("travel:", StringComparison.Ordinal))
+            return false;
+        var parts = id.Split(':');
+        if (parts.Length < 2 || !long.TryParse(parts[1], out var cityId))
+            return false;
+        var mode = parts.Length >= 3 ? parts[2] : "walk";
+        return mode is "walk" or "horse" or "caravan" &&
+               cityId != map.CurrentCityId &&
+               map.Cities.Any(c => c.Id == cityId);
+    }
+
+    private static bool IsValidSocialChoice(string id, SocialScene social)
+    {
+        if (id == "host_banquet")
+            return true;
+        var parts = id.Split(':');
+        if (parts.Length == 2 && long.TryParse(parts[1], out var targetId))
+        {
+            return parts[0] switch
+            {
+                "chat" or "gift" or "recruit" or "swear" => social.Nodes.Any(n => n.NpcId == targetId),
+                _ => false
+            };
+        }
+        if (parts.Length == 3 && long.TryParse(parts[1], out var firstId) && long.TryParse(parts[2], out var secondId))
+        {
+            return parts[0] switch
+            {
+                "gift" => social.Nodes.Any(n => n.NpcId == firstId),
+                _ => false
+            };
+        }
+        if (parts.Length == 3 && long.TryParse(parts[2], out var actionTargetId))
+        {
+            return (parts[0], parts[1]) switch
+            {
+                ("skill", "equip" or "unequip") => social.Skills.Any(s => s.SkillId == actionTargetId && s.Learned),
+                ("letter", "read" or "claim") => social.Letters.Any(l => l.Id == actionTargetId),
+                _ => false
+            };
+        }
+        return false;
+    }
+
+    private static bool IsValidMarketChoice(string id, MarketScene market)
+    {
+        var parts = id.Split(':');
+        if (parts.Length != 3)
+            return false;
+        if (parts[0] is not ("buy" or "sell"))
+            return false;
+        if (!long.TryParse(parts[1], out var itemId) || !int.TryParse(parts[2], out var qty) || qty <= 0)
+            return false;
+        return market.Items.Any(i => i.ItemId == itemId);
+    }
+
+    private static bool IsValidDossierChoice(string id, DossierScene dossier)
+    {
+        var parts = id.Split(':');
+        if (parts.Length != 2 || !long.TryParse(parts[1], out var npcId))
+            return false;
+        return parts[0] is "visit" or "spar" and var _ && dossier.Npcs.Any(n => n.Id == npcId);
+    }
 }

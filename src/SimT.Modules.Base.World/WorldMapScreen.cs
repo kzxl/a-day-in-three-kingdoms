@@ -190,32 +190,6 @@ internal sealed class WorldMapScreen : IScreenContribution
             recommendation);
     }
 
-    private int CalculateShortestPath(long fromId, long toId)
-    {
-        // Simple BFS shortest path on 15 citadels
-        var queue = new Queue<(long Node, int Dist)>();
-        var visited = new HashSet<long>();
-        queue.Enqueue((fromId, 0));
-        visited.Add(fromId);
-
-        while (queue.Count > 0)
-        {
-            var (curr, dist) = queue.Dequeue();
-            if (curr == toId)
-            {
-                return dist;
-            }
-
-            foreach (var n in _map.RouteNeighbours(curr))
-            {
-                if (visited.Add(n))
-                {
-                    var d = _map.TravelDays(curr, n);
-                    queue.Enqueue((n, dist + Math.Max(1, d)));
-                }
-            }
-        }
-
-        return 5; // Fallback estimate
-    }
+    private int CalculateShortestPath(long fromId, long toId) =>
+        _map.QuoteTravel(fromId, toId, TravelMode.Walk).BaseDays;
 }

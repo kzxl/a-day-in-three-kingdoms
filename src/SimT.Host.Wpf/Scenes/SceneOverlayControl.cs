@@ -152,6 +152,50 @@ public sealed class SceneOverlayControl : Border, IDisposable
         return true;
     }
 
+    public bool ShowMapScene(MapScene scene)
+    {
+        if (!_isAvailable)
+            return false;
+
+        _activeScene = scene;
+        Visibility = Visibility.Visible;
+        SendEnvelope("scene:map", scene);
+        return true;
+    }
+
+    public bool ShowSocialScene(SocialScene scene)
+    {
+        if (!_isAvailable)
+            return false;
+
+        _activeScene = scene;
+        Visibility = Visibility.Visible;
+        SendEnvelope("scene:social", scene);
+        return true;
+    }
+
+    public bool ShowMarketScene(MarketScene scene)
+    {
+        if (!_isAvailable)
+            return false;
+
+        _activeScene = scene;
+        Visibility = Visibility.Visible;
+        SendEnvelope("scene:market", scene);
+        return true;
+    }
+
+    public bool ShowDossierScene(DossierScene scene)
+    {
+        if (!_isAvailable)
+            return false;
+
+        _activeScene = scene;
+        Visibility = Visibility.Visible;
+        SendEnvelope("scene:dossier", scene);
+        return true;
+    }
+
     public void HideScene()
     {
         _activeScene = null;

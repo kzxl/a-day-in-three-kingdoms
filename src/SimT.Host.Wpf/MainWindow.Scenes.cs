@@ -14,8 +14,13 @@ public partial class MainWindow
         {
             var scenesDir = Path.Combine(AppContext.BaseDirectory, "assets", "scenes");
             await SceneOverlay.InitializeWarmAsync(scenesDir, skipForSmoke: _isSmoke);
-            if (_loaded && string.Equals(_screenId, CityHubScreenId, StringComparison.Ordinal))
-                TryOpenCityScene();
+            if (_loaded)
+            {
+                if (string.Equals(_screenId, CityHubScreenId, StringComparison.Ordinal))
+                    TryOpenCityScene();
+                else
+                    TryOpenFeatureSceneForCurrentScreen();
+            }
         };
     }
 
@@ -244,6 +249,10 @@ public partial class MainWindow
         if (activeScene is CityScene city) HandleCitySceneMessage(type, message.Id ?? string.Empty, city);
         else if (activeScene is TalkScene talk) HandleTalkSceneMessage(type, message.Id ?? string.Empty, talk);
         else if (activeScene is DuelScene duel) HandleDuelSceneMessage(type, message.Id ?? string.Empty, duel);
+        else if (activeScene is MapScene map) HandleMapSceneMessage(type, message.Id ?? string.Empty, map);
+        else if (activeScene is SocialScene social) HandleSocialSceneMessage(type, message.Id ?? string.Empty, social);
+        else if (activeScene is MarketScene market) HandleMarketSceneMessage(type, message.Id ?? string.Empty, market);
+        else if (activeScene is DossierScene dossier) HandleDossierSceneMessage(type, message.Id ?? string.Empty, dossier);
     }
 
     private void HandleCitySceneMessage(string type, string id, CityScene _)
