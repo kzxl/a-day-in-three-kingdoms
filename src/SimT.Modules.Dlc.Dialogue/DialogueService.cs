@@ -57,12 +57,19 @@ internal sealed class DialogueService : IDialogueModule
         }
 
         var (portraitFull, portraitFace, _) = SceneArtCatalog.ResolveNpcArt(npc);
+        var (blinkPath, talkPath) = SceneArtCatalog.ResolvePortraitFrames(npc);
         var bgPath = ResolveTalkBackground(SceneArtCatalog.ClassifyArchetype(npc));
         var choices = BuildChoices(npc, playerState.CurrentCityId);
 
-        var nearby = npcs.FindByCitadel(npc.CitadelId)
-            .OrderByDescending(n => n.Id == npc.Id)
-            .ThenBy(n => n.Id)
+        var candidateNpcs = new List<NpcDef> { npc };
+        if (npcs.FindByCode("npc_0003") is { } gy && candidateNpcs.All(x => x.Id != gy.Id)) candidateNpcs.Add(gy);
+        if (npcs.FindByCode("npc_0002") is { } zf && candidateNpcs.All(x => x.Id != zf.Id)) candidateNpcs.Add(zf);
+        foreach (var local in npcs.FindByCitadel(npc.CitadelId).OrderBy(n => n.Id))
+        {
+            if (candidateNpcs.All(x => x.Id != local.Id)) candidateNpcs.Add(local);
+        }
+
+        var nearby = candidateNpcs
             .Take(5)
             .Select(n =>
             {
@@ -93,7 +100,9 @@ internal sealed class DialogueService : IDialogueModule
             Lines: lines,
             Choices: choices,
             NearbyNpcs: nearby,
-            FeedbackVi: string.IsNullOrWhiteSpace(feedbackVi) ? null : ClampLine90(feedbackVi!));
+            FeedbackVi: string.IsNullOrWhiteSpace(feedbackVi) ? null : ClampLine90(feedbackVi!),
+            BlinkPath: blinkPath,
+            TalkPath: talkPath);
     }
 
     public TalkChoiceOutcome HandleChoice(long npcId, string choiceId)
@@ -218,7 +227,8 @@ internal sealed class DialogueService : IDialogueModule
             return false;
 
         var playerState = _context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
-        if (playerState.CurrentCityId != npc.CitadelId || npc.Attributes.War < 30)
+        var isVisitingHero = npc.Code is "npc_0002" or "npc_0003";
+        if ((!isVisitingHero && playerState.CurrentCityId != npc.CitadelId) || npc.Attributes.War < 30)
             return false;
 
         if (_context.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)

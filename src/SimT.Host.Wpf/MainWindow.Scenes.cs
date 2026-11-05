@@ -128,21 +128,25 @@ public partial class MainWindow
 
         _kernel.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
         var list = new List<NpcDef>();
+        if (reg.FindByCode("npc_0003") is { } gy) list.Add(gy);
+        if (reg.FindByCode("npc_0002") is { } zf) list.Add(zf);
         foreach (var npc in reg.All)
         {
+            if (list.Any(x => x.Id == npc.Id)) continue;
             if ((society?.GetNpcActivity(npc.Id)?.CurrentCitadelId ?? npc.CitadelId) != cityId) continue;
             list.Add(npc);
             if (list.Count >= 6) break;
         }
 
-        double[] xs = [24, 41, 58, 74, 15, 84];
-        double[] ys = [72, 74, 73, 76, 88, 89];
+        double[] xs = [35, 68, 49, 19, 84, 15];
+        double[] ys = [86, 86, 74, 76, 76, 88];
         var sprites = new List<CityNpcSprite>(list.Count);
         for (var i = 0; i < list.Count; i++)
         {
             var npc = list[i];
             var (_, facePath, spritePath) = SceneArtCatalog.ResolveNpcArt(npc);
-            sprites.Add(new CityNpcSprite(npc.Id, npc.Code, TrimSingleLine(npc.NameVi, 24), RoleTitleVi.Format(npc.Role), spritePath, facePath, xs[i], ys[i]));
+            var (animPath, _) = SceneArtCatalog.ResolveNpcAnim(npc);
+            sprites.Add(new CityNpcSprite(npc.Id, npc.Code, TrimSingleLine(npc.NameVi, 24), RoleTitleVi.Format(npc.Role), spritePath, facePath, xs[i], ys[i], animPath));
         }
         return sprites;
     }
@@ -186,14 +190,19 @@ public partial class MainWindow
         var pSp = attrs.Attributes.Wil >= 80 ? 10 : 0;
         var oSp = npc.Attributes.Wil >= 80 ? 10 : 0;
         var (_, npcFace, npcSprite) = SceneArtCatalog.ResolveNpcArt(npc);
+        var (oppAnimPath, oppAnimKey) = SceneArtCatalog.ResolveNpcAnim(npc);
+        var playerAnimKey = string.Equals(oppAnimKey, "guan_yu", StringComparison.OrdinalIgnoreCase) ? "zhang_fei" : "guan_yu";
+        var playerAnimPath = $"art/anim/{playerAnimKey}.png";
 
         var playerFighter = new DuelFighterView(
             playerState.Name, $"Võ lực {attrs.Attributes.War} · {TroopBranchHelper.NameVi(playerBranch)}",
-            SceneArtCatalog.PlayerPortraitFace, SceneArtCatalog.PlayerSprite, playerBranch, pMaxHp, pMaxHp, pSp, 100);
+            SceneArtCatalog.PlayerPortraitFace, SceneArtCatalog.PlayerSprite, playerBranch, pMaxHp, pMaxHp, pSp, 100,
+            playerAnimPath, playerAnimKey);
 
         var oppFighter = new DuelFighterView(
             npc.NameVi, $"Võ lực {npc.Attributes.War} · {TroopBranchHelper.NameVi(oppBranch)}",
-            npcFace, npcSprite, oppBranch, oMaxHp, oMaxHp, oSp, 100);
+            npcFace, npcSprite, oppBranch, oMaxHp, oMaxHp, oSp, 100,
+            oppAnimPath ?? "art/anim/zhang_fei.png", oppAnimKey ?? "zhang_fei");
 
         IReadOnlyList<SceneChoice> choices = result is null
             ? [

@@ -1,4 +1,5 @@
 import { SimTBridge } from './bridge.js';
+import { createDuelAnimator } from './sprite-anim.js';
 import { createFrame, clearFrame, createFx, composite } from './vendor/pixelfx/src/core/index.js';
 import * as swordSlash from './vendor/pixelfx/src/fx/melee/sword-slash.js';
 import * as thrustFx from './vendor/pixelfx/src/fx/melee/thrust.js';
@@ -27,6 +28,7 @@ let resizeHandler = null;
 let liveFx = [];
 let speedMult = 1;
 let stopReplayFlag = false;
+let duelAnim = null;
 
 function stripEmoji(str) {
   return String(str ?? '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim();
@@ -80,8 +82,9 @@ export function splitNarrativeSentences(str, maxLen = 90) {
 }
 
 function formatNarrativeHtml(str, maxLen = 90) {
-  const lines = splitNarrativeSentences(str, maxLen);
-  return lines.map((line) => `<span class="tk-duel-narrative-line">${escapeHtml(line)}</span>`).join('');
+  return splitNarrativeSentences(str, maxLen)
+    .map((line) => `<span class="tk-duel-narrative-line">${escapeHtml(line)}</span>`)
+    .join('');
 }
 
 function chooseWeaponMod(branch, action) {
@@ -129,50 +132,41 @@ function spawnWeaponFx(mod, x, y, flip, isGold, seed) {
   }
 }
 
-function spawnRoundVfx(round, playerBranch, oppBranch) {
-  const pAct = String(round.playerAction || '').toLowerCase();
-  const oAct = String(round.opponentAction || '').toLowerCase();
-  const pDmg = round.playerDamageDealt || 0;
-  const oDmg = round.opponentDamageDealt || 0;
-  const rn = round.roundNumber || 1;
-
-  if (pDmg > 0 || pAct === 'attack' || pAct === 'specialstrike') {
-    spawnWeaponFx(chooseWeaponMod(playerBranch, round.playerAction), 332, 196, false, true, rn * 7 + 1);
-    if (round.isCritical || pAct === 'specialstrike') {
-      pushFx(criticalHit, { x: 344, y: 176, palette: PAL_GOLD_8, height: 26, aim: 0.12, seed: rn * 11 });
-      if (pDmg > 0) pushFx(critNumber, { x: 346, y: 145, palette: PAL_GOLD_8, text: `-${pDmg}!`, label: 'BAO', seed: rn });
-    } else if (pDmg > 0) {
-      pushFx(damageNumber, { x: 346, y: 150, palette: PAL_GOLD_8, text: `-${pDmg}`, seed: rn });
-    }
+function spawnHitVfx(targetIsRight, branch, action, dmg, isCrit, isParried, rn) {
+  const x = targetIsRight ? 336 : 144;
+  const pal7 = targetIsRight ? PAL_GOLD_7 : PAL_CRIMSON_7;
+  const pal8 = targetIsRight ? PAL_GOLD_8 : PAL_CRIMSON_8;
+  spawnWeaponFx(chooseWeaponMod(branch, action), x, 196, !targetIsRight, targetIsRight, rn * 7 + (targetIsRight ? 1 : 3));
+  if (isCrit || String(action || '').toLowerCase() === 'specialstrike') {
+    pushFx(criticalHit, { x, y: 176, palette: pal8, height: 26, aim: targetIsRight ? 0.12 : -0.12, seed: rn * 11 });
+    if (dmg > 0) pushFx(critNumber, { x, y: 145, palette: pal8, text: `-${dmg}!`, label: 'BAO', seed: rn });
+  } else if (dmg > 0) {
+    pushFx(damageNumber, { x, y: 150, palette: pal8, text: `-${dmg}`, seed: rn });
   }
-  if (round.isParried || oAct === 'defend') {
-    pushFx(hitFlash, { x: 336, y: 178, palette: PAL_GOLD_7, lines: 7, side: -1, actor: DEFAULT_HIT_ACTOR, seed: rn });
-  }
-
-  if (oDmg > 0 || oAct === 'attack' || oAct === 'specialstrike') {
-    spawnWeaponFx(chooseWeaponMod(oppBranch, round.opponentAction), 148, 196, true, false, rn * 13 + 3);
-    if (round.isCritical || oAct === 'specialstrike') {
-      pushFx(criticalHit, { x: 136, y: 176, palette: PAL_CRIMSON_8, height: 26, aim: -0.12, seed: rn * 17 });
-      if (oDmg > 0) pushFx(critNumber, { x: 134, y: 145, palette: PAL_CRIMSON_8, text: `-${oDmg}!`, label: 'BAO', seed: rn + 5 });
-    } else if (oDmg > 0) {
-      pushFx(damageNumber, { x: 134, y: 150, palette: PAL_CRIMSON_8, text: `-${oDmg}`, seed: rn + 5 });
-    }
-  }
-  if (round.isParried || pAct === 'defend') {
-    pushFx(hitFlash, { x: 144, y: 178, palette: PAL_CRIMSON_7, lines: 7, side: 1, actor: DEFAULT_HIT_ACTOR, seed: rn + 9 });
+  if (isParried) {
+    pushFx(hitFlash, { x, y: 178, palette: pal7, lines: 7, side: targetIsRight ? -1 : 1, actor: DEFAULT_HIT_ACTOR, seed: rn });
   }
 }
 
-function fitIntegerStage(container) {
+function spawnDomPop(stageBox, x, dmg) {
+  if (!stageBox || dmg <= 0) return;
+  const pop = document.createElement('div');
+  pop.className = 'tk-duel-pop';
+  pop.style.left = `${x}px`;
+  pop.style.bottom = '286px';
+  pop.textContent = `-${dmg}`;
+  stageBox.appendChild(pop);
+  setTimeout(() => pop.remove(), 800);
+}
+
+function fitStageScale(container) {
   const arena = container.querySelector('#tk-duel-arena');
   const box = container.querySelector('#tk-duel-stage-box');
   if (!arena || !box) return;
   const rect = arena.getBoundingClientRect();
-  const rawScale = Math.min(Math.max(320, rect.width - 12) / 480, Math.max(180, rect.height - 8) / 270);
-  const scale = rawScale >= 2 ? Math.min(4, Math.floor(rawScale)) : Math.max(1, rawScale);
-  box.style.width = `${Math.round(480 * scale)}px`;
-  box.style.height = `${Math.round(270 * scale)}px`;
+  const scale = Math.min(1.15, Math.max(0.55, Math.min((rect.width - 12) / 1024, (rect.height - 8) / 576)));
   box.style.setProperty('--stage-scale', scale.toFixed(3));
+  if (duelAnim) duelAnim.setStageScale(scale);
 }
 
 function updateBars(container, pHp, pMaxHp, pSp, pMaxSp, oHp, oMaxHp, oSp, oMaxSp) {
@@ -198,10 +192,8 @@ const waitMs = (ms) => new Promise((r) => setTimeout(r, Math.max(16, ms / speedM
 
 async function runReplay(container, scene) {
   const result = scene.result;
-  if (!result || !Array.isArray(result.roundLogs) || result.roundLogs.length === 0) return;
+  if (!result || !Array.isArray(result.roundLogs) || result.roundLogs.length === 0 || !duelAnim) return;
 
-  const leftActor = container.querySelector('#tk-actor-left');
-  const rightActor = container.querySelector('#tk-actor-right');
   const stageBox = container.querySelector('#tk-duel-stage-box');
   const roundPill = container.querySelector('#tk-round-pill');
   const actRow = container.querySelector('#tk-duel-actions');
@@ -209,10 +201,16 @@ async function runReplay(container, scene) {
   const noteEl = container.querySelector('#tk-duel-note');
   const rounds = result.roundLogs;
 
+  let curPHp = scene.player.hp;
+  let curPSp = scene.player.spirit;
+  let curOHp = scene.opponent.hp;
+  let curOSp = scene.opponent.spirit;
+
   for (let i = 0; i < rounds.length; i++) {
-    if (stopReplayFlag || activeScene !== scene) break;
+    if (stopReplayFlag || activeScene !== scene || !duelAnim) break;
     const r = rounds[i];
-    if (roundPill) roundPill.textContent = `Hiệp ${r.roundNumber} / ${rounds.length}`;
+    const rn = r.roundNumber || (i + 1);
+    if (roundPill) roundPill.textContent = `Hiệp ${rn} / ${rounds.length}`;
     if (actRow) {
       actRow.innerHTML = `<span>${escapeHtml(scene.player.nameVi)}: ${actionLabelVi(r.playerAction)} (-${r.playerDamageDealt} HP)</span><span>${escapeHtml(scene.opponent.nameVi)}: ${actionLabelVi(r.opponentAction)} (-${r.opponentDamageDealt} HP)</span>`;
     }
@@ -223,40 +221,61 @@ async function runReplay(container, scene) {
         : r.isParried ? 'Đỡ gạt chuẩn xác, hóa giải thế công!' : stripEmoji(scene.matchupSummaryVi);
     }
 
-    if (leftActor) leftActor.style.transform = 'translateX(-14px)';
-    if (rightActor) rightActor.style.transform = 'translateX(14px)';
-    await waitMs(140);
-    if (stopReplayFlag || activeScene !== scene) break;
+    const pAttacks = r.playerDamageDealt > 0 || ['attack', 'specialstrike'].includes(String(r.playerAction || '').toLowerCase());
+    const oAttacks = r.opponentDamageDealt > 0 || ['attack', 'specialstrike'].includes(String(r.opponentAction || '').toLowerCase());
 
-    if (leftActor) leftActor.style.transform = 'translateX(76px)';
-    if (rightActor) rightActor.style.transform = 'translateX(-76px)';
-    await waitMs(120);
-    if (stopReplayFlag || activeScene !== scene) break;
-
-    spawnRoundVfx(r, scene.player.branch, scene.opponent.branch);
-    if (stageBox) {
-      stageBox.classList.remove('tk-shake');
-      void stageBox.offsetWidth;
-      stageBox.classList.add('tk-shake');
+    if (pAttacks && !stopReplayFlag && activeScene === scene) {
+      await duelAnim.performStrike(0, 1, {
+        damage: r.playerDamageDealt,
+        defenderHpAfter: r.opponentHpAfter,
+        onImpact: ({ defender }) => {
+          curOHp = r.opponentHpAfter;
+          curPSp = r.playerSpiritAfter;
+          updateBars(container, curPHp, scene.player.maxHp, curPSp, scene.player.maxSpirit, curOHp, scene.opponent.maxHp, curOSp, scene.opponent.maxSpirit);
+          spawnHitVfx(true, scene.player.branch, r.playerAction, r.playerDamageDealt, r.isCritical, r.isParried, rn);
+          spawnDomPop(stageBox, defender.x, r.playerDamageDealt);
+        }
+      });
     }
-    if (r.opponentDamageDealt > 0 && leftActor) { leftActor.classList.add('tk-flash'); leftActor.style.transform = 'translateX(-20px)'; }
-    if (r.playerDamageDealt > 0 && rightActor) { rightActor.classList.add('tk-flash'); rightActor.style.transform = 'translateX(20px)'; }
-    updateBars(container, r.playerHpAfter, scene.player.maxHp, r.playerSpiritAfter, scene.player.maxSpirit, r.opponentHpAfter, scene.opponent.maxHp, r.opponentSpiritAfter, scene.opponent.maxSpirit);
-    await waitMs(130);
 
-    if (leftActor) { leftActor.classList.remove('tk-flash'); leftActor.style.transform = 'translateX(0)'; }
-    if (rightActor) { rightActor.classList.remove('tk-flash'); rightActor.style.transform = 'translateX(0)'; }
-    await waitMs(480);
+    if (oAttacks && curOHp > 0 && !stopReplayFlag && activeScene === scene) {
+      await duelAnim.performStrike(1, 0, {
+        damage: r.opponentDamageDealt,
+        defenderHpAfter: r.playerHpAfter,
+        onImpact: ({ defender }) => {
+          curPHp = r.playerHpAfter;
+          curOSp = r.opponentSpiritAfter;
+          updateBars(container, curPHp, scene.player.maxHp, curPSp, scene.player.maxSpirit, curOHp, scene.opponent.maxHp, curOSp, scene.opponent.maxSpirit);
+          spawnHitVfx(false, scene.opponent.branch, r.opponentAction, r.opponentDamageDealt, r.isCritical, r.isParried, rn);
+          spawnDomPop(stageBox, defender.x, r.opponentDamageDealt);
+        }
+      });
+    }
+
+    if (!pAttacks && !oAttacks) {
+      curPHp = r.playerHpAfter;
+      curPSp = r.playerSpiritAfter;
+      curOHp = r.opponentHpAfter;
+      curOSp = r.opponentSpiritAfter;
+      updateBars(container, curPHp, scene.player.maxHp, curPSp, scene.player.maxSpirit, curOHp, scene.opponent.maxHp, curOSp, scene.opponent.maxSpirit);
+      await waitMs(320);
+    }
   }
 
-  if (activeScene !== scene) return;
+  if (activeScene !== scene || !duelAnim) return;
   const last = rounds[rounds.length - 1];
   updateBars(container, last.playerHpAfter, scene.player.maxHp, last.playerSpiritAfter, scene.player.maxSpirit, last.opponentHpAfter, scene.opponent.maxHp, last.opponentSpiritAfter, scene.opponent.maxSpirit);
-  if (leftActor) { leftActor.classList.remove('tk-flash'); leftActor.style.transform = 'translateX(0)'; }
-  if (rightActor) { rightActor.classList.remove('tk-flash'); rightActor.style.transform = 'translateX(0)'; }
+  duelAnim.snapToEnd(last.playerHpAfter, last.opponentHpAfter);
 
   const banner = container.querySelector('#tk-duel-banner');
   if (banner) { banner.hidden = false; banner.classList.add('show'); }
+}
+
+function renderFighterInnerHtml(f) {
+  if (f.animPath) {
+    return `<div class="tk-fighter-shadow"></div><div class="tk-fighter-strip" data-fighter-sp style="background-image:url('${escapeHtml(f.animPath)}')"></div>`;
+  }
+  return `<div class="tk-fighter-shadow"></div><img class="tk-fighter-sprite" data-fighter-sp src="${escapeHtml(f.spritePath)}" alt="${escapeHtml(f.nameVi)}" />`;
 }
 
 function renderDuelScene(container, scene, bridge) {
@@ -319,8 +338,8 @@ function renderDuelScene(container, scene, bridge) {
             </div>
           </div>
 
-          <div class="tk-fighter-actor tk-fighter-left" id="tk-actor-left"><img class="tk-fighter-sprite" src="${escapeHtml(p.spritePath)}" alt="${escapeHtml(p.nameVi)}" /></div>
-          <div class="tk-fighter-actor tk-fighter-right" id="tk-actor-right"><img class="tk-fighter-sprite" src="${escapeHtml(o.spritePath)}" alt="${escapeHtml(o.nameVi)}" /></div>
+          <div class="tk-fighter-actor tk-fighter-left" id="tk-actor-left">${renderFighterInnerHtml(p)}</div>
+          <div class="tk-fighter-actor tk-fighter-right" id="tk-actor-right">${renderFighterInnerHtml(o)}</div>
           <canvas class="tk-duel-canvas" id="tk-duel-canvas" width="480" height="270"></canvas>
           <div class="tk-duel-banner" id="tk-duel-banner" hidden>
             <div class="tk-banner-stamp">${escapeHtml(stampText)}</div>
@@ -341,8 +360,19 @@ function renderDuelScene(container, scene, bridge) {
     </div>
   `;
 
-  fitIntegerStage(container);
-  resizeHandler = () => fitIntegerStage(container);
+  const stageBox = container.querySelector('#tk-duel-stage-box');
+  const leftEl = container.querySelector('#tk-actor-left');
+  const rightEl = container.querySelector('#tk-actor-right');
+  duelAnim = createDuelAnimator({
+    stageEl: stageBox,
+    fighters: [
+      { el: leftEl, spEl: leftEl?.querySelector('[data-fighter-sp]'), animPath: p.animPath, animKey: p.animKey, spritePath: p.spritePath, hp: p.hp, maxHp: p.maxHp, home: 300 },
+      { el: rightEl, spEl: rightEl?.querySelector('[data-fighter-sp]'), animPath: o.animPath, animKey: o.animKey, spritePath: o.spritePath, hp: o.hp, maxHp: o.maxHp, home: 724 }
+    ]
+  });
+
+  fitStageScale(container);
+  resizeHandler = () => fitStageScale(container);
   window.addEventListener('resize', resizeHandler);
 
   container.querySelector('#tk-duel-close')?.addEventListener('click', () => bridge.sendClose(scene.sceneId));
@@ -367,6 +397,7 @@ function renderDuelScene(container, scene, bridge) {
       if (activeScene !== scene) return;
       const dt = Math.min(0.05, (now - prev) / 1000) * speedMult;
       prev = now;
+      if (duelAnim) duelAnim.step(dt);
       if (liveFx.length > 0) {
         clearFrame(frame);
         const kept = [];
@@ -392,6 +423,7 @@ function unmountDuelScene() {
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
   if (resizeHandler) { window.removeEventListener('resize', resizeHandler); resizeHandler = null; }
   liveFx = [];
+  duelAnim = null;
   activeScene = null;
 }
 

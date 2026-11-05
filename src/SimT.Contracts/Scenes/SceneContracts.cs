@@ -45,7 +45,9 @@ public sealed record TalkScene(
     IReadOnlyList<string> Lines,
     IReadOnlyList<SceneChoice> Choices,
     IReadOnlyList<SceneNpcThumb> NearbyNpcs,
-    string? FeedbackVi = null);
+    string? FeedbackVi = null,
+    string? BlinkPath = null,
+    string? TalkPath = null);
 
 /// <summary>
 /// Fighter snapshot rendered on the pixel duel stage.
@@ -59,7 +61,9 @@ public sealed record DuelFighterView(
     int Hp,
     int MaxHp,
     int Spirit,
-    int MaxSpirit);
+    int MaxSpirit,
+    string? AnimPath = null,
+    string? AnimKey = null);
 
 /// <summary>
 /// Complete view-model sent from C# to WebView2 for the pixel-art duel scene.
@@ -100,7 +104,8 @@ public sealed record CityNpcSprite(
     string SpritePath,
     string FacePath,
     double XPercent,
-    double YPercent);
+    double YPercent,
+    string? AnimPath = null);
 
 /// <summary>
 /// Mini scene event card shown inside the "Trong thành" scene after "Du ngoạn phố".

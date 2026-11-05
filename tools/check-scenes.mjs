@@ -19,6 +19,7 @@ const scenesDir = path.join(rootDir, 'assets', 'scenes');
 
 const { createFrame, clearFrame, createFx, composite } = await import('../assets/scenes/vendor/pixelfx/src/core/index.js');
 const { buildEffectOptions, safeCreateFx, splitNarrativeSentences } = await import('../assets/scenes/duel-scene.js');
+const { STEP_DUEL, STEP_CITY, SCALE_DUEL, SCALE_CITY, computeWalkFrame, createDuelFighterState, stepDuelState, stepCityWalkers } = await import('../assets/scenes/sprite-anim.js');
 
 import * as swordSlash from '../assets/scenes/vendor/pixelfx/src/fx/melee/sword-slash.js';
 import * as thrustFx from '../assets/scenes/vendor/pixelfx/src/fx/melee/thrust.js';
@@ -84,6 +85,42 @@ for (const [k, obj] of Object.entries(manifest.portraits || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.full)), `Missing portrait full ${k}: ${obj.full}`);
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.face)), `Missing portrait face ${k}: ${obj.face}`);
 }
+for (const [k, rel] of Object.entries(manifest.anim || {})) {
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing anim strip ${k}: ${rel}`);
+}
+for (const [k, rel] of Object.entries(manifest.profile || {})) {
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing profile image ${k}: ${rel}`);
+}
+for (const [k, obj] of Object.entries(manifest.portraitFrames || {})) {
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.blink)), `Missing portrait blink ${k}: ${obj.blink}`);
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.talk)), `Missing portrait talk ${k}: ${obj.talk}`);
+}
+
+assert.equal(SCALE_DUEL, 2.85, 'Expected SCALE_DUEL = 2.85');
+assert.equal(STEP_DUEL, 25.6, 'Expected STEP_DUEL = 25.6');
+assert.equal(SCALE_CITY, 2, 'Expected SCALE_CITY = 2');
+assert.equal(STEP_CITY, 18, 'Expected STEP_CITY = 18');
+assert.equal(computeWalkFrame(0, STEP_DUEL, false), 4);
+assert.equal(computeWalkFrame(STEP_DUEL * 2.1, STEP_DUEL, false), 6);
+assert.equal(computeWalkFrame(0, STEP_DUEL, true), 11);
+
+const testState = {
+  stop: 0,
+  sh: 0,
+  waitResolve: null,
+  fighters: [
+    createDuelFighterState({ animPath: 'art/anim/guan_yu.png', animKey: 'guan_yu', hp: 100, maxHp: 100 }, 0),
+    createDuelFighterState({ animPath: 'art/anim/zhang_fei.png', animKey: 'zhang_fei', hp: 100, maxHp: 100 }, 1)
+  ]
+};
+testState.fighters[0].st = 'run';
+testState.fighters[0].tx = 514;
+for (let i = 0; i < 60; i++) stepDuelState(testState, 1 / 30);
+assert.ok(testState.fighters[1].hp <= 100, 'Expected duel state machine to step cleanly');
+
+const cityWalkers = [{ hasStrip: true, walk: true, x: 360, min: 230, max: 560, dir: 1, wait: 0, dist: 0, fr: 4, it: 0 }];
+for (let i = 0; i < 4; i++) stepCityWalkers(cityWalkers, 1 / 30);
+assert.equal(cityWalkers[0].fr, 5, 'Expected city walker to advance 1 walk frame after >= 18px');
 
 const longNarrative = 'Hiệp 1: Lữ Khách vung thương đâm thẳng gây 28 sát thương! Hoa Hùng gầm lớn múa đại đao phản kích dữ dội gây 22 sát thương trên lôi đài Lạc Dương.';
 const splitLines = splitNarrativeSentences(longNarrative, 90);
