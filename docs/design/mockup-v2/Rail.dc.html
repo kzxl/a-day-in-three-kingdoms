@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Thanh chức năng</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Ma+Shan+Zheng&family=Noto+Serif:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.grp{width:100%;height:50px;display:flex;align-items:center;gap:10px;padding:0 12px;box-sizing:border-box;background:transparent;border:0;border-top:1px solid #2c2118;color:#eadfc6;cursor:pointer;text-align:left;font-family:'Be Vietnam Pro',sans-serif}
+.grp:hover{background:#241a13}
+.item{display:flex;align-items:center;gap:10px;height:50px;padding:0 12px 0 16px;text-decoration:none;color:#eadfc6;box-sizing:border-box}
+.item:hover{background:#2a1f16}
+.seal{width:28px;height:28px;flex:none;display:flex;align-items:center;justify-content:center;font:18px 'Ma Shan Zheng',serif;color:#c4a062;border:1px solid #4a3a2a}
+.gs{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;font:20px 'Ma Shan Zheng',serif;background:#a8321f;color:#f3e6cc}
+.act{height:44px;border:1px solid #6a4f2e;background:#241a13;color:#eadfc6;font:600 13px 'Be Vietnam Pro',sans-serif;cursor:pointer;white-space:nowrap}
+.act:hover{border-color:#c4a062}
+</style>
+</helmet>
+<div style="width: 264px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #1d1611; border-right: 1px solid #3a2c20; font-family: 'Be Vietnam Pro', sans-serif; color: #eadfc6">
+  <div style="padding: 14px 12px 12px">
+    <div style="font: 700 15px 'Noto Serif', serif; color: #c4a062; white-space: nowrap">Một Ngày Ở Tam Quốc</div>
+    <div style="margin-top: 10px; padding: 10px; background: #241a13; border: 1px solid #3a2c20">
+      <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; white-space: nowrap"><span>Lữ Khách</span><span style="color: #c4a062">930 quan</span></div>
+      <div style="margin-top: 4px; font-size: 12px; color: #b9aa8c; white-space: nowrap">Lạc Dương · 29/05/184</div>
+    </div>
+  </div>
+  <div style="flex: 1; min-height: 0; overflow: auto">
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="5">
+      <button class="grp" onClick="{{g.toggle}}" aria-expanded="{{g.open}}">
+        <span class="gs">{{g.han}}</span>
+        <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 14px; font-weight: 600; white-space: nowrap">{{g.name}}</span><span style="display: block; font-size: 11.5px; color: #b9aa8c; white-space: nowrap">{{g.hint}}</span></span>
+        <sc-if value="{{g.badge}}" hint-placeholder-val="{{ false }}"><span style="min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; background: #a8321f; color: #f3e6cc; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center">{{g.badge}}</span></sc-if>
+      </button>
+      <sc-if value="{{g.open}}" hint-placeholder-val="{{ false }}">
+        <div style="background: #171009">
+          <sc-for list="{{g.items}}" as="it" hint-placeholder-count="4">
+            <a class="item" href="{{it.href}}" style="background: {{it.bg}}; border-left: 3px solid {{it.bar}}">
+              <span class="seal">{{it.han}}</span>
+              <span style="flex: 1; min-width: 0"><span style="display: block; font-size: 13.5px; font-weight: 500; white-space: nowrap">{{it.name}}</span><span style="display: block; font-size: 11.5px; color: #b9aa8c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{it.desc}}</span></span>
+              <sc-if value="{{it.badge}}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; color: #e8b75c; white-space: nowrap">{{it.badge}}</span></sc-if>
+            </a>
+          </sc-for>
+        </div>
+      </sc-if>
+    </sc-for>
+  </div>
+  <div style="padding: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; border-top: 1px solid #3a2c20">
+    <button class="act" style="grid-column: 1 / 3; background: #a8321f; border-color: #c4a062; color: #f3e6cc">Sang ngày mới</button>
+    <button class="act">Nghỉ ngơi</button>
+    <button class="act">Du ngoạn phố</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"text","default":"Nhân Duyên"},"$preview":{"width":264,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.data = [
+      { han: '城', name: 'Trong thành', hint: 'Đi lại, xem thân thế', items: [
+        ['城', 'Trong thành', 'Dạo phố, gặp người', 'City.dc.html'], ['圖', 'Bản Đồ', 'Chọn đường sang thành khác', 'BanDo.dc.html'], ['命', 'Mệnh Cách', 'Cộng điểm thiên mệnh', '#'], ['名', 'Danh Vọng', 'Uy tín từng vùng', '#']] },
+      { han: '商', name: 'Kinh doanh', hint: 'Mua bán, làm ra của', items: [
+        ['市', 'Chợ', 'Mua bán theo giá từng thành', 'Cho.dc.html'], ['攤', 'Sạp Hàng', 'Mở tiệm, bày hàng của bạn', '#'], ['倉', 'Kho Hàng', 'Gửi hàng tránh hư hỏng', '#'], ['隊', 'Thương Đoàn', 'Chở hàng sang thành khác', '#'], ['藝', 'Nghề Nghiệp', 'Làm công, rèn, nấu, câu', '#'], ['田', 'Điền Trang', 'Thuê ruộng, gieo, gặt', '#']] },
+      { han: '人', name: 'Nhân duyên', hint: 'Kết giao, gia đình', badge: 2, items: [
+        ['士', 'Danh Sĩ', 'Danh bạ mọi nhân vật', 'HoSo.dc.html'], ['緣', 'Nhân Duyên', 'Kết giao, tuyệt kỹ, thư từ', 'NhanDuyen.dc.html', '1 việc'], ['家', 'Gia Tộc', 'Cưới hỏi, con cái', '#', '1 việc'], ['世', 'Thiên Hạ', 'Tin tức khắp nơi', '#']] },
+      { han: '武', name: 'Quan võ', hint: 'Làm quan, đánh trận', items: [
+        ['官', 'Quan Trường', 'Xin chức, lĩnh bổng', '#'], ['兵', 'Binh Nghiệp', 'Lôi đài, dẹp giặc', 'Main.dc.html']] },
+      { han: '書', name: 'Sổ sách', hint: 'Tra cứu', items: [
+        ['鑑', 'Đồ Giám', 'Tra vật phẩm', '#'], ['帳', 'Sổ Cái', 'Thu chi của bạn', '#']] }
+    ];
+    const a = this.props.active ?? 'Nhân Duyên';
+    const i = this.data.findIndex((g) => g.items.some((x) => x[1] === a));
+    this.state = { open: i < 0 ? 2 : i };
+  }
+  renderVals() {
+    const a = this.props.active ?? 'Nhân Duyên';
+    return { groups: this.data.map((g, i) => ({
+      han: g.han, name: g.name, hint: g.hint, badge: g.badge || 0, open: this.state.open === i,
+      toggle: () => this.setState({ open: this.state.open === i ? -1 : i }),
+      items: g.items.map((x) => ({ han: x[0], name: x[1], desc: x[2], href: x[3], badge: x[4] || '', bg: x[1] === a ? '#2a1f16' : 'transparent', bar: x[1] === a ? '#a8321f' : 'transparent' }))
+    })) };
+  }
+}
+</script>
+</body>
+</html>

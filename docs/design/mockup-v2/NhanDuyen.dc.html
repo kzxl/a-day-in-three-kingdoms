@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Nhân Duyên</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Ma+Shan+Zheng&family=Noto+Serif:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.tab{height:44px;padding:0 18px;background:transparent;border:0;border-bottom:2px solid transparent;color:#b9aa8c;font:600 14px 'Be Vietnam Pro',sans-serif;cursor:pointer;white-space:nowrap}
+.tab:hover{color:#f3e6cc}
+.tabon{color:#f3e6cc;border-bottom-color:#c4a062}
+.ring{position:absolute;border:1px dashed #4a3a2a;border-radius:50%;box-sizing:border-box}
+.rl{position:absolute;font-size:11.5px;color:#b9aa8c;white-space:nowrap;background:#1d1611;padding:0 6px}
+.node{position:absolute;width:64px;height:84px;margin-left:-32px;margin-top:-32px;background:transparent;border:0;padding:0;cursor:pointer;transition:left .5s ease,top .5s ease;color:#eadfc6;font-family:'Be Vietnam Pro',sans-serif}
+.node img{width:56px;height:56px;border-radius:50%;display:block;margin:0 auto;border:2px solid #6a4f2e;box-sizing:border-box}
+.node span{display:block;font-size:11.5px;white-space:nowrap;text-align:center;margin-top:3px}
+.sel img{border-color:#e8b75c;box-shadow:0 0 0 3px rgba(232,183,92,.25)}
+.bar{height:8px;background:#2a1f16;position:relative}
+.bar i{display:block;height:8px;transition:width .4s}
+.act{min-height:44px;padding:0 12px;border:1px solid #6a4f2e;background:#241a13;color:#eadfc6;font:600 13.5px 'Be Vietnam Pro',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;white-space:nowrap}
+.act:hover{border-color:#c4a062}
+.act em{font-style:normal;font-weight:500;font-size:12px;color:#b9aa8c}
+.pri{background:#a8321f;border-color:#c4a062;color:#f3e6cc}
+.pri em{color:#f3e6cc}
+.off{opacity:.55;cursor:default}
+.slot{height:124px;border:1px dashed #6a4f2e;background:#1d1611;color:#b9aa8c;font-family:'Be Vietnam Pro',sans-serif;cursor:pointer;padding:8px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.full{border-style:solid;border-color:#c4a062;background:#241a13;color:#f3e6cc}
+.card{padding:12px;background:#1d1611;border:1px solid #3a2c20;color:#eadfc6;text-align:left;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;min-height:96px;box-sizing:border-box}
+.card:hover{border-color:#c4a062}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #15110d; color: #eadfc6; font-family: 'Be Vietnam Pro', sans-serif; overflow: hidden">
+  <dc-import name="Rail" active="Nhân Duyên" hint-size="264px,900px"></dc-import>
+  <div style="flex: 1; min-width: 0; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div>
+        <h1 style="margin: 0; font: 700 26px 'Noto Serif', serif; color: #f3e6cc">Nhân Duyên</h1>
+        <div style="margin-top: 4px; font-size: 14px; color: #b9aa8c; white-space: nowrap">Kết giao người trong thành để chiêu mộ, kết nghĩa và học tuyệt kỹ.</div>
+      </div>
+      <div style="font-size: 13px; color: #b9aa8c; white-space: nowrap">Danh vọng {{fame}} · {{cash}} quan</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #241a13; border: 1px solid #6a4f2e">
+      <span style="font-size: 12px; font-weight: 600; color: #e8b75c; white-space: nowrap">NÊN LÀM</span>
+      <span style="flex: 1; font-size: 14px; white-space: nowrap">{{tip}}</span>
+      <sc-if value="{{toast}}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; font-weight: 600; color: #7fc7a2; white-space: nowrap">{{toast}}</span></sc-if>
+    </div>
+    <div style="display: flex; gap: 4px; border-bottom: 1px solid #3a2c20">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+        <button class="tab {{t.cls}}" onClick="{{t.pick}}">{{t.label}}</button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{isRel}}" hint-placeholder-val="{{ true }}">
+      <div style="flex: 1; min-height: 0; display: flex; gap: 14px">
+        <div style="position: relative; width: 760px; height: 640px; flex: none; background: #1d1611; border: 1px solid #3a2c20; overflow: hidden">
+          <sc-for list="{{rings}}" as="r" hint-placeholder-count="3">
+            <div class="ring" style="left: {{r.l}}px; top: {{r.t}}px; width: {{r.w}}px; height: {{r.h}}px"></div>
+            <div class="rl" style="left: 380px; top: {{r.ly}}px; transform: translateX(-50%)">{{r.label}}</div>
+          </sc-for>
+          <div style="position: absolute; left: 344px; top: 284px; width: 72px; text-align: center">
+            <img src="/art/portraits/player/face.webp" alt="Bạn" style="width: 64px; height: 64px; border-radius: 50%; border: 2px solid #c4a062; box-sizing: border-box">
+            <div style="font-size: 12px; font-weight: 600">Bạn</div>
+          </div>
+          <sc-for list="{{npcs}}" as="n" hint-placeholder-count="7">
+            <button class="node {{n.cls}}" style="left: {{n.x}}px; top: {{n.y}}px" onClick="{{n.pick}}">
+              <img src="{{n.face}}" alt="{{n.name}}">
+              <span>{{n.short}}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #1d1611; border: 1px solid #3a2c20; box-sizing: border-box; height: 640px">
+          <div style="display: flex; gap: 12px; align-items: center">
+            <img src="{{cur.face}}" alt="" style="width: 72px; height: 72px; border: 1px solid #6a4f2e">
+            <div style="min-width: 0">
+              <div style="font: 700 18px 'Noto Serif', serif; color: #f3e6cc; white-space: nowrap">{{cur.name}}</div>
+              <div style="font-size: 12.5px; color: #b9aa8c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{cur.role}}</div>
+              <div style="font-size: 12.5px; color: #c4a062; white-space: nowrap">Phẩm {{cur.rank}} · {{cur.tier}}</div>
+            </div>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 4px"><span>Hảo cảm</span><span>{{cur.aff}} / 100</span></div>
+            <div class="bar"><i style="width: {{cur.aff}}%; background: #c4a062"></i></div>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 4px"><span>Tín nhiệm</span><span>{{cur.trust}} / 100</span></div>
+            <div class="bar"><i style="width: {{cur.trust}}%; background: #3f8f73"></i></div>
+          </div>
+          <div style="font-size: 12px; font-weight: 600; color: #b9aa8c; margin-top: 4px">LÀM GÌ VỚI NGƯỜI NÀY</div>
+          <button class="act pri" onClick="{{chat}}"><span>Đàm đạo</span><em>+3 hảo cảm · 1 ngày</em></button>
+          <button class="act" onClick="{{gift}}"><span>Biếu quà</span><em>+6 hảo cảm · 40 quan</em></button>
+          <div style="font-size: 12px; font-weight: 600; color: #b9aa8c; margin-top: 4px">MỐC MỞ KHOÁ</div>
+          <button class="act {{cur.recCls}}" onClick="{{recruit}}"><span>Chiêu mộ</span><em>{{cur.recText}}</em></button>
+          <button class="act {{cur.swCls}}" onClick="{{swear}}"><span>Kết nghĩa</span><em>{{cur.swText}}</em></button>
+          <a class="act" href="City.dc.html" style="text-decoration: none; margin-top: auto"><span>Mở cảnh nói chuyện</span><em>2.5D</em></a>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isSkill}}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 14px"><span style="white-space: nowrap">Bấm tuyệt kỹ bên dưới để gắn vào ô. Bấm ô đã gắn để gỡ.</span><span style="color: #c4a062; white-space: nowrap">{{bonus}}</span></div>
+        <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px">
+          <sc-for list="{{slots}}" as="s" hint-placeholder-count="6">
+            <button class="slot {{s.cls}}" onClick="{{s.pick}}">
+              <span style="font: 28px 'Ma Shan Zheng', serif; color: #c4a062">{{s.han}}</span>
+              <span style="font-size: 13.5px; font-weight: 600; white-space: nowrap">{{s.name}}</span>
+              <span style="font-size: 11.5px; white-space: nowrap">{{s.rule}}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: #b9aa8c">TUYỆT KỸ ĐÃ HỌC VÀ CÁCH CÓ THÊM</div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+          <sc-for list="{{lib}}" as="k" hint-placeholder-count="6">
+            <button class="card {{k.cls}}" onClick="{{k.pick}}">
+              <div style="display: flex; justify-content: space-between; font-size: 14.5px; font-weight: 600"><span style="white-space: nowrap">{{k.name}}</span><span style="color: #c4a062">Phẩm {{k.rank}}</span></div>
+              <div style="font-size: 13px; color: #b9aa8c; margin-top: 6px; white-space: nowrap">{{k.fx}}</div>
+              <div style="font-size: 12.5px; margin-top: 6px; white-space: nowrap; color: {{k.stc}}">{{k.status}}</div>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center">
+        <div style="font: 56px 'Ma Shan Zheng', serif; color: #6a4f2e">{{emptyHan}}</div>
+        <div style="font: 700 18px 'Noto Serif', serif; color: #f3e6cc">{{emptyTitle}}</div>
+        <div style="font-size: 14px; color: #b9aa8c; white-space: nowrap">{{emptyText}}</div>
+        <button class="act pri" style="margin-top: 6px" onClick="{{goRel}}"><span>Sang tab Quan hệ</span></button>
+      </div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    const F = { m: '/art/portraits/merchant/face.webp', s: '/art/portraits/scholar/face.webp', g: '/art/portraits/general/face.webp', l: '/art/portraits/lady/face.webp' };
+    const RQ = { C: [35, 50, 250], B: [45, 250, 450], A: [60, 600, 800], S: [80, 1200, 1500] };
+    this.RQ = RQ;
+    this.state = { tab: 'rel', sel: 0, cash: 930, fame: 120, toast: '', eq: [null, null, null, null, null, null], sworn: {}, hired: {},
+      n: [
+        { name: 'Trương Lão Bản', short: 'Lão Bản', role: 'Thương nhân ở Lạc Dương', rank: 'C', aff: 29, trust: 34, face: F.m, a: 200 },
+        { name: 'Tả Phong', short: 'Tả Phong', role: 'Thập Thường Thị, Giám Quân', rank: 'B', aff: 12, trust: 8, face: F.s, a: 150 },
+        { name: 'Tư Mã Ý', short: 'Tư Mã Ý', role: 'Trọng Đạt, mưu thần', rank: 'A', aff: 18, trust: 20, face: F.s, a: 95 },
+        { name: 'Hoa Hùng', short: 'Hoa Hùng', role: 'Tây Lương Kiêu Tướng', rank: 'B', aff: 41, trust: 30, face: F.g, a: 40 },
+        { name: 'Thái Diễm', short: 'Thái Diễm', role: 'Tài nữ, Hồ Gia Thập Bát Phách', rank: 'B', aff: 22, trust: 26, face: F.l, a: 325 },
+        { name: 'Điêu Thuyền', short: 'Điêu Thuyền', role: 'Tứ Đại Mỹ Nhân', rank: 'A', aff: 57, trust: 44, face: F.l, a: 268 },
+        { name: 'Tôn Diệu', short: 'Tôn Diệu', role: 'Đại Chưởng Quỹ Tiền Trang', rank: 'C', aff: 73, trust: 58, face: F.m, a: 345 }
+      ] };
+    this.skills = [
+      { id: 'vt', name: 'Võ Thánh', rank: 'S', fx: '+18% chiến lực khi đấu', han: '聖', learned: false, how: 'Học từ Quan Vũ, cần hảo cảm 80' },
+      { id: 'ld', name: 'Long Đảm', rank: 'A', fx: '+14% chiến lực khi đấu', han: '龍', learned: true },
+      { id: 'tb', name: 'Thiết Bích', rank: 'A', fx: 'Giảm sát thương nhận vào', han: '壁', learned: true },
+      { id: 'nd', name: 'Nhân Đức', rank: 'B', fx: 'Hảo cảm tăng thêm khi đàm đạo', han: '德', learned: true },
+      { id: 'tt', name: 'Thương Tài', rank: 'B', fx: 'Giá mua ở chợ rẻ hơn', han: '商', learned: true },
+      { id: 'hl', name: 'Hối Lộ', rank: 'C', fx: 'Dễ xin chức ở quan phủ', han: '賂', learned: false, how: 'Học từ Tả Phong, cần hảo cảm 45' }
+    ];
+    this.slotRule = ['S', 'A', 'A', 'BC', 'BC', 'BC'];
+  }
+  flash(t) { this.setState({ toast: t }); clearTimeout(this.tt); this.tt = setTimeout(() => this.setState({ toast: '' }), 2200); }
+  add(d, tr, cost, msg) {
+    const s = this.state; if (cost && s.cash < cost) { this.flash('Không đủ tiền'); return; }
+    const n = s.n.map((x, i) => i === s.sel ? { ...x, aff: Math.min(100, x.aff + d), trust: Math.min(100, x.trust + tr) } : x);
+    this.setState({ n, cash: s.cash - (cost || 0) }); this.flash(msg);
+  }
+  renderVals() {
+    const s = this.state, c = s.n[s.sel], rq = this.RQ[c.rank];
+    const tier = (a) => a >= 80 ? 'Tri kỷ' : a >= 60 ? 'Thân thiết' : a >= 35 ? 'Quen biết' : 'Người lạ';
+    const R = (a) => 290 - a * 2.5;
+    const canRec = c.aff >= rq[0] && s.fame >= rq[1] && s.cash >= rq[2] && !s.hired[s.sel];
+    const canSw = c.aff >= 80 && c.trust >= 60 && s.cash >= 100 && !s.sworn[s.sel];
+    const tabs = [['rel', 'Quan hệ'], ['skill', 'Tuyệt kỹ'], ['mail', 'Thư từ'], ['team', 'Gia thần']];
+    const best = s.n.map((x, i) => ({ x, i, gap: this.RQ[x.rank][0] - x.aff })).filter((o) => o.gap > 0 && !s.hired[o.i]).sort((a, b) => a.gap - b.gap)[0];
+    const tip = best ? `Đàm đạo với ${best.x.name}: còn ${best.gap} hảo cảm nữa là chiêu mộ được.` : 'Bạn đã đủ hảo cảm để chiêu mộ mọi người trong thành.';
+    const eq = s.eq;
+    const fits = (sk, i) => { const r = this.slotRule[i]; return r === 'BC' ? 'BC'.includes(sk.rank) : sk.rank === r; };
+    const han = { S: 'Ô phẩm S', A: 'Ô phẩm A', BC: 'Ô phẩm B, C' };
+    const n = eq.filter(Boolean).length;
+    return {
+      fame: s.fame, cash: s.cash, tip, toast: s.toast,
+      tabs: tabs.map(([k, l]) => ({ label: l, cls: s.tab === k ? 'tabon' : '', pick: () => this.setState({ tab: k }) })),
+      isRel: s.tab === 'rel', isSkill: s.tab === 'skill', isEmpty: s.tab === 'mail' || s.tab === 'team',
+      emptyHan: s.tab === 'mail' ? '書' : '臣', emptyTitle: s.tab === 'mail' ? 'Chưa có thư' : 'Chưa có gia thần',
+      emptyText: s.tab === 'mail' ? 'Khi hảo cảm từ 20 trở lên, bạn hữu ở xa sẽ gửi thư kèm quà.' : 'Chiêu mộ người đạt mốc hảo cảm, họ sẽ làm việc và lĩnh bổng hàng tháng.',
+      goRel: () => this.setState({ tab: 'rel' }),
+      rings: [[35, 'Quen biết · 35'], [60, 'Thân thiết · 60'], [80, 'Tri kỷ · 80']].map(([a, label]) => { const r = R(a), ry = r * .9; return { l: 380 - r, t: 320 - ry, w: r * 2, h: ry * 2, ly: 320 - ry - 8, label }; }),
+      npcs: s.n.map((x, i) => { const r = R(x.aff), t = x.a * Math.PI / 180; return { ...x, x: Math.round(380 + r * Math.cos(t)), y: Math.round(320 + r * .9 * Math.sin(t)), cls: i === s.sel ? 'sel' : '', pick: () => this.setState({ sel: i }) }; }),
+      cur: { ...c, tier: tier(c.aff),
+        recCls: canRec ? 'pri' : 'off', recText: s.hired[s.sel] ? 'Đã chiêu mộ' : `Hảo cảm ${c.aff}/${rq[0]} · ${rq[2]} quan`,
+        swCls: canSw ? 'pri' : 'off', swText: s.sworn[s.sel] ? 'Đã kết nghĩa' : `Hảo cảm ${c.aff}/80 · Tín ${c.trust}/60` },
+      chat: () => this.add(3, 2, 0, `${c.name} +3 hảo cảm`), gift: () => this.add(6, 1, 40, `${c.name} nhận quà, +6 hảo cảm`),
+      recruit: () => { if (!canRec) { this.flash('Chưa đủ điều kiện'); return; } this.setState({ cash: s.cash - rq[2], hired: { ...s.hired, [s.sel]: true } }); this.flash('Đã chiêu mộ ' + c.name); },
+      swear: () => { if (!canSw) { this.flash('Chưa đủ điều kiện'); return; } this.setState({ cash: s.cash - 100, sworn: { ...s.sworn, [s.sel]: true } }); this.flash('Đã kết nghĩa với ' + c.name); },
+      bonus: n ? `Đang gắn ${n} tuyệt kỹ` : 'Chưa gắn tuyệt kỹ nào',
+      slots: this.slotRule.map((r, i) => { const k = eq[i]; return { han: k ? k.han : '+', name: k ? k.name : 'Còn trống', rule: han[r], cls: k ? 'full' : '', pick: () => { if (!k) return; const e = eq.slice(); e[i] = null; this.setState({ eq: e }); } }; }),
+      lib: this.skills.map((k) => { const on = eq.some((x) => x && x.id === k.id); return { ...k, cls: k.learned ? '' : 'off', status: on ? 'Đang gắn' : k.learned ? 'Bấm để gắn' : k.how, stc: on ? '#7fc7a2' : k.learned ? '#e8b75c' : '#b9aa8c', pick: () => {
+        if (!k.learned) { this.flash(k.how); return; } if (on) return;
+        const i = eq.findIndex((x, j) => !x && fits(k, j)); if (i < 0) { this.flash('Hết ô phẩm ' + k.rank); return; }
+        const e = eq.slice(); e[i] = k; this.setState({ eq: e }); } }; })
+    };
+  }
+}
+</script>
+</body>
+</html>

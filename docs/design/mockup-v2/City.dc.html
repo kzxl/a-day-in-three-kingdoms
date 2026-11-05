@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Trong thành</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Noto+Serif:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.bg{background-image:url(/art/backgrounds/street.png);background-size:cover;background-position:center;image-rendering:pixelated}
+.sp{position:absolute;left:0;top:0;width:340px;height:170px;transform-origin:170px 170px;will-change:transform;image-rendering:pixelated;background-repeat:no-repeat;border:0;padding:0;background-color:transparent}
+.gy{background-image:url(/art/anim/guan_yu.png);cursor:pointer}
+.zf{background-image:url(/art/anim/zhang_fei.png)}
+.btn{height:44px;padding:0 18px;border:1px solid #6a4f2e;background:#241a13;color:#eadfc6;font:600 14px 'Be Vietnam Pro',sans-serif;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#c4a062;color:#f3e6cc}
+.pri{background:#a8321f;border-color:#c4a062;color:#f3e6cc}
+.pt{position:absolute;left:0;bottom:0;height:640px;width:372px;transform-origin:50% 100%;animation:br 4.6s ease-in-out infinite}
+.pt img{position:absolute;left:0;top:0;width:372px;height:640px}
+@keyframes br{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-3px) scaleY(1.012)}}
+.leaf{position:absolute;width:6px;height:4px;background:#d9713a;animation:fall 7s linear infinite}
+@keyframes fall{0%{transform:translate(0,-20px) rotate(0)}100%{transform:translate(-260px,680px) rotate(540deg)}}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; position: relative; overflow: hidden; background: #15110d; font-family: 'Be Vietnam Pro', sans-serif; color: #eadfc6">
+  <div class="bg" style="position: absolute; left: 0; top: 0; width: 1280px; height: 648px"></div>
+  <sc-for list="{{leaves}}" as="l" hint-placeholder-count="6">
+    <div class="leaf" style="left: {{l.x}}px; top: 0; animation-delay: {{l.d}}s"></div>
+  </sc-for>
+  <div class="sp zf" style="transform: {{zT}}; background-position: {{zP}}"></div>
+  <button class="sp gy" aria-label="Nói chuyện với Quan Vũ" onClick="{{open}}" style="transform: {{gT}}; background-position: {{gP}}"></button>
+  <div style="position: absolute; left: 0; bottom: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 20px; display: flex; gap: 12px; align-items: center; background: #1d1611; border-top: 1px solid #3a2c20">
+    <div style="flex: 1; font-size: 14px; color: #b9aa8c; white-space: nowrap">Trương Phi đi tuần trên phố. Quan Vũ đứng thở, đổi thế tay. Bấm vào Quan Vũ để nói chuyện.</div>
+    <button class="btn pri" onClick="{{open}}">Nói chuyện với Quan Vũ</button>
+  </div>
+  <sc-if value="{{talking}}" hint-placeholder-val="{{ false }}">
+    <div style="position: absolute; inset: 0; background: rgba(21,17,13,.62)">
+      <div style="position: absolute; left: 454px; bottom: 150px; width: 372px; height: 640px; bottom: 96px">
+        <div class="pt">
+          <img src="/art/portraits/guan_yu/full.webp" alt="Quan Vũ" style="opacity: {{oI}}">
+          <img src="/art/portraits/guan_yu/frames/blink.webp" alt="" style="opacity: {{oB}}">
+          <img src="/art/portraits/guan_yu/frames/talk.webp" alt="" style="opacity: {{oT}}">
+        </div>
+      </div>
+      <div style="position: absolute; left: 160px; right: 160px; bottom: 24px; box-sizing: border-box; padding: 16px 22px; background: #ecdfc2; color: #2a1f16; border-left: 4px solid #a8321f; display: flex; align-items: center; gap: 16px">
+        <div style="flex: 1; min-width: 0">
+          <div style="font: 700 17px 'Noto Serif', serif">Quan Vũ</div>
+          <div style="font-size: 16px; margin-top: 6px; white-space: nowrap; height: 24px">{{line}}</div>
+        </div>
+        <button class="btn" onClick="{{next}}">Tiếp</button>
+        <button class="btn" onClick="{{close}}">Rời đi</button>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.lines = ['Nghĩa khí làm đầu, tiền bạc chỉ là chuyện sau.', 'Túc hạ từ phương xa đến, đường có gặp giặc không?', 'Đao này chỉ chém kẻ bất nghĩa.'];
+    this.state = { n: 0, talking: false, li: 0, ch: 0 };
+    this.z = { x: 200, dir: 1, dist: 0, wait: 0, fr: 4 };
+    this.it = 0; this.ct = 0; this.bt = 2.2; this.blink = 0;
+  }
+  componentDidMount() { this.last = performance.now(); const loop = (t) => { this.frame(t); this.raf = requestAnimationFrame(loop); }; this.raf = requestAnimationFrame(loop); }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  frame(t) {
+    const dt = Math.min(.05, (t - this.last) / 1000); this.last = t; this.it += dt;
+    const z = this.z, V = 165, STEP = 16;
+    if (z.wait > 0) { z.wait -= dt; z.fr = Math.floor(this.it / .26) % 4; }
+    else {
+      z.x += z.dir * V * dt; z.dist += V * dt; z.fr = 4 + Math.floor(z.dist / STEP) % 8;
+      if (z.x > 730) { z.dir = -1; z.wait = 2.2; } if (z.x < 170) { z.dir = 1; z.wait = 2.2; }
+    }
+    const s = this.state; let ch = s.ch;
+    if (s.talking) {
+      const l = this.lines[s.li]; this.ct += dt; if (this.ct > .045 && ch < l.length) { this.ct = 0; ch++; }
+      this.bt -= dt; if (this.bt < 0) { this.bt = 2.4 + Math.random() * 2; this.blink = .13; } this.blink = Math.max(0, this.blink - dt);
+    }
+    this.setState({ n: s.n + 1, ch });
+  }
+  renderVals() {
+    const s = this.state, z = this.z, l = this.lines[s.li], speaking = s.talking && s.ch < l.length;
+    const mouth = speaking && Math.floor(this.it / .11) % 2 === 0;
+    const blink = this.blink > 0 && !mouth;
+    return {
+      leaves: [120, 340, 560, 790, 1010, 1240].map((x, i) => ({ x, d: -i * 1.2 })),
+      gT: `translate3d(${950 - 170}px, ${560 - 170}px, 0) scale(-1.75, 1.75)`, gP: `-${(Math.floor(this.it / .3) % 4) * 340}px 0`,
+      zT: `translate3d(${z.x - 170}px, ${590 - 170 + (z.wait > 0 ? 0 : -Math.abs(Math.sin(z.dist / 64 * Math.PI)) * 5)}px, 0) scale(${z.dir * 2}, 2)`, zP: `-${z.fr * 340}px 0`,
+      talking: s.talking, line: l.slice(0, s.ch),
+      oI: mouth || blink ? 0 : 1, oB: blink ? 1 : 0, oT: mouth ? 1 : 0,
+      open: () => this.setState({ talking: true, li: 0, ch: 0 }),
+      next: () => this.setState({ li: (s.li + 1) % this.lines.length, ch: 0 }),
+      close: () => this.setState({ talking: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

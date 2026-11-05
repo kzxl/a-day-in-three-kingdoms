@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Hồ sơ nhân vật</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Ma+Shan+Zheng&family=Noto+Serif:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.row{width:100%;height:68px;display:flex;align-items:center;gap:12px;padding:0 12px;box-sizing:border-box;background:#1d1611;border:1px solid #2c2118;color:#eadfc6;cursor:pointer;text-align:left;font-family:'Be Vietnam Pro',sans-serif}
+.row:hover{border-color:#c4a062}
+.ron{background:#2a1f16;border-color:#e8b75c}
+.row img{width:52px;height:52px;flex:none;border:1px solid #6a4f2e;box-sizing:border-box}
+.btn{height:44px;flex:1;border:1px solid #6a4f2e;background:#241a13;color:#eadfc6;font:600 14px 'Be Vietnam Pro',sans-serif;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#c4a062}
+.pri{background:#a8321f;border-color:#c4a062;color:#f3e6cc}
+.chip{padding:3px 8px;background:#241a13;border:1px solid #3a2c20;font-size:12.5px;white-space:nowrap}
+.bar{height:8px;background:#2a1f16;flex:1}
+.bar i{display:block;height:8px;background:#c4a062;transition:width .3s}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #15110d; color: #eadfc6; font-family: 'Be Vietnam Pro', sans-serif; overflow: hidden">
+  <dc-import name="Rail" active="Danh Sĩ" hint-size="264px,900px"></dc-import>
+  <div style="flex: 1; min-width: 0; box-sizing: border-box; padding: 18px 22px; display: flex; flex-direction: column; gap: 12px">
+    <div>
+      <h1 style="margin: 0; font: 700 26px 'Noto Serif', serif; color: #f3e6cc">Danh Sĩ</h1>
+      <div style="font-size: 14px; color: #b9aa8c; white-space: nowrap; margin-top: 2px">Mỗi nhân vật có ảnh riêng. Bấm tên để xem hồ sơ.</div>
+    </div>
+    <div style="flex: 1; min-height: 0; display: flex; gap: 14px">
+      <div style="width: 330px; flex: none; display: flex; flex-direction: column; gap: 6px">
+        <sc-for list="{{list}}" as="n" hint-placeholder-count="8">
+          <button class="row {{n.cls}}" onClick="{{n.pick}}">
+            <img src="{{n.face}}" alt="">
+            <span style="min-width: 0"><span style="display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap">{{n.name}}</span><span style="display: block; font-size: 12px; color: #b9aa8c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{n.role}}</span></span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="flex: 1; min-width: 0; box-sizing: border-box; padding: 18px; background: #1d1611; border: 1px solid #3a2c20; display: flex; gap: 20px; height: 760px">
+        <div style="width: 260px; flex: none; display: flex; flex-direction: column; gap: 10px">
+          <div style="padding: 6px; background: #241a13; border: 1px solid #6a4f2e"><img src="{{c.face}}" alt="{{c.name}}" style="width: 246px; height: 246px; display: block"></div>
+          <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 2px"><span style="color: #b9aa8c">Hảo cảm</span><span>{{c.aff}} / 100</span></div>
+          <div class="bar" style="flex: none"><i style="width: {{c.aff}}%"></i></div>
+          <div style="display: flex; gap: 8px; margin-top: 6px"><button class="btn pri" onClick="{{meet}}">Bái phỏng</button><button class="btn">So tài</button></div>
+          <a class="btn" href="City.dc.html" style="flex: none; display: flex; align-items: center; justify-content: center; text-decoration: none">Mở cảnh nói chuyện</a>
+          <div style="margin-top: auto; padding: 10px; background: #241a13; border: 1px solid #3a2c20">
+            <div style="font-size: 12px; font-weight: 600; color: #b9aa8c">ĐẶC KỸ</div>
+            <div style="font-size: 15px; font-weight: 600; margin-top: 4px; color: #e8b75c">{{c.skill}}</div>
+            <div style="font-size: 13px; margin-top: 4px; line-height: 1.45">{{c.skillFx}}</div>
+          </div>
+        </div>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; align-items: baseline; gap: 12px">
+            <div style="font: 700 28px 'Noto Serif', serif; color: #f3e6cc; white-space: nowrap">{{c.name}}</div>
+            <div style="font: 24px 'Ma Shan Zheng', serif; color: #c4a062">{{c.han}}</div>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="chip">{{c.role}}</span><span class="chip">Tự {{c.style}}</span><span class="chip">Khí chất {{c.mood}}</span></div>
+          <div style="display: flex; gap: 18px; align-items: center">
+            <svg width="250" height="240" viewBox="-125 -120 250 240" role="img" aria-label="Biểu đồ tám năng lực">
+              <polygon points="{{ring1}}" fill="none" stroke="#3a2c20"></polygon>
+              <polygon points="{{ring2}}" fill="none" stroke="#3a2c20"></polygon>
+              <polygon points="{{ring3}}" fill="none" stroke="#4a3a2a"></polygon>
+              <polygon points="{{poly}}" fill="rgba(196,160,98,.32)" stroke="#e8b75c" stroke-width="2"></polygon>
+              <sc-for list="{{axis}}" as="a" hint-placeholder-count="8">
+                <text x="{{a.x}}" y="{{a.y}}" text-anchor="middle" dominant-baseline="middle" fill="#b9aa8c" font-size="12" font-family="Be Vietnam Pro, sans-serif">{{a.l}}</text>
+              </sc-for>
+            </svg>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px">
+              <sc-for list="{{stats}}" as="s" hint-placeholder-count="8">
+                <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 74px; white-space: nowrap">{{s.l}}</span><div class="bar"><i style="width: {{s.v}}%"></i></div><span style="width: 26px; text-align: right; font-weight: 600">{{s.v}}</span></div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="font-size: 12px; font-weight: 600; color: #b9aa8c; margin-top: 4px">TIỂU SỬ</div>
+          <div style="font-size: 14.5px; line-height: 1.6">{{c.bio}}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    const B = '';
+    this.n = [
+      { name: 'Biện Phu Nhân', han: '卞夫人', style: 'Vũ Tuyên', role: 'Vũ Tuyên Hoàng Hậu', mood: 'Nhân đức', face: '/art/profiles/npc_0223.webp', v: [20, 50, 84, 86, 90, 70, 75, 70], skill: 'Hiền Hậu', skillFx: 'Giảm 20% chi phí gia quyến, tăng ổn định phủ đệ.', bio: 'Chính thất của Tào Tháo, sinh mẫu Tào Phi, Tào Chương, Tào Thực. Tính tình cần kiệm hiền hậu.', aff: 12 },
+      { name: 'Tôn Diệu', han: '孫耀', style: 'Kim Bảo', role: 'Đại Chưởng Quỹ Tiền Trang', mood: 'Thực tế', face: '/art/profiles/npc_0205.webp', v: [30, 40, 72, 60, 74, 92, 80, 55], skill: 'Tiền Trang', skillFx: 'Cho vay, đổi tiền với lãi thấp hơn.', bio: 'Chủ tiền trang lớn ở kinh sư, có thể thuê mướn.', aff: 35 },
+      { name: 'Âu Dương Phong Đúc', han: '歐陽', style: 'Xích Hỏa', role: 'Đại Sư Lò Đúc', mood: 'Cương trực', face: '/art/profiles/npc_0206.webp', v: [62, 40, 60, 40, 50, 65, 70, 94], skill: 'Lò Đúc', skillFx: 'Rèn binh khí phẩm chất cao hơn.', bio: 'Thợ đúc danh tiếng, có thể thuê mướn.', aff: 20 },
+      { name: 'Hứa Hộ Uy', han: '許', style: 'Thiết Bích', role: 'Tổng Tiêu Đầu Kinh Sư', mood: 'Dũng mãnh', face: '/art/profiles/npc_0207.webp', v: [83, 74, 55, 45, 60, 58, 72, 50], skill: 'Hộ Tiêu', skillFx: 'Thương đoàn đi qua vùng hiểm an toàn hơn.', bio: 'Tổng tiêu đầu ở kinh sư, có thể thuê mướn.', aff: 8 },
+      { name: 'Tào Thực', han: '曹植', style: 'Tử Kiến', role: 'Tam Tào Danh Sĩ', mood: 'Thư sinh', face: '/art/profiles/npc_0221.webp', v: [35, 60, 92, 70, 78, 55, 65, 95], skill: 'Thất Bộ', skillFx: 'Tăng cực đại danh vọng và cảm hứng thi phú.', bio: 'Tài hoa xuất chúng, thi từ đệ nhất, thất bộ thành thi, nổi danh văn tài thiên cổ.', aff: 40 },
+      { name: 'Tào Chương', han: '曹彰', style: 'Tử Văn', role: 'Hoàng Tu Nhi', mood: 'Dũng mãnh', face: '/art/profiles/npc_0222.webp', v: [91, 85, 60, 50, 55, 45, 65, 45], skill: 'Hoàng Tu', skillFx: '+18% chiến lực kỵ binh sa trường.', bio: 'Võ dũng hơn người, tay không bắt thú dữ, dẹp yên quân Ô Hoàn phương bắc.', aff: 5 },
+      { name: 'Hoa Hân', han: '华歆', style: 'Tử Ngư', role: 'Ngụy Triều Thái Úy', mood: 'Thực tế', face: '/art/profiles/npc_0224.webp', v: [30, 65, 86, 90, 85, 75, 80, 55], skill: 'Thanh Liêm', skillFx: 'Tăng trị an thành thị, giảm tham ô quan phủ.', bio: 'Thái úy Tào Ngụy, thông hiểu điển chương chế độ, một đời thanh liêm chính trực.', aff: 18 },
+      { name: 'Vương Lãng', han: '王朗', style: 'Cảnh Hưng', role: 'Tư Đồ Trọng Thần', mood: 'Thư sinh', face: '/art/profiles/npc_0225.webp', v: [25, 60, 88, 89, 86, 68, 76, 50], skill: 'Điển Tắc', skillFx: 'Gia tăng điểm văn học và danh vọng sĩ tộc.', bio: 'Đại thần trải ba triều Tào Ngụy, học vấn uyên thâm bậc đại nho kinh học.', aff: 26 }
+    ];
+    this.state = { sel: 0, bump: {} };
+  }
+  renderVals() {
+    const s = this.state, c = this.n[s.sel], L = ['Võ', 'Soái', 'Trí', 'Chính', 'Giao', 'Thương', 'Hậu cần', 'Nghệ'];
+    const full = ['Võ Lực', 'Thống Soái', 'Trí Tuệ', 'Chính Trị', 'Ngoại Giao', 'Thương Mại', 'Hậu Cần', 'Kỹ Nghệ'];
+    const pt = (i, r) => { const a = -Math.PI / 2 + i * Math.PI / 4; return [Math.round(r * Math.cos(a)), Math.round(r * Math.sin(a))]; };
+    const ring = (f) => L.map((_, i) => pt(i, 92 * f).join(',')).join(' ');
+    return {
+      list: this.n.map((n, i) => ({ ...n, cls: i === s.sel ? 'ron' : '', pick: () => this.setState({ sel: i }) })),
+      c: { ...c, aff: Math.min(100, c.aff + (s.bump[s.sel] || 0)) },
+      poly: c.v.map((v, i) => pt(i, 92 * v / 100).join(',')).join(' '),
+      ring1: ring(.33), ring2: ring(.66), ring3: ring(1),
+      axis: L.map((l, i) => { const [x, y] = pt(i, 108); return { l, x, y }; }),
+      stats: full.map((l, i) => ({ l, v: c.v[i] })),
+      meet: () => this.setState({ bump: { ...s.bump, [s.sel]: (s.bump[s.sel] || 0) + 3 } })
+    };
+  }
+}
+</script>
+</body>
+</html>
