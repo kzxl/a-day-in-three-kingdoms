@@ -35,7 +35,38 @@ public sealed class SaveManager
         }
 
         var items = JsonSerializer.Deserialize<List<CampaignMeta>>(File.ReadAllText(indexPath), Json) ?? [];
-        return items.OrderByDescending(meta => meta.LastPlayedUtc, StringComparer.Ordinal).ToList();
+        return items.Select(meta => meta with { Modules = NormalizeModules(meta.Modules) })
+                    .OrderByDescending(meta => meta.LastPlayedUtc, StringComparer.Ordinal).ToList();
+    }
+
+    private static IReadOnlyList<string> NormalizeModules(IReadOnlyList<string> modules)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var mod in modules)
+        {
+            switch (mod.ToLowerInvariant())
+            {
+                case "dlc.market":
+                case "dlc.caravan":
+                case "dlc.cultivation":
+                case "dlc.professions":
+                    result.Add("dlc.economy");
+                    break;
+                case "dlc.social":
+                case "dlc.dialogue":
+                case "dlc.lineage":
+                    result.Add("dlc.character");
+                    break;
+                case "dlc.politics":
+                case "dlc.military":
+                    result.Add("dlc.power");
+                    break;
+                default:
+                    result.Add(mod);
+                    break;
+            }
+        }
+        return result.OrderBy(x => x, StringComparer.Ordinal).ToList();
     }
 
     public CampaignMeta Create(string name)
