@@ -9,6 +9,7 @@ using SimT.Contracts.Ledger;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
+using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
 
@@ -208,53 +209,7 @@ public partial class MainWindow
         RefreshBadges();
     }
 
-    private Border BuildMetric(ScreenMetric metric)
-    {
-        var tone = metric.Tone switch
-        {
-            MetricTone.Positive => (Brush)FindResource("Gain"),
-            MetricTone.Negative => (Brush)FindResource("Loss"),
-            MetricTone.Warning => (Brush)FindResource("Accent"),
-            _ => (Brush)FindResource("Text")
-        };
-
-        var stack = new StackPanel();
-        stack.Children.Add(new TextBlock { Text = metric.Label.ToUpperInvariant(), Style = (Style)FindResource("Overline") });
-        stack.Children.Add(new TextBlock
-        {
-            Text = metric.Value,
-            FontFamily = new FontFamily("Consolas"),
-            FontSize = 19,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = tone,
-            Margin = new Thickness(0, 3, 0, 0)
-        });
-
-        if (!string.IsNullOrWhiteSpace(metric.Hint))
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = metric.Hint,
-                Style = (Style)FindResource("Caption"),
-                Foreground = (Brush)FindResource("Faint"),
-                Margin = new Thickness(0, 1, 0, 0)
-            });
-        }
-
-        return new Border
-        {
-            Background = (Brush)FindResource("Surface"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(13, 10, 16, 10),
-            Margin = new Thickness(0, 0, 10, 10),
-            Child = stack,
-            ToolTip = string.IsNullOrWhiteSpace(metric.Hint)
-                ? $"{metric.Label}: {metric.Value}"
-                : $"{metric.Label}: {metric.Value} — {metric.Hint}"
-        };
-    }
+    private GameMetricCard BuildMetric(ScreenMetric metric) => new(metric);
 
     private Button CommandButton(ScreenCommand command, string id)
     {
@@ -309,37 +264,11 @@ public partial class MainWindow
 
     private Border BuildCard(ScreenSection section, int wideColumn = -1)
     {
-        var stack = new StackPanel();
-
-        var header = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-        var count = new TextBlock
+        return new GameSectionCard
         {
-            Text = $"{section.Rows.Count} dòng",
-            Style = (Style)FindResource("Caption"),
-            Foreground = (Brush)FindResource("Faint"),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        DockPanel.SetDock(count, Dock.Right);
-        header.Children.Add(count);
-        header.Children.Add(new TextBlock
-        {
-            Text = section.Heading.ToUpperInvariant(),
-            Style = (Style)FindResource("Overline"),
-            VerticalAlignment = VerticalAlignment.Center
-        });
-
-        stack.Children.Add(header);
-        stack.Children.Add(BuildGrid(section, wideColumn));
-
-        return new Border
-        {
-            Background = (Brush)FindResource("Surface"),
-            BorderBrush = (Brush)FindResource("Line"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(14, 12, 14, 10),
-            Margin = new Thickness(0, 0, 0, 14),
-            Child = stack
+            Heading = section.Heading,
+            HeaderRight = new GameBadge($"{section.Rows.Count} dòng", BadgeVariant.Default),
+            CardBody = BuildGrid(section, wideColumn)
         };
     }
 
@@ -470,22 +399,10 @@ public partial class MainWindow
         return grid;
     }
 
-    private Border EmptyState(string message) => new()
-    {
-        Background = (Brush)FindResource("Surface"),
-        BorderBrush = (Brush)FindResource("Line"),
-        BorderThickness = new Thickness(1),
-        CornerRadius = new CornerRadius(8),
-        Padding = new Thickness(18, 22, 18, 22),
-        Margin = new Thickness(0, 0, 0, 14),
-        Child = new TextBlock
-        {
-            Text = string.IsNullOrWhiteSpace(message) ? "Chưa có gì để hiển thị." : message,
-            Style = (Style)FindResource("Caption"),
-            TextAlignment = TextAlignment.Center,
-            TextWrapping = TextWrapping.Wrap
-        }
-    };
+    private Border EmptyState(string message) => new GameEmptyState(
+        "Chưa Có Dữ Liệu",
+        string.IsNullOrWhiteSpace(message) ? "Chưa có thông tin hoặc đối tượng nào được ghi nhận tại phân khu này." : message,
+        "📜");
 
     /// <summary>Quiet line under the cards: how long the current month still runs.</summary>
     private TextBlock MonthFooter()
