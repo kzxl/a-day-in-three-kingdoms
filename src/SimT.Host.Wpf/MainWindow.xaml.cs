@@ -223,6 +223,7 @@ public partial class MainWindow : Window
         }
 
         RenderCalendar(today);
+        UpdateStrategicState();
     }
 
     /// <summary>Goods at sell prices; zero when the market module is disabled.</summary>
