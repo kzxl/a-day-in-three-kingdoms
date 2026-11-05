@@ -60,6 +60,7 @@ public sealed record SocialScene(
     [property: JsonPropertyName("currentCityName")] string CurrentCityName,
     [property: JsonPropertyName("dateText")] string DateText,
     [property: JsonPropertyName("cash")] long Cash,
+    [property: JsonPropertyName("fame")] long Fame,
     [property: JsonPropertyName("fatigue")] int Fatigue,
     [property: JsonPropertyName("playerPortraitPath")] string PlayerPortraitPath,
     [property: JsonPropertyName("recommendation")] string Recommendation,
@@ -79,14 +80,18 @@ public sealed record SocialNodeView(
     [property: JsonPropertyName("code")] string Code,
     [property: JsonPropertyName("nameVi")] string NameVi,
     [property: JsonPropertyName("roleVi")] string RoleVi,
+    [property: JsonPropertyName("rankCode")] string RankCode,
     [property: JsonPropertyName("cityNameVi")] string CityNameVi,
     [property: JsonPropertyName("here")] bool Here,
     [property: JsonPropertyName("affinity")] int Affinity,
+    [property: JsonPropertyName("trust")] int Trust,
+    [property: JsonPropertyName("requiredAffinity")] int RequiredAffinity,
+    [property: JsonPropertyName("signingFee")] int SigningFee,
     [property: JsonPropertyName("tierKey")] string TierKey,
     [property: JsonPropertyName("tierTitleVi")] string TierTitleVi,
     [property: JsonPropertyName("facePath")] string FacePath,
     [property: JsonPropertyName("profilePath")] string ProfilePath,
-    [property: JsonPropertyName("skillId")] long SkillId,
+    [property: JsonPropertyName("skillCode")] string SkillCode,
     [property: JsonPropertyName("skillNameVi")] string SkillNameVi,
     [property: JsonPropertyName("skillRank")] string SkillRank,
     [property: JsonPropertyName("skillEffectVi")] string SkillEffectVi,
@@ -98,14 +103,17 @@ public sealed record SocialNodeView(
     [property: JsonPropertyName("angleDeg")] double AngleDeg);
 
 public sealed record SocialSkillView(
-    [property: JsonPropertyName("skillId")] long SkillId,
+    [property: JsonPropertyName("skillCode")] string SkillCode,
     [property: JsonPropertyName("nameVi")] string NameVi,
+    [property: JsonPropertyName("hanzi")] string Hanzi,
     [property: JsonPropertyName("rank")] string Rank,
+    [property: JsonPropertyName("teacherNpcId")] long TeacherNpcId,
     [property: JsonPropertyName("teacherNameVi")] string TeacherNameVi,
     [property: JsonPropertyName("effectVi")] string EffectVi,
     [property: JsonPropertyName("needVi")] string NeedVi,
     [property: JsonPropertyName("learned")] bool Learned,
     [property: JsonPropertyName("equipped")] bool Equipped,
+    [property: JsonPropertyName("equippedSlot")] int EquippedSlot,
     [property: JsonPropertyName("level")] int Level,
     [property: JsonPropertyName("levelTitleVi")] string LevelTitleVi);
 
@@ -161,6 +169,7 @@ public sealed record MarketItemView(
     [property: JsonPropertyName("itemId")] long ItemId,
     [property: JsonPropertyName("code")] string Code,
     [property: JsonPropertyName("nameVi")] string NameVi,
+    [property: JsonPropertyName("hanzi")] string Hanzi,
     [property: JsonPropertyName("categoryVi")] string CategoryVi,
     [property: JsonPropertyName("originVi")] string OriginVi,
     [property: JsonPropertyName("buyPrice")] long BuyPrice,
@@ -176,6 +185,7 @@ public sealed record MarketItemView(
 public sealed record MarketArbitrageView(
     [property: JsonPropertyName("cityId")] long CityId,
     [property: JsonPropertyName("cityNameVi")] string CityNameVi,
+    [property: JsonPropertyName("travelDays")] int TravelDays,
     [property: JsonPropertyName("estimatedSellPrice")] long EstimatedSellPrice,
     [property: JsonPropertyName("diffPerUnit")] long DiffPerUnit);
 

@@ -1,0 +1,252 @@
+.tk-stage-market {
+  position: absolute;
+  inset: 0;
+  background: #15110d;
+  color: #eadfc6;
+  font-family: "Be Vietnam Pro", "Segoe UI", sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+.tk-mkt-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tk-mkt-banner {
+  height: 112px;
+  position: relative;
+  flex: none;
+  background-size: cover;
+  background-position: center 60%;
+  image-rendering: pixelated;
+  border-bottom: 1px solid #3a2c20;
+}
+
+.tk-mkt-banner-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(21, 17, 13, 0.38) 0%, rgba(21, 17, 13, 0.82) 100%);
+}
+
+.tk-mkt-banner-row {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.tk-mkt-title {
+  margin: 0;
+  font: 700 24px "Noto Serif", "Georgia", serif;
+  color: #f3e6cc;
+}
+
+.tk-mkt-sub {
+  font-size: 13px;
+  color: #eadfc6;
+  margin-top: 3px;
+}
+
+.tk-mkt-cash {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f3e6cc;
+  white-space: nowrap;
+}
+
+.tk-mkt-main {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 12px 22px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tk-mkt-rec {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  background: #241a13;
+  border: 1px solid #6a4f2e;
+  border-left: 3px solid #c4a062;
+}
+
+.tk-mkt-rec-tag {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #e8b75c;
+  white-space: nowrap;
+}
+
+.tk-mkt-rec-text {
+  flex: 1;
+  font-size: 13px;
+  color: #eadfc6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-mkt-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 14px;
+}
+
+.tk-mkt-grid {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 144px;
+  gap: 10px;
+  align-content: start;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.tk-mkt-good {
+  padding: 11px;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  color: #eadfc6;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.tk-mkt-good:hover {
+  border-color: #c4a062;
+}
+
+.tk-mkt-good.is-selected {
+  border-color: #e8b75c;
+  background: #241a13;
+}
+
+.tk-mkt-ic {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 20px "Noto Serif", "Georgia", serif;
+  color: #c4a062;
+  border: 1px solid #4a3a2a;
+  background: #15110d;
+}
+
+.tk-mkt-right {
+  width: 340px;
+  flex: none;
+  box-sizing: border-box;
+  padding: 14px;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.tk-mkt-sec {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #b9aa8c;
+  margin-bottom: 4px;
+}
+
+.tk-mkt-city-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 6px 0;
+  border-top: 1px solid #2c2118;
+  white-space: nowrap;
+}
+
+.tk-mkt-qty-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tk-mkt-sq {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #6a4f2e;
+  background: #241a13;
+  color: #eadfc6;
+  font: 600 17px "Be Vietnam Pro", "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.tk-mkt-sq:hover {
+  border-color: #c4a062;
+}
+
+.tk-mkt-qty-val {
+  flex: 1;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #3a2c20;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.tk-mkt-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+
+.tk-mkt-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.tk-mkt-btn {
+  height: 44px;
+  flex: 1;
+  border: 1px solid #c4a062;
+  font: 600 14px "Be Vietnam Pro", "Segoe UI", sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tk-mkt-btn-buy {
+  background: #a8321f;
+  color: #f3e6cc;
+}
+
+.tk-mkt-btn-sell {
+  background: #241a13;
+  color: #eadfc6;
+  border-color: #6a4f2e;
+}
+
+.tk-mkt-msg {
+  font-size: 12.5px;
+  color: #e8b75c;
+  min-height: 18px;
+}

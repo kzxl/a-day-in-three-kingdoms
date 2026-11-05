@@ -361,26 +361,35 @@ public static class SceneTrustGuard
         {
             return parts[0] switch
             {
-                "chat" or "gift" or "recruit" or "swear" => social.Nodes.Any(n => n.NpcId == targetId),
+                "chat" or "gift" or "recruit" or "swear" or "dismiss" =>
+                    social.Nodes.Any(n => n.NpcId == targetId) || social.Retainers.Any(r => r.NpcId == targetId),
                 _ => false
             };
         }
-        if (parts.Length == 3 && long.TryParse(parts[1], out var firstId) && long.TryParse(parts[2], out var secondId))
+        if (parts.Length == 3 && parts[0] == "gift" &&
+            long.TryParse(parts[1], out var giftNpcId) && long.TryParse(parts[2], out _))
         {
-            return parts[0] switch
-            {
-                "gift" => social.Nodes.Any(n => n.NpcId == firstId),
-                _ => false
-            };
+            return social.Nodes.Any(n => n.NpcId == giftNpcId);
         }
-        if (parts.Length == 3 && long.TryParse(parts[2], out var actionTargetId))
+        if (parts.Length == 3 && parts[0] == "learn" &&
+            long.TryParse(parts[1], out var teacherId) && !string.IsNullOrWhiteSpace(parts[2]))
         {
-            return (parts[0], parts[1]) switch
-            {
-                ("skill", "equip" or "unequip") => social.Skills.Any(s => s.SkillId == actionTargetId && s.Learned),
-                ("letter", "read" or "claim") => social.Letters.Any(l => l.Id == actionTargetId),
-                _ => false
-            };
+            return social.Nodes.Any(n => n.NpcId == teacherId);
+        }
+        if (parts.Length == 4 && parts[0] == "skill" && parts[1] == "equip" &&
+            int.TryParse(parts[3], out var slot) && slot is >= 1 and <= 6)
+        {
+            return social.Skills.Any(s => string.Equals(s.SkillCode, parts[2], StringComparison.OrdinalIgnoreCase) && s.Learned);
+        }
+        if (parts.Length == 3 && parts[0] == "skill" && parts[1] == "unequip" &&
+            int.TryParse(parts[2], out var unequipSlot) && unequipSlot is >= 1 and <= 6)
+        {
+            return true;
+        }
+        if (parts.Length == 3 && parts[0] == "letter" &&
+            parts[1] is ("read" or "claim") && long.TryParse(parts[2], out var letterId))
+        {
+            return social.Letters.Any(l => l.Id == letterId);
         }
         return false;
     }

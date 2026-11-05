@@ -98,6 +98,19 @@ public partial class MainWindow
             return;
         }
 
+        if (entry.ScreenId == "social.network")
+        {
+            TryOpenSocialScene(model.Recommendation);
+        }
+        else if (entry.ScreenId == "market.stall")
+        {
+            TryOpenMarketScene(model.Recommendation);
+        }
+        else if (entry.ScreenId == "npc.directory")
+        {
+            TryOpenDossierScene(model.Recommendation);
+        }
+
         ScreenTitle.Text = model.Title;
         ScreenStatus.Text = model.StatusLine;
 
