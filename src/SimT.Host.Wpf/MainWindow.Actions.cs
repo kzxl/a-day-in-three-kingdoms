@@ -4,6 +4,7 @@ using System.Windows.Media;
 using SimT.Contracts;
 using SimT.Contracts.Ledger;
 using SimT.Contracts.Playing;
+using SimT.Contracts.Scenes;
 using SimT.Contracts.Time;
 
 namespace SimT.Host.Wpf;
@@ -28,7 +29,9 @@ public partial class MainWindow
 
     private async void AdvanceWeek_Click(object sender, RoutedEventArgs e) => await AdvanceAsync(7);
 
-    private void Stroll_Click(object sender, RoutedEventArgs e)
+    private void Stroll_Click(object sender, RoutedEventArgs e) => TriggerCityStroll();
+
+    private void TriggerCityStroll()
     {
         if (_isAdvancing) return;
 
@@ -41,7 +44,9 @@ public partial class MainWindow
                 _kernel.Save();
                 UpdateHeader();
                 RenderSelected();
-                StatusText.Text = $"🚶 [{result.LocationName} · {result.Title}] {result.Narrative} » {result.RewardSummary}";
+                StatusText.Text = $"[{result.LocationName} · {result.Title}] {result.Narrative} » {result.RewardSummary}";
+                var card = new CityEventCard(result.Title, result.LocationName, result.Narrative, result.RewardSummary);
+                TryOpenCityScene(card);
             }
             else
             {

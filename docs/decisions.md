@@ -16,7 +16,7 @@ WinForms is not lighter than WPF either — both sit on the same desktop runtime
 express the existing CSS-derived design without owner drawing. Avalonia remains the choice if
 Linux/macOS support becomes a requirement; the domain does not change.
 
-**Revisit if:** the game gains a tile map, portraits and battle animation as first-class visuals.
+**Revisit (implemented):** when the game gained the `"Trong thành"` hub, 2.5D character dialogue and pixel-art martial duels, we added a warm `Microsoft.Web.WebView2` scene overlay (`https://simt.scene/index.html` mapped locally to `assets/scenes/`) inside `MainWindow` while keeping all management screens in WPF and all game rules/determinism strictly in C#. JavaScript only renders `CityScene`, `TalkScene`, and `DuelScene` descriptions and sends whitelisted intent messages (`ready`, `choice`, `navigate`, `close`) validated by `SceneTrustGuard`.
 
 ## D2 — No dependency injection container
 

@@ -1,7 +1,7 @@
 <Window x:Class="SimT.Host.Wpf.TitleWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SimT — Chọn Ván" Height="600" Width="800"
+        Title="Một Ngày Ở Tam Quốc — Chọn Ván" Height="620" Width="820"
         Background="{StaticResource Bg}"
         WindowStartupLocation="CenterScreen">
 
@@ -15,13 +15,13 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock Text="SIMT" FontSize="30" FontWeight="Bold"
+            <TextBlock Text="MỘT NGÀY Ở TAM QUỐC" Style="{StaticResource Display}"
                        Foreground="{StaticResource Accent}" />
             <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0"
-                       Text="Mô phỏng thương nhân · một người chơi · offline · mỗi ván một database riêng" />
+                       Text="Mô phỏng thương nhân &amp; danh sĩ thời Hán mạt · một người chơi · offline · mỗi ván một database riêng" />
             <TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0"
                        Foreground="{StaticResource Faint}"
-                       Text="Năm 184 · tháng 12 ngày 30 · tiền tệ Quan" />
+                       Text="Khởi đầu năm 184 · lịch 12 tháng 30 ngày · đơn vị tiền Quan" />
         </StackPanel>
 
         <Border Grid.Row="1" Margin="0,20,0,14" Padding="14,12"
@@ -54,8 +54,14 @@
                    Text="Chưa có ván nào. Gõ tên rồi bấm Tạo ván." />
 
         <DockPanel Grid.Row="3" Margin="0,16,0,0">
-            <Button Content="⚙ Quản Lý DLC" Click="DlcManager_Click" Style="{StaticResource GhostButton}"
-                    DockPanel.Dock="Left" ToolTip="Xem danh sách 9 DLC Tam Quốc &amp; kiểm tra toàn vẹn ván chơi" />
+            <Button Click="DlcManager_Click" Style="{StaticResource GhostButton}"
+                    DockPanel.Dock="Left" ToolTip="Xem danh sách DLC Tam Quốc &amp; kiểm tra toàn vẹn ván chơi">
+                <StackPanel Orientation="Horizontal">
+                    <Path Data="M12,8 A4,4 0 1,0 12,16 A4,4 0 1,0 12,8 M12,2 L12,5 M12,19 L12,22 M2,12 L5,12 M19,12 L22,12 M4.9,4.9 L7,7 M17,17 L19.1,19.1 M19.1,4.9 L17,7 M7,17 L4.9,19.1"
+                          Stroke="{StaticResource Accent}" StrokeThickness="1.5" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="Quản Lý DLC" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Vào ván" Click="Load_Click" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
                 <Button Content="Nhân bản" Click="Duplicate_Click" Style="{StaticResource GhostButton}" Margin="0,0,8,0" />

@@ -32,6 +32,13 @@ public partial class MainWindow
         _firstGrid = null;
         _firstSection = null;
 
+        if (entry.ScreenId == CityHubScreenId)
+        {
+            RenderCityHub();
+            RefreshBadges();
+            return;
+        }
+
         if (entry.ScreenId == LedgerScreenId)
         {
             RenderLedger();
@@ -284,7 +291,8 @@ public partial class MainWindow
         }
 
         var numeric = new bool[columns.Count];
-        for (var index = 0; index < columns.Count; index++)
+        var visibleColumns = Math.Min(6, columns.Count);
+        for (var index = 0; index < visibleColumns; index++)
         {
             var column = index;
             numeric[column] = rows.All(row =>
@@ -298,7 +306,7 @@ public partial class MainWindow
         {
             var best = -1;
             var bestLength = -1.0;
-            for (var index = 0; index < columns.Count; index++)
+            for (var index = 0; index < visibleColumns; index++)
             {
                 if (numeric[index])
                 {
@@ -326,7 +334,7 @@ public partial class MainWindow
         VirtualizingPanel.SetIsVirtualizing(grid, true);
         VirtualizingPanel.SetVirtualizationMode(grid, VirtualizationMode.Recycling);
 
-        for (var index = 0; index < columns.Count; index++)
+        for (var index = 0; index < visibleColumns; index++)
         {
             var templateCol = new DataGridTemplateColumn
             {
@@ -400,10 +408,24 @@ public partial class MainWindow
         return grid;
     }
 
+    private void RenderCityHub()
+    {
+        ScreenTitle.Text = "Trong Thành";
+        ScreenStatus.Text = "Trung tâm thành trì · bấm địa điểm hoặc danh sĩ để tương tác";
+        KpiStrip.Children.Clear();
+        AlertFeed.ItemsSource = null;
+        GlobalCommands.Children.Clear();
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+        ContentPanel.Children.Clear();
+        ContentPanel.Children.Add(EmptyState("Cảnh Trong Thành đang hiển thị trên lớp phủ tương tác."));
+        TryOpenCityScene();
+    }
+
     private Border EmptyState(string message) => new GameEmptyState(
         "Chưa Có Dữ Liệu",
         string.IsNullOrWhiteSpace(message) ? "Chưa có thông tin hoặc đối tượng nào được ghi nhận tại phân khu này." : message,
-        "📜");
+        "—");
 
     /// <summary>Quiet line under the cards: how long the current month still runs.</summary>
     private TextBlock MonthFooter()

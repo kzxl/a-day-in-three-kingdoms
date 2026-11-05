@@ -77,6 +77,7 @@ Every table has exactly one owner and a prefix:
 | dlc.lineage | `ln_` | spouse, children and the designated heir |
 | dlc.cultivation | `fm_` | plots, crops and the live-crop guard |
 | dlc.politics | `po_` | offices and the player's court state |
+| dlc.dialogue | `dg_` | character & role dialogue lines, relationship tiers, visit state |
 
 Cash is not duplicated in `pl_player`: the wallet is a read of the kernel ledger.
 
@@ -190,3 +191,12 @@ market cost me in month two" is one query, not a scan of the whole ledger.
 | One month close per boundary | `Clock_publishes_each_boundary_only_once_even_if_the_date_is_rewound` |
 | Pricing path allocates nothing | `Quote_allocates_nothing_over_ten_thousand_calls` |
 | A newer save is refused | `Kernel_rejects_a_save_written_by_a_newer_schema` |
+
+## 11. Interactive Scene Layer (WebView2 Overlay)
+
+Interactive visual scenes (`CityScene` for "Trong thành", `TalkScene` for 2.5D character dialogue, and `DuelScene` for pixel-art martial duels with `pixelfx`) are rendered inside a warm `WebView2` overlay (`SceneOverlayControl`) in `MainWindow` without opening child windows:
+
+- **Contracts (`SimT.Contracts/Scenes/SceneContracts.cs`)**: Pure C# records (`CityScene`, `TalkScene`, `DuelScene`, `SceneChoice`, `SceneClientMessage`), `IDialogueModule`, `RoleTitleVi`, `SceneArtCatalog`, and `SceneTrustGuard`.
+- **Offline Local Mapping**: `SetVirtualHostNameToFolderMapping("simt.scene", "assets/scenes", DenyCors)` serves HTML/CSS/JS, packaged `.woff2` fonts (`Noto Serif`, `Be Vietnam Pro`, `Ma Shan Zheng`), art (`assets/scenes/art/`), and vendored `pixelfx` (`assets/scenes/vendor/pixelfx/`) with zero network calls and user data in `%LOCALAPPDATA%\SimT\webview`.
+- **Determinism & Trust Boundary**: C# computes all outcomes (`TacticalDuelEngine.SimulateDuel`, `IDialogueModule.HandleChoice`, `ICityStroll.Stroll`) and sends read-only scene payloads via `PostWebMessageAsJson`. JavaScript only replays/renders the scene and sends `ready`, `choice`, `navigate`, or `close` messages validated against the active scene by `SceneTrustGuard`.
+- **Graceful Fallback**: If the WebView2 runtime is absent or `--smoke` is active, the game runs normally and falls back to WPF screens and `DuelBattleWindow`.
