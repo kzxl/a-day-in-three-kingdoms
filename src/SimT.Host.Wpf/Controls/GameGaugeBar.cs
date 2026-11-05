@@ -103,6 +103,21 @@ public sealed class GameGaugeBar : FrameworkElement
         }
     }
 
+    public void AnimateProgress(double targetValue, double maximum, Brush? barBrush = null, int durationMs = 350)
+    {
+        Maximum = maximum;
+        if (barBrush is not null)
+        {
+            BarBrush = barBrush;
+        }
+
+        var anim = new System.Windows.Media.Animation.DoubleAnimation(Value, targetValue, TimeSpan.FromMilliseconds(durationMs))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+        };
+        BeginAnimation(ValueProperty, anim);
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         var w = ActualWidth;

@@ -56,14 +56,10 @@ public partial class MainWindow
             long? tradeItemId = null;
             foreach (var cmd in row.Commands)
             {
-                if (cmd.Id.StartsWith("buy:") && long.TryParse(cmd.Id["buy:".Length..], out var bId))
+                var uri = CommandUri.Parse(cmd.Id);
+                if ((uri.Action == "buy" || uri.Action == "sell") && (uri.TryGetTargetLong(out var tradeId) || uri.TryGetParamLong(out tradeId)))
                 {
-                    tradeItemId = bId;
-                    break;
-                }
-                if (cmd.Id.StartsWith("sell:") && long.TryParse(cmd.Id["sell:".Length..], out var sId))
-                {
-                    tradeItemId = sId;
+                    tradeItemId = tradeId;
                     break;
                 }
             }
@@ -95,9 +91,13 @@ public partial class MainWindow
         {
             ItemHubEntry? matchedEntry = null;
             var modalCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("item:modal:"));
-            if (modalCmd is not null && long.TryParse(modalCmd.Id["item:modal:".Length..], out var mId))
+            if (modalCmd is not null)
             {
-                matchedEntry = hub.FindEntry(mId);
+                var uri = CommandUri.Parse(modalCmd.Id);
+                if (uri.TryGetParamLong(out var mId) || uri.TryGetTargetLong(out mId))
+                {
+                    matchedEntry = hub.FindEntry(mId);
+                }
             }
 
             if (matchedEntry is null)
@@ -220,8 +220,16 @@ public partial class MainWindow
             }
         }
 
-        InspectorPanel.Visibility = Visibility.Visible;
         InspectorScrim.Visibility = Visibility.Visible;
+        InspectorPanel.Visibility = Visibility.Visible;
+
+        var slideAnim = new System.Windows.Media.Animation.DoubleAnimation(380.0, 0.0, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+        };
+        var fadeAnim = new System.Windows.Media.Animation.DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(180));
+        InspectorTransform.BeginAnimation(TranslateTransform.XProperty, slideAnim);
+        InspectorScrim.BeginAnimation(OpacityProperty, fadeAnim);
     }
 
     /// <summary>
@@ -317,9 +325,26 @@ public partial class MainWindow
     private void CloseInspector()
     {
         _detailKey = null;
-        InspectorPanel.Visibility = Visibility.Collapsed;
-        InspectorScrim.Visibility = Visibility.Collapsed;
-        InspectorBody.Children.Clear();
+        if (InspectorPanel.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        var slideAnim = new System.Windows.Media.Animation.DoubleAnimation(InspectorTransform.X, 380.0, TimeSpan.FromMilliseconds(180))
+        {
+            EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseIn }
+        };
+        var fadeAnim = new System.Windows.Media.Animation.DoubleAnimation(InspectorScrim.Opacity, 0.0, TimeSpan.FromMilliseconds(150));
+
+        slideAnim.Completed += (_, _) =>
+        {
+            InspectorPanel.Visibility = Visibility.Collapsed;
+            InspectorScrim.Visibility = Visibility.Collapsed;
+            InspectorBody.Children.Clear();
+        };
+
+        InspectorTransform.BeginAnimation(TranslateTransform.XProperty, slideAnim);
+        InspectorScrim.BeginAnimation(OpacityProperty, fadeAnim);
     }
 
     /// <summary>Identity of a row across refreshes: the module's title, or its first cell.</summary>
@@ -331,8 +356,7 @@ public partial class MainWindow
     {
         if (_detailKey is null)
         {
-            InspectorPanel.Visibility = Visibility.Collapsed;
-            InspectorScrim.Visibility = Visibility.Collapsed;
+            CloseInspector();
             return;
         }
 

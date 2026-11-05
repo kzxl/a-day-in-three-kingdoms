@@ -163,7 +163,10 @@
         </Border>
 
         <!-- ===== Page ===== -->
-        <Grid Grid.Column="1" Margin="26,20,26,14">
+        <Grid x:Name="PageRoot" Grid.Column="1" Margin="26,20,26,14" RenderTransformOrigin="0.5,0.5">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="PageTransform" Y="0" />
+            </Grid.RenderTransform>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -219,10 +222,13 @@
         <Border x:Name="InspectorScrim" Grid.Column="1" Panel.ZIndex="19" Visibility="Collapsed"
                 Background="#66000000" MouseLeftButtonDown="Scrim_Click" />
 
-        <Border x:Name="InspectorPanel" Grid.Column="1" Panel.ZIndex="20" Width="360"
+        <Border x:Name="InspectorPanel" Grid.Column="1" Panel.ZIndex="20" Width="380"
                 HorizontalAlignment="Right" Visibility="Collapsed"
                 Background="{StaticResource Rail}" BorderBrush="{StaticResource Line}"
                 BorderThickness="1,0,0,0">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="InspectorTransform" X="380" />
+            </Border.RenderTransform>
             <Grid Margin="18,20,18,16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -239,6 +245,27 @@
                     <StackPanel x:Name="InspectorBody" />
                 </ScrollViewer>
             </Grid>
+        </Border>
+
+        <!-- ===== Floating Feedback Overlay & Game Toast Banner ===== -->
+        <Canvas x:Name="FloatingCanvas" Grid.Column="1" Panel.ZIndex="30" IsHitTestVisible="False" ClipToBounds="True" />
+
+        <Border x:Name="ToastBanner" Grid.Column="1" Panel.ZIndex="35"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,18,24,0"
+                Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Accent}"
+                BorderThickness="1" CornerRadius="8" Padding="14,10"
+                Opacity="0" Visibility="Collapsed" IsHitTestVisible="False"
+                RenderTransformOrigin="0.5,0.5">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="ToastTransform" Y="-20" />
+            </Border.RenderTransform>
+            <DockPanel LastChildFill="True">
+                <TextBlock x:Name="ToastGlyph" Text="⚡" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="ToastTitle" Style="{StaticResource Caption}" FontWeight="Bold" Foreground="{StaticResource Accent}" />
+                    <TextBlock x:Name="ToastMessage" Style="{StaticResource Caption}" Foreground="{StaticResource Text}" MaxWidth="340" TextWrapping="Wrap" />
+                </StackPanel>
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

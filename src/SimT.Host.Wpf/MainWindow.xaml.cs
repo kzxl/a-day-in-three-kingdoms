@@ -71,6 +71,7 @@ public partial class MainWindow : Window
 
     private static string GlyphFor(string screenId) => screenId switch
     {
+        "content.item_hub" => "📖",
         "player.reputation" => "🏆",
         "world.map" => "🗺️",
         "market.stall" => "◈",
@@ -102,12 +103,14 @@ public partial class MainWindow : Window
         if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) && playerState is not null)
         {
             var citadelName = "Lạc Dương";
+            var regionName = "Trung Nguyên";
             if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
             {
                 var cit = map.Find(playerState.CurrentCityId);
                 if (cit is not null)
                 {
-                    citadelName = $"{cit.NameVi} ({cit.Region})";
+                    citadelName = cit.NameVi;
+                    regionName = FormatRegionName(cit.Region);
                 }
             }
 
@@ -124,7 +127,7 @@ public partial class MainWindow : Window
                 fameStanding = $"★ {s.TitleVi} · {s.Fame:N0} Uy Danh";
             }
 
-            PlayerHudCard.Configure(playerState.Name, $"📍 {citadelName}", vitals, fameStanding);
+            PlayerHudCard.Configure(playerState.Name, citadelName, regionName, vitals, fameStanding);
         }
 
         RenderCalendar(today);
@@ -345,5 +348,32 @@ public partial class MainWindow : Window
 
         var hash = full[(plus + 1)..];
         return $"SimT {full[..plus]} · {hash[..Math.Min(7, hash.Length)]}";
+    }
+
+    private static string FormatRegionName(string? regionCode)
+    {
+        if (string.IsNullOrWhiteSpace(regionCode))
+        {
+            return string.Empty;
+        }
+
+        return regionCode.Trim().ToLowerInvariant() switch
+        {
+            "trung_nguyen" => "Trung Nguyên",
+            "quan_trung" => "Quan Trung",
+            "ha_bac" => "Hà Bắc",
+            "u_chau" => "U Châu",
+            "ky_chau" => "Ký Châu",
+            "thanh_chau" => "Thanh Châu",
+            "du_chau" => "Dự Châu",
+            "tu_chau" => "Từ Châu",
+            "kinh_chau" => "Kinh Châu",
+            "kinh_so" => "Kinh Sở",
+            "giang_dong" => "Giang Đông",
+            "duong_chau" => "Dương Châu",
+            "ich_chau" => "Ích Châu",
+            "ba_thuc" => "Ba Thục",
+            _ => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(regionCode.Replace('_', ' '))
+        };
     }
 }

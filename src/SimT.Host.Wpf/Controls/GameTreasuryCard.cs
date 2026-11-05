@@ -71,7 +71,9 @@ public sealed class GameTreasuryCard : Border
             Style = (Style)Application.Current.FindResource("NumberLarge"),
             Foreground = (Brush)Application.Current.FindResource("Accent"),
             FontWeight = FontWeights.Bold,
-            FontSize = 22
+            FontSize = 22,
+            RenderTransformOrigin = new Point(0.0, 0.5),
+            RenderTransform = new ScaleTransform(1.0, 1.0)
         };
         cashDock.Children.Add(_liquidText);
         stack.Children.Add(cashDock);
@@ -135,8 +137,32 @@ public sealed class GameTreasuryCard : Border
         MouseLeave += (_, _) => BorderBrush = (Brush)Application.Current.FindResource("Line");
     }
 
+    private long _prevLiquid = -1;
+
     public void Configure(long liquid, long safe, long goods, long netWorth)
     {
+        if (_prevLiquid >= 0 && liquid != _prevLiquid)
+        {
+            var isGain = liquid > _prevLiquid;
+            var flashBrush = (Brush)Application.Current.FindResource(isGain ? "Gain" : "Loss");
+            _liquidText.Foreground = flashBrush;
+
+            var scaleAnim = new System.Windows.Media.Animation.DoubleAnimation(1.18, 1.0, TimeSpan.FromMilliseconds(320))
+            {
+                EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+            };
+            scaleAnim.Completed += (_, _) =>
+            {
+                _liquidText.Foreground = (Brush)Application.Current.FindResource("Accent");
+            };
+            if (_liquidText.RenderTransform is ScaleTransform st)
+            {
+                st.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+                st.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+            }
+        }
+        _prevLiquid = liquid;
+
         _liquidText.Text = liquid.ToString("N0", Vietnamese);
         _liquidDetailText.Text = $"{liquid:N0} Q";
         _safeDetailText.Text = safe > 0 ? $"{safe:N0} Q" : "0 Q";

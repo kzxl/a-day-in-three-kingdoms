@@ -35,6 +35,7 @@ public partial class MainWindow
         {
             RenderLedger();
             RefreshBadges();
+            AnimatePageTransition();
             return;
         }
 
@@ -56,6 +57,7 @@ public partial class MainWindow
         {
             RenderWorldMapScreen(model);
             RefreshBadges();
+            AnimatePageTransition();
             return;
         }
 
@@ -104,6 +106,21 @@ public partial class MainWindow
         ContentPanel.Children.Add(MonthFooter());
         RestoreDetail(model);
         RefreshBadges();
+        AnimatePageTransition();
+    }
+
+    private void AnimatePageTransition()
+    {
+        var animOpacity = new System.Windows.Media.Animation.DoubleAnimation(0.25, 1.0, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new System.Windows.Media.Animation.QuarticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+        };
+        var animTranslate = new System.Windows.Media.Animation.DoubleAnimation(10.0, 0.0, TimeSpan.FromMilliseconds(200))
+        {
+            EasingFunction = new System.Windows.Media.Animation.QuarticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+        };
+        PageTransform.BeginAnimation(TranslateTransform.YProperty, animTranslate);
+        PageRoot.BeginAnimation(OpacityProperty, animOpacity);
     }
 
     private void RenderLedger()
@@ -207,7 +224,10 @@ public partial class MainWindow
         ContentPanel.Children.Add(MonthFooter());
         RestoreDetail(model);
         RefreshBadges();
+        AnimatePageTransition();
     }
+
+
 
     private GameMetricCard BuildMetric(ScreenMetric metric) => new(metric);
 

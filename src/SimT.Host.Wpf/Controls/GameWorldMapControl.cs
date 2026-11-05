@@ -102,7 +102,7 @@ public sealed class GameWorldMapControl : Border
         {
             FontSize = 13,
             FontWeight = FontWeights.Bold,
-            Foreground = (Brush)Application.Current.FindResource("Ink"),
+            Foreground = (Brush)Application.Current.FindResource("Text"),
             VerticalAlignment = VerticalAlignment.Center
         };
         planHeader.Children.Add(_routeSummaryText);

@@ -7,6 +7,7 @@ using SimT.Core.Localization;
 using SimT.Core.Simulation;
 using SimT.Contracts.Config;
 using SimT.Contracts.Data;
+using SimT.Contracts.Events;
 using SimT.Contracts.Diagnostics;
 using SimT.Contracts.Ledger;
 using SimT.Contracts.Logging;
@@ -49,6 +50,7 @@ public sealed class SimKernel : IDisposable
     private readonly SplitMix64Rng _rng;
     private readonly UiRegistry _ui;
     private readonly CapabilityBroker _broker;
+    private readonly EventPublisher _events;
     private readonly SimClock _clock;
     private readonly SqliteLedger _ledger;
     private readonly InvariantRunner _invariants;
@@ -66,6 +68,7 @@ public sealed class SimKernel : IDisposable
         SplitMix64Rng rng,
         UiRegistry ui,
         CapabilityBroker broker,
+        EventPublisher events,
         SimClock clock,
         SqliteLedger ledger,
         GameConstants constants,
@@ -76,6 +79,7 @@ public sealed class SimKernel : IDisposable
         _rng = rng;
         _ui = ui;
         _broker = broker;
+        _events = events;
         _clock = clock;
         _ledger = ledger;
         Constants = constants;
@@ -104,6 +108,8 @@ public sealed class SimKernel : IDisposable
     public IGameClock Clock => _clock;
 
     public IActionTime ActionTime { get; private init; } = null!;
+
+    public IEventPublisher Events => _events;
 
     public IUiRegistry Ui => _ui;
 
@@ -171,8 +177,9 @@ public sealed class SimKernel : IDisposable
             var rng = new SplitMix64Rng(storedRng is null ? (ulong)product.Seed : ulong.Parse(storedRng));
 
             var broker = new CapabilityBroker();
+            broker.Provide("core.events", events);
             var ui = new UiRegistry();
-            var kernel = new SimKernel(db, rng, ui, broker, clock, ledger, constants, product, campaignLock)
+            var kernel = new SimKernel(db, rng, ui, broker, events, clock, ledger, constants, product, campaignLock)
             {
                 ActionTime = actionTime
             };

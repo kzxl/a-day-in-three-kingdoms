@@ -18,6 +18,24 @@ public partial class TitleWindow : Window
         DarkTitleBar.Apply(this);
         VersionText.Text = $"SimT {App.Version()} · lưu tại {saves.Root}";
         Reload();
+
+        Loaded += (_, _) =>
+        {
+            var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(260));
+            var scaleIn = new System.Windows.Media.Animation.DoubleAnimation(0.97, 1.0, TimeSpan.FromMilliseconds(260))
+            {
+                EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+            };
+            var slideIn = new System.Windows.Media.Animation.DoubleAnimation(8.0, 0.0, TimeSpan.FromMilliseconds(260))
+            {
+                EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+            };
+
+            TitleRoot.BeginAnimation(OpacityProperty, fadeIn);
+            TitleScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, scaleIn);
+            TitleScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, scaleIn);
+            TitleTranslate.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slideIn);
+        };
     }
 
     private void Reload()

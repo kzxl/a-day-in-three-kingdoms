@@ -9,6 +9,7 @@ public partial class ItemDetailModalWindow : Window
     public ItemDetailModalWindow(ItemHubEntry entry, int bagQuantity = 0)
     {
         InitializeComponent();
+        DarkTitleBar.Apply(this);
 
         IconGlyphText.Text = entry.VisualIcon;
         CategoryTagSmall.Text = entry.Item.Category.ToUpperInvariant();

@@ -36,6 +36,7 @@ public partial class DuelBattleWindow : Window
         string citadelName)
     {
         InitializeComponent();
+        DarkTitleBar.Apply(this);
 
         _military = military;
         _registry = registry;
