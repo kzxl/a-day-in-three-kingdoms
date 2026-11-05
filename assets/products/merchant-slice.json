@@ -14,7 +14,8 @@
     "dlc.politics",
     "dlc.society",
     "dlc.social",
-    "dlc.military"
+    "dlc.military",
+    "dlc.dialogue"
   ],
   "seed": 1840502,
   "startLocation": "lac_duong",

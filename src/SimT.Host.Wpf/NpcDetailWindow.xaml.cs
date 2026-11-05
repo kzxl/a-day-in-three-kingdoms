@@ -195,7 +195,7 @@ public partial class NpcDetailWindow : Window
         HanNameText.Text = string.IsNullOrWhiteSpace(_npc.NameHan) ? "" : _npc.NameHan;
         StyleNameText.Text = string.IsNullOrWhiteSpace(_npc.StyleNameVi) ? "" : $"Tự: {_npc.StyleNameVi}";
 
-        RoleText.Text = _npc.Role;
+        RoleText.Text = SimT.Contracts.Scenes.RoleTitleVi.Format(_npc.Role);
         CitadelText.Text = $"Ngụ tại: {_citadelName}";
 
         var sameCity = (_npcCitadelId == _playerCityId);
@@ -720,7 +720,9 @@ public partial class NpcDetailWindow : Window
 
     private void MeetNpc_Click(object sender, RoutedEventArgs e)
     {
-        OnMeetNpc?.Invoke(_npcId);
+        var id = _npcId;
+        Close();
+        OnMeetNpc?.Invoke(id);
         _hasMet = true;
         UpdateAfterMeeting();
     }
@@ -810,7 +812,7 @@ public partial class NpcDetailWindow : Window
 
     private static string DetermineRoleTag(string role)
     {
-        var r = role.ToLowerInvariant();
+        var r = SimT.Contracts.Scenes.RoleTitleVi.Format(role).ToLowerInvariant();
         if (r.Contains("tướng") || r.Contains("quân") || r.Contains("soái")) return "VÕ";
         if (r.Contains("sư") || r.Contains("mưu") || r.Contains("học")) return "VĂN";
         if (r.Contains("thương") || r.Contains("buôn") || r.Contains("bản")) return "THƯƠNG";

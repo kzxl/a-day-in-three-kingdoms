@@ -25,6 +25,7 @@ public partial class MainWindow
         if (!string.Equals(_screenId, entry.ScreenId, StringComparison.Ordinal))
         {
             _detailKey = null;
+            SceneOverlay.HideScene();
         }
 
         _screenId = entry.ScreenId;

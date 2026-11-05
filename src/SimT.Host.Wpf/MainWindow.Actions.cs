@@ -159,6 +159,16 @@ public partial class MainWindow
 
     private void RegisterModalPresenters()
     {
+        _kernel.Ui.RegisterModalPresenter("talk:npc:", commandId =>
+        {
+            if (long.TryParse(commandId["talk:npc:".Length..], out var talkNpcId))
+            {
+                if (!TryOpenTalkScene(talkNpcId))
+                {
+                    MeetNpcFallback(talkNpcId);
+                }
+            }
+        });
         _kernel.Ui.RegisterModalPresenter("npc:modal:", commandId =>
         {
             if (long.TryParse(commandId["npc:modal:".Length..], out var npcId))
@@ -500,6 +510,15 @@ public partial class MainWindow
     }
 
     private void MeetNpcFromModal(long npcId)
+    {
+        if (TryOpenTalkScene(npcId))
+        {
+            return;
+        }
+        MeetNpcFallback(npcId);
+    }
+
+    private void MeetNpcFallback(long npcId)
     {
         if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
         {
