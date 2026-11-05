@@ -1,3 +1,6 @@
+using SimT.Modules.Dlc.Economy.Banking;
+using SimT.Modules.Dlc.Economy.Caravan;
+using SimT.Modules.Dlc.Economy.Shocks;
 using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
@@ -46,6 +49,15 @@ public sealed class EconomyModule : ISimModule
         farmService.EnsurePlots(map);
         context.Capabilities.Provide(CapabilityIds.CultivationEstate, farmService);
 
+        // 2b. Shocks & Arbitrage Engine
+        var shockEngine = new MarketShockEngine(context.Db);
+
+        // 2c. Banking Service
+        var bankingService = new BankingService(context.Db, context.Clock, wallet, context.Log);
+
+        // 2d. Automated Logistics & Cartel Warfare
+        var logisticsService = new AutomatedLogisticsService(context.Db, context.Log);
+
         // 4. Profession Service
         var professionService = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes, map, npcs, social, chronicle);
         professionService.ValidateCatalog();
@@ -66,6 +78,9 @@ public sealed class EconomyModule : ISimModule
         context.Ui.AddScreen(new FarmScreen(farmService, map, player, context.Clock));
         context.Ui.AddCommandHandler(new FarmCommandHandler(farmService, player, marketService));
 
+        context.Ui.AddScreen(new BankScreen(bankingService, shockEngine, map, items, marketService, player, wallet, context.Clock));
+        context.Ui.AddCommandHandler(new BankCommandHandler(bankingService, player));
+
         context.Ui.AddScreen(new ProfessionScreen(professionService, items, player));
         context.Ui.AddCommandHandler(new ProfessionCommandHandler(professionService, player));
 
@@ -84,6 +99,8 @@ public sealed class EconomyModule : ISimModule
         context.Events.Subscribe<MonthClosed>(closed => farmService.RecoverSoil(closed.Date));
 
         context.Events.Subscribe<MonthClosed>(closed => professionService.OnMonth(closed.Date));
+        context.Events.Subscribe<MonthClosed>(_ => bankingService.ProcessMonthlyInterest());
+        context.Events.Subscribe<DayAdvanced>(day => logisticsService.StepAutomatedRoutes(day.Date, marketService, wallet, map, items));
 
         // Invariants
         foreach (var invariant in EconomyInvariants.All())

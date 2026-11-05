@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "apiVersion": "1",
   "kind": "dlc",
-  "requires": ["base.content", "base.world", "base.player"],
+  "requires": [
+    "base.content",
+    "base.world",
+    "base.player"
+  ],
   "provides": [
     "market.trade",
     "market.warehouse",
@@ -50,9 +54,16 @@
       "pf_guild_fame",
       "pf_mastery_perk",
       "pf_dish",
-      "pf_dish_inventory"
+      "pf_dish_inventory",
+      "mk_city_shock",
+      "mk_bank_account",
+      "mk_bank_draft",
+      "cv_auto_route",
+      "cv_cartel_reputation"
     ],
-    "migrations": ["migrations"]
+    "migrations": [
+      "migrations"
+    ]
   },
   "screens": [
     "market.stall",
@@ -60,7 +71,8 @@
     "market.warehouse",
     "caravan.routes",
     "cultivation.farm",
-    "professions.trades"
+    "professions.trades",
+    "market.bank"
   ],
   "config": {
     "freightPerUnit": 8
