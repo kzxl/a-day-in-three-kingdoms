@@ -53,8 +53,21 @@ public sealed class GameTabs : Border
 
     public void SetTabs(IEnumerable<GameTabItem> items, int selectedIndex = 0)
     {
+        var newItems = items as IList<GameTabItem> ?? items.ToList();
+
+        if (AreTabsEquivalent(_items, newItems))
+        {
+            var clamped = Math.Clamp(selectedIndex, 0, Math.Max(0, _items.Count - 1));
+            if (_selectedIndex != clamped)
+            {
+                _selectedIndex = clamped;
+                UpdateVisualStyles();
+            }
+            return;
+        }
+
         _items.Clear();
-        _items.AddRange(items);
+        _items.AddRange(newItems);
         _selectedIndex = Math.Clamp(selectedIndex, 0, Math.Max(0, _items.Count - 1));
         RebuildVisuals();
     }
@@ -62,11 +75,44 @@ public sealed class GameTabs : Border
     public void SelectIndex(int index, bool notify = true)
     {
         if (index < 0 || index >= _items.Count) return;
+        if (_selectedIndex == index) return;
         _selectedIndex = index;
-        RebuildVisuals();
+        UpdateVisualStyles();
         if (notify)
         {
             SelectionChanged?.Invoke(_selectedIndex, _items[_selectedIndex]);
+        }
+    }
+
+    private static bool AreTabsEquivalent(List<GameTabItem> current, IList<GameTabItem> next)
+    {
+        if (current.Count != next.Count) return false;
+        for (var i = 0; i < current.Count; i++)
+        {
+            if (current[i].Key != next[i].Key ||
+                current[i].Title != next[i].Title ||
+                current[i].Count != next[i].Count)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void UpdateVisualStyles()
+    {
+        for (var i = 0; i < _strip.Children.Count; i++)
+        {
+            if (_strip.Children[i] is not Border tabBorder) continue;
+            var isSelected = (i == _selectedIndex);
+            tabBorder.Background = isSelected ? ActiveBg : Brushes.Transparent;
+            tabBorder.BorderBrush = isSelected ? BronzeLine : Brushes.Transparent;
+
+            if (tabBorder.Child is StackPanel row && row.Children.Count > 0 && row.Children[0] is TextBlock titleBlock)
+            {
+                titleBlock.FontWeight = isSelected ? FontWeights.Bold : FontWeights.SemiBold;
+                titleBlock.Foreground = isSelected ? ActiveFg : InactiveFg;
+            }
         }
     }
 

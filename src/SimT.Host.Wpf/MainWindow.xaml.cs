@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     private readonly CampaignMeta _meta;
     private readonly bool _isSmoke;
     private bool _loaded;
+    private bool _isNavigating;
     private string _screenId = string.Empty;
     private string? _detailKey;
     private GameTable? _firstGrid;
@@ -292,7 +293,7 @@ public partial class MainWindow : Window
 
     private void Nav_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_loaded)
+        if (_loaded && !_isNavigating)
         {
             RenderSelected();
         }
@@ -337,7 +338,15 @@ public partial class MainWindow : Window
             return false;
         }
 
-        NavList.SelectedIndex = index;
+        _isNavigating = true;
+        try
+        {
+            NavList.SelectedIndex = index;
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
         RenderSelected();
         return true;
     }
