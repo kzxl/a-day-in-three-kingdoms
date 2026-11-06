@@ -1,0 +1,16 @@
+{
+  "economy.market": "城邑市集",
+  "economy.warehouse": "货栈仓储",
+  "economy.caravan": "商队商道",
+  "economy.bank": "钱庄汇兑",
+  "economy.player_bank": "自营大钱庄",
+  "economy.cash": "现银",
+  "economy.currency_unit": "贯",
+  "economy.silver_draft": "银票",
+  "economy.vault_cash": "金库库银",
+  "economy.deposit": "存入银两",
+  "economy.withdraw": "提取现银",
+  "economy.loan": "借贷周转",
+  "economy.repay": "归还本息",
+  "economy.convoy": "镖局押银队"
+}

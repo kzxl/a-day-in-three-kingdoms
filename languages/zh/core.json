@@ -1,0 +1,22 @@
+{
+  "app.title": "SimT — 三国一日",
+  "app.subtitle": "古代社会、商业与宏观战略模拟",
+  "app.version": "版本",
+  "app.settings": "游戏设置",
+  "app.exit": "退出游戏",
+  "app.save": "保存进度",
+  "app.load": "读取存档",
+  "nav.world": "天下地图",
+  "nav.economy": "商贾钱粮",
+  "nav.factions": "诸侯势力",
+  "nav.social": "结拜恩义",
+  "nav.character": "人物百艺",
+  "time.day": "日",
+  "time.month": "月",
+  "time.year": "年",
+  "time.turn": "回合",
+  "time.spring": "春季",
+  "time.summer": "夏季",
+  "time.autumn": "秋季",
+  "time.winter": "冬季"
+}

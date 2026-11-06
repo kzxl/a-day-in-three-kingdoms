@@ -46,6 +46,7 @@
 
   <ItemGroup>
     <None Include="..\..\assets\**\*" LinkBase="assets" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\languages\**\*" LinkBase="languages" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

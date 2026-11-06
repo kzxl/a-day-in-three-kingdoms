@@ -1,0 +1,22 @@
+{
+  "app.title": "SimT — A Day in the Three Kingdoms",
+  "app.subtitle": "Grand Strategy, Societal & Economic Simulation",
+  "app.version": "Version",
+  "app.settings": "Game Settings",
+  "app.exit": "Exit Game",
+  "app.save": "Save Game",
+  "app.load": "Load Game",
+  "nav.world": "World Map",
+  "nav.economy": "Commerce & Vault",
+  "nav.factions": "Warlords & Factions",
+  "nav.social": "Bonds & Kinship",
+  "nav.character": "Hero & Trades",
+  "time.day": "Day",
+  "time.month": "Month",
+  "time.year": "Year",
+  "time.turn": "Turn",
+  "time.spring": "Spring",
+  "time.summer": "Summer",
+  "time.autumn": "Autumn",
+  "time.winter": "Winter"
+}
