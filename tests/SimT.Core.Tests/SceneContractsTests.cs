@@ -11,6 +11,7 @@ public sealed class SceneContractsTests
     public void SceneTrustGuard_AcceptsReadyAndClose_RejectsUnknownTypes()
     {
         Assert.True(SceneTrustGuard.IsAllowedMessage(new SceneClientMessage("ready"), null));
+        Assert.True(SceneTrustGuard.IsAllowedMessage(new SceneClientMessage("painted", "city:1"), null));
         Assert.True(SceneTrustGuard.IsAllowedMessage(new SceneClientMessage("close"), null));
         Assert.False(SceneTrustGuard.IsAllowedMessage(new SceneClientMessage("eval", Id: "1"), null));
         Assert.False(SceneTrustGuard.IsAllowedMessage(null, null));

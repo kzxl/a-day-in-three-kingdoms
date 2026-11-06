@@ -1,4 +1,3 @@
-using System.IO;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Scenes;
 using SimT.Contracts.Time;
@@ -7,28 +6,26 @@ namespace SimT.Host.Wpf;
 
 public partial class MainWindow
 {
-    private void InitializeSceneHost()
-    {
-        SceneOverlay.ClientMessageReceived += OnSceneClientMessageReceived;
-        Loaded += async (_, _) =>
-        {
-            var scenesDir = Path.Combine(AppContext.BaseDirectory, "assets", "scenes");
-            await SceneOverlay.InitializeWarmAsync(scenesDir, skipForSmoke: _isSmoke);
-            if (_loaded)
-            {
-                if (string.Equals(_screenId, CitySceneScreenId, StringComparison.Ordinal))
-                    TryOpenCityScene();
-                else if (TryOpenFeatureScene(_screenId))
-                    ClearWpfPageContent(ScreenTitle.Text);
-            }
-        };
-    }
 
     public bool TryOpenCityScene(CityEventCard? eventCard = null, IReadOnlyList<SceneChoice>? customChoices = null)
     {
-        if (!SceneOverlay.IsAvailable ||
-            !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
+        if (!SceneOverlay.IsAvailable)
             return false;
+
+        var scene = BuildCityScene(eventCard, customChoices);
+        if (scene is null || !SceneOverlay.ShowCityScene(scene))
+            return false;
+
+        StatusText.Text = eventCard is null
+            ? $"Đang ở {scene.CityNameVi} ({scene.Season}) · bấm địa điểm hoặc nhân sĩ trong thành để tương tác."
+            : $"[{eventCard.LocationVi} · {eventCard.TitleVi}] {eventCard.RewardVi}";
+        return true;
+    }
+
+    private CityScene? BuildCityScene(CityEventCard? eventCard = null, IReadOnlyList<SceneChoice>? customChoices = null)
+    {
+        if (!_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
+            return null;
 
         var cityId = playerState.CurrentCityId;
         var cityName = "Lạc Dương";
@@ -53,19 +50,11 @@ public partial class MainWindow
             new("map", "Xem bản đồ", "Hành trình liên thành")
         ];
 
-        var scene = new CityScene(
+        return new CityScene(
             $"city:{cityId}", cityId, cityName, "城", regionVi,
             GameDateCodec.ShortVi(_kernel.Today), seasonVi, weatherFx,
             SceneArtCatalog.BackgroundForKey("city_street"),
             BuildCityHotspots(sublocations), BuildCityNpcs(cityId), eventCard, choices);
-
-        if (!SceneOverlay.ShowCityScene(scene))
-            return false;
-
-        StatusText.Text = eventCard is null
-            ? $"Đang ở {cityName} ({seasonVi}) · bấm địa điểm hoặc nhân sĩ trong thành để tương tác."
-            : $"[{eventCard.LocationVi} · {eventCard.TitleVi}] {eventCard.RewardVi}";
-        return true;
     }
 
     public void PresentStrollResultInCityScene(StrollResult result)

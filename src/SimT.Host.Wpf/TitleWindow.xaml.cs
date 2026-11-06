@@ -1,14 +1,16 @@
-using System.Globalization;
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Microsoft.Data.Sqlite;
+using System.Windows.Threading;
 using SimT.Contracts;
 using SimT.Contracts.Products;
+using SimT.Core.Kernel;
 using SimT.Host.Wpf.Controls;
+using SimT.Host.Wpf.Scenes;
 
 namespace SimT.Host.Wpf;
 
@@ -19,7 +21,14 @@ namespace SimT.Host.Wpf;
 /// </summary>
 public partial class TitleWindow : Window
 {
+    private const string EmptyTitle = "Chưa Có Ván Lưu Nào";
+    private const string EmptyDesc = "Hãy nhập tên thương hiệu phía trên và nhấn Khởi nghiệp để bắt đầu vận mệnh Tam Quốc!";
+
+    private static BitmapSource? s_cachedBackground;
+
     private readonly SaveManager _saves;
+    private bool _isEntering;
+    private bool _allowClose;
 
     public TitleWindow(SaveManager saves)
     {
@@ -29,11 +38,7 @@ public partial class TitleWindow : Window
 
         VersionText.Text = $"Một Ngày Ở Tam Quốc {App.Version()} · Lưu trữ SQLite WAL độc lập · {saves.Root}";
 
-        EmptyStateControl.Configure(
-            "Chưa Có Ván Lưu Nào",
-            "Hãy nhập tên thương hiệu phía trên và nhấn Khởi nghiệp để bắt đầu vận mệnh Tam Quốc!",
-            "📜",
-            "Khởi nghiệp ngay");
+        EmptyStateControl.Configure(EmptyTitle, EmptyDesc, "📜", "Khởi nghiệp ngay");
         EmptyStateControl.ActionClick += EmptyState_ActionClick;
 
         LoadBackgroundImage();
@@ -44,11 +49,17 @@ public partial class TitleWindow : Window
             var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(320));
             var scaleIn = new System.Windows.Media.Animation.DoubleAnimation(0.97, 1.0, TimeSpan.FromMilliseconds(320))
             {
-                EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                EasingFunction = new System.Windows.Media.Animation.CubicEase
+                {
+                    EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+                }
             };
             var slideIn = new System.Windows.Media.Animation.DoubleAnimation(8.0, 0.0, TimeSpan.FromMilliseconds(320))
             {
-                EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+                EasingFunction = new System.Windows.Media.Animation.CubicEase
+                {
+                    EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut
+                }
             };
 
             TitleRoot.BeginAnimation(OpacityProperty, fadeIn);
@@ -58,17 +69,25 @@ public partial class TitleWindow : Window
 
             NameBox.Focus();
             NameBox.SelectAll();
+
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+            {
+                if (IsLoaded && !_isEntering)
+                    _ = SceneOverlayControl.PrewarmFromWindowAsync(this);
+            }));
         };
     }
 
-    private void LoadBackgroundImage()
+    internal static BitmapSource? GetSharedBackgroundImage()
     {
+        if (s_cachedBackground is not null)
+            return s_cachedBackground;
+
         try
         {
             var path = Path.Combine(AppContext.BaseDirectory, "assets", "images", "backgrounds", "luoyang_grand_market.jpg");
             if (!File.Exists(path))
             {
-                // Development fallback
                 path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "assets", "images", "backgrounds", "luoyang_grand_market.jpg"));
             }
 
@@ -77,16 +96,26 @@ public partial class TitleWindow : Window
                 var bmp = new BitmapImage();
                 bmp.BeginInit();
                 bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.DecodePixelWidth = 1040;
                 bmp.UriSource = new Uri(path, UriKind.Absolute);
                 bmp.EndInit();
                 bmp.Freeze();
-                BgImage.Source = bmp;
+                s_cachedBackground = bmp;
             }
         }
         catch
         {
             // Silently fall back to lacquer solid backdrop
         }
+
+        return s_cachedBackground;
+    }
+
+    private void LoadBackgroundImage()
+    {
+        var bmp = GetSharedBackgroundImage();
+        if (bmp is not null)
+            BgImage.Source = bmp;
     }
 
     private void Reload()
@@ -160,167 +189,71 @@ public partial class TitleWindow : Window
 
         foreach (var mod in modules)
         {
-            if (dict.TryGetValue(mod, out var info))
-            {
-                var badge = new GameBadge(info.Name, info.Variant)
-                {
-                    Margin = new Thickness(0, 0, 6, 6)
-                };
-                DlcBadgesPanel.Children.Add(badge);
-            }
-            else
-            {
-                var badge = new GameBadge(mod, BadgeVariant.Default)
-                {
-                    Margin = new Thickness(0, 0, 6, 6)
-                };
-                DlcBadgesPanel.Children.Add(badge);
-            }
+            var badge = dict.TryGetValue(mod, out var info)
+                ? new GameBadge(info.Name, info.Variant) { Margin = new Thickness(0, 0, 6, 6) }
+                : new GameBadge(mod, BadgeVariant.Default) { Margin = new Thickness(0, 0, 6, 6) };
+            DlcBadgesPanel.Children.Add(badge);
         }
     }
 
-    private void New_Click(object sender, RoutedEventArgs e)
+    private async void New_Click(object sender, RoutedEventArgs e)
     {
+        if (_isEntering)
+            return;
+
         var name = string.IsNullOrWhiteSpace(NameBox.Text) ? "Lữ Khách" : NameBox.Text.Trim();
+        await BeginEnteringAsync(isNewCampaign: true);
+
+        SimKernel? kernel = null;
         try
         {
-            var meta = _saves.Create(name);
-            Enter(meta);
+            var meta = await Task.Run(() => _saves.Create(name));
+            kernel = await Task.Run(() => _saves.Open(meta));
+            await HandOffToMainWindowAsync(kernel, meta);
         }
         catch (SimException error)
         {
+            kernel?.Dispose();
+            RestoreInteractiveState();
             Fail(error);
         }
-    }
-
-    private void EmptyState_ActionClick(object sender, RoutedEventArgs e)
-    {
-        New_Click(sender, e);
-    }
-
-    private void Load_Click(object sender, RoutedEventArgs e)
-    {
-        if (SaveList.SelectedItem is SaveItem selected)
+        catch (Exception error)
         {
-            Enter(selected.Meta);
-        }
-    }
-
-    private void Load_DoubleClick(object sender, MouseButtonEventArgs e)
-    {
-        if (SaveList.SelectedItem is SaveItem selected)
-        {
-            Enter(selected.Meta);
-        }
-    }
-
-    private void Duplicate_Click(object sender, RoutedEventArgs e)
-    {
-        if (SaveList.SelectedItem is not SaveItem selected)
-        {
-            return;
-        }
-
-        try
-        {
-            var copy = _saves.Duplicate(selected.Meta);
-            Reload();
-
-            // Select duplicated item
-            var found = SaveList.Items.OfType<SaveItem>().FirstOrDefault(x => x.Meta.CampaignId == copy.CampaignId);
-            if (found != null)
-            {
-                SaveList.SelectedItem = found;
-                SaveList.ScrollIntoView(found);
-            }
-        }
-        catch (IOException error)
-        {
+            kernel?.Dispose();
+            RestoreInteractiveState();
             Fail(error.Message);
         }
     }
 
-    private void Delete_Click(object sender, RoutedEventArgs e)
+    private void EmptyState_ActionClick(object sender, RoutedEventArgs e) =>
+        New_Click(sender, e);
+
+    private void Load_Click(object sender, RoutedEventArgs e)
     {
-        if (SaveList.SelectedItem is not SaveItem selected)
-        {
-            return;
-        }
-
-        if (!GameConfirmDialog.Ask(
-                this,
-                "Xác nhận xóa ván chơi",
-                $"Bạn có chắc chắn muốn xóa vĩnh viễn ván \"{selected.Name}\"? Toàn bộ dữ liệu ngân lượng, sản nghiệp và hảo cảm của ván này sẽ mất vĩnh viễn.",
-                "Xóa vĩnh viễn",
-                "Giữ lại",
-                isDanger: true))
-        {
-            return;
-        }
-
-        _saves.Delete(selected.Meta.CampaignId);
-        Reload();
+        if (!_isEntering && SaveList.SelectedItem is SaveItem selected)
+            _ = EnterAsync(selected.Meta);
     }
 
-    private void DlcManager_Click(object sender, RoutedEventArgs e)
+    private void Load_DoubleClick(object sender, MouseButtonEventArgs e)
     {
+        if (_isEntering)
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (SaveList.SelectedItem is SaveItem selected)
-        {
-            try
-            {
-                using var kernel = _saves.Open(selected.Meta);
-                var dlcWin = new DlcSettingsWindow(kernel) { Owner = this };
-                dlcWin.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                GameConfirmDialog.Alert(this, "Quản Lý DLC", $"Không thể nạp thông tin DLC: {ex.Message}", isError: true);
-            }
-        }
-        else
-        {
-            GameConfirmDialog.Alert(this, "Quản Lý DLC", "Vui lòng chọn một ván chơi trong danh sách để quản lý và kiểm tra DLC của ván đó.");
-        }
-    }
-
-    private void OpenSaveFolder_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var targetDir = _saves.Root;
-            if (SaveList.SelectedItem is SaveItem selected)
-            {
-                var specific = Path.Combine(_saves.Root, selected.Meta.CampaignId);
-                if (Directory.Exists(specific)) targetDir = specific;
-            }
-
-            if (Directory.Exists(targetDir))
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = targetDir,
-                    UseShellExecute = true
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            Fail($"Không thể mở thư mục: {ex.Message}");
-        }
-    }
-
-    private void Refresh_Click(object sender, RoutedEventArgs e)
-    {
-        Reload();
-    }
-
-    private void Exit_Click(object sender, RoutedEventArgs e)
-    {
-        Close();
+            _ = EnterAsync(selected.Meta);
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (_isEntering)
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key == Key.Enter)
         {
             if (NameBox.IsFocused)
@@ -346,20 +279,88 @@ public partial class TitleWindow : Window
         }
     }
 
-    private void Enter(CampaignMeta meta)
+    protected override void OnClosing(CancelEventArgs e)
     {
+        if (_isEntering && !_allowClose)
+        {
+            e.Cancel = true;
+            return;
+        }
+        base.OnClosing(e);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        SceneOverlayControl.ReleaseWarmController();
+        base.OnClosed(e);
+    }
+
+    private async Task EnterAsync(CampaignMeta meta)
+    {
+        if (_isEntering)
+            return;
+
+        await BeginEnteringAsync(isNewCampaign: false);
+        SimKernel? kernel = null;
         try
         {
-            var kernel = _saves.Open(meta);
-            var window = new MainWindow(kernel, _saves, meta);
-            Application.Current.MainWindow = window;
-            window.Show();
-            Close();
+            kernel = await Task.Run(() => _saves.Open(meta));
+            await HandOffToMainWindowAsync(kernel, meta);
         }
         catch (SimException error)
         {
+            kernel?.Dispose();
+            RestoreInteractiveState();
             Fail(error);
         }
+        catch (Exception error)
+        {
+            kernel?.Dispose();
+            RestoreInteractiveState();
+            Fail(error.Message);
+        }
+    }
+
+    private async Task BeginEnteringAsync(bool isNewCampaign)
+    {
+        _isEntering = true;
+        if (isNewCampaign)
+        {
+            NewCampaignButton.Label = "Đang vào...";
+            EmptyStateControl.Configure(EmptyTitle, EmptyDesc, "📜", "Đang vào...");
+        }
+        else
+        {
+            EnterGameButton.Label = "Đang vào...";
+            EnterGameButton.CostText = null;
+        }
+
+        TitleRoot.IsEnabled = false;
+        Cursor = Cursors.Wait;
+        UpdateLayout();
+        await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
+    }
+
+    private async Task HandOffToMainWindowAsync(SimKernel kernel, CampaignMeta meta)
+    {
+        var window = new MainWindow(kernel, _saves, meta);
+        Application.Current.MainWindow = window;
+        window.Show();
+        await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+        _allowClose = true;
+        Hide();
+        _ = window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(Close));
+    }
+
+    private void RestoreInteractiveState()
+    {
+        _isEntering = false;
+        NewCampaignButton.Label = "Khởi nghiệp";
+        EnterGameButton.Label = "VÀO VÁN CHƠI";
+        EnterGameButton.CostText = "Enter";
+        EmptyStateControl.Configure(EmptyTitle, EmptyDesc, "📜", "Khởi nghiệp ngay");
+        TitleRoot.IsEnabled = true;
+        Cursor = null;
     }
 
     private void Fail(SimException error) =>
@@ -367,202 +368,4 @@ public partial class TitleWindow : Window
 
     private void Fail(string message) =>
         GameConfirmDialog.Alert(this, "Lỗi", message, isError: true);
-
-    private static SaveItem LoadSaveItem(CampaignMeta meta, string savesRoot)
-    {
-        var name = meta.Name;
-        var gameDate = meta.GameDate;
-        var formattedDate = FormatGameDateVi(gameDate);
-        var lastPlayedText = FormatRelativeOrLocal(meta.LastPlayedUtc);
-        var campaignIdShort = meta.CampaignId.Length >= 8 ? meta.CampaignId[..8] : meta.CampaignId;
-
-        var cityName = "Lạc Dương";
-        var regionName = "Trung Nguyên";
-        long wallet = 0;
-        var fame = 100;
-        var virtue = 50;
-        var credibility = 50;
-
-        var dbPath = Path.Combine(savesRoot, meta.CampaignId, "campaign.db");
-        if (File.Exists(dbPath))
-        {
-            try
-            {
-                var cs = new SqliteConnectionStringBuilder
-                {
-                    DataSource = dbPath,
-                    Mode = SqliteOpenMode.ReadOnly,
-                    Pooling = false
-                }.ToString();
-
-                using var conn = new SqliteConnection(cs);
-                conn.Open();
-
-                // 1. City & player name
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = "SELECT p.name, c.name_vi, c.region FROM pl_player p LEFT JOIN wd_citadel c ON p.city_id = c.id WHERE p.id = 1 LIMIT 1;";
-                    using var r = cmd.ExecuteReader();
-                    if (r.Read())
-                    {
-                        if (!r.IsDBNull(0) && !string.IsNullOrWhiteSpace(r.GetString(0)))
-                            name = r.GetString(0);
-                        if (!r.IsDBNull(1))
-                            cityName = r.GetString(1);
-                        if (!r.IsDBNull(2))
-                            regionName = FormatRegionName(r.GetString(2));
-                    }
-                }
-
-                // 2. Wallet balance
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = "SELECT balance_after FROM core_ledger WHERE account = 'player.wallet' ORDER BY id DESC LIMIT 1;";
-                    var val = cmd.ExecuteScalar();
-                    if (val is long l) wallet = l;
-                    else if (val is int i) wallet = i;
-                }
-
-                // 3. Social standing
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = "SELECT fame, virtue, credibility FROM pl_social WHERE player_id = 1 LIMIT 1;";
-                    using var r = cmd.ExecuteReader();
-                    if (r.Read())
-                    {
-                        if (!r.IsDBNull(0)) fame = r.GetInt32(0);
-                        if (!r.IsDBNull(1)) virtue = r.GetInt32(1);
-                        if (!r.IsDBNull(2)) credibility = r.GetInt32(2);
-                    }
-                }
-            }
-            catch
-            {
-                // Fall back gracefully to index.json metadata
-            }
-        }
-
-        var fameTitle = GetFameTitle(fame);
-
-        return new SaveItem(
-            meta,
-            name,
-            gameDate,
-            formattedDate,
-            lastPlayedText,
-            campaignIdShort,
-            cityName,
-            regionName,
-            $"{wallet:N0} quan",
-            wallet,
-            fame,
-            fameTitle,
-            virtue,
-            credibility
-        );
-    }
-
-    private static string FormatGameDateVi(string gameDate)
-    {
-        if (string.IsNullOrWhiteSpace(gameDate)) return "Năm 184";
-        var parts = gameDate.Split('-');
-        if (parts.Length == 3 && int.TryParse(parts[0], out var year) && int.TryParse(parts[1], out var month) && int.TryParse(parts[2], out var day))
-        {
-            var season = month switch
-            {
-                1 or 2 or 3 => "Xuân",
-                4 or 5 or 6 => "Hạ",
-                7 or 8 or 9 => "Thu",
-                _ => "Đông"
-            };
-            return $"Năm {year} · Tháng {month} ({season}) · Ngày {day}";
-        }
-        return gameDate;
-    }
-
-    private static string FormatRelativeOrLocal(string utcString)
-    {
-        if (DateTime.TryParse(utcString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var dt))
-        {
-            return dt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-        }
-        return utcString.Length > 16 ? utcString[..16].Replace('T', ' ') : utcString;
-    }
-
-    private static string FormatRegionName(string region) => region switch
-    {
-        "trung_nguyen" => "Trung Nguyên",
-        "quan_trung" => "Quan Trung",
-        "ha_bac" => "Hà Bắc",
-        "giang_dong" => "Giang Đông",
-        "kinh_chau" => "Kinh Châu",
-        "ich_chau" => "Ích Châu",
-        "u_chau" => "U Châu",
-        "luong_chau" => "Lương Châu",
-        _ => region
-    };
-
-    private static string GetFameTitle(int fame) => fame switch
-    {
-        < 80 => "Vô Danh Tiểu Tốt",
-        < 150 => "Sơ Nhập Giang Hồ",
-        < 250 => "Tiểu Hữu Danh Khí",
-        < 500 => "Thương Nhân Nổi Danh",
-        < 800 => "Cự Thương Một Cõi",
-        _ => "Thiên Hạ Đệ Nhất Thương"
-    };
-
-    public sealed class SaveItem
-    {
-        public SaveItem(
-            CampaignMeta meta,
-            string name,
-            string gameDate,
-            string formattedDate,
-            string lastPlayedText,
-            string campaignIdShort,
-            string cityName,
-            string regionName,
-            string walletText,
-            long walletAmount,
-            int fame,
-            string fameTitle,
-            int virtue,
-            int credibility)
-        {
-            Meta = meta;
-            Name = name;
-            GameDate = gameDate;
-            FormattedDate = formattedDate;
-            LastPlayedText = lastPlayedText;
-            CampaignIdShort = campaignIdShort;
-            CityName = cityName;
-            RegionName = regionName;
-            WalletText = walletText;
-            WalletAmount = walletAmount;
-            Fame = fame;
-            FameTitle = fameTitle;
-            Virtue = virtue;
-            Credibility = credibility;
-        }
-
-        public CampaignMeta Meta { get; }
-        public string Name { get; }
-        public string GameDate { get; }
-        public string FormattedDate { get; }
-        public string LastPlayedText { get; }
-        public string CampaignIdShort { get; }
-        public string CityName { get; }
-        public string RegionName { get; }
-        public string WalletText { get; }
-        public long WalletAmount { get; }
-        public int Fame { get; }
-        public string FameText => $"{Fame:N0} Điểm";
-        public string FameTitle { get; }
-        public int Virtue { get; }
-        public string VirtueText => $"{Virtue} / 100";
-        public int Credibility { get; }
-        public string CredibilityText => $"{Credibility} / 100";
-        public string RegionDisplay => $"({RegionName})";
-    }
 }

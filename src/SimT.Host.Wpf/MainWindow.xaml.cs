@@ -269,6 +269,7 @@ public partial class MainWindow : Window
         {
             _screenId = UiGalleryScreenId;
             SceneOverlay.HideScene();
+            DismissStartupOverlay(immediate: true);
             RenderUiGalleryScreen();
             return true;
         }
@@ -290,6 +291,7 @@ public partial class MainWindow : Window
         try { NavList.SelectedIndex = index; }
         finally { _isNavigating = false; }
         RenderSelected();
+        if (!IsWebSceneScreen(_screenId)) DismissStartupOverlay(immediate: true);
         return true;
     }
 
@@ -367,6 +369,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object sender, CancelEventArgs e)
     {
+        DismissStartupOverlay(immediate: true);
         SceneOverlay.Dispose();
         _kernel.Save();
         _saves.Touch(_meta, GameDateCodec.Format(_kernel.Today));

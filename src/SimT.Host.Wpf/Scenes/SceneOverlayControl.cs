@@ -14,7 +14,7 @@ namespace SimT.Host.Wpf.Scenes;
 /// Created once per <see cref="MainWindow"/>, maps <c>https://simt.scene/</c> to
 /// <c>assets/scenes/</c>, and validates all inbound messages via <see cref="SceneTrustGuard"/>.
 /// </summary>
-public sealed class SceneOverlayControl : Border, IDisposable
+public sealed partial class SceneOverlayControl : Border, IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -27,10 +27,12 @@ public sealed class SceneOverlayControl : Border, IDisposable
     private bool _initAttempted;
     private bool _isAvailable;
     private bool _isJsReady;
+    private bool _concealedUntilPainted;
     private object? _activeScene;
     private string? _pendingEnvelopeJson;
 
     public event Action<SceneClientMessage, object?>? ClientMessageReceived;
+    public event Action<object?>? ScenePainted;
 
     public bool IsAvailable => _isAvailable;
 
@@ -43,6 +45,35 @@ public sealed class SceneOverlayControl : Border, IDisposable
         Visibility = Visibility.Collapsed;
         Background = System.Windows.Media.Brushes.Transparent;
         SnapsToDevicePixels = true;
+    }
+
+    public void ConcealUntilPainted()
+    {
+        _concealedUntilPainted = true;
+        ApplyConcealment();
+    }
+
+    public void RevealPaintedScene()
+    {
+        if (!_concealedUntilPainted)
+            return;
+        _concealedUntilPainted = false;
+        ApplyConcealment();
+    }
+
+    private void ApplyConcealment()
+    {
+        if (_webView is null)
+            return;
+        _webView.Margin = _concealedUntilPainted
+            ? new Thickness(0, 10000, 0, -10000)
+            : new Thickness(0);
+    }
+
+    public void PrequeueScene<T>(string envelopeType, T scene) where T : notnull
+    {
+        _activeScene = scene;
+        _pendingEnvelopeJson = JsonSerializer.Serialize(new { type = envelopeType, scene }, JsonOptions);
     }
 
     /// <summary>
@@ -63,28 +94,15 @@ public sealed class SceneOverlayControl : Border, IDisposable
 
         try
         {
-            var version = CoreWebView2Environment.GetAvailableBrowserVersionString();
-            if (string.IsNullOrWhiteSpace(version))
+            var env = await GetOrCreateEnvironmentAsync();
+            if (env is null)
             {
                 _isAvailable = false;
                 return;
             }
-        }
-        catch
-        {
-            _isAvailable = false;
-            return;
-        }
 
-        try
-        {
-            var extraArgs = Environment.GetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS");
-            var hasExtraArgs = !string.IsNullOrWhiteSpace(extraArgs);
-            var userDataDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "SimT",
-                hasExtraArgs ? "webview-cdp" : "webview");
-            Directory.CreateDirectory(userDataDir);
+            var hasExtraArgs = !string.IsNullOrWhiteSpace(
+                Environment.GetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"));
 
             _webView = new WebView2
             {
@@ -92,21 +110,20 @@ public sealed class SceneOverlayControl : Border, IDisposable
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch
             };
+            ApplyConcealment();
             Child = _webView;
 
-            var envOptions = hasExtraArgs ? new CoreWebView2EnvironmentOptions(extraArgs) : null;
-            var env = await CoreWebView2Environment.CreateAsync(null, userDataDir, envOptions);
             await _webView.EnsureCoreWebView2Async(env);
 
             var core = _webView.CoreWebView2;
             ConfigureSettings(core, hasExtraArgs);
-
             core.SetVirtualHostNameToFolderMapping(
                 "simt.scene",
                 Path.GetFullPath(assetsScenesDirectory),
                 CoreWebView2HostResourceAccessKind.Allow);
-
             core.WebMessageReceived += OnWebMessageReceived;
+            if (_activeScene is not null)
+                Visibility = Visibility.Visible;
             core.Navigate("https://simt.scene/index.html");
             _isAvailable = true;
         }
@@ -119,80 +136,28 @@ public sealed class SceneOverlayControl : Border, IDisposable
         }
     }
 
-    public bool ShowTalkScene(TalkScene scene)
+    public bool ShowTalkScene(TalkScene scene) => ShowScene("scene:talk", scene);
+
+    public bool ShowDuelScene(DuelScene scene) => ShowScene("scene:duel", scene);
+
+    public bool ShowCityScene(CityScene scene) => ShowScene("scene:city", scene);
+
+    public bool ShowMapScene(MapScene scene) => ShowScene("scene:map", scene);
+
+    public bool ShowSocialScene(SocialScene scene) => ShowScene("scene:social", scene);
+
+    public bool ShowMarketScene(MarketScene scene) => ShowScene("scene:market", scene);
+
+    public bool ShowDossierScene(DossierScene scene) => ShowScene("scene:dossier", scene);
+
+    private bool ShowScene<T>(string envelopeType, T scene) where T : notnull
     {
         if (!_isAvailable)
             return false;
 
         _activeScene = scene;
         Visibility = Visibility.Visible;
-        SendEnvelope("scene:talk", scene);
-        return true;
-    }
-
-    public bool ShowDuelScene(DuelScene scene)
-    {
-        if (!_isAvailable)
-            return false;
-
-        _activeScene = scene;
-        Visibility = Visibility.Visible;
-        SendEnvelope("scene:duel", scene);
-        return true;
-    }
-
-    public bool ShowCityScene(CityScene scene)
-    {
-        if (!_isAvailable)
-            return false;
-
-        _activeScene = scene;
-        Visibility = Visibility.Visible;
-        SendEnvelope("scene:city", scene);
-        return true;
-    }
-
-    public bool ShowMapScene(MapScene scene)
-    {
-        if (!_isAvailable)
-            return false;
-
-        _activeScene = scene;
-        Visibility = Visibility.Visible;
-        SendEnvelope("scene:map", scene);
-        return true;
-    }
-
-    public bool ShowSocialScene(SocialScene scene)
-    {
-        if (!_isAvailable)
-            return false;
-
-        _activeScene = scene;
-        Visibility = Visibility.Visible;
-        SendEnvelope("scene:social", scene);
-        return true;
-    }
-
-    public bool ShowMarketScene(MarketScene scene)
-    {
-        if (!_isAvailable)
-            return false;
-
-        _activeScene = scene;
-        Visibility = Visibility.Visible;
-        SendEnvelope("scene:market", scene);
-        return true;
-    }
-
-    public bool ShowDossierScene(DossierScene scene)
-    {
-        if (!_isAvailable)
-            return false;
-
-        _activeScene = scene;
-        Visibility = Visibility.Visible;
-        SendEnvelope("scene:dossier", scene);
+        SendEnvelope(envelopeType, scene);
         return true;
     }
 
@@ -265,6 +230,13 @@ public sealed class SceneOverlayControl : Border, IDisposable
                     // Ignore transient failure.
                 }
             }
+            return;
+        }
+
+        if (normalizedType == "painted")
+        {
+            RevealPaintedScene();
+            ScenePainted?.Invoke(_activeScene);
             return;
         }
 

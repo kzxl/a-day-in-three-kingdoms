@@ -135,10 +135,26 @@ public partial class MainWindow
         StrategicRibbon.SelectedSubItemId = screenId;
     }
 
+    private bool _badgeRefreshQueued;
+
     private void RefreshBadges(bool force = false)
     {
         if (NavList.ItemsSource is not IEnumerable<NavEntry> entries)
             return;
+
+        if (!force && _badgesDirty && !_isSmoke && !IsLoaded)
+        {
+            if (!_badgeRefreshQueued)
+            {
+                _badgeRefreshQueued = true;
+                Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+                {
+                    _badgeRefreshQueued = false;
+                    RefreshBadges(force: true);
+                }));
+            }
+            return;
+        }
 
         if (force || _badgesDirty)
         {

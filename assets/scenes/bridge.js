@@ -10,6 +10,7 @@ const stageHandlers = {
 
 let activeKind = 'none';
 let activeSceneId = null;
+let activeSceneData = null;
 
 function postToHost(message) {
   if (window.chrome && window.chrome.webview && typeof window.chrome.webview.postMessage === 'function') {
@@ -20,6 +21,9 @@ function postToHost(message) {
 export const SimTBridge = {
   registerStage(kind, handler) {
     stageHandlers[kind] = handler;
+    if (activeKind === kind && activeSceneData) {
+      showStageSection(kind, activeSceneData);
+    }
   },
 
   sendChoice(sceneId, id) {
@@ -61,11 +65,25 @@ function showStageSection(kind, scene) {
   }
 
   activeKind = kind;
+  activeSceneData = scene;
   activeSceneId = scene ? scene.sceneId || kind : null;
 
   if (kind !== 'none' && stageHandlers[kind] && typeof stageHandlers[kind].render === 'function') {
     const container = document.getElementById(`stage-${kind}`);
     stageHandlers[kind].render(container, scene, SimTBridge);
+    const paintedSceneId = activeSceneId;
+    const notifyPainted = () => {
+      if (activeKind === kind && activeSceneId === paintedSceneId) {
+        postToHost({ type: 'painted', sceneId: paintedSceneId });
+      }
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(notifyPainted);
+      });
+    } else {
+      notifyPainted();
+    }
   }
 }
 

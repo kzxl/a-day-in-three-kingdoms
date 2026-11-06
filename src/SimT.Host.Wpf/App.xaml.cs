@@ -195,6 +195,7 @@ public partial class App : Application
         var screenshotOut = Environment.GetEnvironmentVariable("SIMT_DEMO_SCREENSHOT");
         if (!string.IsNullOrWhiteSpace(screenshotOut))
         {
+            window.DismissStartupOverlay(immediate: true);
             window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
             window.UpdateLayout();
             if (window.Content is FrameworkElement rootEl)

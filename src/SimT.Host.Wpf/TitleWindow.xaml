@@ -111,7 +111,7 @@
                             </DockPanel>
 
                             <DockPanel LastChildFill="True">
-                                <controls:GameButton DockPanel.Dock="Right" Label="Khởi nghiệp" Variant="Primary"
+                                <controls:GameButton x:Name="NewCampaignButton" DockPanel.Dock="Right" Label="Khởi nghiệp" Variant="Primary"
                                                      Click="New_Click" Margin="10,0,0,0"
                                                      IconPathData="M14.5,4 L16.5,6 L7,15.5 L4,16 L4.5,13 L14.5,4 Z"
                                                      ToolTip="Tạo ván chơi mới tại thành Lạc Dương (Nhấn Enter)" />
@@ -305,7 +305,7 @@
                             <!-- 5. Action Button Deck -->
                             <StackPanel Grid.Row="4">
                                 <!-- Big Primary Enter Button -->
-                                <controls:GameButton Label="VÀO VÁN CHƠI" Variant="Primary" Click="Load_Click"
+                                <controls:GameButton x:Name="EnterGameButton" Label="VÀO VÁN CHƠI" Variant="Primary" Click="Load_Click"
                                                      Height="42" FontSize="14" Margin="0,0,0,10"
                                                      CostText="Enter"
                                                      IconPathData="M14.5,4 L16.5,6 L7,15.5 L4,16 L4.5,13 L14.5,4 Z"

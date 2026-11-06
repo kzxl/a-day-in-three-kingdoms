@@ -227,7 +227,7 @@ public static class SceneTrustGuard
             return false;
 
         var type = message.Type.Trim().ToLowerInvariant();
-        if (type is "ready" or "close")
+        if (type is "ready" or "close" or "painted")
             return true;
 
         if (activeScene is null || string.IsNullOrWhiteSpace(message.Id))
