@@ -10,10 +10,10 @@ def cells(path):
     im = np.array(Image.open(path).convert('RGB')).astype(int)
     H, W, _ = im.shape
     r, g, b = im[..., 0], im[..., 1], im[..., 2]
-    key = (b > 150) & (b - r > 90) & (b - g > 70) if keyc == 'b' else (r - g > 46) & (b - g > 46)
+    key = {'b': (b > 150) & (b - r > 90) & (b - g > 70), 'g': (g > 150) & (g - r > 90) & (g - b > 70)}.get(keyc, (r - g > 46) & (b - g > 46))
     border = ndimage.binary_dilation(key, iterations=3)
     fg = ndimage.binary_opening(~key, iterations=1)
-    spill = fg & border & ((b > r + 30) if keyc == 'b' else ((b > g + 14) & (r > g + 14)))
+    spill = fg & border & {'b': b > r + 30, 'g': g > r + 30}.get(keyc, (b > g + 14) & (r > g + 14))
     im[spill] = (im[spill] * 0.25).astype(int)
     res = []
     lab, n = ndimage.label(fg)
@@ -50,7 +50,9 @@ def place(frame, sheet, idx, sc=None):
     tmp.alpha_composite(c, (CW + CW // 2 - round((fx - l) * scale), max(0, CH - h2 - 2)))
     sheet.alpha_composite(tmp.crop((CW, 0, CW * 2, CH)), (idx * CW, 0))
 
-misc = cells(f'g2/{pre}_misc.png'); walk = cells(f'g3/{pre}_walk.png'); atk = cells(f'g2/{pre}_atk.png')
+import os
+D1, D2 = ('g4', 'g4') if os.path.exists(f'g4/{pre}_misc.png') else ('g2', 'g3')
+misc = cells(f'{D1}/{pre}_misc.png'); walk = cells(f'{D2}/{pre}_walk.png'); atk = cells(f'{D1}/{pre}_atk.png')
 idle = [misc[0], misc[1], misc[3], misc[1]] if pre == 'gy' else misc[:4]
 if pre == 'zf':
     atk = [atk[0], atk[1], atk[2], atk[2], atk[4], atk[5], atk[6], atk[7]]
