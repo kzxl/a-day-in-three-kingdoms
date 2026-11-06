@@ -1,3 +1,4 @@
+using SimT.Contracts.Localization;
 using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Ui;
@@ -12,7 +13,7 @@ namespace SimT.Modules.Base.Content;
 public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
 {
     private static readonly string[] HubColumns =
-        ["Biểu Tượng", "Mã", "Tên Kỳ Vật", "Tiểu Loại", "Giá Gốc", "Hạn Dùng", "Khối Lượng", "Hành Trang", "Đồ Giám"];
+        ["Biểu Tượng", "Tên Kỳ Vật", "Tiểu Loại", "Giá Gốc", "Hạn Dùng", "Khối Lượng", "Hành Trang", "Đồ Giám"];
 
     private readonly IItemHubService _hub;
     private readonly ICapabilityBroker _broker;
@@ -34,6 +35,7 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
     {
         _broker.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player);
         _broker.TryGet<IBag>(CapabilityIds.PlayerBag, out var bag);
+        _broker.TryGet<ILocalizationService>(CapabilityIds.Localization, out var loc);
 
         var cityId = player?.CurrentCityId ?? 1L;
         var entries = _hub.FilterByCategory(_activeCategory);
@@ -74,10 +76,10 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
             var bagText = qty > 0 ? $"{qty} cái" : "—";
             var shelfLifeText = entry.Item.ShelfLifeDays > 0 ? $"{entry.Item.ShelfLifeDays} ngày" : "Vĩnh viễn";
 
+            var itemName = loc is not null ? entry.Item.LocalizeName(loc) : entry.Item.NameVi;
             var details = new List<ScreenDetail>
             {
-                new("Mã hệ thống", entry.Item.Code),
-                new("Tên vật phẩm", $"{entry.Item.NameVi} ({entry.Item.NameEn})"),
+                new("Tên vật phẩm", itemName),
                 new("Phân loại chi tiết", entry.SubCategoryVi),
                 new("Giá niêm yết cơ bản", $"{entry.Item.BasePrice} Quan"),
                 new("Hạn sử dụng", shelfLifeText),
@@ -119,8 +121,7 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
             rows.Add(new ScreenRow(
                 [
                     entry.VisualIcon,
-                    entry.Item.Code,
-                    entry.Item.NameVi,
+                    itemName,
                     entry.SubCategoryVi,
                     $"{entry.Item.BasePrice} Quan",
                     shelfLifeText,
@@ -129,7 +130,7 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
                     "Tra cứu"
                 ],
                 rowCommands,
-                Title: $"{entry.VisualIcon} {entry.Item.NameVi} · {entry.SubCategoryVi}",
+                Title: $"{entry.VisualIcon} {itemName} · {entry.SubCategoryVi}",
                 Details: details));
         }
 

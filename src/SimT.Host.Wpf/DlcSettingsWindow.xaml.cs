@@ -40,6 +40,7 @@ public partial class DlcSettingsWindow : Window
 
         PopulateDlcList();
         PopulateEngineInfo();
+        OptBilingualMode.IsChecked = _kernel.Localization.IsBilingualMode;
     }
 
     private void PopulateDlcList()
@@ -159,6 +160,16 @@ public partial class DlcSettingsWindow : Window
         TabDlcBtn.FontWeight = FontWeights.Normal;
         TabDiagnosticsBtn.FontWeight = FontWeights.Normal;
         TabOptionsBtn.FontWeight = FontWeights.Bold;
+    }
+
+    private void OptBilingual_Click(object sender, RoutedEventArgs e)
+    {
+        var enabled = OptBilingualMode.IsChecked == true;
+        _kernel.Localization.IsBilingualMode = enabled;
+        if (enabled)
+        {
+            _kernel.Localization.SecondaryLocale = "zh";
+        }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)

@@ -40,6 +40,7 @@ public static class CapabilityIds
     public const string TimeService = "core.time";
     public const string Scheduler = "core.scheduler";
     public const string AssetManager = "core.assets";
+    public const string Localization = "core.localization";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>

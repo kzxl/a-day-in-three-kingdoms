@@ -217,6 +217,7 @@ public sealed class SimKernel : IDisposable
             broker.Provide(CapabilityIds.TimeService, kernel.TimeService);
             broker.Provide(CapabilityIds.Scheduler, kernel.Scheduler);
             broker.Provide(CapabilityIds.AssetManager, kernel.Assets);
+            broker.Provide(CapabilityIds.Localization, kernel.Localization);
 
             var campaign = new CampaignStart(product.Seed, product.StartLocationCode, product.StartingCash);
 
