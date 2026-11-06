@@ -500,6 +500,11 @@
 }
 
 .tk-map-go {
+  /* Stays reachable when the luggage list makes the panel scroll. */
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  z-index: 2;
   margin-top: auto;
   height: 44px;
   flex: none;
