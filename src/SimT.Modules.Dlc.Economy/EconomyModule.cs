@@ -54,6 +54,7 @@ public sealed class EconomyModule : ISimModule
 
         // 2c. Banking Service
         var bankingService = new BankingService(context.Db, context.Clock, wallet, context.Log);
+        var playerBankService = new PlayerBankService(context.Db, context.Clock, wallet, context.Log);
 
         // 2d. Automated Logistics & Cartel Warfare
         var logisticsService = new AutomatedLogisticsService(context.Db, context.Log);
@@ -81,6 +82,9 @@ public sealed class EconomyModule : ISimModule
         context.Ui.AddScreen(new BankScreen(bankingService, shockEngine, map, items, marketService, player, wallet, context.Clock));
         context.Ui.AddCommandHandler(new BankCommandHandler(bankingService, player));
 
+        context.Ui.AddScreen(new PlayerBankScreen(playerBankService, map, player, wallet, context.Clock));
+        context.Ui.AddCommandHandler(new PlayerBankCommandHandler(playerBankService, player));
+
         context.Ui.AddScreen(new ProfessionScreen(professionService, items, player));
         context.Ui.AddCommandHandler(new ProfessionCommandHandler(professionService, player));
 
@@ -100,6 +104,8 @@ public sealed class EconomyModule : ISimModule
 
         context.Events.Subscribe<MonthClosed>(closed => professionService.OnMonth(closed.Date));
         context.Events.Subscribe<MonthClosed>(_ => bankingService.ProcessMonthlyInterest());
+        context.Events.Subscribe<MonthClosed>(closed => playerBankService.SimulateMonthlyTurn(closed.Date));
+        context.Events.Subscribe<DayAdvanced>(day => playerBankService.SimulateMonthlyTurn(day.Date));
         context.Events.Subscribe<DayAdvanced>(day => logisticsService.StepAutomatedRoutes(day.Date, marketService, wallet, map, items));
 
         // Invariants

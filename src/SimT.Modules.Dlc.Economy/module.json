@@ -59,7 +59,10 @@
       "mk_bank_account",
       "mk_bank_draft",
       "cv_auto_route",
-      "cv_cartel_reputation"
+      "cv_cartel_reputation",
+      "bk_player_bank",
+      "bk_player_branch",
+      "bk_player_convoy"
     ],
     "migrations": [
       "migrations"
@@ -72,7 +75,8 @@
     "caravan.routes",
     "cultivation.farm",
     "professions.trades",
-    "market.bank"
+    "market.bank",
+    "market.player_bank"
   ],
   "config": {
     "freightPerUnit": 8
