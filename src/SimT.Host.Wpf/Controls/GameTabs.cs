@@ -108,10 +108,15 @@ public sealed class GameTabs : Border
             tabBorder.Background = isSelected ? ActiveBg : Brushes.Transparent;
             tabBorder.BorderBrush = isSelected ? BronzeLine : Brushes.Transparent;
 
-            if (tabBorder.Child is StackPanel row && row.Children.Count > 0 && row.Children[0] is TextBlock titleBlock)
+            if (tabBorder.Child is StackPanel row)
             {
-                titleBlock.FontWeight = isSelected ? FontWeights.Bold : FontWeights.SemiBold;
-                titleBlock.Foreground = isSelected ? ActiveFg : InactiveFg;
+                var titleBlock = row.Children.OfType<TextBlock>().FirstOrDefault(tb => (string?)tb.Tag == "title")
+                                 ?? row.Children.OfType<TextBlock>().FirstOrDefault();
+                if (titleBlock != null)
+                {
+                    titleBlock.FontWeight = isSelected ? FontWeights.Bold : FontWeights.SemiBold;
+                    titleBlock.Foreground = isSelected ? ActiveFg : InactiveFg;
+                }
             }
         }
     }
@@ -143,9 +148,24 @@ public sealed class GameTabs : Border
                 VerticalAlignment = VerticalAlignment.Center
             };
 
+            var (icon, label) = ParseIconAndTitle(item.Title);
+
+            if (!string.IsNullOrEmpty(icon))
+            {
+                var iconBlock = new TextBlock
+                {
+                    Text = icon,
+                    FontSize = 13.0,
+                    Margin = new Thickness(0, 0, 8, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                row.Children.Add(iconBlock);
+            }
+
             var titleBlock = new TextBlock
             {
-                Text = item.Title,
+                Tag = "title",
+                Text = label,
                 FontSize = 12.5,
                 FontWeight = isSelected ? FontWeights.Bold : FontWeights.SemiBold,
                 Foreground = isSelected ? ActiveFg : InactiveFg,
@@ -199,6 +219,22 @@ public sealed class GameTabs : Border
 
             _strip.Children.Add(tabBorder);
         }
+    }
+
+    private static (string? Icon, string Label) ParseIconAndTitle(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return (null, string.Empty);
+        var trimmed = raw.Trim();
+        var firstSpace = trimmed.IndexOf(' ');
+        if (firstSpace > 0 && firstSpace <= 5)
+        {
+            var potentialIcon = trimmed[..firstSpace].Trim();
+            if (potentialIcon.Any(c => char.IsSurrogate(c) || char.GetUnicodeCategory(c) is System.Globalization.UnicodeCategory.OtherSymbol or System.Globalization.UnicodeCategory.ModifierSymbol))
+            {
+                return (potentialIcon, trimmed[(firstSpace + 1)..].Trim());
+            }
+        }
+        return (null, trimmed);
     }
 
     private static Brush Freeze(SolidColorBrush b)
