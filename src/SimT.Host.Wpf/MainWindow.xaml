@@ -160,13 +160,19 @@
                     </Grid.RowDefinitions>
 
                     <!-- Section Header -->
-                    <DockPanel Grid.Row="0" Margin="4,0,4,6">
-                        <TextBlock Text="MỆNH LỆNH CHÍNH SỰ" Style="{StaticResource Overline}"
-                                   Foreground="{StaticResource Accent}" VerticalAlignment="Center" />
-                    </DockPanel>
+                    <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="2,0,2,8" Margin="0,0,0,8">
+                        <DockPanel>
+                            <TextBlock Text="⚔️" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="QUÂN CƠ CHÍNH SỰ" Style="{StaticResource Overline}"
+                                       Foreground="{StaticResource Accent}" FontWeight="Bold" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
 
                     <!-- Strategic Command Ribbon (ROTK-inspired 5 Master Category Tabs) -->
-                    <controls:GameCommandRibbon x:Name="StrategicRibbon" Grid.Row="1" Width="200" Margin="0,0,0,6" />
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  Padding="0" Margin="0,0,0,6" Focusable="False">
+                        <controls:GameCommandRibbon x:Name="StrategicRibbon" Width="200" HorizontalAlignment="Center" />
+                    </ScrollViewer>
 
                     <!-- Fallback ListBox kept collapsed for 100% data binding & test compatibility -->
                     <ListBox x:Name="NavList" Grid.Row="1" Visibility="Collapsed" SelectionChanged="Nav_SelectionChanged" />

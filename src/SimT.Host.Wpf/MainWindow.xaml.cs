@@ -268,6 +268,7 @@ public partial class MainWindow : Window
 
     private bool _badgesDirty = true;
     private readonly Dictionary<string, int> _cachedBadgeCounts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _lastScreenPerGroup = new(StringComparer.Ordinal);
 
     public void InvalidateBadges()
     {
@@ -298,6 +299,38 @@ public partial class MainWindow : Window
         foreach (var entry in entries)
         {
             entry.SetBadge(_cachedBadgeCounts.GetValueOrDefault(entry.ScreenId));
+        }
+
+        if (StrategicRibbon?.ItemsSource is { } ribbonList)
+        {
+            foreach (var rItem in ribbonList)
+            {
+                var groupCount = rItem.Id switch
+                {
+                    "group.self" => _cachedBadgeCounts.GetValueOrDefault(CityHubScreenId) +
+                                    _cachedBadgeCounts.GetValueOrDefault("player.destiny") +
+                                    _cachedBadgeCounts.GetValueOrDefault("player.reputation") +
+                                    _cachedBadgeCounts.GetValueOrDefault("content.item_hub") +
+                                    _cachedBadgeCounts.GetValueOrDefault(LedgerScreenId),
+                    "group.map" => _cachedBadgeCounts.GetValueOrDefault("world.map"),
+                    "group.trade" => _cachedBadgeCounts.GetValueOrDefault("market.stall") +
+                                     _cachedBadgeCounts.GetValueOrDefault("market.player_stall") +
+                                     _cachedBadgeCounts.GetValueOrDefault("market.warehouse") +
+                                     _cachedBadgeCounts.GetValueOrDefault("caravan.routes") +
+                                     _cachedBadgeCounts.GetValueOrDefault("cultivation.farm") +
+                                     _cachedBadgeCounts.GetValueOrDefault("professions.trades"),
+                    "group.power" => _cachedBadgeCounts.GetValueOrDefault("society.chronicle") +
+                                     _cachedBadgeCounts.GetValueOrDefault("politics.court") +
+                                     _cachedBadgeCounts.GetValueOrDefault("military.arena"),
+                    "group.social" => _cachedBadgeCounts.GetValueOrDefault("npc.directory") +
+                                      _cachedBadgeCounts.GetValueOrDefault("social.network") +
+                                      _cachedBadgeCounts.GetValueOrDefault("lineage.family"),
+                    _ => 0
+                };
+
+                rItem.BadgeText = groupCount > 0 ? groupCount.ToString() : null;
+            }
+            StrategicRibbon.InvalidateVisual();
         }
     }
 
@@ -511,11 +544,19 @@ public partial class MainWindow : Window
         {
             new()
             {
+                Id = "group.self",
+                Title = "Đại Bản Doanh",
+                Subtitle = "Nội vụ, mệnh cách & sổ cái",
+                IconPathData = "M12,3 L2,12 L5,12 L5,20 L19,20 L19,12 L22,12 Z M10,14 L14,14 L14,20 L10,20 Z",
+                Tag = CityHubScreenId
+            },
+            new()
+            {
                 Id = "group.map",
                 Title = "Sa Bàn 13 Châu",
-                Subtitle = "Thiên hạ & lộ trình",
+                Subtitle = "Thiên hạ & lộ trình quan đạo",
                 IconPathData = "M3,6 L9,3 L15,6 L21,3 L21,18 L15,21 L9,18 L3,21 Z M9,3 L9,18 M15,6 L15,21",
-                Tag = CityHubScreenId
+                Tag = "world.map"
             },
             new()
             {
@@ -527,14 +568,6 @@ public partial class MainWindow : Window
             },
             new()
             {
-                Id = "group.power",
-                Title = "Thế Lực Triều Đình",
-                Subtitle = "Quan trường, quân doanh",
-                IconPathData = "M3,20 L21,20 M5,20 L5,10 M9,20 L9,10 M15,20 L15,10 M19,20 L19,10 M2,10 L12,4 L22,10",
-                Tag = "politics.court"
-            },
-            new()
-            {
                 Id = "group.social",
                 Title = "Nhân Duyên Hào Kiệt",
                 Subtitle = "Danh sĩ, quan hệ, dòng họ",
@@ -543,18 +576,22 @@ public partial class MainWindow : Window
             },
             new()
             {
-                Id = "group.self",
-                Title = "Bản Thân & Sổ Sách",
-                Subtitle = "Mệnh cách, uy danh, sổ cái",
-                IconPathData = "M12,2 L15,9 L22,12 L15,15 L12,22 L9,15 L2,12 L9,9 Z",
-                Tag = "player.destiny"
+                Id = "group.power",
+                Title = "Thế Lực Triều Đình",
+                Subtitle = "Quan trường, niên giám & binh bị",
+                IconPathData = "M3,20 L21,20 M5,20 L5,10 M9,20 L9,10 M15,20 L15,10 M19,20 L19,10 M2,10 L12,4 L22,10",
+                Tag = "society.chronicle"
             }
         };
 
         StrategicRibbon.ItemsSource = ribbonItems;
         StrategicRibbon.ItemSelected += (s, e) =>
         {
-            if (e.Item.Tag is string targetScreen)
+            var targetScreen = _lastScreenPerGroup.TryGetValue(e.Item.Id, out var lastScreen)
+                ? lastScreen
+                : e.Item.Tag as string;
+
+            if (!string.IsNullOrEmpty(targetScreen))
             {
                 SelectScreen(targetScreen);
             }
@@ -641,6 +678,7 @@ public partial class MainWindow : Window
                 break;
         }
 
+        _lastScreenPerGroup[activeGroupId] = screenId;
         StrategicRibbon.SelectedItemId = activeGroupId;
 
         int selectedIdx = tabs.FindIndex(t => t.Key == screenId);
