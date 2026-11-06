@@ -64,12 +64,10 @@ internal sealed class DialogueService : IDialogueModule
 
         _context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
         var candidateNpcs = new List<NpcDef> { npc };
-        if (npcs.FindByCode("npc_0003") is { } gy && candidateNpcs.All(x => x.Id != gy.Id)) candidateNpcs.Add(gy);
-        if (npcs.FindByCode("npc_0002") is { } zf && candidateNpcs.All(x => x.Id != zf.Id)) candidateNpcs.Add(zf);
         foreach (var local in npcs.All)
         {
             if (candidateNpcs.All(x => x.Id != local.Id) &&
-                (society?.GetNpcActivity(local.Id)?.CurrentCitadelId ?? local.CitadelId) == currentCityId)
+                local.CurrentCitadelId(society) == currentCityId)
             {
                 candidateNpcs.Add(local);
             }
@@ -233,10 +231,10 @@ internal sealed class DialogueService : IDialogueModule
             return false;
 
         var playerState = _context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
-        _context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
-        var npcCityId = society?.GetNpcActivity(npc.Id)?.CurrentCitadelId ?? npc.CitadelId;
-        var isVisitingHero = npc.Code is "npc_0002" or "npc_0003";
-        if ((!isVisitingHero && playerState.CurrentCityId != npcCityId) || npc.Attributes.War < 30)
+        var npcCityId = npc.CurrentCitadelId(_context.Capabilities);
+        var isRetainer = _context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) &&
+                         social?.GetRetainer(npc.Id) is not null;
+        if ((!isRetainer && playerState.CurrentCityId != npcCityId) || npc.Attributes.War < 30)
             return false;
 
         if (_context.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)

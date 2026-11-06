@@ -2,6 +2,7 @@ using SimT.Contracts;
 using SimT.Contracts.Data;
 using SimT.Contracts.Ledger;
 using SimT.Contracts.Logging;
+using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
@@ -19,6 +20,7 @@ internal sealed class SocialService : ISocialNetwork
     private readonly IPlayerAttributes _attributes;
     private readonly IItemCatalog _items;
     private readonly ILog _log;
+    private readonly ICapabilityBroker? _capabilities;
 
     public SocialService(
         IDbSession db,
@@ -30,7 +32,8 @@ internal sealed class SocialService : ISocialNetwork
         IPlayerState player,
         IPlayerAttributes attributes,
         IItemCatalog items,
-        ILog log)
+        ILog log,
+        ICapabilityBroker? capabilities = null)
     {
         _db = db;
         _clock = clock;
@@ -42,6 +45,7 @@ internal sealed class SocialService : ISocialNetwork
         _attributes = attributes;
         _items = items;
         _log = log;
+        _capabilities = capabilities;
     }
 
     public RelationshipDef GetRelationship(long npcId)
@@ -235,9 +239,10 @@ internal sealed class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
-        if (npc.CitadelId != _player.CurrentCityId && GetRetainer(npcId) is null)
+        var npcCityId = npc.CurrentCitadelId(_capabilities);
+        if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
         {
-            var cit = _map.Find(npc.CitadelId);
+            var cit = _map.Find(npcCityId);
             var citName = cit?.NameVi ?? "châu quận khác";
             return $"{npc.NameVi} hiện đang ngụ cư tại {citName}, không có mặt tại cùng thành trì với bạn để đàm đạo.";
         }
@@ -480,9 +485,10 @@ internal sealed class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
-        if (npc.CitadelId != _player.CurrentCityId && GetRetainer(npcId) is null)
+        var npcCityId = npc.CurrentCitadelId(_capabilities);
+        if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
         {
-            var cit = _map.Find(npc.CitadelId);
+            var cit = _map.Find(npcCityId);
             var citName = cit?.NameVi ?? "châu quận khác";
             throw new SimException("social.not_in_same_city", $"{npc.NameVi} hiện đang ở {citName}, không có mặt tại đây để nhận lễ vật.");
         }
@@ -630,9 +636,10 @@ internal sealed class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
-        if (npc.CitadelId != _player.CurrentCityId)
+        var npcCityId = npc.CurrentCitadelId(_capabilities);
+        if (npcCityId != _player.CurrentCityId)
         {
-            var cit = _map.Find(npc.CitadelId);
+            var cit = _map.Find(npcCityId);
             var citName = cit?.NameVi ?? "châu quận khác";
             throw new SimException("social.not_in_same_city", $"{npc.NameVi} hiện đang ở {citName}, cần diện kiến trực tiếp tại cùng một thành trì để chiêu mộ.");
         }
@@ -798,9 +805,10 @@ internal sealed class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
-        if (npc.CitadelId != _player.CurrentCityId && GetRetainer(npcId) is null)
+        var npcCityId = npc.CurrentCitadelId(_capabilities);
+        if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
         {
-            var cit = _map.Find(npc.CitadelId);
+            var cit = _map.Find(npcCityId);
             var citName = cit?.NameVi ?? "châu quận khác";
             return $"{npc.NameVi} hiện đang ở {citName}, không thể trực tiếp truyền dạy đặc kỹ.";
         }
@@ -905,9 +913,10 @@ internal sealed class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
-        if (npc.CitadelId != _player.CurrentCityId && GetRetainer(npcId) is null)
+        var npcCityId = npc.CurrentCitadelId(_capabilities);
+        if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
         {
-            var cit = _map.Find(npc.CitadelId);
+            var cit = _map.Find(npcCityId);
             var citName = cit?.NameVi ?? "châu quận khác";
             return $"{npc.NameVi} hiện đang ở {citName}, không thể cùng luận đạo tu luyện.";
         }
@@ -1495,7 +1504,7 @@ internal sealed class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
-        if (npc.CitadelId != _player.CurrentCityId)
+        if (npc.CurrentCitadelId(_capabilities) != _player.CurrentCityId)
         {
             return $"{npc.NameVi} hiện đang ở thành khác, không thể cùng cắt máu ăn thề tại đây.";
         }

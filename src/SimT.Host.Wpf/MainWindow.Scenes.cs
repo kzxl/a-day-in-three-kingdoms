@@ -133,28 +133,7 @@ public partial class MainWindow
             return Array.Empty<CityNpcSprite>();
 
         _kernel.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
-        var list = new List<NpcDef>();
-        if (reg.FindByCode("npc_0003") is { } gy) list.Add(gy);
-        if (reg.FindByCode("npc_0002") is { } zf) list.Add(zf);
-        foreach (var npc in reg.All)
-        {
-            if (list.Any(x => x.Id == npc.Id)) continue;
-            if ((society?.GetNpcActivity(npc.Id)?.CurrentCitadelId ?? npc.CitadelId) != cityId) continue;
-            list.Add(npc);
-            if (list.Count >= 6) break;
-        }
-
-        double[] xs = [35, 65, 50, 17, 85, 8];
-        double[] ys = [87, 88, 73, 75, 76, 86];
-        var sprites = new List<CityNpcSprite>(list.Count);
-        for (var i = 0; i < list.Count; i++)
-        {
-            var npc = list[i];
-            var (_, facePath, spritePath) = SceneArtCatalog.ResolveNpcArt(npc);
-            var (animPath, _) = SceneArtCatalog.ResolveNpcAnim(npc);
-            sprites.Add(new CityNpcSprite(npc.Id, npc.Code, TrimSingleLine(RoleTitleVi.ShortName(npc.NameVi), 24), RoleTitleVi.Format(npc.Role), spritePath, facePath, xs[i], ys[i], animPath));
-        }
-        return sprites;
+        return NpcLocation.BuildCityNpcs(reg, society, cityId);
     }
 
     private static string TrimSingleLine(string text, int maxChars)

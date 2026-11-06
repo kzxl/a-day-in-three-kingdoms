@@ -82,6 +82,58 @@ public interface ISocietyChronicle
 }
 
 /// <summary>
+/// Canonical location and city-roster helper shared across scenes, dialogue, and social services.
+/// </summary>
+public static class NpcLocation
+{
+    public static long CurrentCitadelId(this NpcDef npc, ISocietyChronicle? society) =>
+        society?.GetNpcActivity(npc.Id)?.CurrentCitadelId ?? npc.CitadelId;
+
+    public static long CurrentCitadelId(this NpcDef npc, SimT.Contracts.Modules.ICapabilityBroker? capabilities) =>
+        capabilities is not null && capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society)
+            ? npc.CurrentCitadelId(society)
+            : npc.CitadelId;
+
+    public static IReadOnlyList<SimT.Contracts.Scenes.CityNpcSprite> BuildCityNpcs(
+        INpcRegistry? reg, ISocietyChronicle? society, long cityId, int maxCount = 6)
+    {
+        if (reg is null || maxCount <= 0)
+            return Array.Empty<SimT.Contracts.Scenes.CityNpcSprite>();
+
+        var list = reg.All
+            .Where(npc => npc.CurrentCitadelId(society) == cityId)
+            .OrderBy(npc =>
+            {
+                var (animPath, _) = SimT.Contracts.Scenes.SceneArtCatalog.ResolveNpcAnim(npc);
+                var isGeneralOrAnimated = !string.IsNullOrEmpty(animPath) ||
+                    string.Equals(SimT.Contracts.Scenes.SceneArtCatalog.ClassifyArchetype(npc), "general", StringComparison.OrdinalIgnoreCase);
+                return isGeneralOrAnimated ? 0 : 1;
+            })
+            .ThenBy(npc => npc.Id)
+            .Take(maxCount)
+            .ToList();
+
+        double[] xs = [35, 65, 50, 17, 85, 8];
+        double[] ys = [87, 88, 73, 75, 76, 86];
+        var sprites = new List<SimT.Contracts.Scenes.CityNpcSprite>(list.Count);
+        for (var i = 0; i < list.Count; i++)
+        {
+            var npc = list[i];
+            var (_, facePath, spritePath) = SimT.Contracts.Scenes.SceneArtCatalog.ResolveNpcArt(npc);
+            var (animPath, _) = SimT.Contracts.Scenes.SceneArtCatalog.ResolveNpcAnim(npc);
+            var shortName = SimT.Contracts.Scenes.RoleTitleVi.ShortName(npc.NameVi);
+            if (shortName.Length > 24)
+                shortName = shortName[..23] + "…";
+            sprites.Add(new SimT.Contracts.Scenes.CityNpcSprite(
+                npc.Id, npc.Code, shortName, SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role),
+                spritePath, facePath, xs[i % xs.Length], ys[i % ys.Length], animPath));
+        }
+
+        return sprites;
+    }
+}
+
+/// <summary>
 /// Autonomous AI Merchant Rival managing an independent trading enterprise.
 /// </summary>
 public sealed record MerchantRivalDef(

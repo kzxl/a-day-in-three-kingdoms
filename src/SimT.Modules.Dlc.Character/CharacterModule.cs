@@ -33,7 +33,8 @@ public sealed class CharacterModule : ISimModule
             player,
             attributes,
             items,
-            context.Log);
+            context.Log,
+            context.Capabilities);
         context.Capabilities.Provide(CapabilityIds.SocialNetwork, socialService);
 
         var socialScreen = new SocialScreen(socialService, registry, map, player, bag, items, context.Clock, attributes);

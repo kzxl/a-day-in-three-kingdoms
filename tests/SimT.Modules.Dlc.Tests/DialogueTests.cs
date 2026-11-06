@@ -196,17 +196,65 @@ public sealed class DialogueTests
 
         Assert.Equal(cityA.NameVi, scene.LocationNameVi);
         Assert.Contains(scene.NearbyNpcs, n => n.NpcId == guanYu.Id && n.Active);
-        Assert.Contains(scene.NearbyNpcs, n => n.NpcId == zhangFei.Id);
+        Assert.DoesNotContain(scene.NearbyNpcs, n => n.NpcId == zhangFei.Id);
 
         var otherThumbs = scene.NearbyNpcs
-            .Where(n => n.NpcId != guanYu.Id && n.NpcId != zhangFei.Id)
+            .Where(n => n.NpcId != guanYu.Id)
             .ToList();
         Assert.NotEmpty(otherThumbs);
         foreach (var thumb in otherThumbs)
         {
             var def = npcs.Find(thumb.NpcId)!;
-            var actualCityId = society?.GetNpcActivity(def.Id)?.CurrentCitadelId ?? def.CitadelId;
-            Assert.Equal(cityA.Id, actualCityId);
+            Assert.Equal(cityA.Id, def.CurrentCitadelId(society));
         }
+    }
+
+    [Fact]
+    public void Luoyang_hides_guan_yu_zhuo_shows_him_and_visiting_npc_can_chat()
+    {
+        using var host = new DlcTestHost();
+        using var kernel = host.Boot();
+
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var society = kernel.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle);
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var dialogue = kernel.Capabilities.Get<IDialogueModule>(CapabilityIds.Dialogue);
+        var playerState = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+
+        var guanYu = npcs.FindByCode("npc_0003")!;
+        var luoyangId = playerState.CurrentCityId;
+        var zhuoId = guanYu.CitadelId;
+        Assert.NotEqual(luoyangId, zhuoId);
+
+        // 1. At Luoyang: Guan Yu is not in city roster or local nearby list
+        var luoyangRoster = NpcLocation.BuildCityNpcs(npcs, society, luoyangId);
+        Assert.True(luoyangRoster.Count is > 0 and <= 6);
+        Assert.DoesNotContain(luoyangRoster, s => s.NpcId == guanYu.Id);
+        Assert.NotNull(luoyangRoster[0].AnimPath);
+
+        var localAtLuoyang = npcs.FindByCitadel(luoyangId).First();
+        var luoyangTalk = dialogue.BuildTalkScene(localAtLuoyang.Id);
+        Assert.DoesNotContain(luoyangTalk.NearbyNpcs, n => n.NpcId == guanYu.Id);
+
+        // 2. At Zhuo County: Guan Yu is present in city roster, empty city returns empty safely
+        var zhuoRoster = NpcLocation.BuildCityNpcs(npcs, society, zhuoId);
+        Assert.Contains(zhuoRoster, s => s.NpcId == guanYu.Id);
+        Assert.Empty(NpcLocation.BuildCityNpcs(npcs, society, 9999));
+
+        // 3. Visiting NPC (home != Luoyang, activity CurrentCitadelId == Luoyang) can chat
+        var travelingNpc = npcs.FindByCitadel(zhuoId).First(n => n.Code == "npc_0005");
+        var beforeChat = social.ChatWithNpc(travelingNpc.Id);
+        Assert.Contains("không có mặt", beforeChat, StringComparison.Ordinal);
+
+        kernel.Db.Execute(
+            "UPDATE so_npc_activity SET current_citadel_id = @cit WHERE npc_id = @id",
+            new SimT.Contracts.Data.DbArgs().Add("@cit", luoyangId).Add("@id", travelingNpc.Id));
+
+        Assert.Equal(luoyangId, travelingNpc.CurrentCitadelId(society));
+        Assert.Equal(zhuoId, travelingNpc.CitadelId);
+
+        var afterChat = social.ChatWithNpc(travelingNpc.Id);
+        Assert.DoesNotContain("không có mặt", afterChat, StringComparison.Ordinal);
+        Assert.True(social.GetRelationship(travelingNpc.Id).Affinity > 0);
     }
 }
