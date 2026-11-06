@@ -385,7 +385,7 @@ public static class SceneArtCatalog
     private static string? FindManifestPath() => CachedManifestPath;
 
     private static string? ResolveManifestPath() =>
-        FindSceneAssetsDirectory() is { } scenesDir && Path.Combine(scenesDir, "art", "manifest.json") is var manifestPath && File.Exists(manifestPath) ? manifestPath : null;
+        CachedScenesDirectory is { } d && File.Exists(Path.Combine(d, "art", "manifest.json")) ? Path.Combine(d, "art", "manifest.json") : null;
 
     private sealed record ManifestTable(
         Dictionary<string, (string Portrait, string Sprite)> Npc, Dictionary<string, (string Portrait, string Sprite)> Archetype,
