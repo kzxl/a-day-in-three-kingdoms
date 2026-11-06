@@ -374,6 +374,13 @@ public static class SceneArtCatalog
         }
     }
 
+    private static void ReadStringMap(JsonElement root, string propName, Dictionary<string, string> target)
+    {
+        if (!root.TryGetProperty(propName, out var el) || el.ValueKind != JsonValueKind.Object) return;
+        foreach (var prop in el.EnumerateObject())
+            if (prop.Value.GetString() is { Length: > 0 } v) target[prop.Name] = v;
+    }
+
     private static readonly string? CachedScenesDirectory = ResolveSceneAssetsDirectory();
     private static readonly string? CachedManifestPath = ResolveManifestPath();
 
@@ -381,24 +388,15 @@ public static class SceneArtCatalog
 
     private static string? ResolveSceneAssetsDirectory()
     {
-        if (!root.TryGetProperty(propName, out var el) || el.ValueKind != JsonValueKind.Object) return;
-        foreach (var prop in el.EnumerateObject())
-            if (prop.Value.GetString() is { Length: > 0 } v) target[prop.Name] = v;
-    }
-
-    public static string? FindSceneAssetsDirectory()
-    private static string? FindManifestPath() => CachedManifestPath;
-
-    private static string? ResolveManifestPath()
-    {
         for (var (depth, dir) = (0, new DirectoryInfo(AppContext.BaseDirectory)); depth < 7 && dir is not null; depth++, dir = dir.Parent)
             if (Directory.Exists(Path.Combine(dir.FullName, "assets", "scenes"))) return Path.Combine(dir.FullName, "assets", "scenes");
         return null;
     }
 
-    private static string? FindManifestPath() =>
-        FindSceneAssetsDirectory() is { } d && File.Exists(Path.Combine(d, "art", "manifest.json")) ? Path.Combine(d, "art", "manifest.json") : null;
+    private static string? FindManifestPath() => CachedManifestPath;
 
+    private static string? ResolveManifestPath() =>
+        CachedScenesDirectory is { } d && File.Exists(Path.Combine(d, "art", "manifest.json")) ? Path.Combine(d, "art", "manifest.json") : null;
     private sealed record ManifestTable(
         Dictionary<string, (string Portrait, string Sprite)> Npc, Dictionary<string, (string Portrait, string Sprite)> Archetype,
         Dictionary<string, string> Backgrounds, Dictionary<string, string> Anim,
