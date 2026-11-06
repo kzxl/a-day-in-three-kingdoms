@@ -266,26 +266,38 @@ public partial class MainWindow : Window
 
     // ---------------------------------------------------------- rail badges
 
-    private void RefreshBadges()
+    private bool _badgesDirty = true;
+    private readonly Dictionary<string, int> _cachedBadgeCounts = new(StringComparer.Ordinal);
+
+    public void InvalidateBadges()
+    {
+        _badgesDirty = true;
+    }
+
+    private void RefreshBadges(bool force = false)
     {
         if (NavList.ItemsSource is not IEnumerable<NavEntry> entries)
         {
             return;
         }
 
-        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var screen in _kernel.Ui.Screens)
+        if (force || _badgesDirty)
         {
-            var alerts = screen.Render().Attention.Count;
-            if (alerts > 0)
+            _cachedBadgeCounts.Clear();
+            foreach (var screen in _kernel.Ui.Screens)
             {
-                counts[screen.ScreenId] = alerts;
+                var alerts = screen.Render().Attention.Count;
+                if (alerts > 0)
+                {
+                    _cachedBadgeCounts[screen.ScreenId] = alerts;
+                }
             }
+            _badgesDirty = false;
         }
 
         foreach (var entry in entries)
         {
-            entry.SetBadge(counts.GetValueOrDefault(entry.ScreenId));
+            entry.SetBadge(_cachedBadgeCounts.GetValueOrDefault(entry.ScreenId));
         }
     }
 

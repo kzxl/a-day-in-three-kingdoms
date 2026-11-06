@@ -369,7 +369,12 @@ public static class SceneArtCatalog
         }
     }
 
-    public static string? FindSceneAssetsDirectory()
+    private static readonly string? CachedScenesDirectory = ResolveSceneAssetsDirectory();
+    private static readonly string? CachedManifestPath = ResolveManifestPath();
+
+    public static string? FindSceneAssetsDirectory() => CachedScenesDirectory;
+
+    private static string? ResolveSceneAssetsDirectory()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         for (var depth = 0; depth < 7 && dir is not null; depth++, dir = dir.Parent)
@@ -380,7 +385,9 @@ public static class SceneArtCatalog
         return null;
     }
 
-    private static string? FindManifestPath()
+    private static string? FindManifestPath() => CachedManifestPath;
+
+    private static string? ResolveManifestPath()
     {
         var scenesDir = FindSceneAssetsDirectory();
         if (scenesDir is null) return null;
