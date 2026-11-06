@@ -46,6 +46,41 @@ function cityLabel(city, layer) {
   return city.nameVi;
 }
 
+export function computeAvailableMapBag(currentBag, rationsNeeded = 0) {
+  const rows = Array.isArray(currentBag) ? currentBag : [];
+  const gaoRow = rows.find((r) => r.itemId === 1);
+  const meatRow = rows.find((r) => r.itemId === 8);
+  let needed = Math.max(0, rationsNeeded || 0);
+  const usedGao = Math.min(needed, Math.max(0, gaoRow ? gaoRow.quantity : 0));
+  needed -= usedGao;
+  const usedMeat = Math.min(needed, Math.max(0, meatRow ? meatRow.quantity : 0));
+
+  return rows
+    .map((r) => {
+      const deducted = r.itemId === 1 ? usedGao : r.itemId === 8 ? usedMeat : 0;
+      return {
+        itemId: r.itemId,
+        nameVi: r.nameVi,
+        basePrice: r.basePrice || 1,
+        availableQty: Math.max(0, (r.quantity || 0) - deducted)
+      };
+    })
+    .filter((r) => r.availableQty > 0)
+    .sort((a, b) => (b.basePrice - a.basePrice) || (a.itemId - b.itemId));
+}
+
+export function computeDefaultMapLuggage(currentBag, rationsNeeded = 0, carryCapacity = 40) {
+  const avail = computeAvailableMapBag(currentBag, rationsNeeded);
+  const selected = new Map();
+  let rem = Math.max(0, carryCapacity || 0);
+  for (const item of avail) {
+    const take = Math.min(item.availableQty, rem);
+    selected.set(item.itemId, take);
+    rem -= take;
+  }
+  return { avail, selected };
+}
+
 function renderMapScene(container, scene, bridge) {
   stopTravelAnim();
   if (!container || !scene) return;
@@ -69,7 +104,11 @@ function renderMapScene(container, scene, bridge) {
     py: curCity.y,
     zoom: 1,
     panX: 0,
-    panY: 0
+    panY: 0,
+    luggageOpen: false,
+    luggageKey: '',
+    luggageSelected: new Map(),
+    luggageAvail: []
   };
 
   const shell = el('div', 'tk-map-shell');
@@ -173,10 +212,37 @@ function renderMapScene(container, scene, bridge) {
     return r ? r.days : 2;
   }
 
+  function syncLuggageForQuote(quote) {
+    const cap = quote?.carryCapacity || (state.mode === 'horse' ? 20 : state.mode === 'caravan' ? 120 : 40);
+    const rations = quote?.rations || 0;
+    const key = `${state.mode}:${cap}:${rations}`;
+    const { avail, selected } = computeDefaultMapLuggage(scene.currentBag, rations, cap);
+    state.luggageAvail = avail;
+    if (state.luggageKey !== key) {
+      state.luggageKey = key;
+      state.luggageSelected = selected;
+    } else {
+      for (const item of avail) {
+        const cur = state.luggageSelected.get(item.itemId) ?? 0;
+        state.luggageSelected.set(item.itemId, Math.max(0, Math.min(item.availableQty, cur)));
+      }
+    }
+  }
+
+  function buildTravelCommand(targetCityId, quote) {
+    const spec = state.luggageAvail
+      .map((it) => [it.itemId, state.luggageSelected.get(it.itemId) || 0])
+      .filter(([, q]) => q > 0)
+      .map(([id, q]) => `${id}=${q}`)
+      .join(',');
+    return `travel:${targetCityId}:${quote.modeKey}:${spec}`;
+  }
+
   function startTravelAnimation(pathIds, quote, targetCityId) {
+    const travelCmd = buildTravelCommand(targetCityId, quote);
     const pts = pathIds.map((id) => byId.get(id)).filter(Boolean);
     if (pts.length < 2) {
-      bridge.sendChoice('map', `travel:${targetCityId}:${quote.modeKey}`);
+      bridge.sendChoice('map', travelCmd);
       return;
     }
 
@@ -215,7 +281,7 @@ function renderMapScene(container, scene, bridge) {
         animHandle = requestAnimationFrame(step);
       } else {
         animHandle = 0;
-        bridge.sendChoice('map', `travel:${targetCityId}:${quote.modeKey}`);
+        bridge.sendChoice('map', travelCmd);
       }
     }
 
@@ -336,7 +402,14 @@ function renderMapScene(container, scene, bridge) {
     fClim.append(el('div', 'tk-map-field-label', 'Khí hậu'), el('div', '', selCity.climateVi));
     const fSpec = el('div', 'tk-map-field');
     fSpec.append(el('div', 'tk-map-field-label', 'Sản vật'), el('div', 'tk-map-spec', selCity.primarySpecialtyVi), el('div', 'tk-map-spec', selCity.secondarySpecialtyVi));
-    rightCol.append(fTopo, fClim, fSpec, el('div', 'tk-map-divider'));
+    rightCol.append(fTopo, fClim, fSpec);
+
+    if (selCity.storedItemsSummaryVi) {
+      const storedBox = el('div', 'tk-map-stored', `Đồ của bạn ở đây: ${selCity.storedItemsSummaryVi}`);
+      rightCol.appendChild(storedBox);
+    }
+
+    rightCol.appendChild(el('div', 'tk-map-divider'));
 
     if (isHere) {
       rightCol.appendChild(el('div', 'tk-map-field', 'Bạn đang ở đây. Chọn thành khác để lên đường.'));
@@ -367,11 +440,81 @@ function renderMapScene(container, scene, bridge) {
       rightSpan.append(mDays, mFee);
 
       mBtn.append(leftSpan, rightSpan);
-      mBtn.addEventListener('click', () => { if (!state.moving) { state.mode = q.modeKey; redrawAll(); } });
+      mBtn.addEventListener('click', () => {
+        if (!state.moving) {
+          state.mode = q.modeKey;
+          state.luggageKey = '';
+          redrawAll();
+        }
+      });
       rightCol.appendChild(mBtn);
     }
 
     if (activeQuote) {
+      syncLuggageForQuote(activeQuote);
+      const cap = activeQuote.carryCapacity || (state.mode === 'horse' ? 20 : state.mode === 'caravan' ? 120 : 40);
+      const totalAvail = state.luggageAvail.reduce((s, it) => s + it.availableQty, 0);
+      const totalCarried = state.luggageAvail.reduce((s, it) => s + (state.luggageSelected.get(it.itemId) || 0), 0);
+      const totalLeft = Math.max(0, totalAvail - totalCarried);
+
+      const lugWrap = el('div', 'tk-map-luggage');
+      const lugBtn = el('button', 'tk-map-lug-btn');
+      lugBtn.type = 'button';
+      lugBtn.id = 'tk-map-luggage-toggle';
+      lugBtn.append(
+        el('span', 'tk-map-lug-title', 'Hành lý'),
+        el('span', 'tk-map-lug-summary', `Mang ${totalCarried}/${cap} · Để lại ${totalLeft} món ${state.luggageOpen ? '▴' : '▾'}`)
+      );
+      lugBtn.addEventListener('click', () => {
+        if (!state.moving) {
+          state.luggageOpen = !state.luggageOpen;
+          redrawAll();
+        }
+      });
+      lugWrap.appendChild(lugBtn);
+
+      if (state.luggageOpen) {
+        const listBox = el('div', 'tk-map-lug-list');
+        if (state.luggageAvail.length === 0) {
+          listBox.appendChild(el('div', 'tk-map-lug-empty', 'Không có hàng hóa tại thành hiện tại.'));
+        } else {
+          for (const item of state.luggageAvail) {
+            const curQty = state.luggageSelected.get(item.itemId) || 0;
+            const row = el('div', 'tk-map-lug-row');
+            const info = el('div', 'tk-map-lug-info');
+            info.append(
+              el('span', 'tk-map-lug-name', `${item.nameVi} (còn ${item.availableQty})`),
+              el('span', 'tk-map-lug-price', `${item.basePrice} quan/đv`)
+            );
+            const ctrl = el('div', 'tk-map-lug-ctrl');
+            const dec = el('button', 'tk-map-lug-step', '−');
+            dec.type = 'button';
+            dec.setAttribute('data-lug-dec', String(item.itemId));
+            dec.disabled = state.moving || curQty <= 0;
+            dec.addEventListener('click', () => {
+              if (state.moving || curQty <= 0) return;
+              state.luggageSelected.set(item.itemId, curQty - 1);
+              redrawAll();
+            });
+            const val = el('span', 'tk-map-lug-val', String(curQty));
+            const inc = el('button', 'tk-map-lug-step', '+');
+            inc.type = 'button';
+            inc.setAttribute('data-lug-inc', String(item.itemId));
+            inc.disabled = state.moving || curQty >= item.availableQty || totalCarried >= cap;
+            inc.addEventListener('click', () => {
+              if (state.moving || curQty >= item.availableQty || totalCarried >= cap) return;
+              state.luggageSelected.set(item.itemId, curQty + 1);
+              redrawAll();
+            });
+            ctrl.append(dec, val, inc);
+            row.append(info, ctrl);
+            listBox.appendChild(row);
+          }
+        }
+        lugWrap.appendChild(listBox);
+      }
+      rightCol.appendChild(lugWrap);
+
       const canAfford = (activeQuote.fee || 0) <= (scene.cash || 0);
       const goBtn = el('button', 'tk-map-go', state.moving ? 'Đang đi đường...' : !canAfford ? 'Không đủ tiền' : `Lên đường · ${activeQuote.actualDays} ngày`);
       goBtn.type = 'button';

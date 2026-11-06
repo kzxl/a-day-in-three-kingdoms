@@ -14,7 +14,7 @@ public sealed class WorldModule : ISimModule
         var stroll = new CityStrollService(map, context.Capabilities, context.Clock, context.Log);
         context.Capabilities.Provide(CapabilityIds.CityStroll, stroll);
         context.Ui.AddScreen(new WorldMapScreen(map, context.Capabilities, context.Clock));
-        context.Ui.AddCommandHandler(new WorldMapCommandHandler(map, context.Capabilities, context.Clock));
+        context.Ui.AddCommandHandler(new WorldMapCommandHandler(context.Db, map, context.Capabilities, context.Clock));
         context.Log.Info($"map ready with {map.Citadels.Count} citadels, CityStroll registered");
     }
 
@@ -216,7 +216,7 @@ public sealed class WorldModule : ISimModule
                     fee = baseDays * 15;
                     rations = actualDays;
                     fatigue = actualDays * 4;
-                    modeName = "Dịch Mã (Cưỡi Ngựa)";
+                    modeName = $"Dịch Mã (Cưỡi Ngựa · {TravelLuggage.HorseCapacity} đv)";
                     break;
 
                 case TravelMode.Caravan:
@@ -224,7 +224,7 @@ public sealed class WorldModule : ISimModule
                     fee = baseDays * 25;
                     rations = baseDays;
                     fatigue = baseDays * 3;
-                    modeName = "Tiêu Cục (Hộ Tiêu)";
+                    modeName = $"Tiêu Cục (Hộ Tiêu · {TravelLuggage.CaravanCapacity} đv)";
                     break;
 
                 case TravelMode.Walk:
@@ -233,11 +233,13 @@ public sealed class WorldModule : ISimModule
                     fee = 0;
                     rations = baseDays;
                     fatigue = baseDays * 7;
-                    modeName = "Bộ Hành (Đi Bộ)";
+                    modeName = $"Bộ Hành (Đi Bộ · {TravelLuggage.WalkCapacity} đv)";
                     break;
             }
 
-            return new TravelQuote(fromCitadelId, toCitadelId, baseDays, actualDays, fee, rations, fatigue, path, modeName);
+            return new TravelQuote(
+                fromCitadelId, toCitadelId, baseDays, actualDays, fee, rations, fatigue,
+                path, modeName, TravelLuggage.ForMode(mode));
         }
 
         private int CalculatePathDays(IReadOnlyList<long> path)

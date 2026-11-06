@@ -15,11 +15,18 @@ public sealed record MapScene(
     [property: JsonPropertyName("playerPortraitPath")] string PlayerPortraitPath,
     [property: JsonPropertyName("recommendation")] string Recommendation,
     [property: JsonPropertyName("cities")] IReadOnlyList<MapCityView> Cities,
-    [property: JsonPropertyName("routes")] IReadOnlyList<MapRouteView> Routes)
+    [property: JsonPropertyName("routes")] IReadOnlyList<MapRouteView> Routes,
+    [property: JsonPropertyName("currentBag")] IReadOnlyList<MapBagItemView>? CurrentBag = null)
 {
     [JsonPropertyName("kind")]
     public string Kind => "map";
 }
+
+public sealed record MapBagItemView(
+    [property: JsonPropertyName("itemId")] long ItemId,
+    [property: JsonPropertyName("nameVi")] string NameVi,
+    [property: JsonPropertyName("quantity")] int Quantity,
+    [property: JsonPropertyName("basePrice")] long BasePrice);
 
 public sealed record MapCityView(
     [property: JsonPropertyName("id")] long Id,
@@ -35,7 +42,8 @@ public sealed record MapCityView(
     [property: JsonPropertyName("topographyVi")] string TopographyVi,
     [property: JsonPropertyName("primarySpecialtyVi")] string PrimarySpecialtyVi,
     [property: JsonPropertyName("secondarySpecialtyVi")] string SecondarySpecialtyVi,
-    [property: JsonPropertyName("quotes")] IReadOnlyList<MapTravelQuoteView> Quotes);
+    [property: JsonPropertyName("quotes")] IReadOnlyList<MapTravelQuoteView> Quotes,
+    [property: JsonPropertyName("storedItemsSummaryVi")] string StoredItemsSummaryVi = "");
 
 public sealed record MapTravelQuoteView(
     [property: JsonPropertyName("modeKey")] string ModeKey,
@@ -46,7 +54,8 @@ public sealed record MapTravelQuoteView(
     [property: JsonPropertyName("fee")] long Fee,
     [property: JsonPropertyName("rations")] int Rations,
     [property: JsonPropertyName("fatigue")] int Fatigue,
-    [property: JsonPropertyName("pathNodeIds")] IReadOnlyList<long> PathNodeIds);
+    [property: JsonPropertyName("pathNodeIds")] IReadOnlyList<long> PathNodeIds,
+    [property: JsonPropertyName("carryCapacity")] int CarryCapacity = 40);
 
 public sealed record MapRouteView(
     [property: JsonPropertyName("fromId")] long FromId,

@@ -17,6 +17,7 @@ internal sealed class PlayerDestinyService : IPlayerDestiny
     private readonly ICapabilityBroker _capabilities;
     private readonly IGameClock _clock;
     private readonly ILog? _log;
+    private readonly HashSet<long> _visitedCityIds = new();
 
     private readonly List<DestinyNodeDef> _allNodes = [];
     private readonly Dictionary<string, DestinyNodeDef> _nodesById = new(StringComparer.OrdinalIgnoreCase);
@@ -269,9 +270,10 @@ internal sealed class PlayerDestinyService : IPlayerDestiny
         // 2. Exploration milestones
         if (_capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) && playerState is not null)
         {
-            var visitedCount = _db.ScalarLong(
-                "SELECT COUNT(DISTINCT city_id) FROM pl_bag WHERE quantity > 0",
-                DbArgs.Empty);
+            _visitedCityIds.Add(playerState.CurrentCityId);
+            foreach (var cid in _db.Query("SELECT DISTINCT city_id FROM pl_bag WHERE quantity > 0", r => r.GetInt64(0), DbArgs.Empty))
+                _visitedCityIds.Add(cid);
+            var visitedCount = _visitedCityIds.Count;
             if (visitedCount >= 5) MarkMilestone("ms_explore_1", today);
             if (visitedCount >= 15) MarkMilestone("ms_explore_2", today);
             if (visitedCount >= 20) MarkMilestone("ms_explore_3", today);

@@ -294,8 +294,9 @@
   border: 1px solid #3a2c20;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .tk-map-sel-name {
@@ -373,9 +374,135 @@
   background: #2f2317;
 }
 
+.tk-map-stored {
+  padding: 7px 9px;
+  background: #241a13;
+  border: 1px solid #5a4428;
+  border-left: 3px solid #e8b75c;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #f3e6cc;
+  word-break: break-word;
+}
+
+.tk-map-luggage {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #5a4428;
+  background: #201810;
+  min-width: 0;
+}
+
+.tk-map-lug-btn {
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 9px;
+  border: 0;
+  background: #281e15;
+  color: #f3e6cc;
+  font: 600 12.5px "Be Vietnam Pro", "Segoe UI", sans-serif;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.tk-map-lug-btn:hover {
+  background: #322519;
+}
+
+.tk-map-lug-title {
+  color: #e8b75c;
+  white-space: nowrap;
+}
+
+.tk-map-lug-summary {
+  color: #eadfc6;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tk-map-lug-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 8px;
+  border-top: 1px solid #3a2c20;
+}
+
+.tk-map-lug-empty {
+  font-size: 12px;
+  color: #b9aa8c;
+}
+
+.tk-map-lug-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tk-map-lug-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tk-map-lug-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f3e6cc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tk-map-lug-price {
+  font-size: 11px;
+  color: #b9aa8c;
+}
+
+.tk-map-lug-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.tk-map-lug-step {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid #6a4f2e;
+  background: #2a1f16;
+  color: #f3e6cc;
+  font: 700 13px "Be Vietnam Pro", sans-serif;
+  cursor: pointer;
+}
+
+.tk-map-lug-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tk-map-lug-val {
+  min-width: 24px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e8b75c;
+}
+
 .tk-map-go {
   margin-top: auto;
-  height: 46px;
+  height: 44px;
+  flex: none;
   border: 1px solid #c4a062;
   background: #a8321f;
   color: #f3e6cc;

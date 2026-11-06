@@ -271,9 +271,11 @@ public static class SceneTrustGuard
         if (!id.StartsWith("travel:", StringComparison.Ordinal))
             return false;
         var parts = id.Split(':');
-        if (parts.Length < 2 || !long.TryParse(parts[1], out var cityId))
+        if (parts.Length is < 2 or > 4 || !long.TryParse(parts[1], out var cityId))
             return false;
         var mode = parts.Length >= 3 ? parts[2] : "walk";
+        if (parts.Length == 4 && !TravelLuggage.TryParseSpecSyntax(parts[3]))
+            return false;
         return mode is "walk" or "horse" or "caravan" &&
                cityId != map.CurrentCityId &&
                map.Cities.Any(c => c.Id == cityId);

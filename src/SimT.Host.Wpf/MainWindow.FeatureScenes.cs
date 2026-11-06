@@ -25,6 +25,8 @@ public partial class MainWindow
         var currentCityId = playerState.CurrentCityId;
         var currentCityName = map.Find(currentCityId)?.NameVi ?? "Lạc Dương";
         var fatigue = _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null ? attrs.Vitals.Fatigue : 0;
+        _kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var bag);
+        _kernel.Capabilities.TryGet<IItemCatalog>(CapabilityIds.ItemCatalog, out var items);
 
         var cities = new List<MapCityView>(map.Citadels.Count);
         foreach (var c in map.Citadels)
@@ -36,22 +38,37 @@ public partial class MainWindow
                 var qWalk = map.QuoteTravel(currentCityId, c.Id, TravelMode.Walk);
                 var qHorse = map.QuoteTravel(currentCityId, c.Id, TravelMode.Horse);
                 var qCaravan = map.QuoteTravel(currentCityId, c.Id, TravelMode.Caravan);
-                quotes.Add(new MapTravelQuoteView("walk", "Bộ hành", "Không tốn tiền, mệt nhất", qWalk.BaseDays, qWalk.ActualDays, qWalk.TravelFee, qWalk.RationsNeeded, qWalk.FatigueExpected, qWalk.PathNodeIds));
-                quotes.Add(new MapTravelQuoteView("horse", "Dịch mã", "Nhanh nhất", qHorse.BaseDays, qHorse.ActualDays, qHorse.TravelFee, qHorse.RationsNeeded, qHorse.FatigueExpected, qHorse.PathNodeIds));
-                quotes.Add(new MapTravelQuoteView("caravan", "Tiêu cục", "Không gặp cướp đường", qCaravan.BaseDays, qCaravan.ActualDays, qCaravan.TravelFee, qCaravan.RationsNeeded, qCaravan.FatigueExpected, qCaravan.PathNodeIds));
+                quotes.Add(new MapTravelQuoteView("walk", "Bộ hành", $"Không tốn tiền · Mang {qWalk.CarryCapacity} đv", qWalk.BaseDays, qWalk.ActualDays, qWalk.TravelFee, qWalk.RationsNeeded, qWalk.FatigueExpected, qWalk.PathNodeIds, qWalk.CarryCapacity));
+                quotes.Add(new MapTravelQuoteView("horse", "Dịch mã", $"Nhanh nhất · Mang {qHorse.CarryCapacity} đv", qHorse.BaseDays, qHorse.ActualDays, qHorse.TravelFee, qHorse.RationsNeeded, qHorse.FatigueExpected, qHorse.PathNodeIds, qHorse.CarryCapacity));
+                quotes.Add(new MapTravelQuoteView("caravan", "Tiêu cục", $"Không gặp cướp · Mang {qCaravan.CarryCapacity} đv", qCaravan.BaseDays, qCaravan.ActualDays, qCaravan.TravelFee, qCaravan.RationsNeeded, qCaravan.FatigueExpected, qCaravan.PathNodeIds, qCaravan.CarryCapacity));
             }
+            var storedVi = bag is not null
+                ? TravelLuggage.FormatItemQuantities(bag.Rows(c.Id).Select(r => (r.ItemId, r.Quantity)), items)
+                : string.Empty;
             cities.Add(new MapCityView(
                 c.Id, c.Code, c.NameVi, RoleTitleVi.FormatRegion(c.Region),
                 eco.MapX, eco.MapY, c.PriceFactorPermille, eco.DangerLevel,
-                eco.BiomeNameVi, eco.ClimateVi, eco.TopographyVi, eco.PrimarySpecialtyVi, eco.SecondarySpecialtyVi, quotes));
+                eco.BiomeNameVi, eco.ClimateVi, eco.TopographyVi,
+                eco.PrimarySpecialtyVi, eco.SecondarySpecialtyVi, quotes, storedVi));
         }
 
+        var currentBag = bag is not null
+            ? bag.Rows(currentCityId)
+                .Where(r => r.Quantity > 0)
+                .Select(r =>
+                {
+                    var def = items?.Find(r.ItemId);
+                    return new MapBagItemView(r.ItemId, def?.NameVi ?? $"#{r.ItemId}", r.Quantity, def?.BasePrice ?? 1);
+                })
+                .OrderByDescending(x => x.BasePrice).ThenBy(x => x.ItemId).ToList()
+            : new List<MapBagItemView>();
+
         var routes = map.Routes.Select(r => new MapRouteView(r.FromCitadelId, r.ToCitadelId, r.Days)).ToList();
-        var recText = recommendation ?? $"Từ {currentCityName}, bấm một thành trên bản đồ để xem lộ trình ngắn nhất, chi phí và sản vật trước khi lên đường.";
+        var recText = recommendation ?? $"Từ {currentCityName}, bấm một thành trên bản đồ để xem lộ trình ngắn nhất, chi phí, hành lý và sản vật trước khi lên đường.";
         return SceneOverlay.ShowMapScene(new MapScene(
             currentCityId, currentCityName, GameDateCodec.ShortVi(_kernel.Today),
             _kernel.Ledger.Liquid, fatigue, "art/map/thien_ha.webp",
-            SceneArtCatalog.PlayerPortraitFace, recText, cities, routes));
+            SceneArtCatalog.PlayerPortraitFace, recText, cities, routes, currentBag));
     }
 
     public bool TryOpenSocialScene(string? recommendation = null, long selectedNpcId = 0)
@@ -218,7 +235,9 @@ public partial class MainWindow
             if (bestCities.Count > 0 && bestCities[0].DiffPerUnit > bestArbitrageGain && stock > 0)
             {
                 bestArbitrageGain = bestCities[0].DiffPerUnit;
-                bestArbitrageTip = $"{item.NameVi} tại {cityName} mua {buyPrice} quan, chở sang {bestCities[0].CityNameVi} bán khoảng {bestCities[0].EstimatedSellPrice} quan (lãi +{bestCities[0].DiffPerUnit} quan/đv).";
+                var carryQty = Math.Min(stock, TravelLuggage.WalkCapacity);
+                var walkProfit = carryQty * bestCities[0].DiffPerUnit;
+                bestArbitrageTip = $"{item.NameVi} mua {buyPrice} quan, sang {bestCities[0].CityNameVi} bán ~{bestCities[0].EstimatedSellPrice} quan (+{bestCities[0].DiffPerUnit} quan/đv; đi bộ mang tối đa {carryQty} đv lãi ~{walkProfit} quan, chở nhiều dùng Thương Đoàn).";
             }
 
             itemViews.Add(new MarketItemView(
@@ -228,7 +247,7 @@ public partial class MainWindow
                 string.Empty, hist, bestCities));
         }
 
-        var recText = bestArbitrageTip ?? recommendation ?? $"Tại chợ {cityName}, mua mặt hàng đang dồi dào tồn kho rồi chở sang thành giá cao để hưởng chênh lệch.";
+        var recText = bestArbitrageTip ?? recommendation ?? $"Tại chợ {cityName}, đi bộ chỉ mang tối đa {TravelLuggage.WalkCapacity} đơn vị; muốn chở hàng số lượng lớn hãy dùng Thương Đoàn.";
         return SceneOverlay.ShowMarketScene(new MarketScene(
             cityId, cityName, regionVi, seasonVi, city?.PriceFactorPermille ?? 1000,
             GameDateCodec.ShortVi(_kernel.Today), _kernel.Ledger.Liquid,
@@ -299,7 +318,7 @@ public partial class MainWindow
     {
         if (type != "choice" || !id.StartsWith("travel:", StringComparison.Ordinal)) return;
         await ExecuteScreenCommandAsync(id, "world.map");
-        TryOpenMapScene();
+        TryOpenMapScene(StatusText.Text);
     }
 
     private async void HandleSocialSceneMessage(string type, string id, SocialScene _)

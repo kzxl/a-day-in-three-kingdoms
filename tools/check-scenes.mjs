@@ -20,7 +20,7 @@ const scenesDir = path.join(rootDir, 'assets', 'scenes');
 const { createFrame, clearFrame, createFx, composite } = await import('../assets/scenes/vendor/pixelfx/src/core/index.js');
 const { buildEffectOptions, safeCreateFx, splitNarrativeSentences } = await import('../assets/scenes/duel-scene.js');
 const { STEP_DUEL, STEP_CITY, SCALE_DUEL, SCALE_CITY, computeWalkFrame, createDuelFighterState, stepDuelState, stepCityWalkers } = await import('../assets/scenes/sprite-anim.js');
-const { LABEL_POS } = await import('../assets/scenes/map-scene.js');
+const { LABEL_POS, computeDefaultMapLuggage } = await import('../assets/scenes/map-scene.js');
 const { MIN_NODE_RADIUS_PCT, ringRadiusPct, computeSocialNodePos } = await import('../assets/scenes/social-scene.js');
 const { shortDossierName } = await import('../assets/scenes/dossier-scene.js');
 
@@ -252,4 +252,15 @@ assert.equal(shortDossierName('Tào Chương (Tử Văn)'), 'Tào Chương');
 assert.equal(shortDossierName('Biện Phu Nhân'), 'Biện Phu Nhân');
 assert.equal(shortDossierName('Âu Dương Phong Đúc'), 'Âu Dương Phong Đúc');
 
-console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label layout (1076 & 1440), social layout, and manifest assets OK.`);
+const bagSample = [
+  { itemId: 1, nameVi: 'Gạo', quantity: 100, basePrice: 12 },
+  { itemId: 3, nameVi: 'Lụa', quantity: 24, basePrice: 85 }
+];
+const walkLug = computeDefaultMapLuggage(bagSample, 2, 40);
+assert.equal(walkLug.selected.get(3), 24, 'Walk default should take all 24 high-value Lụa first');
+assert.equal(walkLug.selected.get(1), 16, 'Walk default should fill remaining 16 capacity with Gạo');
+const horseLug = computeDefaultMapLuggage(bagSample, 2, 20);
+assert.equal(horseLug.selected.get(3), 20, 'Horse default (cap 20) should take 20 Lụa');
+assert.equal(horseLug.selected.get(1), 0, 'Horse default (cap 20) should take 0 Gạo');
+
+console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label layout (1076 & 1440), social layout, luggage defaults, and manifest assets OK.`);

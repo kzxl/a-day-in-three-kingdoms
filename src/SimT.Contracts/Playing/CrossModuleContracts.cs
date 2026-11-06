@@ -69,62 +69,6 @@ public sealed record ItemDef(
     int ShelfLifeDays,
     int Weight);
 
-/// <summary>Regional price factor in permille: 1000 = baseline, 1120 = 12% dearer.</summary>
-public sealed record CitadelDef(
-    long Id,
-    string Code,
-    string NameVi,
-    string NameEn,
-    string Region,
-    int PriceFactorPermille);
-
-/// <summary>Detailed ecological, climatic, and regional specialties of a citadel.</summary>
-public sealed record CitadelEcosystemDef(
-    long CitadelId,
-    string BiomeNameVi,
-    string ClimateVi,
-    string TopographyVi,
-    string PrimarySpecialtyVi,
-    string SecondarySpecialtyVi,
-    int DangerLevel,
-    double MapX,
-    double MapY);
-
-/// <summary>Inter-city route link connecting two citadels.</summary>
-public sealed record RouteLinkDef(
-    long FromCitadelId,
-    long ToCitadelId,
-    int Days,
-    string RoadTypeVi = "Quan Đạo");
-
-/// <summary>Travel style between citadels.</summary>
-public enum TravelMode
-{
-    Walk = 0,
-    Horse = 1,
-    Caravan = 2
-}
-
-/// <summary>Cost, duration and route itinerary for inter-city travel.</summary>
-public sealed record TravelQuote(
-    long FromCitadelId,
-    long ToCitadelId,
-    int BaseDays,
-    int ActualDays,
-    long TravelFee,
-    int RationsNeeded,
-    int FatigueExpected,
-    IReadOnlyList<long> PathNodeIds,
-    string ModeNameVi);
-
-/// <summary>Sublocation / Point of Interest owned by a citadel.</summary>
-public sealed record SublocationDef(
-    long Id,
-    long CitadelId,
-    string Code,
-    string NameVi,
-    string Kind);
-
 /// <summary>Canonical 12 RPG attributes: 8 Action Capacities + 4 Innate Vitals & Destiny.</summary>
 public sealed record CharacterAttributes(
     int War,
@@ -274,31 +218,6 @@ public interface IItemHubService
     void RegisterCustomEntry(ItemHubEntry entry);
 }
 
-/// <summary>Read-only map owned by <c>base.world</c>.</summary>
-public interface IWorldMap
-{
-    IReadOnlyList<CitadelDef> Citadels { get; }
-
-    CitadelDef? Find(long citadelId);
-
-    IReadOnlyList<long> RouteNeighbours(long citadelId);
-
-    /// <summary>Travel time in days, or 0 when there is no road between the two settlements.</summary>
-    int TravelDays(long fromCitadelId, long toCitadelId);
-
-    /// <summary>Sub-locations / POIs inside or around the citadel.</summary>
-    IReadOnlyList<SublocationDef> Sublocations(long citadelId);
-
-    /// <summary>All interconnected route connections on the map.</summary>
-    IReadOnlyList<RouteLinkDef> Routes { get; }
-
-    /// <summary>Ecological profile, coordinates, and regional specialties of a citadel.</summary>
-    CitadelEcosystemDef GetEcosystem(long citadelId);
-
-    /// <summary>Calculates travel itinerary, days, provisions, and fee for journey between two citadels.</summary>
-    TravelQuote QuoteTravel(long fromCitadelId, long toCitadelId, TravelMode mode);
-}
-
 /// <summary>NPC registry owned by <c>base.npc</c>.</summary>
 public interface INpcRegistry
 {
@@ -435,57 +354,3 @@ public interface IPlayerAttributes
     void GainFame(int amount, string reason, int virtueDelta = 0, int credDelta = 0);
 }
 
-/// <summary>Types of random encounters that can be triggered while strolling a citadel.</summary>
-public enum StrollEventType
-{
-    Peaceful,
-    NpcEncounter,
-    MarketBargain,
-    RighteousDeed,
-    Epiphany,
-    TeahouseRumor,
-    KarmaFruition
-}
-
-/// <summary>Interactive dialogue or decision option presented during a stroll encounter.</summary>
-public sealed record StrollChoiceOption(
-    string Key,
-    string LabelVi,
-    string DescriptionVi,
-    string? CostSummary = null,
-    bool IsRecommended = false);
-
-/// <summary>Merchandise offered by an itinerant wandering merchant during city stroll.</summary>
-public sealed record StrollMerchantOffer(
-    long ItemId,
-    string ItemCode,
-    string ItemNameVi,
-    string CategoryVi,
-    string VisualIcon,
-    long UnitPrice,
-    int Quantity,
-    string DescriptionVi);
-
-/// <summary>Outcome of a city stroll exploration action.</summary>
-public sealed record StrollResult(
-    bool Ok,
-    string Title,
-    string LocationName,
-    string Narrative,
-    string RewardSummary,
-    StrollEventType EventType,
-    int FatigueDelta,
-    int StressRelief,
-    bool RequiresChoice = false,
-    IReadOnlyList<StrollChoiceOption>? Choices = null,
-    IReadOnlyList<StrollMerchantOffer>? MerchantOffers = null,
-    long TargetNpcId = 0);
-
-/// <summary>City stroll and urban random encounter capability (<c>world.stroll</c>).</summary>
-public interface ICityStroll
-{
-    StrollResult Stroll(long cityId);
-
-    /// <summary>Resolves a player interactive choice (e.g. merchant purchase or NPC social interaction).</summary>
-    StrollResult ResolveChoice(long cityId, string choiceKey, string? param = null);
-}

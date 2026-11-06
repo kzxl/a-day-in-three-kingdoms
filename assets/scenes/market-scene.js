@@ -46,7 +46,7 @@ function renderMarketScene(container, scene, bridge) {
   const bannerRow = el('div', 'tk-mkt-banner-row');
   const titleWrap = el('div');
   titleWrap.appendChild(el('h1', 'tk-mkt-title', `Chợ ${scene.currentCityName || 'Lạc Dương'}`));
-  titleWrap.appendChild(el('div', 'tk-mkt-sub', 'Mua rẻ ở đây, chở sang thành giá cao để bán lãi.'));
+  titleWrap.appendChild(el('div', 'tk-mkt-sub', 'Đi bộ chỉ mang tối đa 40 đơn vị (Tiêu cục 120); muốn chở số lượng lớn hãy dùng Thương Đoàn.'));
   const cashEl = el('div', 'tk-mkt-cash', `${(scene.cash || 0).toLocaleString('vi-VN')} quan`);
   bannerRow.append(titleWrap, cashEl);
   banner.appendChild(bannerRow);
@@ -219,12 +219,17 @@ function renderMarketScene(container, scene, bridge) {
     );
 
     const topDiff = bestCities.length > 0 ? Math.max(0, bestCities[0].diffPerUnit) : 0;
-    const estProfit = currentQty * topDiff;
+    const walkCap = 40;
+    const carryableQty = Math.min(currentQty, walkCap);
+    const estProfit = carryableQty * topDiff;
     const rProfit = el('div', 'tk-mkt-stat-row');
     const profVal = el('span', '', `lãi ${estProfit.toLocaleString('vi-VN')} quan`);
     profVal.style.color = '#7fc7a2';
     profVal.style.fontWeight = '600';
-    rProfit.append(el('span', '', 'Nếu bán ở thành tốt nhất'), profVal);
+    const profLabel = currentQty > walkCap
+      ? `Nếu tự mang bán (tối đa ${walkCap} đv)`
+      : 'Nếu bán ở thành tốt nhất';
+    rProfit.append(el('span', '', profLabel), profVal);
     right.append(rTotal, rProfit);
 
     const actRow = el('div', 'tk-mkt-actions');

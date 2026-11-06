@@ -228,4 +228,59 @@ public sealed class WorldExpansionTests : IDisposable
         Assert.True(kernel.Today.DayIndex > startDate.DayIndex);
         Assert.True(attrs.Vitals.Fatigue > 0);
     }
+
+    [Fact]
+    public void Travel_supports_explicit_and_default_luggage_validates_errors_and_conserves_items()
+    {
+        using var kernel = _host.Boot();
+        var map = Map(kernel);
+        Assert.True(kernel.Ui.TryGetCommandHandler("world.map", out var handler) && handler is not null);
+
+        Assert.Equal(40, map.QuoteTravel(1, 7, TravelMode.Walk).CarryCapacity);
+        Assert.Equal(20, map.QuoteTravel(1, 7, TravelMode.Horse).CarryCapacity);
+        Assert.Equal(120, map.QuoteTravel(1, 7, TravelMode.Caravan).CarryCapacity);
+
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+
+        // Start in Lạc Dương (1) with 100 Gạo (id=1) and 24 Lụa (id=3, higher BasePrice)
+        bag.Add(1, 1, 100);
+        bag.Add(1, 3, 24);
+        var cashBefore = wallet.Liquid;
+
+        // 1. Validation failures must not move, charge money, or consume rations
+        var negErr = handler.Execute("travel:7:walk:3=-1");
+        var capErr = handler.Execute("travel:7:walk:1=45");
+        var stockErr = handler.Execute("travel:7:walk:3=30");
+        Assert.Contains("âm", negErr);
+        Assert.Contains("sức mang", capErr);
+        Assert.Contains("vượt quá tồn kho", stockErr);
+        Assert.Equal(1, player.CurrentCityId);
+        Assert.Equal(cashBefore, wallet.Liquid);
+        Assert.Equal(100, bag.Quantity(1, 1));
+        Assert.Equal(24, bag.Quantity(1, 3));
+
+        // 2. Explicit luggage to Hứa Xương (7): 2 days = 2 Gạo rations, carry 20 Lụa + 16 Gạo
+        var msg = handler.Execute("travel:7:walk:3=20,1=16")!;
+        Assert.Equal(7, player.CurrentCityId);
+        Assert.Equal(16, bag.Quantity(7, 1));
+        Assert.Equal(20, bag.Quantity(7, 3));
+        Assert.Equal(82, bag.Quantity(1, 1)); // 100 - 2 rations - 16 carried = 82 left behind
+        Assert.Equal(4, bag.Quantity(1, 3));  // 24 - 20 carried = 4 left behind
+        Assert.Contains("Hành lý mang theo", msg);
+        Assert.Contains("Để lại tại Lạc Dương", msg);
+        Assert.Equal(98, bag.Quantity(1, 1) + bag.Quantity(7, 1));
+        Assert.Equal(24, bag.Quantity(1, 3) + bag.Quantity(7, 3));
+
+        // 3. Default luggage (no explicit list) on Horse (capacity 20) back to Lạc Dương (1):
+        // At city 7, after 2 Gạo rations (16 - 2 = 14 Gạo left) and 20 Lụa,
+        // Horse capacity 20 prioritizes highest BasePrice (20 Lụa) and leaves 14 Gạo at city 7.
+        var backMsg = handler.Execute("travel:1:horse")!;
+        Assert.Equal(1, player.CurrentCityId);
+        Assert.Equal(24, bag.Quantity(1, 3)); // 4 left + 20 carried back = 24 Lụa reunited!
+        Assert.Equal(82, bag.Quantity(1, 1));
+        Assert.Equal(14, bag.Quantity(7, 1)); // 14 Gạo left in Hứa Xương
+        Assert.Contains("Để lại tại Hứa Xương", backMsg);
+    }
 }
