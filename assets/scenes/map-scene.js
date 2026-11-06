@@ -3,10 +3,10 @@ import { SimTBridge } from './bridge.js';
 let animHandle = 0;
 let resizeObs = null;
 
-const LABEL_POS = {
-  1: 'bottom', 2: 'top', 3: 'top', 4: 'top', 5: 'right',
-  6: 'bottom', 7: 'right', 8: 'bottom', 9: 'top', 10: 'left',
-  11: 'bottom', 12: 'bottom', 13: 'bottom', 14: 'bottom', 15: 'bottom',
+export const LABEL_POS = {
+  1: 'top', 2: 'top', 3: 'right', 4: 'left', 5: 'left',
+  6: 'right', 7: 'right', 8: 'bottom', 9: 'top', 10: 'left',
+  11: 'bottom', 12: 'left', 13: 'right', 14: 'left', 15: 'bottom',
   16: 'left', 17: 'bottom', 18: 'left', 19: 'left', 20: 'bottom'
 };
 

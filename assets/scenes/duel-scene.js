@@ -33,11 +33,9 @@ let duelAnim = null;
 function stripEmoji(str) {
   return String(str ?? '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim();
 }
-
 function escapeHtml(str) {
   return stripEmoji(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-
 function branchSvgIcon(branch) {
   const b = String(branch || '').toLowerCase();
   if (b.includes('cavalry') || b.includes('kỵ')) {
@@ -48,7 +46,6 @@ function branchSvgIcon(branch) {
   }
   return '<svg class="tk-troop-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5 L13.5 3.8 V8.2 C13.5 11.4 11.1 13.8 8 14.8 C4.9 13.8 2.5 11.4 2.5 8.2 V3.8 Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.2 V11.8 M5.5 7.2 H10.5" stroke="currentColor" stroke-width="1.3"/></svg>';
 }
-
 function actionLabelVi(act) {
   switch (String(act || '').toLowerCase()) {
     case 'attack': return 'Tấn Công';
@@ -82,11 +79,8 @@ export function splitNarrativeSentences(str, maxLen = 90) {
 }
 
 function formatNarrativeHtml(str, maxLen = 90) {
-  return splitNarrativeSentences(str, maxLen)
-    .map((line) => `<span class="tk-duel-narrative-line">${escapeHtml(line)}</span>`)
-    .join('');
+  return splitNarrativeSentences(str, maxLen).map((line) => `<span class="tk-duel-narrative-line">${escapeHtml(line)}</span>`).join('');
 }
-
 function chooseWeaponMod(branch, action) {
   const act = String(action || '').toLowerCase();
   const br = String(branch || '').toLowerCase();
@@ -95,24 +89,20 @@ function chooseWeaponMod(branch, action) {
   if (br === 'cavalry') return thrustFx;
   return swordSlash;
 }
-
 export function buildEffectOptions(mod, overrides = {}) {
   const defaults = mod?.meta?.options ? { ...mod.meta.options } : {};
   const merged = { ...defaults, ...overrides };
   if (mod?.meta?.actor && !merged.actor) merged.actor = DEFAULT_HIT_ACTOR;
   return merged;
 }
-
 export function safeCreateFx(mod, overrides = {}) {
   try { return createFx(mod, buildEffectOptions(mod, overrides)); }
   catch (err) { console.warn('[DuelScene] Bỏ qua hiệu ứng lỗi:', mod?.meta?.name || 'unknown', err); return null; }
 }
-
 function pushFx(mod, overrides) {
   const fx = safeCreateFx(mod, overrides);
   if (fx) liveFx.push(fx);
 }
-
 function spawnWeaponFx(mod, x, y, flip, isGold, seed) {
   const pal7 = isGold ? PAL_GOLD_7 : PAL_CRIMSON_7;
   if (mod === arrowFx) {
@@ -123,15 +113,10 @@ function spawnWeaponFx(mod, x, y, flip, isGold, seed) {
       steel: ['#2e3648', '#5a6680', '#9aa6ba', '#dfe7f2'],
       wind: '#b8c8e8'
     });
-  } else if (mod === thrustFx) {
-    pushFx(thrustFx, { x, y, flip, palette: pal7, sparks: SPARKS_GOLD, reach: 66, seed });
-  } else if (mod === spearSweep) {
-    pushFx(spearSweep, { x, y, flip, palette: pal7, sparks: SPARKS_GOLD, stone: '#4a3f69', seed });
-  } else {
-    pushFx(swordSlash, { x, y, flip, palette: pal7, sparks: SPARKS_GOLD, radius: 42, seed });
-  }
+  } else if (mod === thrustFx) pushFx(thrustFx, { x, y, flip, palette: pal7, sparks: SPARKS_GOLD, reach: 66, seed });
+  else if (mod === spearSweep) pushFx(spearSweep, { x, y, flip, palette: pal7, sparks: SPARKS_GOLD, stone: '#4a3f69', seed });
+  else pushFx(swordSlash, { x, y, flip, palette: pal7, sparks: SPARKS_GOLD, radius: 42, seed });
 }
-
 function spawnHitVfx(targetIsRight, branch, action, dmg, isCrit, isParried, rn) {
   const x = targetIsRight ? 336 : 144;
   const pal7 = targetIsRight ? PAL_GOLD_7 : PAL_CRIMSON_7;
@@ -140,14 +125,9 @@ function spawnHitVfx(targetIsRight, branch, action, dmg, isCrit, isParried, rn) 
   if (isCrit || String(action || '').toLowerCase() === 'specialstrike') {
     pushFx(criticalHit, { x, y: 176, palette: pal8, height: 26, aim: targetIsRight ? 0.12 : -0.12, seed: rn * 11 });
     if (dmg > 0) pushFx(critNumber, { x, y: 145, palette: pal8, text: `-${dmg}!`, label: 'BAO', seed: rn });
-  } else if (dmg > 0) {
-    pushFx(damageNumber, { x, y: 150, palette: pal8, text: `-${dmg}`, seed: rn });
-  }
-  if (isParried) {
-    pushFx(hitFlash, { x, y: 178, palette: pal7, lines: 7, side: targetIsRight ? -1 : 1, actor: DEFAULT_HIT_ACTOR, seed: rn });
-  }
+  } else if (dmg > 0) pushFx(damageNumber, { x, y: 150, palette: pal8, text: `-${dmg}`, seed: rn });
+  if (isParried) pushFx(hitFlash, { x, y: 178, palette: pal7, lines: 7, side: targetIsRight ? -1 : 1, actor: DEFAULT_HIT_ACTOR, seed: rn });
 }
-
 function spawnDomPop(stageBox, x, dmg) {
   if (!stageBox || dmg <= 0) return;
   const pop = document.createElement('div');
@@ -158,7 +138,6 @@ function spawnDomPop(stageBox, x, dmg) {
   stageBox.appendChild(pop);
   setTimeout(() => pop.remove(), 800);
 }
-
 function fitStageScale(container) {
   const arena = container.querySelector('#tk-duel-arena');
   const box = container.querySelector('#tk-duel-stage-box');
@@ -168,107 +147,82 @@ function fitStageScale(container) {
   box.style.setProperty('--stage-scale', scale.toFixed(3));
   if (duelAnim) duelAnim.setStageScale(scale);
 }
-
 function updateBars(container, pHp, pMaxHp, pSp, pMaxSp, oHp, oMaxHp, oSp, oMaxSp) {
-  const setBar = (id, val, max) => {
-    const el = container.querySelector(id);
-    if (el) el.style.width = `${Math.max(0, Math.min(100, Math.round((val / Math.max(1, max)) * 100)))}%`;
-  };
-  const setTxt = (id, txt) => {
-    const el = container.querySelector(id);
-    if (el) el.textContent = txt;
-  };
-  setBar('#tk-p-hp-bar', pHp, pMaxHp);
-  setBar('#tk-p-sp-bar', pSp, pMaxSp);
-  setBar('#tk-o-hp-bar', oHp, oMaxHp);
-  setBar('#tk-o-sp-bar', oSp, oMaxSp);
-  setTxt('#tk-p-hp-txt', `${pHp}/${pMaxHp}`);
-  setTxt('#tk-p-sp-txt', `${pSp}`);
-  setTxt('#tk-o-hp-txt', `${oHp}/${oMaxHp}`);
-  setTxt('#tk-o-sp-txt', `${oSp}`);
+  const setBar = (id, val, max) => { const el = container.querySelector(id); if (el) el.style.width = `${Math.max(0, Math.min(100, Math.round((val / Math.max(1, max)) * 100)))}%`; };
+  const setTxt = (id, txt) => { const el = container.querySelector(id); if (el) el.textContent = txt; };
+  setBar('#tk-p-hp-bar', pHp, pMaxHp); setBar('#tk-p-sp-bar', pSp, pMaxSp);
+  setBar('#tk-o-hp-bar', oHp, oMaxHp); setBar('#tk-o-sp-bar', oSp, oMaxSp);
+  setTxt('#tk-p-hp-txt', `${pHp}/${pMaxHp}`); setTxt('#tk-p-sp-txt', `${pSp}`);
+  setTxt('#tk-o-hp-txt', `${oHp}/${oMaxHp}`); setTxt('#tk-o-sp-txt', `${oSp}`);
 }
 
 const waitMs = (ms) => new Promise((r) => setTimeout(r, Math.max(16, ms / speedMult)));
 
-async function runReplay(container, scene) {
-  const result = scene.result;
-  if (!result || !Array.isArray(result.roundLogs) || result.roundLogs.length === 0 || !duelAnim) return;
+function revealDuelResult(container, scene) {
+  const rounds = scene?.result?.roundLogs;
+  if (!Array.isArray(rounds) || rounds.length === 0 || !duelAnim) return;
+  const last = rounds[rounds.length - 1];
+  const roundPill = container.querySelector('#tk-round-pill');
+  if (roundPill) roundPill.textContent = `Hiệp ${rounds.length} / ${rounds.length}`;
+  updateBars(container, last.playerHpAfter, scene.player.maxHp, last.playerSpiritAfter, scene.player.maxSpirit, last.opponentHpAfter, scene.opponent.maxHp, last.opponentSpiritAfter, scene.opponent.maxSpirit);
+  duelAnim.snapToEnd(last.playerHpAfter, last.opponentHpAfter);
+  const banner = container.querySelector('#tk-duel-banner');
+  if (banner) { banner.hidden = false; banner.classList.add('show'); }
+  container.querySelectorAll('[data-post-duel]').forEach((btn) => { btn.hidden = false; });
+}
 
+async function runReplay(container, scene) {
+  const rounds = scene.result?.roundLogs;
+  if (!Array.isArray(rounds) || rounds.length === 0 || !duelAnim) return;
   const stageBox = container.querySelector('#tk-duel-stage-box');
   const roundPill = container.querySelector('#tk-round-pill');
   const actRow = container.querySelector('#tk-duel-actions');
   const narEl = container.querySelector('#tk-duel-narrative');
   const noteEl = container.querySelector('#tk-duel-note');
-  const rounds = result.roundLogs;
-
-  let curPHp = scene.player.hp;
-  let curPSp = scene.player.spirit;
-  let curOHp = scene.opponent.hp;
-  let curOSp = scene.opponent.spirit;
+  let curPHp = scene.player.hp, curPSp = scene.player.spirit, curOHp = scene.opponent.hp, curOSp = scene.opponent.spirit;
 
   for (let i = 0; i < rounds.length; i++) {
     if (stopReplayFlag || activeScene !== scene || !duelAnim) break;
     const r = rounds[i];
     const rn = r.roundNumber || (i + 1);
     if (roundPill) roundPill.textContent = `Hiệp ${rn} / ${rounds.length}`;
-    if (actRow) {
-      actRow.innerHTML = `<span>${escapeHtml(scene.player.nameVi)}: ${actionLabelVi(r.playerAction)} (-${r.playerDamageDealt} HP)</span><span>${escapeHtml(scene.opponent.nameVi)}: ${actionLabelVi(r.opponentAction)} (-${r.opponentDamageDealt} HP)</span>`;
-    }
+    if (actRow) actRow.innerHTML = `<span>${escapeHtml(scene.player.nameVi)}: ${actionLabelVi(r.playerAction)} (-${r.playerDamageDealt} HP)</span><span>${escapeHtml(scene.opponent.nameVi)}: ${actionLabelVi(r.opponentAction)} (-${r.opponentDamageDealt} HP)</span>`;
     if (narEl) narEl.innerHTML = formatNarrativeHtml(r.narrativeVi, 90);
-    if (noteEl) {
-      noteEl.textContent = r.isCritical
-        ? 'Đòn chí mạng kinh thiên động địa trên lôi đài!'
-        : r.isParried ? 'Đỡ gạt chuẩn xác, hóa giải thế công!' : stripEmoji(scene.matchupSummaryVi);
-    }
+    if (noteEl) noteEl.textContent = r.isCritical ? 'Đòn chí mạng kinh thiên động địa trên lôi đài!' : r.isParried ? 'Đỡ gạt chuẩn xác, hóa giải thế công!' : stripEmoji(scene.matchupSummaryVi);
 
     const pAttacks = r.playerDamageDealt > 0 || ['attack', 'specialstrike'].includes(String(r.playerAction || '').toLowerCase());
     const oAttacks = r.opponentDamageDealt > 0 || ['attack', 'specialstrike'].includes(String(r.opponentAction || '').toLowerCase());
 
     if (pAttacks && !stopReplayFlag && activeScene === scene) {
       await duelAnim.performStrike(0, 1, {
-        damage: r.playerDamageDealt,
-        defenderHpAfter: r.opponentHpAfter,
+        damage: r.playerDamageDealt, defenderHpAfter: r.opponentHpAfter,
         onImpact: ({ defender }) => {
-          curOHp = r.opponentHpAfter;
-          curPSp = r.playerSpiritAfter;
+          curOHp = r.opponentHpAfter; curPSp = r.playerSpiritAfter;
           updateBars(container, curPHp, scene.player.maxHp, curPSp, scene.player.maxSpirit, curOHp, scene.opponent.maxHp, curOSp, scene.opponent.maxSpirit);
           spawnHitVfx(true, scene.player.branch, r.playerAction, r.playerDamageDealt, r.isCritical, r.isParried, rn);
           spawnDomPop(stageBox, defender.x, r.playerDamageDealt);
         }
       });
     }
-
     if (oAttacks && curOHp > 0 && !stopReplayFlag && activeScene === scene) {
       await duelAnim.performStrike(1, 0, {
-        damage: r.opponentDamageDealt,
-        defenderHpAfter: r.playerHpAfter,
+        damage: r.opponentDamageDealt, defenderHpAfter: r.playerHpAfter,
         onImpact: ({ defender }) => {
-          curPHp = r.playerHpAfter;
-          curOSp = r.opponentSpiritAfter;
+          curPHp = r.playerHpAfter; curOSp = r.opponentSpiritAfter;
           updateBars(container, curPHp, scene.player.maxHp, curPSp, scene.player.maxSpirit, curOHp, scene.opponent.maxHp, curOSp, scene.opponent.maxSpirit);
           spawnHitVfx(false, scene.opponent.branch, r.opponentAction, r.opponentDamageDealt, r.isCritical, r.isParried, rn);
           spawnDomPop(stageBox, defender.x, r.opponentDamageDealt);
         }
       });
     }
-
     if (!pAttacks && !oAttacks) {
-      curPHp = r.playerHpAfter;
-      curPSp = r.playerSpiritAfter;
-      curOHp = r.opponentHpAfter;
-      curOSp = r.opponentSpiritAfter;
+      curPHp = r.playerHpAfter; curPSp = r.playerSpiritAfter; curOHp = r.opponentHpAfter; curOSp = r.opponentSpiritAfter;
       updateBars(container, curPHp, scene.player.maxHp, curPSp, scene.player.maxSpirit, curOHp, scene.opponent.maxHp, curOSp, scene.opponent.maxSpirit);
       await waitMs(320);
     }
   }
-
   if (activeScene !== scene || !duelAnim) return;
-  const last = rounds[rounds.length - 1];
-  updateBars(container, last.playerHpAfter, scene.player.maxHp, last.playerSpiritAfter, scene.player.maxSpirit, last.opponentHpAfter, scene.opponent.maxHp, last.opponentSpiritAfter, scene.opponent.maxSpirit);
-  duelAnim.snapToEnd(last.playerHpAfter, last.opponentHpAfter);
-
-  const banner = container.querySelector('#tk-duel-banner');
-  if (banner) { banner.hidden = false; banner.classList.add('show'); }
+  revealDuelResult(container, scene);
 }
 
 function renderFighterInnerHtml(f) {
@@ -288,6 +242,7 @@ function renderDuelScene(container, scene, bridge) {
   const p = scene.player;
   const o = scene.opponent;
   const hasResult = !!scene.result;
+  const hasReplay = hasResult && Array.isArray(scene.result.roundLogs) && scene.result.roundLogs.length > 0;
   const choices = Array.isArray(scene.choices) ? scene.choices : [];
   const cleanMatchup = escapeHtml(scene.matchupSummaryVi);
   const stampText = !hasResult ? '' : scene.result.won ? 'ĐẠI THẮNG LÔI ĐÀI' : 'THẤT BẠI ĐÁNG TIẾC';
@@ -297,8 +252,9 @@ function renderDuelScene(container, scene, bridge) {
 
   const choicesHtml = choices.map((c, idx) => {
     const isBranch = String(c.id || '').startsWith('branch:');
+    const hideWhilePlaying = hasReplay && c.id !== 'leave';
     const iconHtml = isBranch ? branchSvgIcon(c.id) : `<span class="tk-choice-num">${HAN_NUMERALS[idx] || (idx + 1)}</span>`;
-    return `<button type="button" class="tk-choice" data-choice-id="${escapeHtml(c.id)}" ${c.enabled === false ? 'disabled' : ''}>${iconHtml}<span class="tk-choice-label">${escapeHtml(c.labelVi)}</span>${c.hintVi ? `<span class="tk-choice-tag">${escapeHtml(c.hintVi)}</span>` : ''}</button>`;
+    return `<button type="button" class="tk-choice" data-choice-id="${escapeHtml(c.id)}" ${hideWhilePlaying ? 'data-post-duel hidden' : ''} ${c.enabled === false ? 'disabled' : ''}>${iconHtml}<span class="tk-choice-label">${escapeHtml(c.labelVi)}</span>${c.hintVi ? `<span class="tk-choice-tag">${escapeHtml(c.hintVi)}</span>` : ''}</button>`;
   }).join('');
 
   container.innerHTML = `
@@ -385,7 +341,10 @@ function renderDuelScene(container, scene, bridge) {
       container.querySelectorAll('[data-speed]').forEach((b) => b.classList.toggle('active', b === btn));
     });
   });
-  container.querySelector('#tk-duel-skip')?.addEventListener('click', () => { stopReplayFlag = true; });
+  container.querySelector('#tk-duel-skip')?.addEventListener('click', () => {
+    stopReplayFlag = true;
+    revealDuelResult(container, scene);
+  });
 
   const canvas = container.querySelector('#tk-duel-canvas');
   if (canvas) {

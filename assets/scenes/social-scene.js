@@ -14,17 +14,37 @@ function shortName(nameVi) {
   return String(nameVi || '').replace(/\s*\([^)]*\)\s*/g, '').trim() || String(nameVi || '');
 }
 
-function ringRadiusPct(affinity) {
+export const MIN_NODE_RADIUS_PCT = 24.5;
+
+export function ringRadiusPct(affinity) {
   const clamped = Math.max(0, Math.min(100, affinity || 0));
-  return 41 - clamped * 0.24;
+  return 42 - clamped * 0.18;
 }
 
-function nodeRadiusPct(affinity, idx, total) {
+export function nodeRadiusPct(affinity, idx, total) {
   const clamped = Math.max(0, Math.min(100, affinity || 0));
-  if (clamped < 35 && total > 6) {
-    return idx % 2 === 0 ? 40 - clamped * 0.20 : 35.5 - clamped * 0.18;
+  if (clamped < 35 && total > 8) {
+    return idx % 2 === 0 ? 42 - clamped * 0.18 : 37 - clamped * 0.16;
   }
-  return ringRadiusPct(clamped);
+  return Math.max(MIN_NODE_RADIUS_PCT, ringRadiusPct(clamped));
+}
+
+export function computeSocialNodePos(affinity, idx, total) {
+  const safeTotal = Math.max(1, total || 1);
+  const rPct = nodeRadiusPct(affinity, idx, safeTotal);
+  const rYPct = Math.max(22.5, rPct * 0.86);
+  const deg = -90 + ((idx + 0.5) * 360) / safeTotal;
+  const rad = (deg * Math.PI) / 180;
+  let leftPct = Math.max(11, Math.min(89, 50 + rPct * Math.cos(rad)));
+  let topPct = Math.max(12, Math.min(86, 50 + rYPct * Math.sin(rad)));
+  if (Math.sin(rad) < -0.7) {
+    if (leftPct < 50) leftPct = Math.min(leftPct, 26.5);
+    else leftPct = Math.max(leftPct, 66);
+  } else if (Math.sin(rad) < -0.2 && leftPct > 50 && rPct < 30) {
+    leftPct = Math.max(leftPct, 75);
+    topPct = Math.max(topPct, 45.5);
+  }
+  return { leftPct, topPct, rPct };
 }
 
 const SLOT_RULES = ['S', 'A', 'A', 'BC', 'BC', 'BC'];
@@ -44,11 +64,8 @@ function renderSocialScene(container, scene, bridge) {
   const letters = Array.isArray(scene.letters) ? scene.letters : [];
   const retainers = Array.isArray(scene.retainers) ? scene.retainers : [];
 
-  if (scene.selectedNpcId && nodes.some((n) => n.npcId === scene.selectedNpcId)) {
-    rememberedNpcId = scene.selectedNpcId;
-  } else if (!nodes.some((n) => n.npcId === rememberedNpcId) && nodes.length > 0) {
-    rememberedNpcId = nodes[0].npcId;
-  }
+  if (scene.selectedNpcId && nodes.some((n) => n.npcId === scene.selectedNpcId)) rememberedNpcId = scene.selectedNpcId;
+  else if (!nodes.some((n) => n.npcId === rememberedNpcId) && nodes.length > 0) rememberedNpcId = nodes[0].npcId;
 
   let shell = container.querySelector('.tk-soc-shell');
   let mapBox = container.querySelector('.tk-soc-map');
@@ -64,28 +81,20 @@ function renderSocialScene(container, scene, bridge) {
     shell = el('div', 'tk-soc-shell');
     const header = el('div', 'tk-soc-header');
     const titleWrap = el('div');
-    titleWrap.append(
-      el('h1', 'tk-soc-title', 'Nhân Duyên'),
-      el('div', 'tk-soc-sub', 'Kết giao người trong thành để chiêu mộ, kết nghĩa và học tuyệt kỹ.')
-    );
+    titleWrap.append(el('h1', 'tk-soc-title', 'Nhân Duyên'), el('div', 'tk-soc-sub', 'Kết giao người trong thành để chiêu mộ, kết nghĩa và học tuyệt kỹ.'));
     metaEl = el('div', 'tk-soc-meta');
     header.append(titleWrap, metaEl);
-
     const recBar = el('div', 'tk-soc-rec');
-    recBar.appendChild(el('span', 'tk-soc-rec-tag', 'NÊN LÀM'));
     recTextEl = el('span', 'tk-soc-rec-text');
     toastEl = el('span', 'tk-soc-toast');
-    recBar.append(recTextEl, toastEl);
-
+    recBar.append(el('span', 'tk-soc-rec-tag', 'NÊN LÀM'), recTextEl, toastEl);
     tabsBox = el('div', 'tk-soc-tabs');
     bodyBox = el('div', 'tk-soc-body');
     shell.append(header, recBar, tabsBox, bodyBox);
     container.appendChild(shell);
   }
 
-  function flash(msg) {
-    if (toastEl) toastEl.textContent = msg;
-  }
+  const flash = (msg) => { if (toastEl) toastEl.textContent = msg; };
 
   metaEl.textContent = `Tại ${scene.currentCityName || 'Lạc Dương'} · Danh vọng ${(scene.fame || 0).toLocaleString('vi-VN')} · ${(scene.cash || 0).toLocaleString('vi-VN')} quan`;
   recTextEl.textContent = scene.recommendation || 'Đàm đạo và tặng quà cho danh sĩ trong thành để chiêu mộ hoặc học tuyệt kỹ.';
@@ -200,20 +209,14 @@ function renderSocialScene(container, scene, bridge) {
     }
 
     const existingBtns = new Map();
-    for (const b of mapBox.querySelectorAll('.tk-soc-node')) {
-      existingBtns.set(Number(b.dataset.npcId), b);
-    }
+    for (const b of mapBox.querySelectorAll('.tk-soc-node')) existingBtns.set(Number(b.dataset.npcId), b);
 
     const seenIds = new Set();
     const total = Math.max(1, nodes.length);
     for (let idx = 0; idx < nodes.length; idx += 1) {
       const n = nodes[idx];
       seenIds.add(n.npcId);
-      const rPct = nodeRadiusPct(n.affinity, idx, total);
-      const deg = -90 + ((idx + 0.5) * 360) / total;
-      const rad = (deg * Math.PI) / 180;
-      const leftPct = Math.max(11, Math.min(89, 50 + rPct * Math.cos(rad)));
-      const topPct = Math.max(12, Math.min(86, 50 + rPct * 0.86 * Math.sin(rad)));
+      const { leftPct, topPct } = computeSocialNodePos(n.affinity, idx, total);
       const labelText = shortName(n.nameVi);
 
       let btn = existingBtns.get(n.npcId);
@@ -224,12 +227,8 @@ function renderSocialScene(container, scene, bridge) {
         const img = el('img');
         img.src = n.facePath || 'art/portraits/scholar/face.webp';
         img.alt = labelText;
-        const lbl = el('span', '', labelText);
-        btn.append(img, lbl);
-        btn.addEventListener('click', () => {
-          rememberedNpcId = n.npcId;
-          redrawRelationTab();
-        });
+        btn.append(img, el('span', '', labelText));
+        btn.addEventListener('click', () => { rememberedNpcId = n.npcId; redrawRelationTab(); });
         mapBox.appendChild(btn);
       } else {
         const lbl = btn.querySelector('span');

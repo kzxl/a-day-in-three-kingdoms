@@ -262,26 +262,31 @@ public partial class MainWindow
             recText, selectedItemId, itemViews));
     }
 
-    private static string ItemHanziFor(string category, string nameVi)
+    public static string ItemHanziFor(string category, string nameVi)
     {
         var n = nameVi.ToLowerInvariant();
+        if (n.Contains("giống") || string.Equals(category, "seed", StringComparison.OrdinalIgnoreCase)) return "種";
+        if (n.Contains("lúa mì") || n.Contains("mạch")) return "麥";
         if (n.Contains("gạo") || n.Contains("lúa")) return "米";
         if (n.Contains("muối")) return "鹽";
         if (n.Contains("rượu")) return "酒";
         if (n.Contains("trà")) return "茶";
-        if (n.Contains("lụa") || n.Contains("gấm")) return "絲";
+        if (n.Contains("gấm")) return "錦";
+        if (n.Contains("lụa")) return "絲";
+        if (n.Contains("vải")) return "布";
+        if (n.Contains("gỗ")) return "木";
+        if (n.Contains("than")) return "炭";
+        if (n.Contains("đồng")) return "銅";
+        if (n.Contains("sắt")) return "鐵";
         if (n.Contains("sâm")) return "參";
+        if (n.Contains("trầm") || n.Contains("hương")) return "香";
         if (n.Contains("thuốc") || n.Contains("dược")) return "藥";
-        if (n.Contains("sắt") || n.Contains("đồng")) return "鐵";
+        if (n.Contains("cá")) return "魚";
+        if (n.Contains("phân bón")) return "肥";
         return category.ToLowerInvariant() switch
         {
-            "grain" => "米",
-            "medicine" => "藥",
-            "luxury" => "寶",
-            "material" => "鐵",
-            "seed" => "種",
-            "tool" => "器",
-            _ => "貨"
+            "grain" => "米", "food" => "食", "medicine" => "藥",
+            "luxury" => "寶", "material" => "材", "farming" => "農", "tool" => "器", _ => "貨"
         };
     }
 
@@ -380,7 +385,8 @@ public partial class MainWindow
         else if (id.StartsWith("spar:", StringComparison.Ordinal) && long.TryParse(id["spar:".Length..], out var sparId) &&
                  _kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) && reg?.Find(sparId) is { } npc)
         {
-            var city = _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) ? map?.Find(npc.CitadelId)?.NameVi ?? "Lạc Dương" : "Lạc Dương";
+            var cityId = _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var ps) && ps is not null ? ps.CurrentCityId : npc.CitadelId;
+            var city = _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) ? map?.Find(cityId)?.NameVi ?? "Lạc Dương" : "Lạc Dương";
             TryOpenDuelScene(npc, city);
         }
     }

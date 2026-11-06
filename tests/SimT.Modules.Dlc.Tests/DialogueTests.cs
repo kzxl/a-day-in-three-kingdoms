@@ -174,4 +174,39 @@ public sealed class DialogueTests
         Assert.Equal("Trung Nguyên", RoleTitleVi.FormatRegion("trung_nguyen"));
         Assert.Equal("Quan Trung", RoleTitleVi.FormatRegion("quan_trung"));
     }
+
+    [Fact]
+    public void Talk_scene_uses_player_current_city_and_local_nearby_npcs_when_npc_home_is_another_citadel()
+    {
+        using var host = new DlcTestHost();
+        using var kernel = host.Boot();
+
+        var dialogue = kernel.Capabilities.Get<IDialogueModule>(CapabilityIds.Dialogue);
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var map = kernel.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
+        var playerState = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        kernel.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
+
+        var cityA = map.Find(playerState.CurrentCityId)!;
+        var guanYu = npcs.FindByCode("npc_0003")!;
+        var zhangFei = npcs.FindByCode("npc_0002")!;
+        Assert.NotEqual(cityA.Id, guanYu.CitadelId);
+
+        var scene = dialogue.BuildTalkScene(guanYu.Id);
+
+        Assert.Equal(cityA.NameVi, scene.LocationNameVi);
+        Assert.Contains(scene.NearbyNpcs, n => n.NpcId == guanYu.Id && n.Active);
+        Assert.Contains(scene.NearbyNpcs, n => n.NpcId == zhangFei.Id);
+
+        var otherThumbs = scene.NearbyNpcs
+            .Where(n => n.NpcId != guanYu.Id && n.NpcId != zhangFei.Id)
+            .ToList();
+        Assert.NotEmpty(otherThumbs);
+        foreach (var thumb in otherThumbs)
+        {
+            var def = npcs.Find(thumb.NpcId)!;
+            var actualCityId = society?.GetNpcActivity(def.Id)?.CurrentCitadelId ?? def.CitadelId;
+            Assert.Equal(cityA.Id, actualCityId);
+        }
+    }
 }

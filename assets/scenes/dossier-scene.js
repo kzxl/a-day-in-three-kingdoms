@@ -9,6 +9,10 @@ const state = {
   query: ''
 };
 
+export function shortDossierName(nameVi) {
+  return String(nameVi || '').replace(/\s*\([^)]*\)\s*/g, '').trim() || String(nameVi || '');
+}
+
 function esc(str) {
   return String(str == null ? '' : str)
     .replace(/&/g, '&amp;')
@@ -109,15 +113,19 @@ function paintListAndCard(bridge) {
     listEl.innerHTML = visibleNpcs.map((n) => {
       const activeCls = current && n.id === current.id ? ' active' : '';
       const portrait = n.profilePath || n.facePath || 'art/portraits/scholar/face.webp';
-      const locTag = n.isLocal ? 'Đồng thành' : n.cityNameVi;
+      const displayName = shortDossierName(n.nameVi);
+      const localDot = n.isLocal ? '<span class="dossier-local-dot" title="Đồng thành"></span>' : '';
+      const subText = !n.isLocal && n.cityNameVi ? n.cityNameVi + ' · ' + (n.roleVi || '') : (n.roleVi || '');
       return (
         '<button type="button" class="dossier-row' + activeCls + '" data-npc-id="' + n.id + '">' +
-          '<img src="' + esc(portrait) + '" alt="' + esc(n.nameVi) + '" />' +
-          '<span class="dossier-row-meta">' +
-            '<span class="dossier-row-name">' + esc(n.nameVi) + '</span>' +
-            '<span class="dossier-row-sub">' + esc(n.roleVi) + '</span>' +
+          '<span class="dossier-row-avatar">' +
+            '<img src="' + esc(portrait) + '" alt="' + esc(displayName) + '" />' +
+            localDot +
           '</span>' +
-          '<span class="dossier-row-tag">' + esc(locTag) + '</span>' +
+          '<span class="dossier-row-meta">' +
+            '<span class="dossier-row-name">' + esc(displayName) + '</span>' +
+            '<span class="dossier-row-sub">' + esc(subText) + '</span>' +
+          '</span>' +
         '</button>'
       );
     }).join('');
