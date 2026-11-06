@@ -10,18 +10,10 @@ public partial class MainWindow
     {
         switch (_screenId)
         {
-            case "world.map":
-                TryOpenMapScene();
-                break;
-            case "social.network":
-                TryOpenSocialScene();
-                break;
-            case "market.stall":
-                TryOpenMarketScene();
-                break;
-            case "npc.directory":
-                TryOpenDossierScene();
-                break;
+            case "world.map": TryOpenMapScene(); break;
+            case "social.network": TryOpenSocialScene(); break;
+            case "market.stall": TryOpenMarketScene(); break;
+            case "npc.directory": TryOpenDossierScene(); break;
         }
     }
 
@@ -30,16 +22,11 @@ public partial class MainWindow
         if (!SceneOverlay.IsAvailable ||
             !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) || map is null ||
             !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
-        {
             return false;
-        }
 
         var currentCityId = playerState.CurrentCityId;
-        var currentCity = map.Find(currentCityId);
-        var currentCityName = currentCity?.NameVi ?? "Lạc Dương";
-        var fatigue = _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null
-            ? attrs.Vitals.Fatigue
-            : 0;
+        var currentCityName = map.Find(currentCityId)?.NameVi ?? "Lạc Dương";
+        var fatigue = _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null ? attrs.Vitals.Fatigue : 0;
 
         var cities = new List<MapCityView>(map.Citadels.Count);
         foreach (var c in map.Citadels)
@@ -55,7 +42,6 @@ public partial class MainWindow
                 quotes.Add(new MapTravelQuoteView("horse", "Dịch mã", "Nhanh nhất", qHorse.BaseDays, qHorse.ActualDays, qHorse.TravelFee, qHorse.RationsNeeded, qHorse.FatigueExpected, qHorse.PathNodeIds));
                 quotes.Add(new MapTravelQuoteView("caravan", "Tiêu cục", "Không gặp cướp đường", qCaravan.BaseDays, qCaravan.ActualDays, qCaravan.TravelFee, qCaravan.RationsNeeded, qCaravan.FatigueExpected, qCaravan.PathNodeIds));
             }
-
             cities.Add(new MapCityView(
                 c.Id, c.Code, c.NameVi, RoleTitleVi.FormatRegion(c.Region),
                 eco.MapX, eco.MapY, c.PriceFactorPermille, eco.DangerLevel,
@@ -63,9 +49,7 @@ public partial class MainWindow
         }
 
         var routes = map.Routes.Select(r => new MapRouteView(r.FromCitadelId, r.ToCitadelId, r.Days)).ToList();
-        var recText = recommendation ??
-                      $"Từ {currentCityName}, bấm một thành trên bản đồ để xem lộ trình ngắn nhất, chi phí và sản vật trước khi lên đường.";
-
+        var recText = recommendation ?? $"Từ {currentCityName}, bấm một thành trên bản đồ để xem lộ trình ngắn nhất, chi phí và sản vật trước khi lên đường.";
         return SceneOverlay.ShowMapScene(new MapScene(
             currentCityId, currentCityName, GameDateCodec.ShortVi(_kernel.Today),
             _kernel.Ledger.Liquid, fatigue, "art/map/thien_ha.webp",
@@ -121,10 +105,11 @@ public partial class MainWindow
             var firstSkill = npc.Skills.FirstOrDefault();
             var tierTitle = aff >= 80 ? "Tri kỷ" : aff >= 60 ? "Thân thiết" : aff >= 35 ? "Quen biết" : "Sơ giao";
             var tierKey = aff >= 80 ? "sworn" : aff >= 60 ? "trusted" : aff >= 35 ? "friend" : "known";
-            var angle = (i * (360.0 / Math.Max(1, candidateNpcs.Count)) + 25.0) % 360.0;
+            var angle = (i * (360.0 / Math.Max(1, candidateNpcs.Count)) - 90.0 + 360.0) % 360.0;
+            var shortName = RoleTitleVi.ShortName(npc.NameVi);
 
             nodeViews.Add(new SocialNodeView(
-                npc.Id, npc.Code, npc.NameVi, RoleTitleVi.Format(npc.Role), rankCode,
+                npc.Id, npc.Code, shortName, RoleTitleVi.Format(npc.Role), rankCode,
                 map.Find(npc.CitadelId)?.NameVi ?? currentCityName,
                 npc.CitadelId == currentCityId, aff, trust, req.RequiredAffinity, req.SigningFee,
                 tierKey, tierTitle, facePath, profilePath,
@@ -135,13 +120,13 @@ public partial class MainWindow
                 retainers.Any(r => r.NpcId == npc.Id), swornIds.Contains(npc.Id), angle));
         }
 
-        var skillViews = BuildSocialSkillViews(reg, progresses);
+        var skillViews = BuildSocialSkillViews(reg, progresses, candidateNpcs);
         var letterViews = social.GetLetters(limit: 12).Select(l =>
         {
             var sender = reg.Find(l.SenderNpcId);
             var (_, face, _) = sender is not null ? SceneArtCatalog.ResolveNpcArt(sender) : ("", "art/portraits/scholar/face.webp", "");
             var giftText = l.GiftCopper > 0 ? $"{l.GiftCopper} quan" : l.GiftItemQuantity > 0 ? $"{l.GiftItemQuantity} {l.GiftItemNameVi}" : "Thư thăm hỏi";
-            return new SocialLetterView(l.Id, l.SenderNameVi, face, GameDateCodec.ShortVi(l.SentDate), l.TitleVi, l.ContentVi, giftText, l.IsRead, !l.IsClaimed && (l.GiftCopper > 0 || l.GiftItemQuantity > 0));
+            return new SocialLetterView(l.Id, RoleTitleVi.ShortName(l.SenderNameVi), face, GameDateCodec.ShortVi(l.SentDate), l.TitleVi, l.ContentVi, giftText, l.IsRead, !l.IsClaimed && (l.GiftCopper > 0 || l.GiftItemQuantity > 0));
         }).ToList();
 
         var retainerViews = retainers.Select(r =>
@@ -149,7 +134,7 @@ public partial class MainWindow
             var npc = reg.Find(r.NpcId);
             var (_, face, _) = npc is not null ? SceneArtCatalog.ResolveNpcArt(npc) : ("", "art/portraits/general/face.webp", "");
             var rank = social.GetNpcRank(r.NpcId).ToString();
-            return new SocialRetainerView(r.NpcId, npc?.NameVi ?? $"#{r.NpcId}", r.RoleAssigned, rank, face, r.MonthlyStipend, $"Trung thành {r.Loyalty}/100", r.Loyalty);
+            return new SocialRetainerView(r.NpcId, RoleTitleVi.ShortName(npc?.NameVi ?? $"#{r.NpcId}"), RoleTitleVi.Format(r.RoleAssigned), rank, face, r.MonthlyStipend, $"Trung thành {r.Loyalty}/100", r.Loyalty);
         }).ToList();
 
         var giftItems = new List<SocialGiftItemView>();
@@ -177,11 +162,12 @@ public partial class MainWindow
             nodeViews, skillViews, letterViews, retainerViews, giftItems));
     }
 
-    private static IReadOnlyList<SocialSkillView> BuildSocialSkillViews(INpcRegistry reg, IReadOnlyList<PlayerSkillProgressDef> progresses)
+    private static IReadOnlyList<SocialSkillView> BuildSocialSkillViews(
+        INpcRegistry reg, IReadOnlyList<PlayerSkillProgressDef> progresses, IReadOnlyList<NpcDef> localNpcs)
     {
         var list = new List<SocialSkillView>();
         var skillOwners = new Dictionary<string, (NpcDef Npc, NpcSkillDef Skill)>(StringComparer.OrdinalIgnoreCase);
-        foreach (var npc in reg.All)
+        foreach (var npc in localNpcs.Concat(reg.All))
             foreach (var sk in npc.Skills)
                 skillOwners.TryAdd(sk.Code, (npc, sk));
 
@@ -190,8 +176,9 @@ public partial class MainWindow
             skillOwners.TryGetValue(p.SkillCode, out var owner);
             var name = owner.Skill?.NameVi ?? p.SkillCode;
             var rank = p.Tier switch { >= 5 => "S", 4 => "A", 3 => "B", _ => "C" };
+            var teacherShort = owner.Npc is not null ? RoleTitleVi.ShortName(owner.Npc.NameVi) : "Danh sư";
             list.Add(new SocialSkillView(
-                p.SkillCode, name, name[..1], rank, owner.Npc?.Id ?? 0, owner.Npc?.NameVi ?? "Danh sư",
+                p.SkillCode, name, name[..1], rank, owner.Npc?.Id ?? 0, teacherShort,
                 owner.Skill?.EffectSummary ?? "Gia tăng năng lực", "Đã lĩnh hội",
                 true, p.IsEquipped, p.EquippedSlot ?? 0, p.Level, $"Cấp {p.Level}"));
         }
@@ -200,12 +187,12 @@ public partial class MainWindow
         {
             if (list.Any(x => string.Equals(x.SkillCode, code, StringComparison.OrdinalIgnoreCase)))
                 continue;
-            var rank = npc.Attributes.War >= 92 || npc.Attributes.Int >= 92 ? "S"
-                : npc.Attributes.War >= 82 || npc.Attributes.Int >= 82 ? "A" : "B";
-            var reqAff = rank == "S" ? 80 : rank == "A" ? 60 : 45;
+            var rank = sk.Tier switch { >= 5 => "S", 4 => "A", 3 => "B", _ => "C" };
+            var reqAff = sk.Tier switch { >= 5 => 75, 4 => 55, _ => 35 };
+            var teacherShort = RoleTitleVi.ShortName(npc.NameVi);
             list.Add(new SocialSkillView(
-                code, sk.NameVi, sk.NameVi[..1], rank, npc.Id, npc.NameVi,
-                sk.EffectSummary, $"Học từ {npc.NameVi}, cần hảo cảm {reqAff}",
+                code, sk.NameVi, sk.NameVi[..1], rank, npc.Id, teacherShort,
+                sk.EffectSummary, $"Học từ {teacherShort}, cần hảo cảm {reqAff}",
                 false, false, 0, 1, "Chưa lĩnh hội"));
             if (list.Count >= 9) break;
         }
@@ -241,7 +228,9 @@ public partial class MainWindow
             var sellPrice = trade.QuoteSell(cityId, item.Id);
             var stock = trade.StallStock(cityId, item.Id);
             var held = bag.Quantity(cityId, item.Id);
-            var hist = trade.PriceHistory(cityId, item.Id, 10);
+            var hist = trade.PriceHistory(cityId, item.Id, 10).ToList();
+            if (hist.Count == 0 || hist[^1] != buyPrice)
+                hist.Add(buyPrice);
 
             var bestCities = map.Citadels
                 .Where(c => c.Id != cityId)

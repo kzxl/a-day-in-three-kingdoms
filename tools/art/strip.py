@@ -12,7 +12,7 @@ def cells(path):
     r, g, b = im[..., 0], im[..., 1], im[..., 2]
     key = {'b': (b > 150) & (b - r > 90) & (b - g > 70), 'g': (g > 150) & (g - r > 90) & (g - b > 70)}.get(keyc, (r - g > 46) & (b - g > 46))
     border = ndimage.binary_dilation(key, iterations=3)
-    fg = ndimage.binary_opening(~key, iterations=1)
+    fg = ~key  # no opening: thin spear shafts are one or two pixels wide
     spill = fg & border & {'b': b > r + 30, 'g': g > r + 30}.get(keyc, (b > g + 14) & (r > g + 14))
     im[spill] = (im[spill] * 0.25).astype(int)
     res = []

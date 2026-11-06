@@ -79,8 +79,8 @@
   filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
 }
 .tk-fighter-sprite {
-  position: absolute; left: 50%; bottom: 0; height: 260px; width: auto;
-  margin-left: -65px; object-fit: contain;
+  position: absolute; left: 0; right: 0; bottom: 0; height: 280px; width: auto;
+  margin: 0 auto; object-fit: contain;
   image-rendering: pixelated; transform-origin: 50% 100%;
   filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55));
 }

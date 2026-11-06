@@ -120,4 +120,31 @@ public sealed class SceneContractsTests
         Assert.Equal("scholar", tuMaYMeta.Archetype);
         Assert.Equal("art/portraits/scholar/face.webp", tuMaYMeta.PortraitFace);
     }
+
+    [Fact]
+    public void SceneArtCatalog_ResolvesDistinctDuelAnimStrips_AndNeverAssignsZhangFeiToMerchant()
+    {
+        var (playerAnimPath, playerAnimKey) = SceneArtCatalog.ResolvePlayerAnim();
+        Assert.Equal("art/anim/traveler.png", playerAnimPath);
+        Assert.Equal("traveler", playerAnimKey);
+
+        // Thương nhân Trương Lão Bản không có dải anim riêng -> trả về (null, null), tuyệt đối không gán zhang_fei.png
+        var (merchantAnimPath, merchantAnimKey) = SceneArtCatalog.ResolveNpcAnim("npc_9001", "merchant");
+        Assert.Null(merchantAnimPath);
+        Assert.Null(merchantAnimKey);
+
+        // Võ tướng chưa có dải riêng (ví dụ Hoa Hùng) nhận dải han_officer.png
+        var (generalAnimPath, generalAnimKey) = SceneArtCatalog.ResolveNpcAnim("npc_0092", "general");
+        Assert.Equal("art/anim/han_officer.png", generalAnimPath);
+        Assert.Equal("han_officer", generalAnimKey);
+
+        // Quan Vũ & Trương Phi nhận đúng dải riêng của từng người
+        var (guanYuPath, guanYuKey) = SceneArtCatalog.ResolveNpcAnim("npc_0003", "general");
+        Assert.Equal("art/anim/guan_yu.png", guanYuPath);
+        Assert.Equal("guan_yu", guanYuKey);
+
+        var (zhangFeiPath, zhangFeiKey) = SceneArtCatalog.ResolveNpcAnim("npc_0002", "general");
+        Assert.Equal("art/anim/zhang_fei.png", zhangFeiPath);
+        Assert.Equal("zhang_fei", zhangFeiKey);
+    }
 }

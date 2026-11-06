@@ -137,9 +137,9 @@
 
 .tk-map-city {
   position: absolute;
-  width: 104px;
-  height: 50px;
-  margin-left: -52px;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
   margin-top: -11px;
   padding: 0;
   border: 0;
@@ -149,11 +149,16 @@
   z-index: 4;
 }
 
+.tk-map-city:hover,
+.tk-map-city.is-selected {
+  z-index: 8;
+}
+
 .tk-map-dot {
   display: block;
   width: 22px;
   height: 22px;
-  margin: 0 auto;
+  margin: 0;
   border-radius: 50%;
   box-sizing: border-box;
   border: 2px solid #2a1f16;
@@ -166,16 +171,41 @@
 }
 
 .tk-map-nm {
-  display: inline-block;
-  margin-top: 2px;
+  position: absolute;
   padding: 0 5px;
   font-size: 11.5px;
   font-weight: 700;
   line-height: 17px;
   color: #2a1f16;
-  background: rgba(236, 223, 194, 0.92);
+  background: rgba(236, 223, 194, 0.94);
   white-space: nowrap;
   border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.tk-map-city.pos-bottom .tk-map-nm {
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tk-map-city.pos-top .tk-map-nm {
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tk-map-city.pos-left .tk-map-nm {
+  right: 25px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.tk-map-city.pos-right .tk-map-nm {
+  left: 25px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .tk-map-city:hover .tk-map-nm {
@@ -199,10 +229,10 @@
 
 .tk-map-token {
   position: absolute;
-  width: 38px;
-  height: 38px;
-  margin-left: -19px;
-  margin-top: -31px;
+  width: 34px;
+  height: 34px;
+  margin-left: -17px;
+  margin-top: -40px;
   border-radius: 50%;
   border: 2px solid #a8321f;
   box-sizing: border-box;
@@ -211,6 +241,10 @@
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.65);
   pointer-events: none;
   z-index: 6;
+}
+
+.tk-map-token.token-below {
+  margin-top: 10px;
 }
 
 .tk-map-bar {
@@ -252,7 +286,7 @@
 }
 
 .tk-map-right {
-  width: 340px;
+  width: clamp(276px, 31%, 336px);
   flex: none;
   box-sizing: border-box;
   padding: 14px;

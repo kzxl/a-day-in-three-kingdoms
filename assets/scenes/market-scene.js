@@ -74,9 +74,12 @@ function renderMarketScene(container, scene, bridge) {
 
     for (const g of items) {
       const hist = Array.isArray(g.historyPrices) && g.historyPrices.length > 0 ? g.historyPrices : [g.buyPrice];
+      const lo = Math.min(...hist);
+      const hi = Math.max(...hist);
+      const hasVariation = hist.length >= 2 && hi > lo;
       const delta = hist[hist.length - 1] - hist[0];
       const col = delta > 0 ? '#e8927c' : delta < 0 ? '#7fc7a2' : '#b9aa8c';
-      const trend = delta > 0 ? 'Đang lên' : delta < 0 ? 'Đang rẻ' : 'Ổn định';
+      const trend = delta > 0 ? 'Đang lên' : delta < 0 ? 'Đang rẻ' : 'Giá ổn định';
 
       const card = el('button', `tk-mkt-good${g.itemId === selItem.itemId ? ' is-selected' : ''}`);
       card.type = 'button';
@@ -99,17 +102,23 @@ function renderMarketScene(container, scene, bridge) {
       nameBox.append(nm, sub);
       topSpan.append(ic, nameBox);
 
-      const svg = document.createElementNS(svgNS, 'svg');
-      svg.setAttribute('width', '100%');
-      svg.setAttribute('height', '32');
-      svg.setAttribute('viewBox', '0 0 200 34');
-      svg.setAttribute('preserveAspectRatio', 'none');
-      const poly = document.createElementNS(svgNS, 'polyline');
-      poly.setAttribute('points', buildSparklinePoints(hist, g.buyPrice));
-      poly.setAttribute('fill', 'none');
-      poly.setAttribute('stroke', col);
-      poly.setAttribute('stroke-width', '2');
-      svg.appendChild(poly);
+      let midNode;
+      if (hasVariation) {
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '32');
+        svg.setAttribute('viewBox', '0 0 200 34');
+        svg.setAttribute('preserveAspectRatio', 'none');
+        const poly = document.createElementNS(svgNS, 'polyline');
+        poly.setAttribute('points', buildSparklinePoints(hist, g.buyPrice));
+        poly.setAttribute('fill', 'none');
+        poly.setAttribute('stroke', col);
+        poly.setAttribute('stroke-width', '2');
+        svg.appendChild(poly);
+        midNode = svg;
+      } else {
+        midNode = el('span', 'tk-mkt-stable', 'Giá ổn định trong 10 ngày qua');
+      }
 
       const botSpan = el('span');
       botSpan.style.display = 'flex';
@@ -120,7 +129,7 @@ function renderMarketScene(container, scene, bridge) {
       trendEl.style.color = col;
       botSpan.append(priceText, trendEl);
 
-      card.append(topSpan, svg, botSpan);
+      card.append(topSpan, midNode, botSpan);
       card.addEventListener('click', () => {
         rememberedItemId = g.itemId;
         statusMsg = '';

@@ -2,156 +2,45 @@ using SimT.Contracts.Playing;
 
 namespace SimT.Contracts.Scenes;
 
-/// <summary>
-/// Interactive choice button displayed inside a WebView2 scene (`talk`, `duel`, `city`).
-/// LabelVi must not exceed 40 characters.
-/// </summary>
-public sealed record SceneChoice(
-    string Id,
-    string LabelVi,
-    string? HintVi = null,
-    bool Enabled = true,
-    string? DisabledReasonVi = null);
+public sealed record SceneChoice(string Id, string LabelVi, string? HintVi = null, bool Enabled = true, string? DisabledReasonVi = null);
 
-/// <summary>
-/// Nearby NPC thumbnail shown in the top-right switcher of a 2.5D dialogue scene.
-/// </summary>
-public sealed record SceneNpcThumb(
-    long NpcId,
-    string NameVi,
-    string FacePath,
-    bool Active);
+public sealed record SceneNpcThumb(long NpcId, string NameVi, string FacePath, bool Active);
 
-/// <summary>
-/// Complete view-model sent from C# to WebView2 for the 2.5D dialogue scene.
-/// Every line in <see cref="Lines"/> must be at most 90 characters.
-/// </summary>
 public sealed record TalkScene(
-    string SceneId,
-    long NpcId,
-    string NpcCode,
-    string NameVi,
-    string? NameHan,
-    string? StyleNameVi,
-    string RoleVi,
-    string? PersonalityVi,
-    string LocationNameVi,
-    string LocationHan,
-    int Affinity,
-    string RelationTierVi,
-    string PortraitFull,
-    string PortraitFace,
-    string BackgroundPath,
-    IReadOnlyList<string> Lines,
-    IReadOnlyList<SceneChoice> Choices,
-    IReadOnlyList<SceneNpcThumb> NearbyNpcs,
-    string? FeedbackVi = null,
-    string? BlinkPath = null,
-    string? TalkPath = null);
+    string SceneId, long NpcId, string NpcCode, string NameVi, string? NameHan, string? StyleNameVi,
+    string RoleVi, string? PersonalityVi, string LocationNameVi, string LocationHan, int Affinity, string RelationTierVi,
+    string PortraitFull, string PortraitFace, string BackgroundPath, IReadOnlyList<string> Lines,
+    IReadOnlyList<SceneChoice> Choices, IReadOnlyList<SceneNpcThumb> NearbyNpcs,
+    string? FeedbackVi = null, string? BlinkPath = null, string? TalkPath = null);
 
-/// <summary>
-/// Fighter snapshot rendered on the pixel duel stage.
-/// </summary>
 public sealed record DuelFighterView(
-    string NameVi,
-    string SubVi,
-    string FacePath,
-    string SpritePath,
-    TroopBranch Branch,
-    int Hp,
-    int MaxHp,
-    int Spirit,
-    int MaxSpirit,
-    string? AnimPath = null,
-    string? AnimKey = null);
+    string NameVi, string SubVi, string FacePath, string SpritePath, TroopBranch Branch,
+    int Hp, int MaxHp, int Spirit, int MaxSpirit, string? AnimPath = null, string? AnimKey = null);
 
-/// <summary>
-/// Complete view-model sent from C# to WebView2 for the pixel-art duel scene.
-/// When <see cref="Result"/> is null, the scene is in pre-duel troop branch selection mode.
-/// </summary>
 public sealed record DuelScene(
-    string SceneId,
-    long NpcId,
-    string NpcCode,
-    string TitleVi,
-    string CitadelNameVi,
-    string BackgroundPath,
-    DuelFighterView Player,
-    DuelFighterView Opponent,
-    string MatchupSummaryVi,
-    DuelResult? Result,
-    IReadOnlyList<SceneChoice> Choices);
+    string SceneId, long NpcId, string NpcCode, string TitleVi, string CitadelNameVi,
+    string BackgroundPath, DuelFighterView Player, DuelFighterView Opponent,
+    string MatchupSummaryVi, DuelResult? Result, IReadOnlyList<SceneChoice> Choices);
 
-/// <summary>
-/// Clickable architectural / district hotspot on the "Trong thành" city scene.
-/// </summary>
 public sealed record CityHotspot(
-    string Id,
-    string LabelVi,
-    string Kind,
-    string TargetScreenId,
-    double XPercent,
-    double YPercent);
+    string Id, string LabelVi, string Kind, string TargetScreenId, double XPercent, double YPercent);
 
-/// <summary>
-/// Standing NPC pixel sprite on the "Trong thành" city scene (maximum 6).
-/// </summary>
 public sealed record CityNpcSprite(
-    long NpcId,
-    string Code,
-    string NameVi,
-    string RoleVi,
-    string SpritePath,
-    string FacePath,
-    double XPercent,
-    double YPercent,
-    string? AnimPath = null);
+    long NpcId, string Code, string NameVi, string RoleVi, string SpritePath, string FacePath,
+    double XPercent, double YPercent, string? AnimPath = null);
 
-/// <summary>
-/// Mini scene event card shown inside the "Trong thành" scene after "Du ngoạn phố".
-/// </summary>
-public sealed record CityEventCard(
-    string TitleVi,
-    string LocationVi,
-    string NarrativeVi,
-    string RewardVi);
+public sealed record CityEventCard(string TitleVi, string LocationVi, string NarrativeVi, string RewardVi);
 
-/// <summary>
-/// Complete view-model sent from C# to WebView2 for the "Trong thành" hub scene.
-/// </summary>
 public sealed record CityScene(
-    string SceneId,
-    long CityId,
-    string CityNameVi,
-    string CityNameHan,
-    string RegionVi,
-    string DateVi,
-    string Season,
-    string WeatherEffect,
-    string BackgroundPath,
-    IReadOnlyList<CityHotspot> Hotspots,
-    IReadOnlyList<CityNpcSprite> Npcs,
-    CityEventCard? EventCard,
-    IReadOnlyList<SceneChoice> Choices);
+    string SceneId, long CityId, string CityNameVi, string CityNameHan, string RegionVi,
+    string DateVi, string Season, string WeatherEffect, string BackgroundPath,
+    IReadOnlyList<CityHotspot> Hotspots, IReadOnlyList<CityNpcSprite> Npcs,
+    CityEventCard? EventCard, IReadOnlyList<SceneChoice> Choices);
 
-/// <summary>
-/// Inbound JSON message from WebView2 JavaScript to C#.
-/// Only <c>ready</c>, <c>choice</c>, <c>navigate</c>, and <c>close</c> are accepted.
-/// </summary>
-public sealed record SceneClientMessage(
-    string Type,
-    string? SceneId = null,
-    string? Id = null);
+public sealed record SceneClientMessage(string Type, string? SceneId = null, string? Id = null);
 
-/// <summary>
-/// Outcome of executing a player choice inside <see cref="TalkScene"/>.
-/// </summary>
 public sealed record TalkChoiceOutcome(
-    bool Ok,
-    string MessageVi,
-    bool OpenDuel = false,
-    bool CloseScene = false,
-    TalkScene? UpdatedScene = null);
+    bool Ok, string MessageVi, bool OpenDuel = false, bool CloseScene = false, TalkScene? UpdatedScene = null);
 
 /// <summary>
 /// Capability exposed by <c>dlc.dialogue</c> (<see cref="CapabilityIds.Dialogue"/>).
@@ -189,11 +78,20 @@ public static class RoleTitleVi
             "rebel" or "bandit" => "Nghĩa quân",
             "official" or "governor" or "magistrate" => "Quan lại",
             "blacksmith" or "craftsman" or "artisan" => "Thợ rèn",
-            "guard" or "captain" => "Thị vệ",
+            "guard" or "captain" or "bodyguard" => "Hộ vệ",
+            "manager" => "Chưởng quầy",
+            "accountant" => "Kế toán",
             "physician" or "healer" => "Y sư",
             "monk" or "taoist" => "Đạo nhân",
             _ => rawRole.Trim()
         };
+    }
+
+    public static string ShortName(string? nameVi)
+    {
+        if (string.IsNullOrWhiteSpace(nameVi)) return "Nhân sĩ";
+        var idx = nameVi.IndexOf('(');
+        return (idx > 0 ? nameVi[..idx] : nameVi).Trim();
     }
 
     public static string ToArchetypeKey(string? rawRole) =>
@@ -374,7 +272,8 @@ public static class SceneTrustGuard
         if (parts.Length == 3 && parts[0] == "learn" &&
             long.TryParse(parts[1], out var teacherId) && !string.IsNullOrWhiteSpace(parts[2]))
         {
-            return social.Nodes.Any(n => n.NpcId == teacherId);
+            return social.Nodes.Any(n => n.NpcId == teacherId) ||
+                   social.Skills.Any(s => s.TeacherNpcId == teacherId && string.Equals(s.SkillCode, parts[2], StringComparison.OrdinalIgnoreCase));
         }
         if (parts.Length == 4 && parts[0] == "skill" && parts[1] == "equip" &&
             int.TryParse(parts[3], out var slot) && slot is >= 1 and <= 6)

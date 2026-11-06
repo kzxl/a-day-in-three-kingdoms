@@ -70,7 +70,7 @@
 }
 
 .dossier-list-col {
-  width: 330px;
+  width: clamp(232px, 26%, 310px);
   flex: none;
   display: flex;
   flex-direction: column;
@@ -176,16 +176,17 @@
   flex: 1;
   min-width: 0;
   box-sizing: border-box;
-  padding: 18px;
+  padding: 16px;
   background: #1d1611;
   border: 1px solid #3a2c20;
   display: flex;
-  gap: 20px;
+  gap: clamp(12px, 1.5vw, 20px);
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
 .dossier-left-pane {
-  width: 260px;
+  width: clamp(190px, 23%, 248px);
   flex: none;
   display: flex;
   flex-direction: column;
@@ -199,8 +200,9 @@
 }
 
 .dossier-portrait-frame img {
-  width: 246px;
-  height: 246px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
   display: block;
   object-fit: cover;
   background: #140f0b;
@@ -326,8 +328,15 @@
 
 .dossier-radar-row {
   display: flex;
-  gap: 18px;
+  gap: clamp(10px, 1.2vw, 18px);
   align-items: center;
+  min-width: 0;
+}
+
+.dossier-radar-svg {
+  width: clamp(180px, 19vw, 252px);
+  height: auto;
+  flex: none;
 }
 
 .dossier-stats-list {
@@ -341,17 +350,20 @@
 .dossier-stat-line {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 13px;
+  min-width: 0;
 }
 
 .dossier-stat-lbl {
-  width: 78px;
+  width: 74px;
+  flex: none;
   white-space: nowrap;
 }
 
 .dossier-stat-val {
-  width: 28px;
+  width: 30px;
+  flex: none;
   text-align: right;
   font-weight: 600;
 }

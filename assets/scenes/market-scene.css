@@ -152,8 +152,19 @@
   background: #15110d;
 }
 
+.tk-mkt-stable {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  color: #b9aa8c;
+  background: rgba(42, 31, 22, 0.52);
+  border-left: 2px solid #6a4f2e;
+}
+
 .tk-mkt-right {
-  width: 340px;
+  width: clamp(280px, 31%, 340px);
   flex: none;
   box-sizing: border-box;
   padding: 14px;

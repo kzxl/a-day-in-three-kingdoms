@@ -62,16 +62,18 @@
 
 /* Standing & Walking NPC Sprites */
 .tk-city-walker {
-  position: absolute; bottom: 8%; width: 340px; height: 170px; z-index: 95;
+  position: absolute; transform: translateY(-100%); z-index: 95;
   background: none; border: none; cursor: pointer; padding: 0;
 }
 .tk-city-walker:hover, .tk-city-walker:focus-visible { z-index: 145 !important; }
 .tk-city-walker-sh {
-  position: absolute; left: 50%; bottom: -4px; width: 136px; height: 20px;
-  transform: translateX(-50%); border-radius: 50%; background: rgba(21, 17, 13, 0.42);
+  position: absolute; left: 50%; bottom: -4px; width: 76%; height: 14px;
+  transform: translateX(-50%); border-radius: 50%; background: rgba(21, 17, 13, 0.44);
+  pointer-events: none;
 }
 .tk-city-walker-sp {
-  position: absolute; left: 0; bottom: 0; width: 340px; height: 170px;
+  position: absolute; left: 50%; bottom: 0; width: 340px; height: 170px;
+  margin-left: -170px; pointer-events: none;
   background-repeat: no-repeat; background-size: 8160px 170px;
   image-rendering: pixelated; transform-origin: 170px 170px;
   filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.52));
@@ -80,11 +82,17 @@
   filter: brightness(1.12) drop-shadow(0 0 12px rgba(232, 183, 92, 0.65));
 }
 .tk-city-walker-tag {
-  position: absolute; left: 50%; bottom: 266px; transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%) translateY(4px);
   padding: 3px 9px; border-radius: 3px; white-space: nowrap;
-  background: rgba(24, 18, 13, 0.94); border: 1px solid rgba(196, 160, 98, 0.72);
+  background: rgba(24, 18, 13, 0.96); border: 1px solid rgba(196, 160, 98, 0.72);
   color: var(--ink); font-family: var(--font-body); font-size: 11.5px; font-weight: 600;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease, border-color 0.14s ease;
+}
+.tk-city-walker:hover .tk-city-walker-tag,
+.tk-city-walker:focus-visible .tk-city-walker-tag {
+  opacity: 1; transform: translateX(-50%) translateY(0); border-color: var(--gold-hover);
 }
 
 .tk-city-npc {
@@ -96,18 +104,19 @@
   z-index: 140 !important;
 }
 .tk-city-npc-label {
-  margin-bottom: 6px; padding: 3px 9px; border-radius: 3px;
+  position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%) translateY(4px);
+  padding: 3px 9px; border-radius: 3px; white-space: nowrap;
   background: rgba(24, 18, 13, 0.96); border: 1px solid rgba(196, 160, 98, 0.72);
   color: var(--ink); font-family: var(--font-body); font-size: 11.5px; font-weight: 600;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75);
-  opacity: 0.92; pointer-events: none; transform: translateY(0);
+  opacity: 0; pointer-events: none;
   transition: opacity 0.14s ease, transform 0.14s ease, border-color 0.14s ease;
 }
 .tk-city-npc-role {
   display: block; font-size: 10px; font-weight: 400; color: var(--gold);
 }
 .tk-city-npc-sprite {
-  height: calc(104px * var(--npc-scale, 1)); width: auto; object-fit: contain;
+  height: var(--npc-body-h, 122px); width: auto; object-fit: contain;
   image-rendering: pixelated;
   filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.78));
   animation: tkCityNpcBreath 4.2s ease-in-out infinite;
@@ -116,7 +125,7 @@
 .tk-city-npc:nth-child(even) .tk-city-npc-sprite { animation-delay: 1.4s; }
 .tk-city-npc:hover .tk-city-npc-label,
 .tk-city-npc:focus-visible .tk-city-npc-label {
-  opacity: 1; transform: translateY(-4px); border-color: var(--gold-hover);
+  opacity: 1; transform: translateX(-50%) translateY(0); border-color: var(--gold-hover);
 }
 .tk-city-npc:hover .tk-city-npc-sprite {
   filter: brightness(1.12) drop-shadow(0 10px 14px rgba(196, 160, 98, 0.45));
@@ -153,4 +162,4 @@
   border: 1px solid var(--gold); border-left: 3px solid var(--vermilion);
   color: var(--ink); font-family: var(--font-body); font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
-.tk-city-btn:hover { border-color: var(--gold-hover); background: var(--gold-soft); }
+.tk-city-btn:hover { border-color: var(--gold-hover); background: var(--gold-hover); background: var(--gold-soft); }

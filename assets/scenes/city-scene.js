@@ -1,5 +1,5 @@
 import { SimTBridge } from './bridge.js';
-import { stepCityWalkers, SCALE_CITY } from './sprite-anim.js';
+import { stepCityWalkers, resolveStripBodyHeight } from './sprite-anim.js';
 import { createFrame, clearFrame, composite } from './vendor/pixelfx/src/core/index.js';
 import { safeCreateFx } from './duel-scene.js';
 import * as cherryBlossoms from './vendor/pixelfx/src/fx/weather/cherry-blossoms.js';
@@ -36,6 +36,12 @@ function resolveWeatherModule(effectKey) {
   }
 }
 
+function computeTargetBodyPx(yPct, stageH) {
+  const refScale = Math.max(0.75, Math.min(1.25, (stageH || 660) / 660));
+  const depthT = Math.max(0, Math.min(1, (yPct - 72) / 16));
+  return Math.round((115 + depthT * 35) * refScale);
+}
+
 function renderCityScene(container, scene, bridge) {
   unmountCityScene();
   activeScene = scene;
@@ -44,6 +50,7 @@ function renderCityScene(container, scene, bridge) {
   const npcs = Array.isArray(scene.npcs) ? scene.npcs.slice(0, 6) : [];
   const choices = Array.isArray(scene.choices) ? scene.choices : [];
   const ev = scene.eventCard;
+  const estStageH = Math.max(480, (container.clientHeight || 790) - 130);
 
   const hotspotsHtml = hotspots.map((h) => `
     <button type="button"
@@ -59,15 +66,26 @@ function renderCityScene(container, scene, bridge) {
   const npcsHtml = npcs.map((n, idx) => {
     if (n.animPath) {
       const wIdx = walkerIdx++;
+      const yPct = wIdx === 0 ? 86 : wIdx === 1 ? 88 : Number(n.yPercent || 75);
+      const bodyPx = computeTargetBodyPx(yPct, estStageH);
+      const boxW = Math.round(bodyPx * 0.68);
+      const stripBodyH = resolveStripBodyHeight(n.animPath);
+      const stripScale = bodyPx / stripBodyH;
+      const zIdx = 10 + Math.round(yPct);
+      const initDir = wIdx % 2 === 0 ? 1 : -1;
       return `
         <button type="button"
                 class="tk-city-walker"
+                style="top:${yPct}%; width:${boxW}px; height:${bodyPx}px; z-index:${zIdx}"
                 data-walker-idx="${wIdx}"
+                data-walker-scale="${stripScale.toFixed(4)}"
+                data-walker-boxw="${boxW}"
+                data-walker-xpct="${Number(n.xPercent || 50)}"
                 data-npc-idx="${idx}"
                 data-nav-target="npc:${n.npcId}"
                 title="Diện kiến ${escapeHtml(n.nameVi)} (${escapeHtml(n.roleVi)})">
           <div class="tk-city-walker-sh"></div>
-          <div class="tk-city-walker-sp" data-walker-sp style="background-image:url('${escapeHtml(n.animPath)}'); transform:scale(${wIdx === 0 ? SCALE_CITY : -SCALE_CITY}, ${SCALE_CITY})"></div>
+          <div class="tk-city-walker-sp" data-walker-sp style="background-image:url('${escapeHtml(n.animPath)}'); transform:scale(${(initDir * stripScale).toFixed(3)}, ${stripScale.toFixed(3)})"></div>
           <div class="tk-city-walker-tag tk-one">
             <span>${escapeHtml(n.nameVi)}</span>
             <span class="tk-city-npc-role tk-one">${escapeHtml(n.roleVi)}</span>
@@ -75,13 +93,13 @@ function renderCityScene(container, scene, bridge) {
         </button>
       `;
     }
-    const yPct = Number(n.yPercent || 78);
-    const scale = Math.max(0.68, Math.min(1.06, 0.48 + ((yPct - 62) / 30) * 0.56));
+    const yPct = Number(n.yPercent || 76);
+    const bodyPx = computeTargetBodyPx(yPct, estStageH);
     const zIdx = 10 + Math.round(yPct);
     return `
       <button type="button"
               class="tk-city-npc"
-              style="left:${n.xPercent}%; top:${yPct}%; --npc-scale:${scale.toFixed(2)}; z-index:${zIdx}"
+              style="left:${n.xPercent}%; top:${yPct}%; --npc-body-h:${bodyPx}px; z-index:${zIdx}"
               data-nav-target="npc:${n.npcId}"
               title="Diện kiến ${escapeHtml(n.nameVi)} (${escapeHtml(n.roleVi)})">
         <div class="tk-city-npc-label tk-one">
@@ -162,27 +180,36 @@ function renderCityScene(container, scene, bridge) {
   });
 
   const stageWrap = container.querySelector('#tk-city-stage-wrap');
-  const stageW = Math.max(860, stageWrap?.clientWidth || 1080);
+  const stageW = Math.max(820, stageWrap?.clientWidth || 1080);
   const walkers = [];
   container.querySelectorAll('.tk-city-walker').forEach((el, i) => {
     const spEl = el.querySelector('[data-walker-sp]');
-    const isFirst = i % 2 === 0;
-    const min = isFirst ? Math.round(stageW * 0.20) : Math.round(stageW * 0.62);
-    const max = isFirst ? Math.round(stageW * 0.41) : Math.round(stageW * 0.82);
-    const startX = isFirst ? Math.round(stageW * 0.28) : Math.round(stageW * 0.72);
-    el.style.left = `${startX - 170}px`;
+    const scale = parseFloat(el.getAttribute('data-walker-scale') || '1') || 1;
+    const boxW = parseFloat(el.getAttribute('data-walker-boxw') || '96') || 96;
+    const halfW = Math.round(boxW / 2);
+    const xPct = parseFloat(el.getAttribute('data-walker-xpct') || '50') || 50;
+    const canWalk = i < 2;
+    const isFirst = i === 0;
+    const min = isFirst ? Math.round(stageW * 0.22) : Math.round(stageW * 0.58);
+    const max = isFirst ? Math.round(stageW * 0.42) : Math.round(stageW * 0.78);
+    const startX = canWalk
+      ? (isFirst ? Math.round(stageW * 0.30) : Math.round(stageW * 0.68))
+      : Math.round(stageW * (xPct / 100));
+    el.style.left = `${startX - halfW}px`;
     walkers.push({
       el,
       spEl,
       hasStrip: true,
-      walk: true,
+      walk: canWalk,
+      scale,
+      halfW,
       x: startX,
       min,
       max,
-      dir: isFirst ? 1 : -1,
+      dir: i % 2 === 0 ? 1 : -1,
       wait: 0,
       dist: 0,
-      fr: 4,
+      fr: canWalk ? 4 : 0,
       it: i * 0.5
     });
   });

@@ -211,7 +211,7 @@
 }
 
 .tk-soc-inspector {
-  width: 340px;
+  width: clamp(280px, 31%, 340px);
   flex: none;
   display: flex;
   flex-direction: column;

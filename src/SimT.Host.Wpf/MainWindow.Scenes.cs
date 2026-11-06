@@ -143,15 +143,15 @@ public partial class MainWindow
             if (list.Count >= 6) break;
         }
 
-        double[] xs = [35, 68, 49, 19, 84, 15];
-        double[] ys = [86, 86, 74, 76, 76, 88];
+        double[] xs = [35, 65, 50, 17, 85, 8];
+        double[] ys = [87, 88, 73, 75, 76, 86];
         var sprites = new List<CityNpcSprite>(list.Count);
         for (var i = 0; i < list.Count; i++)
         {
             var npc = list[i];
             var (_, facePath, spritePath) = SceneArtCatalog.ResolveNpcArt(npc);
             var (animPath, _) = SceneArtCatalog.ResolveNpcAnim(npc);
-            sprites.Add(new CityNpcSprite(npc.Id, npc.Code, TrimSingleLine(npc.NameVi, 24), RoleTitleVi.Format(npc.Role), spritePath, facePath, xs[i], ys[i], animPath));
+            sprites.Add(new CityNpcSprite(npc.Id, npc.Code, TrimSingleLine(RoleTitleVi.ShortName(npc.NameVi), 24), RoleTitleVi.Format(npc.Role), spritePath, facePath, xs[i], ys[i], animPath));
         }
         return sprites;
     }
@@ -196,8 +196,7 @@ public partial class MainWindow
         var oSp = npc.Attributes.Wil >= 80 ? 10 : 0;
         var (_, npcFace, npcSprite) = SceneArtCatalog.ResolveNpcArt(npc);
         var (oppAnimPath, oppAnimKey) = SceneArtCatalog.ResolveNpcAnim(npc);
-        var playerAnimKey = string.Equals(oppAnimKey, "guan_yu", StringComparison.OrdinalIgnoreCase) ? "zhang_fei" : "guan_yu";
-        var playerAnimPath = $"art/anim/{playerAnimKey}.png";
+        var (playerAnimPath, playerAnimKey) = SceneArtCatalog.ResolvePlayerAnim();
 
         var playerFighter = new DuelFighterView(
             playerState.Name, $"Võ lực {attrs.Attributes.War} · {TroopBranchHelper.NameVi(playerBranch)}",
@@ -207,7 +206,7 @@ public partial class MainWindow
         var oppFighter = new DuelFighterView(
             npc.NameVi, $"Võ lực {npc.Attributes.War} · {TroopBranchHelper.NameVi(oppBranch)}",
             npcFace, npcSprite, oppBranch, oMaxHp, oMaxHp, oSp, 100,
-            oppAnimPath ?? "art/anim/zhang_fei.png", oppAnimKey ?? "zhang_fei");
+            oppAnimPath, oppAnimKey);
 
         IReadOnlyList<SceneChoice> choices = result is null
             ? [

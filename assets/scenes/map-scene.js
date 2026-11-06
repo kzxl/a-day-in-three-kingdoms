@@ -1,12 +1,18 @@
 import { SimTBridge } from './bridge.js';
 
 let animHandle = 0;
+let resizeObs = null;
+
+const LABEL_POS = {
+  1: 'bottom', 2: 'top', 3: 'top', 4: 'top', 5: 'right',
+  6: 'bottom', 7: 'right', 8: 'bottom', 9: 'top', 10: 'left',
+  11: 'bottom', 12: 'bottom', 13: 'bottom', 14: 'bottom', 15: 'bottom',
+  16: 'left', 17: 'bottom', 18: 'left', 19: 'left', 20: 'bottom'
+};
 
 function stopTravelAnim() {
-  if (animHandle) {
-    cancelAnimationFrame(animHandle);
-    animHandle = 0;
-  }
+  if (animHandle) { cancelAnimationFrame(animHandle); animHandle = 0; }
+  if (resizeObs) { resizeObs.disconnect(); resizeObs = null; }
 }
 
 function el(tag, className, text) {
@@ -67,7 +73,6 @@ function renderMapScene(container, scene, bridge) {
   };
 
   const shell = el('div', 'tk-map-shell');
-
   const header = el('div', 'tk-map-header');
   const titleWrap = el('div');
   titleWrap.appendChild(el('h1', 'tk-map-title', 'Bản Đồ Thiên Hạ'));
@@ -115,8 +120,20 @@ function renderMapScene(container, scene, bridge) {
   shell.appendChild(body);
   container.appendChild(shell);
 
+  function getFitScale() {
+    const vw = viewport.clientWidth || 520;
+    const vh = viewport.clientHeight || 480;
+    return Math.min(1.15, Math.max(0.52, Math.min((vw - 12) / 800, (vh - 12) / 640)));
+  }
+
   function applyTransform() {
-    canvas.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+    const effScale = getFitScale() * state.zoom;
+    canvas.style.transform = `translate(${state.panX.toFixed(1)}px, ${state.panY.toFixed(1)}px) scale(${effScale.toFixed(4)})`;
+  }
+
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObs = new ResizeObserver(() => applyTransform());
+    resizeObs.observe(viewport);
   }
 
   let dragStart = null;
@@ -250,7 +267,8 @@ function renderMapScene(container, scene, bridge) {
 
     citiesLayer.replaceChildren();
     for (const c of cities) {
-      const btn = el('button', 'tk-map-city');
+      const pos = LABEL_POS[c.id] || 'bottom';
+      const btn = el('button', `tk-map-city pos-${pos}`);
       btn.type = 'button';
       if (c.id === selCity.id) btn.classList.add('is-selected');
       if (c.id === curCity.id) btn.classList.add('is-current');
@@ -270,22 +288,17 @@ function renderMapScene(container, scene, bridge) {
       citiesLayer.appendChild(btn);
     }
 
+    const curPos = LABEL_POS[curCity.id] || 'bottom';
+    tokenImg.classList.toggle('token-below', !state.moving && curPos === 'top');
     tokenImg.style.left = `${state.px}px`;
     tokenImg.style.top = `${state.py}px`;
+    applyTransform();
 
     bottomBar.replaceChildren();
-    const layers = [
-      ['city', 'Thành trì'],
-      ['price', 'Giá hàng'],
-      ['danger', 'Độ hiểm trở']
-    ];
-    for (const [key, label] of layers) {
+    for (const [key, label] of [['city', 'Thành trì'], ['price', 'Giá hàng'], ['danger', 'Độ hiểm trở']]) {
       const btn = el('button', `tk-map-lay${state.layer === key ? ' is-active' : ''}`, label);
       btn.type = 'button';
-      btn.addEventListener('click', () => {
-        state.layer = key;
-        redrawAll();
-      });
+      btn.addEventListener('click', () => { state.layer = key; redrawAll(); });
       bottomBar.appendChild(btn);
     }
 
@@ -308,15 +321,13 @@ function renderMapScene(container, scene, bridge) {
 
     rightCol.replaceChildren();
     const headBox = el('div');
-    headBox.appendChild(el('div', 'tk-map-sel-name', selCity.nameVi));
-    headBox.appendChild(el('div', 'tk-map-sel-biome', selCity.biomeVi));
+    headBox.append(el('div', 'tk-map-sel-name', selCity.nameVi), el('div', 'tk-map-sel-biome', selCity.biomeVi));
     rightCol.appendChild(headBox);
 
     const chips = el('div', 'tk-map-chips');
     const p = pricePct(selCity);
     const dangerLabel = ['', 'thấp', 'vừa', 'cao'][Math.max(1, Math.min(3, selCity.dangerLevel || 1))];
-    chips.appendChild(el('span', 'tk-map-chip', `Giá hàng ${p > 0 ? '+' : ''}${p}%`));
-    chips.appendChild(el('span', 'tk-map-chip', `Hiểm trở ${dangerLabel}`));
+    chips.append(el('span', 'tk-map-chip', `Giá hàng ${p > 0 ? '+' : ''}${p}%`), el('span', 'tk-map-chip', `Hiểm trở ${dangerLabel}`));
     rightCol.appendChild(chips);
 
     const fTopo = el('div', 'tk-map-field');
@@ -324,11 +335,7 @@ function renderMapScene(container, scene, bridge) {
     const fClim = el('div', 'tk-map-field');
     fClim.append(el('div', 'tk-map-field-label', 'Khí hậu'), el('div', '', selCity.climateVi));
     const fSpec = el('div', 'tk-map-field');
-    fSpec.append(
-      el('div', 'tk-map-field-label', 'Sản vật'),
-      el('div', 'tk-map-spec', selCity.primarySpecialtyVi),
-      el('div', 'tk-map-spec', selCity.secondarySpecialtyVi)
-    );
+    fSpec.append(el('div', 'tk-map-field-label', 'Sản vật'), el('div', 'tk-map-spec', selCity.primarySpecialtyVi), el('div', 'tk-map-spec', selCity.secondarySpecialtyVi));
     rightCol.append(fTopo, fClim, fSpec, el('div', 'tk-map-divider'));
 
     if (isHere) {
@@ -338,8 +345,7 @@ function renderMapScene(container, scene, bridge) {
 
     const routeNames = pathIds.map((id) => byId.get(id)?.nameVi || `#${id}`).join(' → ');
     const routeBox = el('div', 'tk-map-route');
-    const routeLabel = el('span', 'tk-map-field-label', 'Lộ trình: ');
-    routeBox.append(routeLabel, document.createTextNode(routeNames));
+    routeBox.append(el('span', 'tk-map-field-label', 'Lộ trình: '), document.createTextNode(routeNames));
     rightCol.appendChild(routeBox);
 
     for (const q of selCity.quotes || []) {
@@ -347,49 +353,30 @@ function renderMapScene(container, scene, bridge) {
       mBtn.type = 'button';
       const leftSpan = el('span');
       const mTitle = el('span', '', q.nameVi);
-      mTitle.style.display = 'block';
-      mTitle.style.fontWeight = '600';
+      mTitle.style.cssText = 'display:block;font-weight:600';
       const mNote = el('span', 'tk-map-field-label', q.noteVi);
-      mNote.style.display = 'block';
-      mNote.style.fontSize = '12px';
+      mNote.style.cssText = 'display:block;font-size:12px';
       leftSpan.append(mTitle, mNote);
 
       const rightSpan = el('span');
       rightSpan.style.textAlign = 'right';
       const mDays = el('span', '', `${q.actualDays} ngày`);
-      mDays.style.display = 'block';
-      mDays.style.fontWeight = '600';
+      mDays.style.cssText = 'display:block;font-weight:600';
       const mFee = el('span', 'tk-map-field-label', q.fee > 0 ? `${q.fee.toLocaleString('vi-VN')} quan` : 'Miễn phí');
-      mFee.style.display = 'block';
-      mFee.style.fontSize = '12px';
+      mFee.style.cssText = 'display:block;font-size:12px';
       rightSpan.append(mDays, mFee);
 
       mBtn.append(leftSpan, rightSpan);
-      mBtn.addEventListener('click', () => {
-        if (state.moving) return;
-        state.mode = q.modeKey;
-        redrawAll();
-      });
+      mBtn.addEventListener('click', () => { if (!state.moving) { state.mode = q.modeKey; redrawAll(); } });
       rightCol.appendChild(mBtn);
     }
 
     if (activeQuote) {
       const canAfford = (activeQuote.fee || 0) <= (scene.cash || 0);
-      const goBtn = el(
-        'button',
-        'tk-map-go',
-        state.moving
-          ? 'Đang đi đường...'
-          : !canAfford
-            ? 'Không đủ tiền'
-            : `Lên đường · ${activeQuote.actualDays} ngày`
-      );
+      const goBtn = el('button', 'tk-map-go', state.moving ? 'Đang đi đường...' : !canAfford ? 'Không đủ tiền' : `Lên đường · ${activeQuote.actualDays} ngày`);
       goBtn.type = 'button';
       goBtn.disabled = state.moving || !canAfford;
-      goBtn.addEventListener('click', () => {
-        if (state.moving || !canAfford) return;
-        startTravelAnimation(pathIds, activeQuote, selCity.id);
-      });
+      goBtn.addEventListener('click', () => { if (!state.moving && canAfford) startTravelAnimation(pathIds, activeQuote, selCity.id); });
       rightCol.appendChild(goBtn);
     }
   }
@@ -397,7 +384,4 @@ function renderMapScene(container, scene, bridge) {
   redrawAll();
 }
 
-SimTBridge.registerStage('map', {
-  render: renderMapScene,
-  unmount: stopTravelAnim
-});
+SimTBridge.registerStage('map', { render: renderMapScene, unmount: stopTravelAnim });

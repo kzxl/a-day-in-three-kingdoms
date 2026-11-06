@@ -18,6 +18,8 @@ public static class SceneArtCatalog
     public const string PlayerPortraitFace = "art/portraits/player/face.webp";
     public const string PlayerPortraitFull = "art/portraits/player/full.webp";
     public const string PlayerSprite = "art/sprites/traveler.png";
+    public const string PlayerAnim = "art/anim/traveler.png";
+    public const string PlayerAnimKey = "traveler";
 
     private static readonly Lazy<ManifestTable> Manifest = new(LoadManifest, isThreadSafe: true);
     public static bool IsManifestLoadedFromDisk => Manifest.Value.LoadedFromDisk;
@@ -113,21 +115,40 @@ public static class SceneArtCatalog
 
     public static string ResolveProfileArt(NpcDef npc) => ResolveNpcArt(npc).PortraitFace;
 
-    public static (string? AnimPath, string? AnimKey) ResolveNpcAnim(NpcDef npc) => ResolveNpcAnim(npc.Code, npc.NameVi);
+    public static (string AnimPath, string AnimKey) ResolvePlayerAnim() =>
+        Manifest.Value.Anim.TryGetValue("traveler", out var rel)
+            ? (PrefixArt(rel), ExtractAnimKey(rel, PlayerAnimKey))
+            : (PlayerAnim, PlayerAnimKey);
 
-    public static (string? AnimPath, string? AnimKey) ResolveNpcAnim(string? npcCode, string? nameVi = null)
+    public static (string? AnimPath, string? AnimKey) ResolveNpcAnim(NpcDef npc) =>
+        ResolveNpcAnim(npc.Code, npc.Role, npc.Attributes, npc.NameVi, npc.Personality);
+
+    public static (string? AnimPath, string? AnimKey) ResolveNpcAnim(
+        string? npcCode, string? rawRole = null, CharacterAttributes? attributes = null,
+        string? nameVi = null, string? personality = null)
     {
         var manifest = Manifest.Value;
         var normCode = NormalizeNpcCode(npcCode, nameVi);
         if (!string.IsNullOrEmpty(normCode) && manifest.Npc.TryGetValue(normCode, out var direct))
         {
             if (manifest.Anim.TryGetValue(direct.Sprite, out var rel))
-                return (rel.StartsWith("art/", StringComparison.OrdinalIgnoreCase) ? rel : $"art/{rel}", direct.Sprite);
+                return (PrefixArt(rel), ExtractAnimKey(rel, direct.Sprite));
             if (manifest.Anim.TryGetValue(direct.Portrait, out var pRel))
-                return (pRel.StartsWith("art/", StringComparison.OrdinalIgnoreCase) ? pRel : $"art/{pRel}", direct.Portrait);
+                return (PrefixArt(pRel), ExtractAnimKey(pRel, direct.Portrait));
         }
+
+        if (npcCode is null && rawRole is null && attributes is null && nameVi is null && personality is null)
+            return (null, null);
+
+        var archetype = ClassifyArchetype(normCode, rawRole, attributes, nameVi, personality);
+        if (manifest.Anim.TryGetValue(archetype, out var archRel))
+            return (PrefixArt(archRel), ExtractAnimKey(archRel, archetype));
         return (null, null);
     }
+
+    private static string PrefixArt(string rel) => rel.StartsWith("art/", StringComparison.OrdinalIgnoreCase) ? rel : $"art/{rel}";
+    private static string ExtractAnimKey(string rel, string fallback) =>
+        Path.GetFileNameWithoutExtension(rel) is { Length: > 0 } name ? name : fallback;
 
     public static (string? BlinkPath, string? TalkPath) ResolvePortraitFrames(NpcDef npc) => ResolvePortraitFrames(npc.Code, npc.NameVi);
 
@@ -137,11 +158,7 @@ public static class SceneArtCatalog
         var normCode = NormalizeNpcCode(npcCode, nameVi);
         if (!string.IsNullOrEmpty(normCode) && manifest.Npc.TryGetValue(normCode, out var direct) &&
             manifest.PortraitFrames.TryGetValue(direct.Portrait, out var frames))
-        {
-            var blink = frames.Blink.StartsWith("art/", StringComparison.OrdinalIgnoreCase) ? frames.Blink : $"art/{frames.Blink}";
-            var talk = frames.Talk.StartsWith("art/", StringComparison.OrdinalIgnoreCase) ? frames.Talk : $"art/{frames.Talk}";
-            return (blink, talk);
-        }
+            return (PrefixArt(frames.Blink), PrefixArt(frames.Talk));
         return (null, null);
     }
 
@@ -149,8 +166,8 @@ public static class SceneArtCatalog
     {
         var manifest = Manifest.Value;
         var archetype = ClassifyArchetype(npcCode: null, rawRole: rawRoleOrArchetype);
-        if (manifest.Archetype.TryGetValue(archetype, out var entry)) return entry;
-        return manifest.Archetype.TryGetValue("commoner", out var fallback) ? fallback : ("commoner", "civ_commoner");
+        return manifest.Archetype.TryGetValue(archetype, out var entry) ? entry
+            : manifest.Archetype.TryGetValue("commoner", out var fallback) ? fallback : ("commoner", "civ_commoner");
     }
 
     public static (string PortraitFull, string PortraitFace, string SpritePath) ResolveRowNpcArt(ScreenRow row, INpcRegistry? registry = null)
@@ -222,10 +239,8 @@ public static class SceneArtCatalog
 
     private static string? ExtractCodeFromIconHint(string? iconHint)
     {
-        if (string.IsNullOrWhiteSpace(iconHint)) return null;
-        var trimmed = iconHint.Trim();
-        if (!trimmed.StartsWith("npc:", StringComparison.OrdinalIgnoreCase)) return null;
-        var rest = trimmed["npc:".Length..];
+        if (string.IsNullOrWhiteSpace(iconHint) || !iconHint.Trim().StartsWith("npc:", StringComparison.OrdinalIgnoreCase)) return null;
+        var rest = iconHint.Trim()["npc:".Length..];
         var colon = rest.IndexOf(':');
         return colon > 0 ? rest[..colon] : rest;
     }
@@ -234,7 +249,6 @@ public static class SceneArtCatalog
     {
         string[] prefixes = ["talk:npc:", "npc:modal:", "duel:", "chat:", "gift:", "recruit:", "dismiss:", "swear:", "learn:", "train_skill:"];
         foreach (var cmd in row.Commands)
-        {
             foreach (var prefix in prefixes)
             {
                 if (!cmd.Id.StartsWith(prefix, StringComparison.Ordinal)) continue;
@@ -242,7 +256,6 @@ public static class SceneArtCatalog
                 var colon = rest.IndexOf(':');
                 if (long.TryParse(colon >= 0 ? rest[..colon] : rest, NumberStyles.Integer, CultureInfo.InvariantCulture, out npcId)) return true;
             }
-        }
         npcId = 0;
         return false;
     }
@@ -254,11 +267,9 @@ public static class SceneArtCatalog
                 return RoleTitleVi.Format(detail.Value);
         if (row.Cells.Count >= 3)
         {
-            var cell1 = row.Cells[1].Trim();
-            var cell2 = row.Cells[2].Trim();
-            if (!string.IsNullOrWhiteSpace(cell2) &&
-                (cell1.Contains('(') || cell1.Contains("Phẩm", StringComparison.OrdinalIgnoreCase) || cell1.StartsWith('—') || cell1.StartsWith("⭐") || cell1.StartsWith("🔷") || cell1.StartsWith("🔶") || cell1.StartsWith("⚪")))
-                return RoleTitleVi.Format(cell2);
+            var (c1, c2) = (row.Cells[1].Trim(), row.Cells[2].Trim());
+            if (!string.IsNullOrWhiteSpace(c2) && (c1.Contains('(') || c1.Contains("Phẩm", StringComparison.OrdinalIgnoreCase) || c1.StartsWith('—') || c1.StartsWith("⭐") || c1.StartsWith("🔷") || c1.StartsWith("🔶") || c1.StartsWith("⚪")))
+                return RoleTitleVi.Format(c2);
         }
         return row.Cells.Count > 1 && !string.IsNullOrWhiteSpace(row.Cells[1]) ? RoleTitleVi.Format(row.Cells[1]) : "Danh sĩ";
     }
@@ -267,16 +278,11 @@ public static class SceneArtCatalog
     {
         if (row.Cells.Count >= 4 && string.Equals(RoleTitleVi.Format(row.Cells[2]), resolvedRole, StringComparison.OrdinalIgnoreCase))
         {
-            var styleOrRank = row.Cells[1].Trim();
-            var col3 = row.Cells[3].Trim();
-            var hasCleanStyle = !string.IsNullOrWhiteSpace(styleOrRank) && !styleOrRank.StartsWith('—');
-            if (hasCleanStyle && !string.IsNullOrWhiteSpace(col3) && !col3.Contains('/')) return $"{styleOrRank} · {col3}";
-            if (hasCleanStyle) return styleOrRank;
-            if (!string.IsNullOrWhiteSpace(col3)) return col3;
+            var (s, c3) = (row.Cells[1].Trim(), row.Cells[3].Trim());
+            var ok = !string.IsNullOrWhiteSpace(s) && !s.StartsWith('—');
+            return ok && !string.IsNullOrWhiteSpace(c3) && !c3.Contains('/') ? $"{s} · {c3}" : ok ? s : !string.IsNullOrWhiteSpace(c3) ? c3 : null;
         }
-        if (row.Cells.Count > 2 && !string.Equals(RoleTitleVi.Format(row.Cells[2].Trim()), resolvedRole, StringComparison.OrdinalIgnoreCase))
-            return row.Cells[2].Trim();
-        return null;
+        return row.Cells.Count > 2 && !string.Equals(RoleTitleVi.Format(row.Cells[2].Trim()), resolvedRole, StringComparison.OrdinalIgnoreCase) ? row.Cells[2].Trim() : null;
     }
 
     private static string BuildCombinedRoleHint(ScreenRow row, string resolvedRole)
@@ -289,8 +295,7 @@ public static class SceneArtCatalog
 
     private static bool ContainsAny(string text, params string[] keywords)
     {
-        foreach (var kw in keywords)
-            if (text.Contains(kw, StringComparison.Ordinal)) return true;
+        foreach (var kw in keywords) if (text.Contains(kw, StringComparison.Ordinal)) return true;
         return false;
     }
 
@@ -319,7 +324,9 @@ public static class SceneArtCatalog
         };
         var anim = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["guan_yu"] = "anim/guan_yu.png", ["zhang_fei"] = "anim/zhang_fei.png"
+            ["traveler"] = "anim/traveler.png", ["guan_yu"] = "anim/guan_yu.png",
+            ["zhang_fei"] = "anim/zhang_fei.png", ["han_officer"] = "anim/han_officer.png",
+            ["general"] = "anim/han_officer.png"
         };
         var portraitFrames = new Dictionary<string, (string Blink, string Talk)>(StringComparer.OrdinalIgnoreCase)
         {
@@ -362,8 +369,7 @@ public static class SceneArtCatalog
         if (!root.TryGetProperty(propName, out var el) || el.ValueKind != JsonValueKind.Object) return;
         foreach (var prop in el.EnumerateObject())
         {
-            var p = prop.Value.TryGetProperty("portrait", out var pEl) ? pEl.GetString() : null;
-            var s = prop.Value.TryGetProperty("sprite", out var sEl) ? sEl.GetString() : null;
+            var (p, s) = (prop.Value.TryGetProperty("portrait", out var pEl) ? pEl.GetString() : null, prop.Value.TryGetProperty("sprite", out var sEl) ? sEl.GetString() : null);
             if (!string.IsNullOrWhiteSpace(p) && !string.IsNullOrWhiteSpace(s)) target[prop.Name] = (p!, s!);
         }
     }
@@ -377,10 +383,8 @@ public static class SceneArtCatalog
 
     public static string? FindSceneAssetsDirectory()
     {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        for (var depth = 0; depth < 7 && dir is not null; depth++, dir = dir.Parent)
-            if (Directory.Exists(Path.Combine(dir.FullName, "assets", "scenes")))
-                return Path.Combine(dir.FullName, "assets", "scenes");
+        for (var (depth, dir) = (0, new DirectoryInfo(AppContext.BaseDirectory)); depth < 7 && dir is not null; depth++, dir = dir.Parent)
+            if (Directory.Exists(Path.Combine(dir.FullName, "assets", "scenes"))) return Path.Combine(dir.FullName, "assets", "scenes");
         return null;
     }
 

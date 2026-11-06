@@ -198,7 +198,7 @@ function paintListAndCard(bridge) {
         '<span class="dossier-chip">Ngụ tại ' + esc(current.cityNameVi) + '</span>' +
       '</div>' +
       '<div class="dossier-radar-row">' +
-        '<svg width="268" height="240" viewBox="-140 -122 280 244" role="img" aria-label="Biểu đồ tám năng lực">' +
+        '<svg class="dossier-radar-svg" viewBox="-140 -122 280 244" role="img" aria-label="Biểu đồ tám năng lực">' +
           '<polygon points="' + radarRingPoints(0.33) + '" fill="none" stroke="#3a2c20"></polygon>' +
           '<polygon points="' + radarRingPoints(0.66) + '" fill="none" stroke="#3a2c20"></polygon>' +
           '<polygon points="' + radarRingPoints(1.0) + '" fill="none" stroke="#4a3a2a"></polygon>' +

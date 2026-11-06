@@ -1,7 +1,8 @@
 {
   "player": {
     "portrait": "player",
-    "sprite": "traveler"
+    "sprite": "traveler",
+    "anim": "anim/traveler.png"
   },
   "npc": {
     "npc_0001": {
@@ -84,8 +85,11 @@
     "field": "backgrounds/field.png"
   },
   "anim": {
+    "traveler": "anim/traveler.png",
     "guan_yu": "anim/guan_yu.png",
-    "zhang_fei": "anim/zhang_fei.png"
+    "zhang_fei": "anim/zhang_fei.png",
+    "han_officer": "anim/han_officer.png",
+    "general": "anim/han_officer.png"
   },
   "portraitFrames": {
     "guan_yu": {

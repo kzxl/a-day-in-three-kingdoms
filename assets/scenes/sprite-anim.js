@@ -12,11 +12,25 @@ export const DUEL_SPEED = 380;
 export const CITY_SPEED = 165;
 
 export const ATK_DURATIONS = [0.07, 0.08, 0.13, 0.06, 0.05, 0.10, 0.10, 0.12];
+const DEFAULT_ATK = [12, 13, 14, 15, 16, 17, 18, 19];
 export const ATK_FRAMES = {
   guan_yu: [12, 14, 16, 16, 15, 17, 18, 19],
-  zhang_fei: [12, 13, 14, 15, 16, 17, 18, 19],
-  default: [12, 13, 14, 15, 16, 17, 18, 19]
+  zhang_fei: DEFAULT_ATK,
+  traveler: DEFAULT_ATK,
+  han_officer: DEFAULT_ATK,
+  general: DEFAULT_ATK,
+  default: DEFAULT_ATK
 };
+export const STRIP_BODY_H = { guan_yu: 143, zhang_fei: 143, traveler: 147, han_officer: 153, general: 153, default: 147 };
+
+export function resolveStripBodyHeight(animPath) {
+  const p = String(animPath || '').toLowerCase();
+  if (p.includes('han_officer')) return STRIP_BODY_H.han_officer;
+  if (p.includes('traveler')) return STRIP_BODY_H.traveler;
+  if (p.includes('guan_yu')) return STRIP_BODY_H.guan_yu;
+  if (p.includes('zhang_fei')) return STRIP_BODY_H.zhang_fei;
+  return STRIP_BODY_H.default;
+}
 
 export function computeWalkFrame(dist, step, reverse = false) {
   const safeStep = step > 0 ? step : STEP_DUEL;
@@ -31,10 +45,7 @@ export function computeAttackLunge(t, dir) {
     const k = (t - t0) / (t1 - t0);
     return dir * 58 * (k * k * (3 - 2 * k));
   }
-  if (t >= t1) {
-    return dir * Math.max(0, 58 * (1 - (t - t1) / 0.26));
-  }
-  return 0;
+  return t >= t1 ? dir * Math.max(0, 58 * (1 - (t - t1) / 0.26)) : 0;
 }
 
 export function createDuelFighterState(cfg, index) {
@@ -44,28 +55,11 @@ export function createDuelFighterState(cfg, index) {
   const key = String(cfg.animKey || '').toLowerCase();
   const atk = ATK_FRAMES[key] || ATK_FRAMES.default;
   return {
-    el: cfg.el || null,
-    spEl: cfg.spEl || null,
-    hasStrip: Boolean(cfg.animPath),
-    animPath: cfg.animPath || null,
-    spritePath: cfg.spritePath || '',
-    atk,
-    x: home,
-    home,
-    dir,
-    hp: cfg.hp ?? 100,
-    max: cfg.maxHp ?? 100,
-    st: 'idle',
-    t: 0,
-    fr: 0,
-    it: isLeft ? 0 : 0.4,
-    dist: 0,
-    tx: home,
-    hit: false,
-    fl: 0,
-    kb: 0,
-    back: false,
-    pendingImpact: null
+    el: cfg.el || null, spEl: cfg.spEl || null,
+    hasStrip: Boolean(cfg.animPath), animPath: cfg.animPath || null, spritePath: cfg.spritePath || '',
+    atk, x: home, home, dir, hp: cfg.hp ?? 100, max: cfg.maxHp ?? 100,
+    st: 'idle', t: 0, fr: 0, it: isLeft ? 0 : 0.4, dist: 0, tx: home,
+    hit: false, fl: 0, kb: 0, back: false, pendingImpact: null
   };
 }
 
@@ -192,8 +186,44 @@ export function drawDuelState(state) {
       f.spEl.style.backgroundPosition = `-${f.fr * STRIP_CELL_W}px 0`;
       f.spEl.style.transform = `translate3d(${lunge.toFixed(1)}px, 0px, 0) scale(${(f.dir * SCALE_DUEL).toFixed(3)}, ${SCALE_DUEL})`;
     } else {
-      const koPose = f.st === 'ko' ? ' rotate(-72deg) translateY(22px)' : '';
-      f.spEl.style.transform = `translate3d(${lunge.toFixed(1)}px, 0px, 0) scaleX(${f.dir})${koPose}`;
+      let tx = lunge;
+      let ty = 0;
+      let rot = 0;
+      let sx = 1;
+      let sy = 1;
+      if (f.st === 'idle') {
+        ty = Math.sin(f.it * 3.2) * 3;
+        sy = 1 + Math.sin(f.it * 3.2) * 0.014;
+      } else if (f.st === 'run') {
+        ty = -Math.abs(Math.sin(f.dist * 0.075)) * 8;
+        rot = f.back ? -7 : 10;
+      } else if (f.st === 'atk') {
+        if (f.t < 0.28) {
+          const k = f.t / 0.28;
+          tx = -f.dir * 26 * k;
+          rot = -12 * k;
+          sx = 1 + 0.04 * k;
+          sy = 1 - 0.06 * k;
+        } else if (f.t < 0.48) {
+          tx = f.dir * 66;
+          rot = 16;
+          sx = 1.07;
+          sy = 1.03;
+        } else {
+          const k = Math.max(0, 1 - (f.t - 0.48) / 0.23);
+          tx = f.dir * 66 * k;
+          rot = 16 * k;
+        }
+      } else if (f.st === 'hit') {
+        const k = Math.max(0, 1 - f.t / 0.48);
+        rot = -18 * k;
+        sx = 1 + 0.06 * k;
+        sy = 1 - 0.08 * k;
+      } else if (f.st === 'ko') {
+        rot = -72;
+        ty = 22;
+      }
+      f.spEl.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scaleX(${f.dir}) rotate(${rot.toFixed(1)}deg) scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
     }
     f.spEl.style.filter = f.fl > 0
       ? 'brightness(2.6) drop-shadow(0 0 12px #fff)'
@@ -274,26 +304,31 @@ export function stepCityWalkers(walkers, rawDt) {
   const dt = Math.max(0, Math.min(0.05, rawDt));
   for (const n of walkers) {
     n.it = (n.it || 0) + dt;
-    if (!n.walk || !n.hasStrip) continue;
-    if (n.wait > 0) {
+    if (!n.hasStrip) continue;
+    const scale = n.scale || SCALE_CITY;
+    const halfW = n.halfW || (STRIP_CELL_W / 2);
+    if (!n.walk) {
+      n.fr = Math.floor(n.it / 0.3) % 4;
+    } else if (n.wait > 0) {
       n.wait -= dt;
       n.fr = Math.floor(n.it / 0.3) % 4;
       if (n.wait <= 0) n.dir *= -1;
     } else {
-      const stepDist = CITY_SPEED * dt;
+      const speed = n.speed || CITY_SPEED * (scale / SCALE_CITY);
+      const step = n.step || STEP_CITY * (scale / SCALE_CITY);
+      const stepDist = speed * dt;
       n.x += n.dir * stepDist;
       n.dist = (n.dist || 0) + stepDist;
-      // STEP = 18 at scale 2, no vertical bobbing added in code
-      n.fr = computeWalkFrame(n.dist, STEP_CITY, false);
+      n.fr = computeWalkFrame(n.dist, step, false);
       if ((n.dir > 0 && n.x >= n.max) || (n.dir < 0 && n.x <= n.min)) {
         n.x = Math.max(n.min, Math.min(n.max, n.x));
         n.wait = 2.2;
       }
     }
     if (n.el && n.spEl) {
-      n.el.style.left = `${(n.x - STRIP_CELL_W / 2).toFixed(1)}px`;
+      n.el.style.left = `${(n.x - halfW).toFixed(1)}px`;
       n.spEl.style.backgroundPosition = `-${n.fr * STRIP_CELL_W}px 0`;
-      n.spEl.style.transform = `scale(${n.dir * SCALE_CITY}, ${SCALE_CITY})`;
+      n.spEl.style.transform = `scale(${(n.dir * scale).toFixed(3)}, ${scale.toFixed(3)})`;
     }
   }
 }
@@ -327,7 +362,7 @@ export function createPortraitAnimator({ baseEl, blinkEl, talkEl, lineEl }) {
       if (lineEl) lineEl.textContent = '“”';
       syncFrames();
     },
-     isTyping() {
+    isTyping() {
       return st.speaking && st.typed < st.fullText.length;
     },
     completeLine() {
