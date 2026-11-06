@@ -334,7 +334,7 @@ public partial class MainWindow
             if (ok)
             {
                 StatusText.Text = msg;
-                RefreshBadges();
+                InvalidateBadges(); RefreshBadges();
                 RenderSelected();
             }
             return (ok, msg);
@@ -680,7 +680,7 @@ public partial class MainWindow
             if (ok)
             {
                 StatusText.Text = msg;
-                RefreshBadges();
+                InvalidateBadges(); RefreshBadges();
                 RenderSelected();
             }
             return (ok, msg);
@@ -693,7 +693,7 @@ public partial class MainWindow
             if (ok)
             {
                 StatusText.Text = msg;
-                RefreshBadges();
+                InvalidateBadges(); RefreshBadges();
                 RenderSelected();
             }
             return (ok, msg);
@@ -706,7 +706,7 @@ public partial class MainWindow
             if (ok)
             {
                 StatusText.Text = msg;
-                RefreshBadges();
+                InvalidateBadges(); RefreshBadges();
                 RenderSelected();
             }
             return (ok, msg);
@@ -714,7 +714,7 @@ public partial class MainWindow
 
         Action onChanged = () =>
         {
-            RefreshBadges();
+            InvalidateBadges(); RefreshBadges();
             RenderSelected();
         };
 

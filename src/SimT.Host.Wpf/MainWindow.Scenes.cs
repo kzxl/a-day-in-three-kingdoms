@@ -241,6 +241,7 @@ public partial class MainWindow
         if (type == "close")
         {
             UpdateHeader();
+            InvalidateBadges();
             RefreshBadges();
             if (activeScene is MapScene or SocialScene or MarketScene or DossierScene)
                 SelectScreen(CitySceneScreenId);
@@ -319,7 +320,7 @@ public partial class MainWindow
         StatusText.Text = outcome.MessageVi;
         _kernel.Save();
         UpdateHeader();
-        RefreshBadges();
+        InvalidateBadges(); RefreshBadges();
 
         if (outcome.OpenDuel)
         {
@@ -348,7 +349,7 @@ public partial class MainWindow
         {
             SceneOverlay.HideScene();
             UpdateHeader();
-            RefreshBadges();
+            InvalidateBadges(); RefreshBadges();
             RenderSelected();
             return;
         }
@@ -368,7 +369,7 @@ public partial class MainWindow
                 var result = military.ChallengeArena(npc.Id, branch);
                 _kernel.Save();
                 UpdateHeader();
-                RefreshBadges();
+                InvalidateBadges(); RefreshBadges();
                 TryOpenDuelScene(npc, duel.CitadelNameVi, branch, result);
             }
             catch (Exception ex) { StatusText.Text = Describe(ex); }

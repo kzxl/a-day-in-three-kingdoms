@@ -54,33 +54,20 @@ public class CommandRibbonItemSelectedEventArgs : RoutedEventArgs
 /// </summary>
 public sealed class GameCommandRibbon : Control
 {
-    public static readonly DependencyProperty ItemsSourceProperty =
-        DependencyProperty.Register(
-            nameof(ItemsSource),
-            typeof(ObservableCollection<CommandRibbonItem>),
-            typeof(GameCommandRibbon),
-            new FrameworkPropertyMetadata(null, OnLayoutPropertyChanged));
+    public static readonly DependencyProperty ItemsSourceProperty = DependencyProperty.Register(
+        nameof(ItemsSource), typeof(ObservableCollection<CommandRibbonItem>), typeof(GameCommandRibbon),
+        new FrameworkPropertyMetadata(null, OnLayoutPropertyChanged));
 
-    public static readonly DependencyProperty SelectedItemIdProperty =
-        DependencyProperty.Register(
-            nameof(SelectedItemId),
-            typeof(string),
-            typeof(GameCommandRibbon),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnLayoutPropertyChanged));
+    public static readonly DependencyProperty SelectedItemIdProperty = DependencyProperty.Register(
+        nameof(SelectedItemId), typeof(string), typeof(GameCommandRibbon),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnLayoutPropertyChanged));
 
-    public static readonly DependencyProperty SelectedSubItemIdProperty =
-        DependencyProperty.Register(
-            nameof(SelectedSubItemId),
-            typeof(string),
-            typeof(GameCommandRibbon),
-            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnLayoutPropertyChanged));
+    public static readonly DependencyProperty SelectedSubItemIdProperty = DependencyProperty.Register(
+        nameof(SelectedSubItemId), typeof(string), typeof(GameCommandRibbon),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnLayoutPropertyChanged));
 
-    public static readonly RoutedEvent ItemSelectedEvent =
-        EventManager.RegisterRoutedEvent(
-            nameof(ItemSelected),
-            RoutingStrategy.Bubble,
-            typeof(EventHandler<CommandRibbonItemSelectedEventArgs>),
-            typeof(GameCommandRibbon));
+    public static readonly RoutedEvent ItemSelectedEvent = EventManager.RegisterRoutedEvent(
+        nameof(ItemSelected), RoutingStrategy.Bubble, typeof(EventHandler<CommandRibbonItemSelectedEventArgs>), typeof(GameCommandRibbon));
 
     public ObservableCollection<CommandRibbonItem> ItemsSource
     {
@@ -106,16 +93,12 @@ public sealed class GameCommandRibbon : Control
         remove => RemoveHandler(ItemSelectedEvent, value);
     }
 
-    private static readonly Brush ItemNormalBg = Freeze(new LinearGradientBrush(
-        Color.FromRgb(0x27, 0x1D, 0x15), Color.FromRgb(0x1E, 0x17, 0x10), new Point(0, 0), new Point(1, 0)));
-    private static readonly Brush ItemHoverBg = Freeze(new LinearGradientBrush(
-        Color.FromRgb(0x3B, 0x2A, 0x1C), Color.FromRgb(0x2A, 0x1E, 0x14), new Point(0, 0), new Point(1, 0)));
-    private static readonly Brush ItemSelectedBg = Freeze(new LinearGradientBrush(
-        Color.FromRgb(0x52, 0x36, 0x20), Color.FromRgb(0x32, 0x22, 0x15), new Point(0, 0), new Point(1, 0)));
+    private static readonly Brush ItemNormalBg = Freeze(new LinearGradientBrush(Color.FromRgb(0x27, 0x1D, 0x15), Color.FromRgb(0x1E, 0x17, 0x10), new Point(0, 0), new Point(1, 0)));
+    private static readonly Brush ItemHoverBg = Freeze(new LinearGradientBrush(Color.FromRgb(0x3B, 0x2A, 0x1C), Color.FromRgb(0x2A, 0x1E, 0x14), new Point(0, 0), new Point(1, 0)));
+    private static readonly Brush ItemSelectedBg = Freeze(new LinearGradientBrush(Color.FromRgb(0x52, 0x36, 0x20), Color.FromRgb(0x32, 0x22, 0x15), new Point(0, 0), new Point(1, 0)));
     private static readonly Brush SubNormalBg = Freeze(new SolidColorBrush(Color.FromRgb(0x1B, 0x14, 0x0F)));
     private static readonly Brush SubHoverBg = Freeze(new SolidColorBrush(Color.FromRgb(0x2B, 0x1F, 0x16)));
     private static readonly Brush SubSelectedBg = Freeze(new SolidColorBrush(Color.FromRgb(0x3A, 0x28, 0x1A)));
-
     private static readonly Brush BorderBronze = Freeze(new SolidColorBrush(Color.FromRgb(0x4A, 0x38, 0x24)));
     private static readonly Brush BorderGoldActive = Freeze(new SolidColorBrush(Color.FromRgb(0xC4, 0xA0, 0x62)));
     private static readonly Brush GoldAccent = Freeze(new SolidColorBrush(Color.FromRgb(0xD6, 0xB4, 0x75)));
@@ -125,27 +108,15 @@ public sealed class GameCommandRibbon : Control
     private static readonly Brush BadgeBg = Freeze(new SolidColorBrush(Color.FromRgb(0x8E, 0x28, 0x18)));
     private static readonly Brush BadgeFg = Freeze(new SolidColorBrush(Color.FromRgb(0xFA, 0xEF, 0xD4)));
 
-    private static readonly Typeface TitleTypeface = new(
-        new FontFamily("Noto Serif, Georgia, SimSun, Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
-    private static readonly Typeface SubtitleTypeface = new(
-        new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-    private static readonly Typeface BadgeTypeface = new(
-        new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+    private static readonly Typeface TitleTypeface = new(new FontFamily("Noto Serif, Georgia, SimSun, Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+    private static readonly Typeface SubtitleTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+    private static readonly Typeface BadgeTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
 
-    private const double TabHeight = 48.0;
-    private const double TabSpacing = 6.0;
-    private const double SubHeight = 36.0;
-    private const double SubSpacing = 3.0;
-    private const double LeftCurveWidth = 6.0;
-
+    private const double TabHeight = 48.0, TabSpacing = 6.0, SubHeight = 36.0, SubSpacing = 3.0, LeftCurveWidth = 6.0;
     private (int ItemIdx, int SubIdx) _hovered = (-1, -1);
 
-    static GameCommandRibbon()
-    {
-        DefaultStyleKeyProperty.OverrideMetadata(
-            typeof(GameCommandRibbon),
-            new FrameworkPropertyMetadata(typeof(GameCommandRibbon)));
-    }
+    static GameCommandRibbon() =>
+        DefaultStyleKeyProperty.OverrideMetadata(typeof(GameCommandRibbon), new FrameworkPropertyMetadata(typeof(GameCommandRibbon)));
 
     public GameCommandRibbon()
     {
@@ -158,43 +129,30 @@ public sealed class GameCommandRibbon : Control
 
     private static void OnLayoutPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is GameCommandRibbon ribbon)
-        {
-            ribbon.InvalidateMeasure();
-            ribbon.InvalidateVisual();
-        }
+        if (d is GameCommandRibbon ribbon) { ribbon.InvalidateMeasure(); ribbon.InvalidateVisual(); }
     }
 
     protected override Size MeasureOverride(Size constraint)
     {
-        if (ItemsSource is null || ItemsSource.Count == 0)
-            return new Size(Width, 0);
-
+        if (ItemsSource is null || ItemsSource.Count == 0) return new Size(Width, 0);
         double totalHeight = 4;
         for (int i = 0; i < ItemsSource.Count; i++)
         {
             var item = ItemsSource[i];
             totalHeight += TabHeight + TabSpacing;
             if (IsGroupSelected(item) && item.SubItems.Count > 0)
-            {
                 totalHeight += item.SubItems.Count * (SubHeight + SubSpacing) + 2;
-            }
         }
         return new Size(Width, totalHeight + 4);
     }
 
-    private bool IsGroupSelected(CommandRibbonItem item) =>
-        string.Equals(item.Id, SelectedItemId, StringComparison.OrdinalIgnoreCase);
+    private bool IsGroupSelected(CommandRibbonItem item) => string.Equals(item.Id, SelectedItemId, StringComparison.OrdinalIgnoreCase);
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
         var next = HitTest(e.GetPosition(this).Y);
-        if (next != _hovered)
-        {
-            _hovered = next;
-            InvalidateVisual();
-        }
+        if (next != _hovered) { _hovered = next; InvalidateVisual(); }
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)
@@ -219,11 +177,9 @@ public sealed class GameCommandRibbon : Control
             sub = item.SubItems[subIdx];
             SelectedSubItemId = sub.Id;
         }
-        else if (item.SubItems.Count > 0)
+        else if (item.SubItems.Count > 0 && string.IsNullOrEmpty(SelectedSubItemId))
         {
-            sub = item.SubItems.FirstOrDefault(s => string.Equals(s.Id, SelectedSubItemId, StringComparison.OrdinalIgnoreCase))
-                ?? item.SubItems[0];
-            SelectedSubItemId = sub.Id;
+            SelectedSubItemId = item.SubItems[0].Id;
         }
 
         RaiseEvent(new CommandRibbonItemSelectedEventArgs(ItemSelectedEvent, item, sub));
@@ -314,23 +270,53 @@ public sealed class GameCommandRibbon : Control
             dc.DrawRoundedRectangle(BorderGoldActive, null, new Rect(rect.Left + 2, rect.Top + 8, 3, rect.Height - 16), 1.5, 1.5);
         }
 
-        double textStartX = rect.Left + 15;
+        double textStartX = rect.Left + 16;
         if (!string.IsNullOrEmpty(item.IconPathData))
         {
             try
             {
                 Geometry iconGeom = Geometry.Parse(item.IconPathData);
-                dc.PushTransform(new TranslateTransform(rect.Left + 13, rect.Top + (TabHeight / 2) - 8));
-                dc.DrawGeometry(null, new Pen(isSelected ? BorderGoldActive : (isHovered ? GoldAccent : TextMuted), 1.3), iconGeom);
-                dc.Pop();
-                textStartX += 18;
+                Rect bounds = iconGeom.Bounds;
+                const double iconBoxSize = 18.0;
+                double iconBoxX = rect.Left + 14.0;
+                double iconBoxY = rect.Top + (TabHeight - iconBoxSize) / 2.0;
+
+                if (bounds.Width > 0 && bounds.Height > 0)
+                {
+                    double scale = Math.Min(iconBoxSize / bounds.Width, iconBoxSize / bounds.Height);
+                    double offsetX = iconBoxX + (iconBoxSize - bounds.Width * scale) / 2.0 - bounds.X * scale;
+                    double offsetY = iconBoxY + (iconBoxSize - bounds.Height * scale) / 2.0 - bounds.Y * scale;
+
+                    Matrix m = Matrix.Identity;
+                    m.Scale(scale, scale);
+                    m.Translate(offsetX, offsetY);
+
+                    dc.PushTransform(new MatrixTransform(m));
+                    dc.DrawGeometry(null, new Pen(isSelected ? BorderGoldActive : (isHovered ? GoldAccent : TextMuted), 1.3), iconGeom);
+                    dc.Pop();
+                }
+                else
+                {
+                    dc.PushTransform(new TranslateTransform(iconBoxX, iconBoxY));
+                    dc.DrawGeometry(null, new Pen(isSelected ? BorderGoldActive : (isHovered ? GoldAccent : TextMuted), 1.3), iconGeom);
+                    dc.Pop();
+                }
+
+                // Generous 10px spacing between icon bounding box and text
+                textStartX = iconBoxX + iconBoxSize + 10.0;
             }
             catch { }
         }
 
+        double rightPad = string.IsNullOrEmpty(item.BadgeText) ? 6.0 : 28.0;
+        double maxTextW = Math.Max(20.0, rect.Right - textStartX - rightPad);
+
         FormattedText titleFt = new(
             item.Title, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-            TitleTypeface, 12.5, isSelected || isHovered ? TextInk : TextMuted, dpi);
+            TitleTypeface, 12.5, isSelected || isHovered ? TextInk : TextMuted, dpi)
+        {
+            MaxTextWidth = maxTextW, MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis
+        };
         double titleY = string.IsNullOrEmpty(item.Subtitle) ? rect.Top + (TabHeight - titleFt.Height) / 2 : rect.Top + 7;
         dc.DrawText(titleFt, new Point(textStartX, titleY));
 
@@ -338,7 +324,10 @@ public sealed class GameCommandRibbon : Control
         {
             FormattedText subFt = new(
                 item.Subtitle, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-                SubtitleTypeface, 10.0, TextFaint, dpi);
+                SubtitleTypeface, 10.0, TextFaint, dpi)
+            {
+                MaxTextWidth = maxTextW, MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis
+            };
             dc.DrawText(subFt, new Point(textStartX, rect.Top + 25));
         }
 
@@ -356,10 +345,16 @@ public sealed class GameCommandRibbon : Control
             dc.DrawRoundedRectangle(BorderGoldActive, null, new Rect(rect.Left + 3, rect.Top + 6, 2.5, rect.Height - 12), 1.2, 1.2);
         }
 
-        double textX = rect.Left + 11;
+        double textX = rect.Left + 12;
+        double rightPad = string.IsNullOrEmpty(sub.BadgeText) ? 6.0 : 28.0;
+        double maxTextW = Math.Max(20.0, rect.Right - textX - rightPad);
+
         FormattedText titleFt = new(
             sub.Title, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-            TitleTypeface, 11.5, isSelected || isHovered ? TextInk : TextMuted, dpi);
+            TitleTypeface, 11.5, isSelected || isHovered ? TextInk : TextMuted, dpi)
+        {
+            MaxTextWidth = maxTextW, MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis
+        };
         double titleY = string.IsNullOrEmpty(sub.Subtitle) ? rect.Top + (SubHeight - titleFt.Height) / 2 : rect.Top + 4;
         dc.DrawText(titleFt, new Point(textX, titleY));
 
@@ -367,7 +362,10 @@ public sealed class GameCommandRibbon : Control
         {
             FormattedText subFt = new(
                 sub.Subtitle, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-                SubtitleTypeface, 9.5, TextFaint, dpi);
+                SubtitleTypeface, 9.5, TextFaint, dpi)
+            {
+                MaxTextWidth = maxTextW, MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis
+            };
             dc.DrawText(subFt, new Point(textX, rect.Top + 19));
         }
 

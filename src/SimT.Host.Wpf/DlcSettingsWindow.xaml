@@ -111,6 +111,9 @@
                 <StackPanel>
                     <TextBlock Text="TÙY CHỌN TRẢI NGHIỆM TRÒ CHƠI" Style="{StaticResource Overline}" Margin="0,0,0,12" />
 
+                    <CheckBox x:Name="OptBilingualMode" Content="Chế độ Song ngữ Hán - Việt (Hiển thị nguyên tác Chữ Hán cho Danh Tướng, Địa Danh &amp; Kỳ Vật)"
+                              IsChecked="False" Margin="0,0,0,12" Foreground="{StaticResource Text}" Click="OptBilingual_Click" />
+
                     <CheckBox x:Name="OptAutoSave" Content="Tự động lưu ván chơi sau mỗi lượt tiến ngày / tuần (Khuyến nghị)"
                               IsChecked="True" Margin="0,0,0,12" Foreground="{StaticResource Text}" />
 

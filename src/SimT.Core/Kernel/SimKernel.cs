@@ -26,6 +26,9 @@ using SimT.Core.Ledger;
 using SimT.Core.Logging;
 using SimT.Core.Modules;
 using SimT.Core.Time;
+using SimT.Contracts.Assets;
+using SimT.Core.Assets;
+using SimT.Contracts.Playing;
 
 namespace SimT.Core.Kernel;
 
@@ -143,6 +146,14 @@ public sealed class SimKernel : IDisposable
 
     public IAsyncSimulationWorker AsyncSimulation => _asyncSimulation;
 
+    private readonly ITimeService _timeService = new TimeService();
+    private readonly IEngineScheduler _scheduler = new EngineScheduler();
+    private readonly IAssetManager _assets = new AssetManager();
+
+    public ITimeService TimeService => _timeService;
+    public IEngineScheduler Scheduler => _scheduler;
+    public IAssetManager Assets => _assets;
+
     public GameDate Today => _clock.Today;
 
     /// <summary>
@@ -203,6 +214,10 @@ public sealed class SimKernel : IDisposable
             broker.Provide("core.event_deck", kernel.EventDeck);
             broker.Provide("core.slot_saves", kernel.SlotSaves);
             broker.Provide("core.async_simulation", kernel.AsyncSimulation);
+            broker.Provide(CapabilityIds.TimeService, kernel.TimeService);
+            broker.Provide(CapabilityIds.Scheduler, kernel.Scheduler);
+            broker.Provide(CapabilityIds.AssetManager, kernel.Assets);
+            broker.Provide(CapabilityIds.Localization, kernel.Localization);
 
             var campaign = new CampaignStart(product.Seed, product.StartLocationCode, product.StartingCash);
 
@@ -308,6 +323,8 @@ public sealed class SimKernel : IDisposable
         }
 
         Save();
+        _scheduler.CancelAll();
+        _assets.Clear();
         _db.Dispose();
         _lock.Dispose();
     }

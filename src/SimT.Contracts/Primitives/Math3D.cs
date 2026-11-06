@@ -172,6 +172,23 @@ public struct Mat4
         };
         return result;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vec3 TransformPoint(Vec3 p)
+    {
+        float x = p.X * M11 + p.Y * M21 + p.Z * M31 + M41;
+        float y = p.X * M12 + p.Y * M22 + p.Z * M32 + M42;
+        float z = p.X * M13 + p.Y * M23 + p.Z * M33 + M43;
+        float w = p.X * M14 + p.Y * M24 + p.Z * M34 + M44;
+
+        if (MathF.Abs(w) > 1e-6f)
+        {
+            float invW = 1.0f / w;
+            return new Vec3(x * invW, y * invW, z * invW);
+        }
+
+        return new Vec3(x, y, z);
+    }
 }
 
 public readonly record struct Ray3D(Vec3 Origin, Vec3 Direction)

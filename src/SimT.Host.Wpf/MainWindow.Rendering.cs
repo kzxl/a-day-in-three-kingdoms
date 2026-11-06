@@ -156,13 +156,13 @@ public partial class MainWindow
 
     private void AnimatePageTransition()
     {
-        var animOpacity = new System.Windows.Media.Animation.DoubleAnimation(0.25, 1.0, TimeSpan.FromMilliseconds(200))
+        var animOpacity = new System.Windows.Media.Animation.DoubleAnimation(0.70, 1.0, TimeSpan.FromMilliseconds(100))
         {
-            EasingFunction = new System.Windows.Media.Animation.QuarticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+            EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
         };
-        var animTranslate = new System.Windows.Media.Animation.DoubleAnimation(10.0, 0.0, TimeSpan.FromMilliseconds(200))
+        var animTranslate = new System.Windows.Media.Animation.DoubleAnimation(6.0, 0.0, TimeSpan.FromMilliseconds(100))
         {
-            EasingFunction = new System.Windows.Media.Animation.QuarticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
+            EasingFunction = new System.Windows.Media.Animation.QuadraticEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }
         };
         PageTransform.BeginAnimation(TranslateTransform.YProperty, animTranslate);
         PageRoot.BeginAnimation(OpacityProperty, animOpacity);
