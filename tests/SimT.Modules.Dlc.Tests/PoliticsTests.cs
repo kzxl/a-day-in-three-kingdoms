@@ -1,7 +1,7 @@
 using SimT.Contracts.Ledger;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
-using SimT.Modules.Dlc.Politics;
+using SimT.Modules.Dlc.Power;
 
 namespace SimT.Modules.Dlc.Tests;
 

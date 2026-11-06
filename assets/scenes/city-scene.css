@@ -151,15 +151,16 @@
 
 /* Bottom Quick Dock */
 .tk-city-dock {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 0 20px; background: var(--lacquer); border-top: 1px solid var(--line); z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 0 16px; background: var(--lacquer); border-top: 1px solid var(--line); z-index: 10; min-width: 0;
 }
-.tk-city-hint { font-size: 12.5px; color: var(--muted); }
-.tk-city-actions { display: flex; align-items: center; gap: 10px; }
+.tk-city-hint { font-size: 12px; color: var(--muted); flex: 1 1 0; min-width: 0; }
+.tk-city-actions { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
 .tk-city-btn {
-  height: 38px; padding: 0 16px; border-radius: 4px;
+  height: 36px; padding: 0 12px; border-radius: 4px;
   background: linear-gradient(90deg, rgba(46, 33, 22, 0.95), rgba(34, 24, 17, 0.95));
   border: 1px solid var(--gold); border-left: 3px solid var(--vermilion);
-  color: var(--ink); font-family: var(--font-body); font-size: 12.5px; font-weight: 600; cursor: pointer;
+  color: var(--ink); font-family: var(--font-body); font-size: 12px; font-weight: 600; cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
 }
 .tk-city-btn:hover { border-color: var(--gold-hover); background: var(--gold-hover); background: var(--gold-soft); }

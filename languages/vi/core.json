@@ -1,0 +1,22 @@
+{
+  "app.title": "SimT — Nhất Nhật Tam Quốc",
+  "app.subtitle": "Mô phỏng Xã hội, Thương Nghiệp & Chiến Lược Cổ Đại",
+  "app.version": "Phiên bản",
+  "app.settings": "Thiết Lập Trò Chơi",
+  "app.exit": "Thoát Trò Chơi",
+  "app.save": "Lưu Tiến Trình",
+  "app.load": "Tải Lại Tiến Trình",
+  "nav.world": "Bản Đồ Thiên Hạ",
+  "nav.economy": "Thương Nghiệp & Kim Khố",
+  "nav.factions": "Chư Hầu & Thế Lực",
+  "nav.social": "Nhân Duyên & Kết Nghĩa",
+  "nav.character": "Nhân Vật & Kỹ Nghệ",
+  "time.day": "Ngày",
+  "time.month": "Tháng",
+  "time.year": "Năm",
+  "time.turn": "Lượt",
+  "time.spring": "Mùa Xuân",
+  "time.summer": "Mùa Hạ",
+  "time.autumn": "Mùa Thu",
+  "time.winter": "Mùa Đông"
+}

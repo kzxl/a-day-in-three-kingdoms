@@ -1,0 +1,16 @@
+{
+  "economy.market": "Chợ Thành Thị",
+  "economy.warehouse": "Kho Bãi Trữ Hàng",
+  "economy.caravan": "Thương Đội & Tuyến Buôn",
+  "economy.bank": "Tiền Trang Hối Đoái",
+  "economy.player_bank": "Đại Tiền Trang Tư Doanh",
+  "economy.cash": "Ngân Lượng",
+  "economy.currency_unit": "Quan",
+  "economy.silver_draft": "Ngân Phiếu",
+  "economy.vault_cash": "Kim Khố Bạc Thỏi",
+  "economy.deposit": "Gửi Tiết Kiệm",
+  "economy.withdraw": "Rút Ngân Lượng",
+  "economy.loan": "Vay Tín Dụng",
+  "economy.repay": "Thanh Toán Nợ",
+  "economy.convoy": "Đoàn Tiêu Cục Áp Ngân"
+}

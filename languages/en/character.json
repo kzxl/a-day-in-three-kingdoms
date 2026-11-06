@@ -1,0 +1,13 @@
+{
+  "npc.npc_0001.name": "Cao Cao (Mengde)",
+  "npc.npc_0003.name": "Liu Bei (Xuande)",
+  "npc.npc_0004.name": "Zhang Fei (Yide)",
+  "npc.npc_0005.name": "Guan Yu (Yunchang)",
+  "npc.npc_0006.name": "Zhao Yun (Zilong)",
+  "npc.npc_0007.name": "Zhuge Liang (Kongming)",
+  "npc.npc_0032.name": "Mi Zhu (Zizhong)",
+  "skill.vo_thanh.name": "God of War",
+  "skill.vo_thanh.desc": "Revered across China, divine blade mastery peerless under heaven.",
+  "skill.nhan_duc.name": "Imperial Benevolence",
+  "skill.thau_thi_kim_kho.name": "Vault Insight"
+}

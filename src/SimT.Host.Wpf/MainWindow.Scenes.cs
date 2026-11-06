@@ -16,7 +16,7 @@ public partial class MainWindow
             await SceneOverlay.InitializeWarmAsync(scenesDir, skipForSmoke: _isSmoke);
             if (_loaded)
             {
-                if (string.Equals(_screenId, CityHubScreenId, StringComparison.Ordinal))
+                if (string.Equals(_screenId, CitySceneScreenId, StringComparison.Ordinal))
                     TryOpenCityScene();
                 else
                     TryOpenFeatureSceneForCurrentScreen();
@@ -47,8 +47,9 @@ public partial class MainWindow
         var (seasonVi, weatherFx) = ResolveSeasonAndWeather(_kernel.Today.Month);
         IReadOnlyList<SceneChoice> choices = customChoices ??
         [
+            new("briefing", "Nhật trình", "Tiêu điểm & Báo cáo đầu ngày"),
             new("stroll", "Du ngoạn phố", "Tản bộ tìm kỳ ngộ"),
-            new("stroll:log", "Sổ dạo phố", "Nhật ký kỳ ngộ"),
+            new("dossier", "Danh sĩ thiên hạ", "Hồ sơ & bát diện năng lực"),
             new("map", "Xem bản đồ", "Hành trình liên thành")
         ];
 
@@ -121,8 +122,8 @@ public partial class MainWindow
             new("market.stall", "Chợ", MatchSub("Mua bán hàng hóa", "Chợ", "Thương", "Thị"), "market.stall", 31, 44),
             new("market.warehouse", "Kho", MatchSub("Trữ hàng bảo quản", "Khố", "Kho", "Xưởng"), "market.warehouse", 38, 26),
             new("politics.court", "Quan phủ", MatchSub("Nhậm chức chính sự", "Cung", "Phủ", "Điện", "Đàn"), "politics.court", 52, 20),
-            new("military.arena", "Lôi đài", MatchSub("Tỷ võ binh nghiệp", "Lôi Đài", "Doanh", "Trường"), "military.arena", 68, 30),
-            new("world.map", "Cổng thành", MatchSub("Khởi hành viễn chinh", "Dịch", "Đạo", "Trại"), "world.map", 83, 44)
+            new("military.arena", "Lôi đài", MatchSub("Tỷ võ binh nghiệp", "Lôi Đài", "Doanh", "Trường"), "military.arena", 64, 30),
+            new("world.map", "Cổng thành", MatchSub("Khởi hành viễn chinh", "Dịch", "Đạo", "Trại"), "world.map", 77, 44)
         ];
     }
 
@@ -241,7 +242,10 @@ public partial class MainWindow
         {
             UpdateHeader();
             RefreshBadges();
-            RenderSelected();
+            if (activeScene is MapScene or SocialScene or MarketScene or DossierScene)
+                SelectScreen(CitySceneScreenId);
+            else
+                RenderSelected();
             return;
         }
 
@@ -268,7 +272,8 @@ public partial class MainWindow
         }
 
         if (type != "choice") return;
-        if (id == "stroll") TriggerCityStroll();
+        if (id == "briefing") SelectScreen(CityHubScreenId);
+        else if (id == "stroll") TriggerCityStroll();
         else if (id == "stroll:log")
         {
             if (_kernel.Capabilities.TryGet<ICityStroll>(CapabilityIds.CityStroll, out var stroll) && stroll is not null &&
@@ -295,6 +300,7 @@ public partial class MainWindow
             ShowNotification($"[{resolved.LocationName} · {resolved.Title}] {resolved.RewardSummary}");
             PresentStrollResultInCityScene(resolved);
         }
+        else if (id == "dossier") SelectScreen("npc.directory");
         else if (id == "map") SelectScreen("world.map");
     }
 

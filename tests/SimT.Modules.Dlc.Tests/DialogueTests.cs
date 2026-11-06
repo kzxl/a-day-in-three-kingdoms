@@ -91,7 +91,7 @@ public sealed class DialogueTests
         {
             var modulesWithoutDialogue = ModuleLoader.Discover(AppContext.BaseDirectory)
                 .Select(d => d.Manifest.Id)
-                .Where(id => !string.Equals(id, "dlc.dialogue", StringComparison.Ordinal))
+                .Where(id => !string.Equals(id, "dlc.character", StringComparison.Ordinal))
                 .OrderBy(id => id, StringComparer.Ordinal)
                 .ToList();
 

@@ -125,9 +125,12 @@ function renderMarketScene(container, scene, bridge) {
       botSpan.style.justifyContent = 'space-between';
       botSpan.style.fontSize = '12.5px';
       const priceText = el('span', '', `Mua ${g.buyPrice} · Bán ${g.sellPrice}`);
-      const trendEl = el('span', '', trend);
-      trendEl.style.color = col;
-      botSpan.append(priceText, trendEl);
+      botSpan.appendChild(priceText);
+      if (hasVariation) {
+        const trendEl = el('span', '', trend);
+        trendEl.style.color = col;
+        botSpan.appendChild(trendEl);
+      }
 
       card.append(topSpan, midNode, botSpan);
       card.addEventListener('click', () => {

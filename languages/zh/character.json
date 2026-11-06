@@ -1,0 +1,13 @@
+{
+  "npc.npc_0001.name": "曹操 (孟德)",
+  "npc.npc_0003.name": "刘备 (玄德)",
+  "npc.npc_0004.name": "张飞 (翼德)",
+  "npc.npc_0005.name": "关羽 (云长)",
+  "npc.npc_0006.name": "赵云 (子龙)",
+  "npc.npc_0007.name": "诸葛亮 (孔明)",
+  "npc.npc_0032.name": "麋竺 (子仲)",
+  "skill.vo_thanh.name": "武圣",
+  "skill.vo_thanh.desc": "威震华夏，青龙偃月绝伦天下。",
+  "skill.nhan_duc.name": "仁德",
+  "skill.thau_thi_kim_kho.name": "洞察金库"
+}

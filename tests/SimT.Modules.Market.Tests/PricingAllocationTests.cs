@@ -1,5 +1,5 @@
 using SimT.Contracts.Playing;
-using SimT.Modules.Dlc.Market;
+using SimT.Modules.Dlc.Economy;
 
 namespace SimT.Modules.Market.Tests;
 

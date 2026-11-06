@@ -245,7 +245,50 @@ public partial class App : Application
         Command(kernel, "politics.court", "serve");
         Command(kernel, "politics.court", "apply:1");
 
-        kernel.AdvanceDays(12);
+        if (kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null &&
+            kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) && reg is not null &&
+            kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null &&
+            kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var bag) && bag is not null &&
+            kernel.Capabilities.TryGet<IItemCatalog>(CapabilityIds.ItemCatalog, out var items) && items is not null)
+        {
+            var teaId = items.FindByCode("tra")?.Id ?? 3;
+            bag.Add(city, 1, 130);
+            trade.Sell(city, 1, 110);
+            bag.Add(city, teaId, 50);
+            attrs.GainFame(220, "Khởi nghiệp thương trường");
+            if (reg.All.SelectMany(n => n.Skills).FirstOrDefault() is { } sk)
+                attrs.LearnSkill(sk.Code);
+            if ((reg.FindByCode("thuong_nhan_a") ?? reg.FindByCitadel(city).FirstOrDefault()) is { } merchant)
+            {
+                for (var i = 0; i < 16; i++) social.GiftNpc(merchant.Id, teaId);
+                social.RecruitRetainer(merchant.Id, "accountant", 45);
+                social.SwearBrotherhood(merchant.Id);
+            }
+            foreach (var friend in reg.FindByCitadel(city).Where(n => n.Code != "thuong_nhan_a" && social.GetNpcRank(n.Id) <= NpcRank.B).Take(2))
+            {
+                try
+                {
+                    for (var i = 0; i < 16; i++) social.GiftNpc(friend.Id, teaId);
+                    social.SwearBrotherhood(friend.Id);
+                }
+                catch { }
+            }
+            social.HostBanquet();
+        }
+
+        kernel.AdvanceDays(30);
+        if (kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var socAfter) &&
+            socAfter is not null && socAfter.GetLetters().Count == 0)
+        {
+            kernel.AdvanceDays(31);
+        }
+        if (kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var bagAfter) && bagAfter is not null)
+        {
+            bagAfter.Add(city, 4, 24);
+            trade.Sell(city, 4, 20);
+        }
+        trade.Buy(city, 3, 22);
+        kernel.AdvanceDays(1);
     }
 
     private static void Command(SimKernel kernel, string screen, string commandId)

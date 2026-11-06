@@ -16,13 +16,13 @@ function shortName(nameVi) {
 
 function ringRadiusPct(affinity) {
   const clamped = Math.max(0, Math.min(100, affinity || 0));
-  return 41 - clamped * 0.30;
+  return 41 - clamped * 0.24;
 }
 
 function nodeRadiusPct(affinity, idx, total) {
   const clamped = Math.max(0, Math.min(100, affinity || 0));
   if (clamped < 35 && total > 6) {
-    return idx % 2 === 0 ? 39 - clamped * 0.22 : 28.5 - clamped * 0.16;
+    return idx % 2 === 0 ? 40 - clamped * 0.20 : 35.5 - clamped * 0.18;
   }
   return ringRadiusPct(clamped);
 }

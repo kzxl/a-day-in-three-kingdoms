@@ -1,0 +1,16 @@
+{
+  "economy.market": "Marketplace",
+  "economy.warehouse": "Warehouse Storage",
+  "economy.caravan": "Caravan & Trade Routes",
+  "economy.bank": "Money House & Exchange",
+  "economy.player_bank": "Private Banking Empire",
+  "economy.cash": "Liquid Silver",
+  "economy.currency_unit": "Quan",
+  "economy.silver_draft": "Silver Draft",
+  "economy.vault_cash": "Vault Bullion Reserve",
+  "economy.deposit": "Deposit Savings",
+  "economy.withdraw": "Withdraw Cash",
+  "economy.loan": "Credit Facility",
+  "economy.repay": "Settle Debt",
+  "economy.convoy": "Escorted Bullion Convoy"
+}

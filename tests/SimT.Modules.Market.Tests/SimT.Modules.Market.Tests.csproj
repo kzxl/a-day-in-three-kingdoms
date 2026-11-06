@@ -20,7 +20,7 @@
     <ProjectReference Include="..\..\src\SimT.Modules.Base.World\SimT.Modules.Base.World.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Player\SimT.Modules.Base.Player.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
-    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Market\SimT.Modules.Dlc.Market.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Economy\SimT.Modules.Dlc.Economy.csproj" />
   </ItemGroup>
 
   <ItemGroup>

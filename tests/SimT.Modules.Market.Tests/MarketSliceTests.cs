@@ -24,7 +24,7 @@ public sealed class MarketSliceTests : IDisposable
 
         Assert.Equal(kernel.Product.Modules.Count, kernel.Modules.Count);
         Assert.Contains(kernel.Modules, module => module.Manifest.Id == "base.content");
-        Assert.Contains(kernel.Modules, module => module.Manifest.Id == "dlc.market");
+        Assert.Contains(kernel.Modules, module => module.Manifest.Id == "dlc.economy");
         Assert.True(kernel.Capabilities.IsProvided(CapabilityIds.MarketTrade));
         Assert.True(kernel.Capabilities.IsProvided(CapabilityIds.MarketWarehouse));
     }
@@ -35,7 +35,7 @@ public sealed class MarketSliceTests : IDisposable
         using var kernel = Boot();
         var order = kernel.Modules.Select(module => module.Manifest.Id).ToList();
 
-        Assert.True(order.IndexOf("base.player") < order.IndexOf("dlc.market"));
+        Assert.True(order.IndexOf("base.player") < order.IndexOf("dlc.economy"));
         Assert.True(order.IndexOf("base.world") < order.IndexOf("base.player"));
     }
 

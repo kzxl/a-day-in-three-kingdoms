@@ -186,7 +186,7 @@
 }
 
 .dossier-left-pane {
-  width: clamp(190px, 23%, 248px);
+  width: clamp(164px, 21%, 236px);
   flex: none;
   display: flex;
   flex-direction: column;
@@ -334,7 +334,7 @@
 }
 
 .dossier-radar-svg {
-  width: clamp(180px, 19vw, 252px);
+  width: clamp(148px, 16vw, 232px);
   height: auto;
   flex: none;
 }
@@ -350,19 +350,19 @@
 .dossier-stat-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 13px;
   min-width: 0;
 }
 
 .dossier-stat-lbl {
-  width: 74px;
+  width: 68px;
   flex: none;
   white-space: nowrap;
 }
 
 .dossier-stat-val {
-  width: 30px;
+  width: 24px;
   flex: none;
   text-align: right;
   font-weight: 600;

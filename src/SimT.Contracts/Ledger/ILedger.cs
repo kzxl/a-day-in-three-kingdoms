@@ -108,12 +108,12 @@ public static class JournalCodes
 
         return journalCode switch
         {
-            var code when code.StartsWith("MKT.", StringComparison.Ordinal) => "dlc.market",
-            var code when code.StartsWith("CV.", StringComparison.Ordinal) => "dlc.caravan",
-            var code when code.StartsWith("PF.", StringComparison.Ordinal) => "dlc.professions",
-            var code when code.StartsWith("LN.", StringComparison.Ordinal) => "dlc.lineage",
-            var code when code.StartsWith("FM.", StringComparison.Ordinal) => "dlc.cultivation",
-            var code when code.StartsWith("PO.", StringComparison.Ordinal) => "dlc.politics",
+            var code when code.StartsWith("MKT.", StringComparison.Ordinal) => "dlc.economy",
+            var code when code.StartsWith("CV.", StringComparison.Ordinal) => "dlc.economy",
+            var code when code.StartsWith("PF.", StringComparison.Ordinal) => "dlc.economy",
+            var code when code.StartsWith("FM.", StringComparison.Ordinal) => "dlc.economy",
+            var code when code.StartsWith("LN.", StringComparison.Ordinal) => "dlc.character",
+            var code when code.StartsWith("PO.", StringComparison.Ordinal) => "dlc.power",
             var code when code.StartsWith("PL.", StringComparison.Ordinal) => "base.player",
             _ => "core"
         };

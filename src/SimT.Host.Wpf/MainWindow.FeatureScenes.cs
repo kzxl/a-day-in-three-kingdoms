@@ -78,10 +78,13 @@ public partial class MainWindow
         var retainers = social.GetRetainers();
         var swornIds = social.GetSwornBrothers().Select(s => s.NpcId).ToHashSet();
 
-        var candidateNpcs = reg.FindByCitadel(currentCityId).ToList();
+        var candidateNpcs = reg.FindByCitadel(currentCityId)
+            .OrderByDescending(n => relMap.TryGetValue(n.Id, out var r) ? r.Affinity + 1000 : 0)
+            .Take(8)
+            .ToList();
         foreach (var r in social.AllRelationships().OrderByDescending(x => x.Affinity))
         {
-            if (candidateNpcs.Count >= 10) break;
+            if (candidateNpcs.Count >= 8) break;
             if (candidateNpcs.All(n => n.Id != r.NpcId) && reg.Find(r.NpcId) is { } metNpc)
                 candidateNpcs.Add(metNpc);
         }
@@ -123,34 +126,27 @@ public partial class MainWindow
         var skillViews = BuildSocialSkillViews(reg, progresses, candidateNpcs);
         var letterViews = social.GetLetters(limit: 12).Select(l =>
         {
-            var sender = reg.Find(l.SenderNpcId);
-            var (_, face, _) = sender is not null ? SceneArtCatalog.ResolveNpcArt(sender) : ("", "art/portraits/scholar/face.webp", "");
+            var (_, face, _) = reg.Find(l.SenderNpcId) is { } sender ? SceneArtCatalog.ResolveNpcArt(sender) : ("", "art/portraits/scholar/face.webp", "");
             var giftText = l.GiftCopper > 0 ? $"{l.GiftCopper} quan" : l.GiftItemQuantity > 0 ? $"{l.GiftItemQuantity} {l.GiftItemNameVi}" : "Thư thăm hỏi";
-            return new SocialLetterView(l.Id, RoleTitleVi.ShortName(l.SenderNameVi), face, GameDateCodec.ShortVi(l.SentDate), l.TitleVi, l.ContentVi, giftText, l.IsRead, !l.IsClaimed && (l.GiftCopper > 0 || l.GiftItemQuantity > 0));
+            var cleanTitle = l.TitleVi.Length > 2 && !char.IsLetterOrDigit(l.TitleVi[0]) && l.TitleVi.IndexOf(' ') is var sp and > 0 and <= 4 ? l.TitleVi[(sp + 1)..].Trim() : l.TitleVi;
+            return new SocialLetterView(l.Id, RoleTitleVi.ShortName(l.SenderNameVi), face, GameDateCodec.ShortVi(l.SentDate), cleanTitle, l.ContentVi, giftText, l.IsRead, !l.IsClaimed && (l.GiftCopper > 0 || l.GiftItemQuantity > 0));
         }).ToList();
 
         var retainerViews = retainers.Select(r =>
         {
             var npc = reg.Find(r.NpcId);
             var (_, face, _) = npc is not null ? SceneArtCatalog.ResolveNpcArt(npc) : ("", "art/portraits/general/face.webp", "");
-            var rank = social.GetNpcRank(r.NpcId).ToString();
-            return new SocialRetainerView(r.NpcId, RoleTitleVi.ShortName(npc?.NameVi ?? $"#{r.NpcId}"), RoleTitleVi.Format(r.RoleAssigned), rank, face, r.MonthlyStipend, $"Trung thành {r.Loyalty}/100", r.Loyalty);
+            var bonus = r.RoleAssigned switch { "accountant" => "Giảm chi phí sổ sách & giao thương", "bodyguard" => "Hộ vệ an toàn trên thương lộ", "advisor" => "Tăng hiệu quả mưu lược & đàm đạo", _ => "Quản lý sản nghiệp & kho bãi" };
+            return new SocialRetainerView(r.NpcId, RoleTitleVi.ShortName(npc?.NameVi ?? $"#{r.NpcId}"), RoleTitleVi.Format(r.RoleAssigned), social.GetNpcRank(r.NpcId).ToString(), face, r.MonthlyStipend, bonus, r.Loyalty);
         }).ToList();
 
         var giftItems = new List<SocialGiftItemView>();
         if (bag is not null && items is not null)
-        {
             foreach (var row in bag.Rows(currentCityId))
-            {
                 if (row.Quantity > 0 && items.Find(row.ItemId) is { } item)
                     giftItems.Add(new SocialGiftItemView(item.Id, item.NameVi, row.Quantity));
-            }
-        }
 
-        var bestGapNode = nodeViews
-            .Where(n => !n.IsRetainer && n.RequiredAffinity > n.Affinity)
-            .OrderBy(n => n.RequiredAffinity - n.Affinity)
-            .FirstOrDefault();
+        var bestGapNode = nodeViews.Where(n => !n.IsRetainer && n.RequiredAffinity > n.Affinity).OrderBy(n => n.RequiredAffinity - n.Affinity).FirstOrDefault();
         var recText = recommendation ?? (bestGapNode is not null
             ? $"Đàm đạo với {bestGapNode.NameVi}: còn {bestGapNode.RequiredAffinity - bestGapNode.Affinity} hảo cảm nữa là đủ mốc chiêu mộ."
             : $"Đàm đạo và tặng quà cho danh sĩ tại {currentCityName} để lĩnh hội tuyệt kỹ.");
@@ -289,8 +285,7 @@ public partial class MainWindow
         };
     }
 
-    private static readonly string[] FeaturedProfileCodes =
-        ["npc_0223", "npc_0205", "npc_0206", "npc_0207", "npc_0221", "npc_0222", "npc_0224", "npc_0225"];
+    private static readonly string[] FeaturedProfileCodes = ["npc_0223", "npc_0205", "npc_0206", "npc_0207", "npc_0221", "npc_0222", "npc_0224", "npc_0225"];
 
     public bool TryOpenDossierScene(string? recommendation = null, long selectedNpcId = 0)
     {

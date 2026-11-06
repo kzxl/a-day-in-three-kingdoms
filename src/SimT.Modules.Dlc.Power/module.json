@@ -1,0 +1,31 @@
+{
+  "id": "dlc.power",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "kind": "dlc",
+  "requires": ["base.world", "base.player", "base.npc", "base.content"],
+  "provides": ["politics.court", "military.command"],
+  "consumes": [
+    "world.map",
+    "player.wallet",
+    "player.state",
+    "npc.registry",
+    "player.bag",
+    "player.attributes",
+    "content.items"
+  ],
+  "owns": {
+    "tables": [
+      "po_office",
+      "po_state",
+      "po_faction",
+      "po_city_governance",
+      "po_decree_log",
+      "ml_stronghold",
+      "ml_duel_log",
+      "ml_supply_requisition"
+    ],
+    "migrations": ["migrations"]
+  },
+  "screens": ["politics.court", "military.arena"]
+}

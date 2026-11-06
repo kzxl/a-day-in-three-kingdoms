@@ -21,7 +21,7 @@ export const ATK_FRAMES = {
   general: DEFAULT_ATK,
   default: DEFAULT_ATK
 };
-export const STRIP_BODY_H = { guan_yu: 143, zhang_fei: 143, traveler: 147, han_officer: 153, general: 153, default: 147 };
+export const STRIP_BODY_H = { guan_yu: 98, zhang_fei: 98, traveler: 132, han_officer: 136, general: 136, default: 115 };
 
 export function resolveStripBodyHeight(animPath) {
   const p = String(animPath || '').toLowerCase();
@@ -183,8 +183,9 @@ export function drawDuelState(state) {
     const lunge = f.st === 'atk' ? computeAttackLunge(f.t, f.dir) : 0;
     f.el.style.left = `${(f.x - STRIP_CELL_W / 2).toFixed(1)}px`;
     if (f.hasStrip) {
+      const stripScale = (SCALE_DUEL * 98) / resolveStripBodyHeight(f.animPath);
       f.spEl.style.backgroundPosition = `-${f.fr * STRIP_CELL_W}px 0`;
-      f.spEl.style.transform = `translate3d(${lunge.toFixed(1)}px, 0px, 0) scale(${(f.dir * SCALE_DUEL).toFixed(3)}, ${SCALE_DUEL})`;
+      f.spEl.style.transform = `translate3d(${lunge.toFixed(1)}px, 0px, 0) scale(${(f.dir * stripScale).toFixed(3)}, ${stripScale.toFixed(3)})`;
     } else {
       let tx = lunge;
       let ty = 0;
