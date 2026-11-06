@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     private readonly CampaignMeta _meta;
     private readonly bool _isSmoke;
     private bool _loaded;
+    private bool _isNavigating;
     private string _screenId = string.Empty;
     private string? _detailKey;
     private GameTable? _firstGrid;
@@ -63,6 +64,7 @@ public partial class MainWindow : Window
         UpdateHeader();
         _loaded = true;
         RenderSelected();
+        Loaded += (_, _) => { var sw = System.Diagnostics.Stopwatch.StartNew(); var lastT = 0.0; CompositionTarget.Rendering += (_, _) => { var curT = sw.Elapsed.TotalSeconds; var dt = curT - lastT; lastT = curT; if (DebugOverlay.Visibility == Visibility.Visible) { DebugOverlay.Diagnostics.BeginFrame(); DebugOverlay.Diagnostics.EndFrame(dt); DebugOverlay.Refresh(dt); } }; };
     }
 
     private readonly List<NavGroupVm> _navGroups = [];
@@ -266,6 +268,84 @@ public partial class MainWindow : Window
     private void Nav_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_loaded) RenderSelected();
+    // ---------------------------------------------------------- rail badges
+
+    private bool _badgesDirty = true;
+    private readonly Dictionary<string, int> _cachedBadgeCounts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _lastScreenPerGroup = new(StringComparer.Ordinal);
+
+    public void InvalidateBadges()
+    {
+        _badgesDirty = true;
+    }
+
+    private void RefreshBadges(bool force = false)
+    {
+        if (NavList.ItemsSource is not IEnumerable<NavEntry> entries)
+        {
+            return;
+        }
+
+        if (force || _badgesDirty)
+        {
+            _cachedBadgeCounts.Clear();
+            foreach (var screen in _kernel.Ui.Screens)
+            {
+                var alerts = screen.Render().Attention.Count;
+                if (alerts > 0)
+                {
+                    _cachedBadgeCounts[screen.ScreenId] = alerts;
+                }
+            }
+            _badgesDirty = false;
+        }
+
+        foreach (var entry in entries)
+        {
+            entry.SetBadge(_cachedBadgeCounts.GetValueOrDefault(entry.ScreenId));
+        }
+
+        if (StrategicRibbon?.ItemsSource is { } ribbonList)
+        {
+            foreach (var rItem in ribbonList)
+            {
+                var groupCount = rItem.Id switch
+                {
+                    "group.self" => _cachedBadgeCounts.GetValueOrDefault(CityHubScreenId) +
+                                    _cachedBadgeCounts.GetValueOrDefault("player.destiny") +
+                                    _cachedBadgeCounts.GetValueOrDefault("player.reputation") +
+                                    _cachedBadgeCounts.GetValueOrDefault("content.item_hub") +
+                                    _cachedBadgeCounts.GetValueOrDefault(LedgerScreenId),
+                    "group.map" => _cachedBadgeCounts.GetValueOrDefault("world.map"),
+                    "group.trade" => _cachedBadgeCounts.GetValueOrDefault("market.stall") +
+                                     _cachedBadgeCounts.GetValueOrDefault("market.player_stall") +
+                                     _cachedBadgeCounts.GetValueOrDefault("market.warehouse") +
+                                     _cachedBadgeCounts.GetValueOrDefault("caravan.routes") +
+                                     _cachedBadgeCounts.GetValueOrDefault("cultivation.farm") +
+                                     _cachedBadgeCounts.GetValueOrDefault("professions.trades"),
+                    "group.power" => _cachedBadgeCounts.GetValueOrDefault("society.chronicle") +
+                                     _cachedBadgeCounts.GetValueOrDefault("politics.court") +
+                                     _cachedBadgeCounts.GetValueOrDefault("military.arena"),
+                    "group.social" => _cachedBadgeCounts.GetValueOrDefault("npc.directory") +
+                                      _cachedBadgeCounts.GetValueOrDefault("social.network") +
+                                      _cachedBadgeCounts.GetValueOrDefault("lineage.family"),
+                    _ => 0
+                };
+
+                rItem.BadgeText = groupCount > 0 ? groupCount.ToString() : null;
+            }
+            StrategicRibbon.InvalidateVisual();
+        }
+    }
+
+    // ------------------------------------------------------------- screens
+
+    private void Nav_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loaded && !_isNavigating)
+        {
+            RenderSelected();
+        }
     }
 
     public void ShowNotification(string message, GameToastKind? kind = null)
@@ -301,6 +381,21 @@ public partial class MainWindow : Window
             NavList.SelectedIndex = index;
         else
             RenderSelected();
+        if (index < 0)
+        {
+            return false;
+        }
+
+        _isNavigating = true;
+        try
+        {
+            NavList.SelectedIndex = index;
+        }
+        finally
+        {
+            _isNavigating = false;
+        }
+        RenderSelected();
         return true;
     }
 
@@ -349,6 +444,10 @@ public partial class MainWindow : Window
 
         switch (e.Key)
         {
+            case System.Windows.Input.Key.F3:
+                DebugOverlay.ToggleVisibility();
+                e.Handled = true;
+                break;
             case System.Windows.Input.Key.Space:
                 _ = AdvanceAsync(1); e.Handled = true; break;
             case System.Windows.Input.Key.W:
@@ -397,4 +496,153 @@ public partial class MainWindow : Window
     }
 
     private static string FormatRegionName(string? regionCode) => RoleTitleVi.FormatRegion(regionCode);
+
+    private void BuildStrategicRibbon()
+    {
+        var ribbonItems = new System.Collections.ObjectModel.ObservableCollection<CommandRibbonItem>
+        {
+            new()
+            {
+                Id = "group.self",
+                Title = "Đại Bản Doanh",
+                Subtitle = "Nội vụ, mệnh cách & sổ cái",
+                IconPathData = "M12,3 L2,12 L5,12 L5,20 L19,20 L19,12 L22,12 Z M10,14 L14,14 L14,20 L10,20 Z",
+                Tag = CityHubScreenId
+            },
+            new()
+            {
+                Id = "group.map",
+                Title = "Thiên Hạ",
+                Subtitle = "Quan đạo, thành trì & 13 châu",
+                IconPathData = "M3,6 L9,3 L15,6 L21,3 L21,18 L15,21 L9,18 L3,21 Z M9,3 L9,18 M15,6 L15,21",
+                Tag = "world.map"
+            },
+            new()
+            {
+                Id = "group.trade",
+                Title = "Thương Đạo",
+                Subtitle = "Chợ, kho bãi & đoàn buôn",
+                IconPathData = "M3,7 L21,7 L19,12 L5,12 Z M5,12 L5,20 L19,20 L19,12",
+                Tag = "market.stall"
+            },
+            new()
+            {
+                Id = "group.social",
+                Title = "Nhân Duyên Hào Kiệt",
+                Subtitle = "Danh sĩ, quan hệ, dòng họ",
+                IconPathData = "M12,11 A4,4 0 1,0 12,3 A4,4 0 1,0 12,11 M5,20 C5,16 8,14 12,14 C16,14 19,16 19,20",
+                Tag = "npc.directory"
+            },
+            new()
+            {
+                Id = "group.power",
+                Title = "Thế Lực Triều Đình",
+                Subtitle = "Quan trường, niên giám & binh bị",
+                IconPathData = "M3,20 L21,20 M5,20 L5,10 M9,20 L9,10 M15,20 L15,10 M19,20 L19,10 M2,10 L12,4 L22,10",
+                Tag = "society.chronicle"
+            }
+        };
+
+        StrategicRibbon.ItemsSource = ribbonItems;
+        StrategicRibbon.ItemSelected += (s, e) =>
+        {
+            var targetScreen = _lastScreenPerGroup.TryGetValue(e.Item.Id, out var lastScreen)
+                ? lastScreen
+                : e.Item.Tag as string;
+
+            if (!string.IsNullOrEmpty(targetScreen))
+            {
+                SelectScreen(targetScreen);
+            }
+        };
+
+        ScreenGroupTabs.SelectionChanged += (idx, item) =>
+        {
+            if (!string.IsNullOrEmpty(item.Key) && item.Key != _screenId)
+            {
+                SelectScreen(item.Key);
+            }
+        };
+    }
+
+    public void SyncStrategicNavigation(string screenId)
+    {
+        if (StrategicRibbon is null || ScreenGroupTabs is null) return;
+
+        string activeGroupId;
+        List<GameTabItem> tabs;
+
+        switch (screenId)
+        {
+            case "world.map":
+                activeGroupId = "group.map";
+                tabs = new List<GameTabItem>
+                {
+                    new("world.map", "🗺️ Thiên Hạ")
+                };
+                break;
+
+            case "market.stall":
+            case "market.player_stall":
+            case "market.warehouse":
+            case "caravan.routes":
+            case "cultivation.farm":
+            case "professions.trades":
+                activeGroupId = "group.trade";
+                tabs = new List<GameTabItem>
+                {
+                    new("market.stall", "🏪 Chợ Thành"),
+                    new("market.player_stall", "🛒 Sạp Hàng"),
+                    new("market.warehouse", "📦 Kho Bãi"),
+                    new("caravan.routes", "🐎 Thương Đoàn"),
+                    new("cultivation.farm", "🌾 Điền Trang"),
+                    new("professions.trades", "🔨 Nghề Nghiệp")
+                };
+                break;
+
+            case "society.chronicle":
+            case "politics.court":
+            case "military.arena":
+                activeGroupId = "group.power";
+                tabs = new List<GameTabItem>
+                {
+                    new("society.chronicle", "📜 Thiên Hạ Niên Giám"),
+                    new("politics.court", "🏛️ Quan Trường"),
+                    new("military.arena", "⚔️ Binh Nghiệp")
+                };
+                break;
+
+            case "npc.directory":
+            case "social.network":
+            case "lineage.family":
+                activeGroupId = "group.social";
+                tabs = new List<GameTabItem>
+                {
+                    new("npc.directory", "👥 Danh Sĩ"),
+                    new("social.network", "🕸️ Mạng Lưới"),
+                    new("lineage.family", "⛩️ Gia Tộc")
+                };
+                break;
+
+            default:
+                activeGroupId = "group.self";
+                tabs = new List<GameTabItem>
+                {
+                    new(CityHubScreenId, "🏯 Trong Thành"),
+                    new("player.destiny", "⭐ Mệnh Cách"),
+                    new("player.reputation", "🎖️ Danh Vọng"),
+                    new("content.item_hub", "💎 Đồ Giám"),
+                    new(LedgerScreenId, "📒 Sổ Cái")
+                };
+                break;
+        }
+
+        _lastScreenPerGroup[activeGroupId] = screenId;
+        StrategicRibbon.SelectedItemId = activeGroupId;
+
+        int selectedIdx = tabs.FindIndex(t => t.Key == screenId);
+        if (selectedIdx < 0) selectedIdx = 0;
+        ScreenGroupTabs.SetTabs(tabs, selectedIdx);
+    }
+
 }

@@ -37,6 +37,10 @@ public static class CapabilityIds
     public const string KarmaEngine = "society.karma";
     public const string Dialogue = "dlc.dialogue";
     public const string EventPublisher = "core.events";
+    public const string TimeService = "core.time";
+    public const string Scheduler = "core.scheduler";
+    public const string AssetManager = "core.assets";
+    public const string Localization = "core.localization";
 }
 
 /// <summary>Cash access for modules that must charge or pay the player.</summary>

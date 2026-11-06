@@ -374,7 +374,12 @@ public static class SceneArtCatalog
         }
     }
 
-    private static void ReadStringMap(JsonElement root, string propName, Dictionary<string, string> target)
+    private static readonly string? CachedScenesDirectory = ResolveSceneAssetsDirectory();
+    private static readonly string? CachedManifestPath = ResolveManifestPath();
+
+    public static string? FindSceneAssetsDirectory() => CachedScenesDirectory;
+
+    private static string? ResolveSceneAssetsDirectory()
     {
         if (!root.TryGetProperty(propName, out var el) || el.ValueKind != JsonValueKind.Object) return;
         foreach (var prop in el.EnumerateObject())
@@ -382,6 +387,9 @@ public static class SceneArtCatalog
     }
 
     public static string? FindSceneAssetsDirectory()
+    private static string? FindManifestPath() => CachedManifestPath;
+
+    private static string? ResolveManifestPath()
     {
         for (var (depth, dir) = (0, new DirectoryInfo(AppContext.BaseDirectory)); depth < 7 && dir is not null; depth++, dir = dir.Parent)
             if (Directory.Exists(Path.Combine(dir.FullName, "assets", "scenes"))) return Path.Combine(dir.FullName, "assets", "scenes");

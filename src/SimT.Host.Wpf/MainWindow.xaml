@@ -158,6 +158,19 @@
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled" Margin="0,0,0,6">
                         <controls:GameCommandRibbon x:Name="StrategicRibbon" Width="200" />
+                    <!-- Section Header -->
+                    <Border Grid.Row="0" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="2,0,2,8" Margin="0,0,0,8">
+                        <DockPanel>
+                            <TextBlock Text="⚔️" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="QUÂN CƠ CHÍNH SỰ" Style="{StaticResource Overline}"
+                                       Foreground="{StaticResource Accent}" FontWeight="Bold" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Strategic Command Ribbon (ROTK-inspired 5 Master Category Tabs) -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  Padding="0" Margin="0,0,0,6" Focusable="False">
+                        <controls:GameCommandRibbon x:Name="StrategicRibbon" Width="200" HorizontalAlignment="Center" />
                     </ScrollViewer>
 
                     <ListBox x:Name="NavList" Grid.Row="1" Visibility="Collapsed" SelectionChanged="Nav_SelectionChanged" />
@@ -271,6 +284,7 @@
 
             <!-- ===== WebView2 Scene Overlay ===== -->
             <scenes:SceneOverlayControl x:Name="SceneOverlay" Grid.Column="1" Panel.ZIndex="15" Visibility="Collapsed" />
+            <controls:GameDebugOverlayControl x:Name="DebugOverlay" Grid.Column="1" Panel.ZIndex="99" Visibility="Collapsed" />
 
             <!-- ===== Inspector: overlays the page ===== -->
             <Border x:Name="InspectorScrim" Grid.Column="1" Panel.ZIndex="19" Visibility="Collapsed"

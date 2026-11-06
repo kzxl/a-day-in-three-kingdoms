@@ -320,10 +320,34 @@ public sealed class GameCommandRibbon : Control
             try
             {
                 Geometry iconGeom = Geometry.Parse(item.IconPathData);
-                dc.PushTransform(new TranslateTransform(rect.Left + 13, rect.Top + (TabHeight / 2) - 8));
-                dc.DrawGeometry(null, new Pen(isSelected ? BorderGoldActive : (isHovered ? GoldAccent : TextMuted), 1.3), iconGeom);
-                dc.Pop();
-                textStartX += 18;
+                Rect bounds = iconGeom.Bounds;
+                const double iconBoxSize = 18.0;
+                double iconBoxX = rect.Left + 14.0;
+                double iconBoxY = rect.Top + (TabHeight - iconBoxSize) / 2.0;
+
+                if (bounds.Width > 0 && bounds.Height > 0)
+                {
+                    double scale = Math.Min(iconBoxSize / bounds.Width, iconBoxSize / bounds.Height);
+                    double offsetX = iconBoxX + (iconBoxSize - bounds.Width * scale) / 2.0 - bounds.X * scale;
+                    double offsetY = iconBoxY + (iconBoxSize - bounds.Height * scale) / 2.0 - bounds.Y * scale;
+
+                    Matrix m = Matrix.Identity;
+                    m.Scale(scale, scale);
+                    m.Translate(offsetX, offsetY);
+
+                    dc.PushTransform(new MatrixTransform(m));
+                    dc.DrawGeometry(null, new Pen(isSelected ? BorderGoldActive : (isHovered ? GoldAccent : TextMuted), 1.3), iconGeom);
+                    dc.Pop();
+                }
+                else
+                {
+                    dc.PushTransform(new TranslateTransform(iconBoxX, iconBoxY));
+                    dc.DrawGeometry(null, new Pen(isSelected ? BorderGoldActive : (isHovered ? GoldAccent : TextMuted), 1.3), iconGeom);
+                    dc.Pop();
+                }
+
+                // Generous 10px spacing between icon bounding box and text
+                textStartX = iconBoxX + iconBoxSize + 10.0;
             }
             catch { }
         }

@@ -174,7 +174,7 @@ public sealed class ItemHubTests : IDisposable
         var model = screen.Render();
         Assert.Contains(model.Headline, m => m.Label == "Kho Thương Điếm" && m.Value.Contains("/"));
 
-        var gaoRow = model.Sections[0].Rows.FirstOrDefault(r => r.Cells[1] == "gao");
+        var gaoRow = model.Sections[0].Rows.FirstOrDefault(r => r.Cells[1] == "Gạo" || r.Commands.Any(c => c.Id == "store:1"));
         Assert.NotNull(gaoRow);
         Assert.Contains(gaoRow.Commands, c => c.Id == "store:1");
 

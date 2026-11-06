@@ -82,6 +82,7 @@ public partial class MainWindow
         var from = _kernel.Today;
         _kernel.AdvanceDays(days);
         _kernel.Save();
+        InvalidateBadges();
         UpdateHeader();
         RenderSelected();
         ShowReport(from, _kernel.Today);
@@ -246,6 +247,7 @@ public partial class MainWindow
         }
 
         _kernel.Save();
+        InvalidateBadges();
         UpdateHeader();
         RenderSelected();
     }
