@@ -1,4 +1,3 @@
-using System.Windows.Media;
 using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
@@ -6,14 +5,15 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Media;
 using SimT.Contracts;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Products;
 using SimT.Contracts.Scenes;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
-using SimT.Host.Wpf.Controls;
 using SimT.Core.Kernel;
+using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
 
@@ -59,69 +59,67 @@ public partial class MainWindow : Window
         PlayerHudCard.ProfileClicked += OpenPlayerProfileModal;
         RegisterModalPresenters();
 
-        BuildRail();
         BuildStrategicRibbon();
+        BuildRail();
         UpdateHeader();
         _loaded = true;
         RenderSelected();
         Loaded += (_, _) => { var sw = System.Diagnostics.Stopwatch.StartNew(); var lastT = 0.0; CompositionTarget.Rendering += (_, _) => { var curT = sw.Elapsed.TotalSeconds; var dt = curT - lastT; lastT = curT; if (DebugOverlay.Visibility == Visibility.Visible) { DebugOverlay.Diagnostics.BeginFrame(); DebugOverlay.Diagnostics.EndFrame(dt); DebugOverlay.Refresh(dt); } }; };
     }
 
-    // ---------------------------------------------------------------- rail
+    private readonly List<NavGroupVm> _navGroups = [];
 
     private void BuildRail()
     {
+        _navGroups.Clear();
+        var gCity = new NavGroupVm("Trong thành", "城", "Đi lại, xem thân thế", isExpanded: true);
+        var gBiz = new NavGroupVm("Kinh doanh", "商", "Mua bán, làm ra của");
+        var gSocial = new NavGroupVm("Nhân duyên", "人", "Kết giao, gia đình");
+        var gMartial = new NavGroupVm("Quan võ", "武", "Làm quan, đánh trận");
+        var gLedger = new NavGroupVm("Sổ sách", "書", "Tra cứu");
+        _navGroups.AddRange([gCity, gBiz, gSocial, gMartial, gLedger]);
+
         var screenLookup = _kernel.Ui.Screens.ToDictionary(s => s.ScreenId, StringComparer.Ordinal);
         var entries = new List<NavEntry>
         {
-            new(CityHubScreenId, "Trong thành", "Trong thành", IconPathFor(CityHubScreenId))
+            new(CitySceneScreenId, "Trong thành", "Dạo phố, gặp người", "城", gCity, IconPathFor(CitySceneScreenId)),
+            new(CityHubScreenId, "Nhật Trình", "Tiêu điểm & báo cáo ngày", "議", gCity, IconPathFor(CityHubScreenId))
         };
 
-        var orderedSpecs = new (string ScreenId, string FallbackTitle, string Group)[]
+        var orderedSpecs = new (string ScreenId, string FallbackTitle, string Description, string SealHan, NavGroupVm Group)[]
         {
-            ("world.map", "Bản Đồ", "Trong thành"),
-            ("player.destiny", "Mệnh Cách", "Trong thành"),
-            ("player.reputation", "Danh Vọng", "Trong thành"),
-
-            ("market.stall", "Chợ", "Kinh doanh"),
-            ("market.player_stall", "Sạp Hàng", "Kinh doanh"),
-            ("market.warehouse", "Kho Hàng", "Kinh doanh"),
-            ("caravan.routes", "Thương Đoàn", "Kinh doanh"),
-            ("professions.trades", "Nghề Nghiệp", "Kinh doanh"),
-            ("cultivation.farm", "Điền Trang", "Kinh doanh"),
-
-            ("npc.directory", "Danh Sĩ", "Nhân duyên"),
-            ("social.network", "Nhân Duyên", "Nhân duyên"),
-            ("lineage.family", "Gia Tộc", "Nhân duyên"),
-            ("society.chronicle", "Thiên Hạ", "Nhân duyên"),
-
-            ("politics.court", "Quan Trường", "Quan võ"),
-            ("military.arena", "Binh Nghiệp", "Quan võ"),
-
-            ("content.item_hub", "Đồ Giám", "Sổ sách")
+            ("world.map", "Bản Đồ", "Chọn đường sang thành khác", "圖", gCity),
+            ("player.destiny", "Mệnh Cách", "Cộng điểm thiên mệnh", "命", gCity),
+            ("player.reputation", "Danh Vọng", "Uy tín từng vùng", "名", gCity),
+            ("market.stall", "Chợ", "Mua bán theo giá từng thành", "市", gBiz),
+            ("market.player_stall", "Sạp Hàng", "Mở tiệm, bày hàng của bạn", "攤", gBiz),
+            ("market.warehouse", "Kho Hàng", "Gửi hàng tránh hư hỏng", "倉", gBiz),
+            ("market.bank", "Tiền Trang", "Gửi tiết kiệm, vay vốn", "錢", gBiz),
+            ("market.player_bank", "Ngân Trang", "Mở ngân hiệu, vận ngân", "銀", gBiz),
+            ("caravan.routes", "Thương Đoàn", "Chở hàng sang thành khác", "隊", gBiz),
+            ("professions.trades", "Nghề Nghiệp", "Làm công, rèn, nấu, câu", "藝", gBiz),
+            ("cultivation.farm", "Điền Trang", "Thuê ruộng, gieo, gặt", "田", gBiz),
+            ("npc.directory", "Danh Sĩ", "Danh bạ mọi nhân vật", "士", gSocial),
+            ("social.network", "Nhân Duyên", "Kết giao, tuyệt kỹ, thư từ", "緣", gSocial),
+            ("lineage.family", "Gia Tộc", "Cưới hỏi, con cái", "家", gSocial),
+            ("society.chronicle", "Thiên Hạ", "Tin tức khắp nơi", "世", gSocial),
+            ("politics.court", "Quan Trường", "Xin chức, lĩnh bổng", "官", gMartial),
+            ("military.arena", "Binh Nghiệp", "Lôi đài, dẹp giặc", "兵", gMartial),
+            ("content.item_hub", "Đồ Giám", "Tra vật phẩm", "鑑", gLedger)
         };
 
-        var added = new HashSet<string>(StringComparer.Ordinal) { CityHubScreenId, LedgerScreenId };
-        foreach (var (id, fallbackTitle, group) in orderedSpecs)
+        var added = new HashSet<string>(StringComparer.Ordinal) { CitySceneScreenId, CityHubScreenId, LedgerScreenId };
+        foreach (var (id, fallbackTitle, desc, seal, group) in orderedSpecs)
         {
-            if (screenLookup.TryGetValue(id, out var screen))
-            {
-                entries.Add(new NavEntry(id, ShortRailTitle(id, screen.Title), group, IconPathFor(id)));
-                added.Add(id);
-            }
-            else
-            {
-                entries.Add(new NavEntry(id, fallbackTitle, group, IconPathFor(id)));
-                added.Add(id);
-            }
+            var title = screenLookup.TryGetValue(id, out var screen) ? ShortRailTitle(id, screen.Title) : fallbackTitle;
+            entries.Add(new NavEntry(id, title, desc, seal, group, IconPathFor(id)));
+            added.Add(id);
         }
 
         foreach (var extra in _kernel.Ui.Screens.Where(s => !added.Contains(s.ScreenId)))
-        {
-            entries.Add(new NavEntry(extra.ScreenId, extra.Title, "Sổ sách", IconPathFor(extra.ScreenId)));
-        }
+            entries.Add(new NavEntry(extra.ScreenId, extra.Title, "Tra cứu thông tin", "卷", gLedger, IconPathFor(extra.ScreenId)));
 
-        entries.Add(new NavEntry(LedgerScreenId, "Sổ Cái", "Sổ sách", IconPathFor(LedgerScreenId)));
+        entries.Add(new NavEntry(LedgerScreenId, "Sổ Cái", "Thu chi của bạn", "帳", gLedger, IconPathFor(LedgerScreenId)));
 
         var view = CollectionViewSource.GetDefaultView(entries);
         view.GroupDescriptions.Clear();
@@ -131,6 +129,18 @@ public partial class MainWindow : Window
         NavList.SelectedIndex = 0;
     }
 
+    private void NavGroupHeader_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: NavGroupVm group })
+        {
+            group.IsExpanded = !group.IsExpanded;
+            e.Handled = true;
+        }
+    }
+
+    private void EnsureActiveGroupExpanded(NavEntry activeEntry) =>
+        activeEntry.GroupInfo.IsExpanded = true;
+
     private static string ShortRailTitle(string screenId, string rawTitle) => screenId switch
     {
         "world.map" => "Bản Đồ",
@@ -139,6 +149,8 @@ public partial class MainWindow : Window
         "market.stall" => "Chợ",
         "market.player_stall" => "Sạp Hàng",
         "market.warehouse" => "Kho Hàng",
+        "market.bank" => "Tiền Trang",
+        "market.player_bank" => "Ngân Trang",
         "caravan.routes" => "Thương Đoàn",
         "professions.trades" => "Nghề Nghiệp",
         "cultivation.farm" => "Điền Trang",
@@ -154,13 +166,14 @@ public partial class MainWindow : Window
 
     private static string IconPathFor(string screenId) => screenId switch
     {
-        CityHubScreenId => "M3,10 L12,3 L21,10 M5,9 L5,20 L19,20 L19,9 M10,20 L10,14 L14,14 L14,20",
+        CitySceneScreenId or CityHubScreenId => "M3,10 L12,3 L21,10 M5,9 L5,20 L19,20 L19,9 M10,20 L10,14 L14,14 L14,20",
         "world.map" => "M3,6 L9,3 L15,6 L21,3 L21,18 L15,21 L9,18 L3,21 Z M9,3 L9,18 M15,6 L15,21",
         "player.destiny" => "M12,2 L15,9 L22,12 L15,15 L12,22 L9,15 L2,12 L9,9 Z",
         "player.reputation" => "M6,4 L18,4 L18,9 C18,13 15,15 12,15 C9,15 6,13 6,9 Z M9,20 L15,20 M12,15 L12,20",
         "market.stall" => "M3,7 L21,7 L19,12 L5,12 Z M5,12 L5,20 L19,20 L19,12",
         "market.player_stall" => "M4,6 L20,6 M6,6 L6,19 L18,19 L18,6 M9,11 L15,11",
         "market.warehouse" => "M3,9 L12,4 L21,9 L21,20 L3,20 Z M7,13 L17,13 M7,17 L17,17",
+        "market.bank" or "market.player_bank" => "M3,9 L12,4 L21,9 M5,9 L5,19 M9,9 L9,19 M15,9 L15,19 M19,9 L19,19 M3,19 L21,19",
         "caravan.routes" => "M3,15 L17,15 L20,10 L6,10 Z M7,18 A2,2 0 1,0 7,18.1 M16,18 A2,2 0 1,0 16,18.1",
         "professions.trades" => "M14,4 L20,10 L10,20 L4,14 Z M7,11 L13,17",
         "cultivation.farm" => "M12,20 L12,8 M12,13 C8,13 6,9 6,6 C9,6 12,8 12,13 M12,11 C16,11 18,7 18,4 C15,4 12,6 12,11",
@@ -193,21 +206,15 @@ public partial class MainWindow : Window
         {
             var citadelName = "Lạc Dương";
             var regionName = "Trung Nguyên";
-            if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null)
+            if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
+                map.Find(playerState.CurrentCityId) is { } cit)
             {
-                var cit = map.Find(playerState.CurrentCityId);
-                if (cit is not null)
-                {
-                    citadelName = cit.NameVi;
-                    regionName = RoleTitleVi.FormatRegion(cit.Region);
-                }
+                citadelName = cit.NameVi;
+                regionName = RoleTitleVi.FormatRegion(cit.Region);
             }
 
-            CharacterVitals? vitals = null;
-            if (_kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)
-            {
-                vitals = attrs.Vitals;
-            }
+            _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs);
+            var vitals = attrs?.Vitals;
 
             string? fameStanding = null;
             var shortStanding = "Bách Tính";
@@ -233,13 +240,11 @@ public partial class MainWindow : Window
                 double fatRatio = Math.Clamp((double)vitals.Fatigue / 100.0, 0.0, 1.0);
                 VisualFatigueFill.Width = Math.Clamp(fatRatio * 55.0, 2.0, 55.0);
                 VisualFatigueText.Text = $"{vitals.Fatigue}%";
-
                 VisualFatigueFill.Background = vitals.Fatigue > 75
                     ? (Brush)FindResource("Loss")
                     : new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
             }
             VisualStandingText.Text = shortStanding;
-
             PlayerHudCard.Configure(playerState.Name, citadelName, regionName, vitals, fameStanding);
         }
 
@@ -247,16 +252,12 @@ public partial class MainWindow : Window
         UpdateStrategicState();
     }
 
-    /// <summary>Goods at sell prices; zero when the market module is disabled.</summary>
     private long GoodsValue() =>
         _kernel.Capabilities.TryGet<IMarketPortfolio>(CapabilityIds.MarketPortfolio, out var portfolio) && portfolio is not null
             ? portfolio.InventoryValue()
             : 0;
 
-    private void RenderCalendar(GameDate today)
-    {
-        CalendarBar.SetDate(today, _kernel.Turn);
-    }
+    private void RenderCalendar(GameDate today) => CalendarBar.SetDate(today, _kernel.Turn);
 
     private void UpdateHeaderDateOnly(GameDate today)
     {
@@ -264,6 +265,9 @@ public partial class MainWindow : Window
         CompactDateText.Text = GameDateCodec.ShortVi(today);
     }
 
+    private void Nav_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loaded) RenderSelected();
     // ---------------------------------------------------------- rail badges
 
     private bool _badgesDirty = true;
@@ -352,13 +356,9 @@ public partial class MainWindow : Window
 
     public bool SelectScreen(string screenId)
     {
-        if (string.Equals(screenId, CitySceneScreenId, StringComparison.Ordinal))
-        {
-            _screenId = CitySceneScreenId;
-            SyncStrategicNavigation(_screenId);
-            RenderCityScene();
-            return true;
-        }
+        if (string.Equals(screenId, "finance.ledger", StringComparison.Ordinal))
+            screenId = LedgerScreenId;
+
         if (string.Equals(screenId, UiGalleryScreenId, StringComparison.Ordinal))
         {
             _screenId = UiGalleryScreenId;
@@ -367,9 +367,7 @@ public partial class MainWindow : Window
             return true;
         }
         if (NavList.ItemsSource is not IEnumerable<NavEntry> entries)
-        {
             return false;
-        }
 
         var index = entries
             .Select((entry, position) => (entry, position))
@@ -378,6 +376,11 @@ public partial class MainWindow : Window
             .DefaultIfEmpty(-1)
             .First();
 
+        if (index < 0) return false;
+        if (NavList.SelectedIndex != index)
+            NavList.SelectedIndex = index;
+        else
+            RenderSelected();
         if (index < 0)
         {
             return false;
@@ -398,17 +401,9 @@ public partial class MainWindow : Window
 
     public bool SelectFirstRow()
     {
-        if (_firstSection is null || _firstSection.Rows.Count == 0)
-        {
-            return false;
-        }
-
+        if (_firstSection is null || _firstSection.Rows.Count == 0) return false;
         UpdateLayout();
-        if (_firstGrid is not null)
-        {
-            _firstGrid.SelectedIndex = 0;
-        }
-
+        if (_firstGrid is not null) _firstGrid.SelectedIndex = 0;
         ShowInspector(_firstSection, _firstSection.Rows[0]);
         return true;
     }
@@ -426,28 +421,17 @@ public partial class MainWindow : Window
             NavList.SelectedIndex = index;
             rendered++;
         }
-
         SelectScreen(UiGalleryScreenId);
-        rendered++;
-
         UpdateLayout();
-        return rendered;
+        return rendered + 1;
     }
 
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (e.OriginalSource is TextBox && e.Key != System.Windows.Input.Key.Escape)
-        {
-            return;
-        }
+        if (e.OriginalSource is TextBox && e.Key != System.Windows.Input.Key.Escape) return;
+        if (e.OriginalSource is ButtonBase && e.Key is System.Windows.Input.Key.Space or System.Windows.Input.Key.Enter) return;
 
-        if (e.OriginalSource is ButtonBase && e.Key is System.Windows.Input.Key.Space or System.Windows.Input.Key.Enter)
-        {
-            return;
-        }
-
-        if (System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control
-            && e.Key == System.Windows.Input.Key.F)
+        if (System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control && e.Key == System.Windows.Input.Key.F)
         {
             if (FilterBox.Visibility == Visibility.Visible)
             {
@@ -455,7 +439,6 @@ public partial class MainWindow : Window
                 FilterBox.SelectAll();
                 e.Handled = true;
             }
-
             return;
         }
 
@@ -466,41 +449,21 @@ public partial class MainWindow : Window
                 e.Handled = true;
                 break;
             case System.Windows.Input.Key.Space:
-                _ = AdvanceAsync(1);
-                e.Handled = true;
-                break;
+                _ = AdvanceAsync(1); e.Handled = true; break;
             case System.Windows.Input.Key.W:
-                _ = AdvanceAsync(7);
-                e.Handled = true;
-                break;
+                _ = AdvanceAsync(7); e.Handled = true; break;
             case System.Windows.Input.Key.Enter:
                 if (_firstGrid?.SelectedRowVm is RowVm selectedRow)
                 {
                     ShowInspector(selectedRow.Section, selectedRow.Row);
                     e.Handled = true;
                 }
-
                 break;
             case System.Windows.Input.Key.Escape:
-                CloseInspector();
-                e.Handled = true;
-                break;
-            case System.Windows.Input.Key.D1:
-            case System.Windows.Input.Key.D2:
-            case System.Windows.Input.Key.D3:
-            case System.Windows.Input.Key.D4:
-            case System.Windows.Input.Key.D5:
-            case System.Windows.Input.Key.D6:
-            case System.Windows.Input.Key.D7:
-            case System.Windows.Input.Key.D8:
-            case System.Windows.Input.Key.D9:
+                CloseInspector(); e.Handled = true; break;
+            case >= System.Windows.Input.Key.D1 and <= System.Windows.Input.Key.D9:
                 var index = e.Key - System.Windows.Input.Key.D1;
-                if (index < NavList.Items.Count)
-                {
-                    NavList.SelectedIndex = index;
-                    e.Handled = true;
-                }
-
+                if (index < NavList.Items.Count) { NavList.SelectedIndex = index; e.Handled = true; }
                 break;
         }
     }
@@ -527,11 +490,7 @@ public partial class MainWindow : Window
             ?? "unknown";
 
         var plus = full.IndexOf('+');
-        if (plus < 0)
-        {
-            return $"Một Ngày Ở Tam Quốc {full}";
-        }
-
+        if (plus < 0) return $"Một Ngày Ở Tam Quốc {full}";
         var hash = full[(plus + 1)..];
         return $"Một Ngày Ở Tam Quốc {full[..plus]} · {hash[..Math.Min(7, hash.Length)]}";
     }

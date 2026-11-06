@@ -203,7 +203,10 @@ internal sealed class CourtScreen : IScreenContribution
                     _service.AllegianceFactionId == 0 ? MetricTone.Neutral : MetricTone.Positive),
                 new ScreenMetric("Tổng Bổng Lộc", Fmt(totalStipend), "quan/tháng")
             ],
-            alerts);
+            alerts,
+            _service.OfficeId == 0
+                ? "Tích lũy uy tín qua việc nghĩa và dẹp loạn để ứng tuyển chức quan đầu tiên và lĩnh bổng lộc."
+                : "Thực hiện công vụ châu quận để tăng trị an, nâng uy tín và thăng tiến lên phẩm hàm cao hơn.");
     }
 }
 

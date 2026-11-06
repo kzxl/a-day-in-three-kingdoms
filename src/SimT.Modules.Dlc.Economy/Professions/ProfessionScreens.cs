@@ -381,7 +381,8 @@ internal sealed class ProfessionScreen : IScreenContribution
                 new ScreenMetric("Vũ khí trang bị", _service.Slots.FirstOrDefault(s => s.SlotCode == "WEAPON")?.Equipment?.NameVi ?? "Tay không", "Binh khí"),
                 new ScreenMetric("Tay nghề cao nhất", $"bậc {bestTier}", "trên 5", bestTier > 0 ? MetricTone.Positive : MetricTone.Neutral)
             ],
-            []);
+            [],
+            "Rèn luyện nghề thủ công, hoàn thành đơn đặt hàng phường hội hoặc chế tác binh khí để tăng chỉ số chiến đấu.");
     }
 
     private static string Fmt(long value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);

@@ -162,10 +162,10 @@ public sealed partial class GameWorldMapControl
         public void CenterOnCitadel(long citadelId)
         {
             var eco = _map.GetEcosystem(citadelId);
-            var w = ActualWidth > 0 ? ActualWidth : 750.0;
-            var h = ActualHeight > 0 ? ActualHeight : 480.0;
-            var scaleX = w / 750.0;
-            var scaleY = h / 480.0;
+            var w = ActualWidth > 0 ? ActualWidth : 800.0;
+            var h = ActualHeight > 0 ? ActualHeight : 640.0;
+            var scaleX = w / 800.0;
+            var scaleY = h / 640.0;
 
             var targetWorldX = eco.MapX * scaleX;
             var targetWorldY = eco.MapY * scaleY;
@@ -319,10 +319,10 @@ public sealed partial class GameWorldMapControl
 
         private long HitTestCity(Point p)
         {
-            var w = ActualWidth > 0 ? ActualWidth : 750.0;
-            var h = ActualHeight > 0 ? ActualHeight : 480.0;
-            var scaleX = w / 750.0;
-            var scaleY = h / 480.0;
+            var w = ActualWidth > 0 ? ActualWidth : 800.0;
+            var h = ActualHeight > 0 ? ActualHeight : 640.0;
+            var scaleX = w / 800.0;
+            var scaleY = h / 640.0;
             var transform = GetWorldTransform(w, h);
 
             foreach (var c in _map.Citadels)
@@ -360,8 +360,8 @@ public sealed partial class GameWorldMapControl
             // Natural Geography: Ocean, Mountains & Great Rivers
             DrawNaturalGeography(dc, w, h);
 
-            var scaleX = w / 750.0;
-            var scaleY = h / 480.0;
+            var scaleX = w / 800.0;
+            var scaleY = h / 640.0;
 
             // Calculate Selected Travel Route Path
             var pathSet = new HashSet<long>();
@@ -471,8 +471,8 @@ public sealed partial class GameWorldMapControl
 
         private void DrawNaturalGeography(DrawingContext dc, double w, double h)
         {
-            var scaleX = w / 750.0;
-            var scaleY = h / 480.0;
+            var scaleX = w / 800.0;
+            var scaleY = h / 640.0;
 
             // 1. Coastline & Bohai / East China Sea in the East
             var coastGeom = new StreamGeometry();

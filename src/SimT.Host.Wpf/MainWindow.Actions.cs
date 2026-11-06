@@ -25,7 +25,7 @@ public partial class MainWindow
             attrs.Rest(1);
         }
 
-        ShowFloatingFeedback("💤 Tĩnh dưỡng hồi phục!", (Brush)FindResource("Gain"), 180, 50);
+        ShowFloatingFeedback("Tĩnh dưỡng hồi phục!", (Brush)FindResource("Gain"), 180, 50);
         await AdvanceAsync(1, "Đã nghỉ ngơi tĩnh dưỡng 1 ngày: Thể lực hồi phục trọn vẹn, tinh thần sảng khoái.");
     }
 
@@ -59,17 +59,6 @@ public partial class MainWindow
             var result = stroll.Stroll(player.CurrentCityId);
             _kernel.Save();
             UpdateHeader();
-
-            if (result.Ok)
-            {
-                RenderSelected();
-                ShowNotification($"[{result.LocationName} · {result.Title}] {result.Narrative} » {result.RewardSummary}");
-                PresentStrollResultInCityScene(result);
-            }
-            else
-            {
-                ShowNotification($"[{result.Title}] {result.Narrative}");
-            }
 
             if (result.Ok)
             {
@@ -308,7 +297,7 @@ public partial class MainWindow
         tb.BeginAnimation(OpacityProperty, fadeAnim);
     }
 
-    public void ShowGameToast(string title, string message, string glyph = "⚡", Brush? accent = null)
+    public void ShowGameToast(string title, string message, string glyph = "", Brush? accent = null)
     {
         _ = glyph;
         _ = accent;

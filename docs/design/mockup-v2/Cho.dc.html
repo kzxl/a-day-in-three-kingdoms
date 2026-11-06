@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Chợ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Ma+Shan+Zheng&family=Noto+Serif:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.ban{background-image:url(/art/backgrounds/market.png);background-size:cover;background-position:center 60%;image-rendering:pixelated}
+.good{padding:12px;background:#1d1611;border:1px solid #3a2c20;color:#eadfc6;font-family:'Be Vietnam Pro',sans-serif;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:8px;box-sizing:border-box}
+.good:hover{border-color:#c4a062}
+.gon{border-color:#e8b75c;background:#241a13}
+.ic{width:40px;height:40px;flex:none;display:flex;align-items:center;justify-content:center;font:24px 'Ma Shan Zheng',serif;color:#c4a062;border:1px solid #4a3a2a;background:#15110d}
+.sq{width:44px;height:44px;border:1px solid #6a4f2e;background:#241a13;color:#eadfc6;font:600 18px 'Be Vietnam Pro',sans-serif;cursor:pointer}
+.sq:hover{border-color:#c4a062}
+.big{height:48px;flex:1;border:1px solid #c4a062;font:600 14.5px 'Be Vietnam Pro',sans-serif;cursor:pointer;white-space:nowrap}
+.buy{background:#a8321f;color:#f3e6cc}
+.sell{background:#241a13;color:#eadfc6;border-color:#6a4f2e}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #15110d; color: #eadfc6; font-family: 'Be Vietnam Pro', sans-serif; overflow: hidden">
+  <dc-import name="Rail" active="Chợ" hint-size="264px,900px"></dc-import>
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <div class="ban" style="height: 132px; position: relative; flex: none">
+      <div style="position: absolute; inset: 0; background: rgba(21,17,13,.55)"></div>
+      <div style="position: absolute; left: 24px; bottom: 16px; right: 24px; display: flex; justify-content: space-between; align-items: flex-end">
+        <div>
+          <h1 style="margin: 0; font: 700 26px 'Noto Serif', serif; color: #f3e6cc">Chợ Lạc Dương</h1>
+          <div style="font-size: 14px; color: #eadfc6; white-space: nowrap; margin-top: 4px">Mua rẻ ở đây, chở sang thành giá cao để bán lãi.</div>
+        </div>
+        <div style="font-size: 15px; font-weight: 600; white-space: nowrap; color: #f3e6cc">{{cash}} quan</div>
+      </div>
+    </div>
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; padding: 14px 24px 18px; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #241a13; border: 1px solid #6a4f2e">
+        <span style="font-size: 12px; font-weight: 600; color: #e8b75c; white-space: nowrap">NÊN LÀM</span>
+        <span style="flex: 1; font-size: 14px; white-space: nowrap">Rượu nếp đang rẻ hơn thường ngày. Mua ở đây, bán ở Trường An lãi khoảng 6 quan mỗi vò.</span>
+      </div>
+      <div style="flex: 1; min-height: 0; display: flex; gap: 14px">
+        <div style="flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 158px; gap: 10px; align-content: start">
+          <sc-for list="{{goods}}" as="g" hint-placeholder-count="7">
+            <button class="good {{g.cls}}" onClick="{{g.pick}}">
+              <span style="display: flex; align-items: center; gap: 10px"><span class="ic">{{g.han}}</span><span style="min-width: 0"><span style="display: block; font-size: 15px; font-weight: 600; white-space: nowrap">{{g.name}}</span><span style="display: block; font-size: 12px; color: #b9aa8c; white-space: nowrap">Trong túi {{g.held}}</span></span></span>
+              <svg width="100%" height="34" viewBox="0 0 200 34" preserveAspectRatio="none" aria-hidden="true"><polyline points="{{g.pts}}" fill="none" stroke="{{g.col}}" stroke-width="2"></polyline></svg>
+              <span style="display: flex; justify-content: space-between; font-size: 13px; white-space: nowrap"><span>Mua <b>{{g.buy}}</b> · Bán <b>{{g.sell}}</b></span><span style="color: {{g.col}}">{{g.trend}}</span></span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="width: 340px; flex: none; box-sizing: border-box; padding: 16px; background: #1d1611; border: 1px solid #3a2c20; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; gap: 12px; align-items: center"><span class="ic" style="width: 52px; height: 52px; font-size: 30px">{{c.han}}</span><span><span style="display: block; font: 700 19px 'Noto Serif', serif; color: #f3e6cc">{{c.name}}</span><span style="display: block; font-size: 13px; color: #b9aa8c; white-space: nowrap">Sạp còn {{c.stock}} · trong túi {{c.held}}</span></span></div>
+          <div>
+            <div style="font-size: 12px; font-weight: 600; color: #b9aa8c; margin-bottom: 6px">BÁN Ở ĐÂU LỜI NHẤT</div>
+            <sc-for list="{{c.cities}}" as="t" hint-placeholder-count="3">
+              <div style="display: flex; justify-content: space-between; font-size: 14px; padding: 7px 0; border-top: 1px solid #2c2118; white-space: nowrap"><span>{{t.name}} · {{t.days}} ngày</span><span style="color: {{t.col}}; font-weight: 600">{{t.price}} quan ({{t.gain}})</span></div>
+            </sc-for>
+          </div>
+          <div>
+            <div style="font-size: 12px; font-weight: 600; color: #b9aa8c; margin-bottom: 6px">SỐ LƯỢNG</div>
+            <div style="display: flex; gap: 8px; align-items: center">
+              <button class="sq" aria-label="Giảm" onClick="{{dec}}">−</button>
+              <div style="flex: 1; height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #3a2c20; font-size: 18px; font-weight: 600">{{qty}}</div>
+              <button class="sq" aria-label="Tăng" onClick="{{inc}}">+</button>
+              <button class="sq" style="width: 64px; font-size: 13px" onClick="{{max}}">Tối đa</button>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 14px; white-space: nowrap"><span style="color: #b9aa8c">Tổng tiền mua</span><span style="font-weight: 600">{{total}} quan</span></div>
+          <div style="display: flex; justify-content: space-between; font-size: 14px; white-space: nowrap"><span style="color: #b9aa8c">Nếu bán ở thành tốt nhất</span><span style="font-weight: 600; color: #7fc7a2">lãi {{profit}} quan</span></div>
+          <div style="margin-top: auto; display: flex; gap: 8px">
+            <button class="big buy" onClick="{{doBuy}}">Mua {{qty}}</button>
+            <button class="big sell" onClick="{{doSell}}">Bán {{qty}}</button>
+          </div>
+          <div style="font-size: 13px; color: #e8b75c; height: 18px; white-space: nowrap">{{msg}}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = { sel: 4, qty: 5, cash: 930, msg: '', g: [
+      { han: '米', name: 'Gạo', buy: 14, sell: 11, stock: 28, held: 12, h: [13, 13, 14, 15, 15, 14, 14, 15, 14, 14] },
+      { han: '鹽', name: 'Muối', buy: 8, sell: 6, stock: 40, held: 0, h: [9, 9, 8, 8, 8, 9, 8, 8, 8, 8] },
+      { han: '麥', name: 'Lúa mì', buy: 11, sell: 9, stock: 40, held: 0, h: [10, 10, 10, 11, 11, 11, 12, 11, 11, 11] },
+      { han: '魚', name: 'Cá khô', buy: 23, sell: 18, stock: 40, held: 0, h: [20, 21, 21, 22, 22, 23, 23, 23, 24, 23] },
+      { han: '酒', name: 'Rượu nếp', buy: 26, sell: 21, stock: 40, held: 0, h: [31, 30, 30, 29, 28, 28, 27, 27, 26, 26] },
+      { han: '藥', name: 'Thuốc', buy: 104, sell: 88, stock: 20, held: 0, h: [110, 110, 108, 108, 107, 106, 106, 105, 104, 104] },
+      { han: '參', name: 'Nhân sâm', buy: 181, sell: 150, stock: 5, held: 0, h: [170, 172, 174, 176, 175, 178, 180, 180, 182, 181] }
+    ] };
+  }
+  renderVals() {
+    const s = this.state, c = s.g[s.sel];
+    const line = (h) => { const lo = Math.min(...h), hi = Math.max(...h), d = hi - lo || 1; return h.map((v, i) => `${Math.round(i * 200 / 9)},${Math.round(30 - (v - lo) / d * 26)}`).join(' '); };
+    const cities = [['Trường An', 3, 1.27], ['Nghiệp Thành', 4, 1.05], ['Hứa Xương', 2, 1.12]].map(([name, days, f]) => { const p = Math.round(c.buy * f), g = p - c.buy; return { name, days, price: p, gain: (g >= 0 ? '+' : '') + g, col: g > 0 ? '#7fc7a2' : '#b9aa8c', g }; }).sort((a, b) => b.price - a.price);
+    const set = (q) => this.setState({ qty: Math.max(1, Math.min(q, 99)), msg: '' });
+    const patch = (d, cash, msg) => this.setState({ g: s.g.map((x, i) => i === s.sel ? { ...x, held: x.held + d, stock: x.stock - d } : x), cash, msg });
+    return {
+      cash: s.cash, qty: s.qty, msg: s.msg, total: s.qty * c.buy, profit: s.qty * cities[0].g,
+      goods: s.g.map((x, i) => { const up = x.h[9] - x.h[0]; return { ...x, pts: line(x.h), col: up > 0 ? '#e8927c' : up < 0 ? '#7fc7a2' : '#b9aa8c', trend: up > 0 ? 'Đang lên' : up < 0 ? 'Đang rẻ' : 'Ổn định', cls: i === s.sel ? 'gon' : '', pick: () => this.setState({ sel: i, msg: '' }) }; }),
+      c: { ...c, cities },
+      dec: () => set(s.qty - 1), inc: () => set(s.qty + 1), max: () => set(Math.min(c.stock, Math.floor(s.cash / c.buy))),
+      doBuy: () => { const t = s.qty * c.buy; if (t > s.cash) return this.setState({ msg: 'Không đủ tiền' }); if (s.qty > c.stock) return this.setState({ msg: 'Sạp không đủ hàng' }); patch(s.qty, s.cash - t, `Đã mua ${s.qty} ${c.name}`); },
+      doSell: () => { if (s.qty > c.held) return this.setState({ msg: 'Trong túi không đủ' }); patch(-s.qty, s.cash + s.qty * c.sell, `Đã bán ${s.qty} ${c.name}`); }
+    };
+  }
+}
+</script>
+</body>
+</html>

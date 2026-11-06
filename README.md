@@ -1,6 +1,6 @@
 # A Day in the Three Kingdoms (Một Ngày Ở Tam Quốc · SimT)
 
-[![Build & Test](https://img.shields.io/badge/Tests-430%20Passed-emerald.svg)](tests/)
+[![Build & Test](https://img.shields.io/badge/Tests-430%2B%20Passed-emerald.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%204%20DLC%20Pillars%20Monolith-blueviolet.svg)](docs/module-authoring.md)
 [![Platform](https://img.shields.io/badge/Platform-.NET%208%20%7C%20WPF%20%7C%20SQLite%20WAL-blue.svg)](src/SimT.Host.Wpf/)
 [![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
@@ -26,7 +26,7 @@ campaign replaces all of it.
 | `SimT.Core` | Kernel: database, clock, ledger, ids, RNG, events, config, module runtime, idempotent migrations | Any business noun (market, warehouse, citadel…) |
 | `SimT.Modules.Base.*` | Always-installed game pillars: content, world, player, npc | References to other modules |
 | `SimT.Modules.Dlc.*` | 4 Consolidated DLC Pillars: `Economy`, `Character`, `Power`, `Society` | References to base modules' assemblies |
-| `SimT.Host.Wpf` | Shell, save picker, ROTK tactical HUD, Imperial Time pill, generic screen renderer | Knowledge of any module type |
+| `SimT.Host.Wpf` | Shell, save picker, ROTK tactical HUD, Imperial Time pill, WebView2 scene overlay, generic screen renderer | Knowledge of any module type |
 | `SimT.Cli` | Golden replay, balance simulation, manifest lint | Knowledge of any module type |
 
 Dependency direction is checked, not asserted — see `tests/SimT.Architecture.Tests`.
@@ -91,7 +91,7 @@ The gameplay systems are structured into cohesive, deep architectural modules:
 | `base.world` | Base | 20 citadels, 133 urban sublocations, 24 bidirectional trade routes, CityStroll interactive encounters | `wd_citadel`, `wd_route` |
 | `base.player` | Base | Protagonist attributes, per-city bag, wallet facade over ledger, two-way warehouse inventory exchange | `pl_player`, `pl_bag` |
 | `base.npc` | Base | 300 historical & procedural characters across 20 citadels | `np_npc` |
-| `dlc.economy` | Pillar | Market trading, seasonal prices, warehouses, caravan logistics, day-labour professions, and farmland cultivation | `mk_*`, `cv_*`, `pf_*`, `fm_*` |
+| `dlc.economy` | Pillar | Market trading, seasonal prices, warehouses, banking & private banks, caravan logistics, professions, and farmland cultivation | `mk_*`, `cv_*`, `pf_*`, `fm_*` |
 | `dlc.character` | Pillar | NPC relationship tiers, dialogue trees, gift exchanges, sworn brotherhood, marriage, children, and lineage heir | `kz_*`, `dg_*`, `ln_*` |
 | `dlc.power` | Pillar | Court official appointments, reputation ranks, monthly stipends, martial duels, bandit stronghold suppression | `po_*`, `mi_*` |
 | `dlc.society` | Pillar | Autonomous 300-NPC simulation, rival merchants, karma consequences, dynamic life events, and chronicle logs | `so_*` |
@@ -101,28 +101,25 @@ Legacy saves containing historical records from individual micro-modules (`dlc.m
 
 ## User Interface & Experience (UI/UX)
 
-- **Top Header Imperial Time HUD**:
-  - Integrated directly into the main player vitals bar at the top of the screen.
-  - Displays calendar date, current season, turn number, and day-of-month progress (`📅 16/06/184 · Mùa Hạ · Lượt 2 · Ngày 16/30`).
-  - Tactile mini-progress bar (1–30 days) and dynamic transition ticker (`+1 ngày`, `+7 ngày`) on day advances.
-  - Replaces bulky multi-slot calendar grids with a clean, high-density strategy HUD.
-- **Visual Vitals & ROTK Gauges**:
-  - Real-time gauges for Stamina (Thể lực), Fatigue (Độ mệt), and Prestige Standing (Danh vọng).
-- **Contextual Strategic Dock**:
-  - Categorized left command sidebar (Sa Bàn 13 Châu, Thương Đạo, Thế Lực Triều Đình, Nhân Duyên Hào Kiệt, Bản Thân & Sổ Sách).
-  - Clean separation between contextual urban exploration (`CitySceneView`) and strategic spreadsheet views.
-- **Interactive City Stroll (`world.stroll`)**:
-  - Historical encounters: Wandering merchants, scholars, generals, banquet invitations, and martial spars evaluated against `INT`, `WAR`, and `LDR`.
+- **Top Header Imperial Time HUD & Visual Vitals**:
+  - Integrated into the top command banner with calendar date, season, turn number, 30-day progress bar, and real-time Stamina, Fatigue, and Prestige Standing gauges.
+- **Contextual Strategic Ribbon & Recommendation Banner**:
+  - Categorized left command ribbon (Sa Bàn 13 Châu, Thương Đạo, Thế Lực Triều Đình, Nhân Duyên Hào Kiệt, Bản Thân & Sổ Sách) where each sub-item displays a 1-line description and active to-do badge, paired with the square Jade Seal ("QUA NGÀY") and contextual `"NÊN LÀM"` recommendation banner.
+- **Full-Body Sprite Animation & Interactive WebView2 Scenes**:
+  - **Sprite Animation Runner (`assets/scenes/sprite-anim.js`)**: Renders 24-frame horizontal strips (`traveler.png`, `han_officer.png`, `guan_yu.png`, `zhang_fei.png`) and expressive static sprites across Duel (`duel`), City (`city`), and Talk (`talk`) stages.
+  - **Interactive Feature Scenes**: World Map (`world.map` with auto-fit 20-citadel view, Dijkstra routes, and travel animation), Social Network (`social.network` with concentric affinity rings, 6 skill slots, letters, and retainers), Market Stall (`market.stall` with 10-day price history and top-3 city arbitrage), and Character Dossier (`npc.directory` with custom portraits, 8-axis radar chart, special skills, and biography).
+- **Interactive City Stroll, Warehouse Exchange & Item Encyclopedia**:
+  - Historical urban encounters, two-way bag/warehouse exchange, and item lore inspection.
 
 ## Verification snapshot
 
 | Gate | Count | Command |
 | --- | --- | --- |
 | Architecture rules | 31 | `dotnet test tests/SimT.Architecture.Tests` |
-| Kernel primitives, contracts and hardening | 100 | `dotnet test tests/SimT.Core.Tests` |
+| Kernel primitives, contracts and hardening | 140+ | `dotnet test tests/SimT.Core.Tests` |
 | Market slice, pricing budget, price history | 42 | `dotnet test tests/SimT.Modules.Market.Tests` |
-| Consolidated DLC Pillars behavior | 257 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
-| **Total test suite** | **430** | `dotnet test SimT.sln` |
+| Consolidated DLC Pillars behavior | 257+ | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| **Total test suite** | **470+** | `dotnet test SimT.sln` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
 | Invariants at end of every replay | 26 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |

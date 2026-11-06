@@ -8,18 +8,101 @@ namespace SimT.Host.Wpf;
 
 public partial class MainWindow
 {
-    private sealed class NavEntry : INotifyPropertyChanged
+    private sealed class NavGroupVm : INotifyPropertyChanged
     {
+        private bool _isExpanded;
         private string _badge = string.Empty;
         private Visibility _badgeVisibility = Visibility.Collapsed;
 
-        public NavEntry(string screenId, string title, string group, string iconPathData, bool showGroupHeader = false)
+        public NavGroupVm(string name, string sealHan, string hint, bool isExpanded = false)
+        {
+            Name = name;
+            SealHan = sealHan;
+            Hint = hint;
+            _isExpanded = isExpanded;
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public string Name { get; }
+
+        public string SealHan { get; }
+
+        public string Hint { get; }
+
+        public List<NavEntry> Entries { get; } = [];
+
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set
+            {
+                if (_isExpanded == value)
+                {
+                    return;
+                }
+
+                _isExpanded = value;
+                Notify(nameof(IsExpanded));
+                Notify(nameof(ChevronText));
+                foreach (var entry in Entries)
+                {
+                    entry.NotifyGroupExpandedChanged();
+                }
+            }
+        }
+
+        public string ChevronText => _isExpanded ? "▾" : "▸";
+
+        public string Badge => _badge;
+
+        public Visibility BadgeVisibility => _badgeVisibility;
+
+        public void RefreshGroupBadge()
+        {
+            var total = Entries.Sum(e => e.BadgeCount);
+            var nextBadge = total > 0 ? total.ToString(Vietnamese) : string.Empty;
+            var nextVis = total > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            if (_badge != nextBadge)
+            {
+                _badge = nextBadge;
+                Notify(nameof(Badge));
+            }
+
+            if (_badgeVisibility != nextVis)
+            {
+                _badgeVisibility = nextVis;
+                Notify(nameof(BadgeVisibility));
+            }
+        }
+
+        private void Notify(string property) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+    }
+
+    private sealed class NavEntry : INotifyPropertyChanged
+    {
+        private int _badgeCount;
+        private string _badge = string.Empty;
+        private Visibility _badgeVisibility = Visibility.Collapsed;
+
+        public NavEntry(
+            string screenId,
+            string title,
+            string description,
+            string sealHan,
+            NavGroupVm groupInfo,
+            string iconPathData)
         {
             ScreenId = screenId;
             Title = title;
-            Group = group;
+            Description = description;
+            SealHan = sealHan;
+            Group = groupInfo.Name;
+            GroupInfo = groupInfo;
             IconGeometry = Geometry.Parse(iconPathData);
-            GroupHeaderVisibility = showGroupHeader ? Visibility.Visible : Visibility.Collapsed;
+            groupInfo.Entries.Add(this);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -28,11 +111,19 @@ public partial class MainWindow
 
         public string Title { get; }
 
+        public string Description { get; }
+
+        public string SealHan { get; }
+
         public string Group { get; }
+
+        public NavGroupVm GroupInfo { get; }
 
         public Geometry IconGeometry { get; }
 
-        public Visibility GroupHeaderVisibility { get; }
+        public int BadgeCount => _badgeCount;
+
+        public Visibility ItemVisibility => GroupInfo.IsExpanded ? Visibility.Visible : Visibility.Collapsed;
 
         public string Badge
         {
@@ -48,9 +139,13 @@ public partial class MainWindow
 
         public void SetBadge(int count)
         {
-            Badge = count > 0 ? count.ToString(Vietnamese) : string.Empty;
+            _badgeCount = count;
+            Badge = count > 0 ? $"{count.ToString(Vietnamese)} việc" : string.Empty;
             BadgeVisibility = count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
+
+        public void NotifyGroupExpandedChanged() =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ItemVisibility)));
 
         private void Set<T>(ref T field, T value, [CallerMemberName] string? property = null)
         {

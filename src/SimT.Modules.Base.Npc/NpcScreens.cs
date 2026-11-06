@@ -124,6 +124,11 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
 
         var status = $"Đang tại {currentCitadelName} · Gặp gỡ {localNpcs.Count} nhân sĩ địa phương · Bấm 'Hồ Sơ 🔍' để xem chi tiết & bái phỏng.";
 
+        var firstLocal = localNpcs.FirstOrDefault();
+        var recommendation = firstLocal is not null
+            ? $"Có {localNpcs.Count} danh sĩ đang ở {currentCitadelName} (gồm {firstLocal.NameVi}). Chọn nhân vật để xem bát diện năng lực, bái phỏng hoặc so tài."
+            : $"Chọn một danh sĩ trong danh bạ để tra cứu bát diện năng lực, đặc kỹ và nơi cư ngụ hiện tại.";
+
         return new ScreenModel(
             ScreenId,
             Title,
@@ -131,7 +136,8 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             sections,
             Array.Empty<ScreenCommand>(),
             metrics,
-            alerts);
+            alerts,
+            recommendation);
     }
 
     private static bool IsRenowned(NpcDef npc)

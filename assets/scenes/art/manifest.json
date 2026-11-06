@@ -1,7 +1,8 @@
 {
   "player": {
     "portrait": "player",
-    "sprite": "traveler"
+    "sprite": "traveler",
+    "anim": "anim/traveler.png"
   },
   "npc": {
     "npc_0001": {
@@ -82,5 +83,31 @@
     "gate": "backgrounds/gate.png",
     "hall": "backgrounds/hall.png",
     "field": "backgrounds/field.png"
+  },
+  "anim": {
+    "traveler": "anim/traveler.png",
+    "guan_yu": "anim/guan_yu.png",
+    "zhang_fei": "anim/zhang_fei.png",
+    "han_officer": "anim/han_officer.png",
+    "general": "anim/han_officer.png"
+  },
+  "portraitFrames": {
+    "guan_yu": {
+      "blink": "portraits/guan_yu/frames/blink.webp",
+      "talk": "portraits/guan_yu/frames/talk.webp"
+    }
+  },
+  "profile": {
+    "npc_0205": "profiles/npc_0205.webp",
+    "npc_0206": "profiles/npc_0206.webp",
+    "npc_0207": "profiles/npc_0207.webp",
+    "npc_0221": "profiles/npc_0221.webp",
+    "npc_0222": "profiles/npc_0222.webp",
+    "npc_0223": "profiles/npc_0223.webp",
+    "npc_0224": "profiles/npc_0224.webp",
+    "npc_0225": "profiles/npc_0225.webp"
+  },
+  "map": {
+    "thien_ha": "map/thien_ha.webp"
   }
 }

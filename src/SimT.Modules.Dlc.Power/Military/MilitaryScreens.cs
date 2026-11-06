@@ -185,13 +185,18 @@ internal sealed class MilitaryScreen : IScreenContribution
 
         var status = $"Khu vực {currentCitadelName} · Lôi đài mở cửa tỷ võ · Sơn tặc quanh vùng cần tiễu phạt.";
 
+        var recommendation = strongholds.Count > 0
+            ? $"Quanh {currentCitadelName} có {strongholds.Count} cứ điểm sơn tặc — có thể lên lôi đài rèn võ hoặc tiễu trừ thảo khấu để nhận thưởng và uy danh."
+            : $"Lôi đài {currentCitadelName} đang mở — hãy tỷ võ rèn luyện hoặc giao lương nhu tiếp tế cho quân doanh.";
+
         return new ScreenModel(
             ScreenId,
             Title,
             status,
             sections,
             Array.Empty<ScreenCommand>(),
-            metrics);
+            metrics,
+            Recommendation: recommendation);
     }
 
     private static string FactionVi(string faction) => faction switch

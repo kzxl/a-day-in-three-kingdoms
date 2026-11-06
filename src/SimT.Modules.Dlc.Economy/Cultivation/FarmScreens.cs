@@ -258,7 +258,10 @@ internal sealed class FarmScreen : IScreenContribution
                 new ScreenMetric("Nông cụ sở hữu", supplies.HasHoe && supplies.HasSickle ? "Đầy đủ" : "Thiếu cụ", "bộ"),
                 new ScreenMetric("Công trình Ổ Bảo", Fmt(facilities.Count(f => f.Tier > 0)), "đã xây")
             ],
-            alerts);
+            alerts,
+            _service.ReadyCount > 0
+                ? $"Có {_service.ReadyCount} khu ruộng đã chín — hãy thu hoạch ngay trước khi qua mùa."
+                : "Thuê ruộng, mua hạt giống theo mùa và bón phân định kỳ để giữ độ màu mỡ trên 70.");
     }
 
     private static string Fmt(long value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);

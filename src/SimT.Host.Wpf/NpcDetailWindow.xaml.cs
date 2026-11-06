@@ -207,6 +207,29 @@ public partial class NpcDetailWindow : Window
             : _npc.NameVi.Length > 0 ? _npc.NameVi[0].ToString() : "人";
         AvatarCharText.Text = avatarChar;
 
+        try
+        {
+            var relArt = _isProtagonist
+                ? SimT.Contracts.Scenes.SceneArtCatalog.PlayerPortraitFace
+                : SimT.Contracts.Scenes.SceneArtCatalog.ResolveProfileArt(_npc);
+            var fullArtPath = System.IO.Path.Combine(AppContext.BaseDirectory, "assets", "scenes", relArt.Replace('/', System.IO.Path.DirectorySeparatorChar));
+            if (System.IO.File.Exists(fullArtPath))
+            {
+                var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bmp.UriSource = new Uri(fullArtPath, UriKind.Absolute);
+                bmp.EndInit();
+                ProfilePortraitImage.Source = bmp;
+                ProfilePortraitImage.Visibility = Visibility.Visible;
+                AvatarCharText.Visibility = Visibility.Collapsed;
+            }
+        }
+        catch
+        {
+            // Keep AvatarCharText fallback if image decoding fails.
+        }
+
         RoleBadgeSmall.Text = DetermineRoleTag(_npc.Role);
 
         NameText.Text = _npc.NameVi;

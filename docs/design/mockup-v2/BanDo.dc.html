@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Bản Đồ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Ma+Shan+Zheng&family=Noto+Serif:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.map{background-image:url(/art/map/thien_ha.webp);background-size:100% 100%}
+.city{position:absolute;width:96px;height:50px;margin-left:-48px;margin-top:-13px;padding:0;border:0;background:transparent;cursor:pointer;font-family:'Noto Serif',serif}
+.dot{display:block;width:22px;height:22px;margin:0 auto;border-radius:50%;box-sizing:border-box;border:2px solid #2a1f16;box-shadow:0 1px 3px rgba(42,31,22,.55)}
+.nm{display:inline-block;margin-top:2px;padding:0 5px;font-size:12px;font-weight:700;line-height:17px;color:#2a1f16;background:rgba(236,223,194,.9);white-space:nowrap}
+.city:hover .nm{background:#f3e6cc}
+.selc .dot{border-color:#a8321f;box-shadow:0 0 0 3px rgba(168,50,31,.35)}
+.selc .nm{background:#a8321f;color:#f3e6cc}
+.cur .dot{border-color:#15110d;box-shadow:0 0 0 3px rgba(21,17,13,.45)}
+.lay{height:40px;padding:0 14px;border:1px solid #6a4f2e;background:#241a13;color:#eadfc6;font:600 13px 'Be Vietnam Pro',sans-serif;cursor:pointer;white-space:nowrap}
+.lay:hover{border-color:#c4a062}
+.layon{background:#a8321f;border-color:#c4a062;color:#f3e6cc}
+.mode{padding:9px 10px;border:1px solid #6a4f2e;background:#241a13;color:#eadfc6;font-family:'Be Vietnam Pro',sans-serif;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:50px;box-sizing:border-box}
+.mode:hover{border-color:#c4a062}
+.modeon{border-color:#e8b75c;background:#2f2317}
+.go{height:48px;border:1px solid #c4a062;background:#a8321f;color:#f3e6cc;font:600 15px 'Be Vietnam Pro',sans-serif;cursor:pointer;white-space:nowrap}
+.goff{opacity:.5;cursor:default}
+.chip{padding:3px 8px;background:#241a13;border:1px solid #3a2c20;font-size:12px;white-space:nowrap}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #15110d; color: #eadfc6; font-family: 'Be Vietnam Pro', sans-serif; overflow: hidden">
+  <dc-import name="Rail" active="Bản Đồ" hint-size="264px,900px"></dc-import>
+  <div style="flex: 1; min-width: 0; box-sizing: border-box; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between">
+      <div>
+        <h1 style="margin: 0; font: 700 26px 'Noto Serif', serif; color: #f3e6cc">Bản Đồ Thiên Hạ</h1>
+        <div style="font-size: 14px; color: #b9aa8c; white-space: nowrap; margin-top: 2px">Bấm một thành để xem đường đi, chi phí và sản vật, rồi lên đường.</div>
+      </div>
+      <div style="font-size: 13px; color: #b9aa8c; white-space: nowrap">Đang ở {{curName}} · {{day}}/05/184 · {{cash}} quan · Mệt {{tired}}%</div>
+    </div>
+    <div style="display: flex; gap: 14px; flex: 1; min-height: 0">
+      <div style="width: 800px; flex: none; display: flex; flex-direction: column; gap: 10px">
+        <div class="map" style="position: relative; width: 800px; height: 640px; overflow: hidden; border: 1px solid #6a4f2e; box-sizing: border-box">
+          <svg width="800" height="640" viewBox="0 0 800 640" style="position: absolute; left: 0; top: 0" aria-hidden="true">
+            <sc-for list="{{lines}}" as="l" hint-placeholder-count="34">
+              <line x1="{{l.x1}}" y1="{{l.y1}}" x2="{{l.x2}}" y2="{{l.y2}}" stroke="{{l.c}}" stroke-width="{{l.w}}" stroke-dasharray="{{l.d}}" stroke-opacity="{{l.o}}"></line>
+            </sc-for>
+          </svg>
+          <sc-for list="{{tags}}" as="t" hint-placeholder-count="5">
+            <div style="position: absolute; left: {{t.x}}px; top: {{t.y}}px; transform: translate(-50%, -50%); width: 24px; height: 18px; line-height: 18px; text-align: center; font-size: 11.5px; font-weight: 600; background: #2a1f16; color: #f3e6cc">{{t.d}}</div>
+          </sc-for>
+          <sc-for list="{{cities}}" as="c" hint-placeholder-count="20">
+            <button class="city {{c.cls}}" style="left: {{c.x}}px; top: {{c.y}}px" onClick="{{c.pick}}" aria-label="{{c.name}}">
+              <span class="dot" style="background: {{c.col}}"></span>
+              <span class="nm">{{c.label}}</span>
+            </button>
+          </sc-for>
+          <img src="/art/portraits/player/face.webp" alt="Vị trí của bạn" style="position: absolute; left: {{px}}px; top: {{py}}px; width: 40px; height: 40px; margin-left: -20px; margin-top: -32px; border-radius: 50%; border: 2px solid #a8321f; box-sizing: border-box">
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <sc-for list="{{layers}}" as="y" hint-placeholder-count="3">
+            <button class="lay {{y.cls}}" onClick="{{y.pick}}">{{y.label}}</button>
+          </sc-for>
+          <div style="flex: 1; text-align: right; font-size: 13px; color: #b9aa8c; white-space: nowrap">{{legend}}</div>
+        </div>
+      </div>
+      <div style="flex: 1; min-width: 0; box-sizing: border-box; padding: 14px; background: #1d1611; border: 1px solid #3a2c20; display: flex; flex-direction: column; gap: 10px; height: 690px">
+        <div>
+          <div style="font: 700 21px 'Noto Serif', serif; color: #f3e6cc; white-space: nowrap">{{sel.name}}</div>
+          <div style="font-size: 13px; color: #c4a062; white-space: nowrap">{{sel.biome}}</div>
+        </div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="chip">Giá hàng {{sel.price}}</span><span class="chip">Hiểm trở {{sel.dangerText}}</span></div>
+        <div style="font-size: 13px; line-height: 1.5"><div style="color: #b9aa8c">Địa thế</div><div>{{sel.topo}}</div></div>
+        <div style="font-size: 13px; line-height: 1.5"><div style="color: #b9aa8c">Khí hậu</div><div>{{sel.climate}}</div></div>
+        <div style="font-size: 13px; line-height: 1.5"><div style="color: #b9aa8c">Sản vật</div><div style="color: #7fc7a2">{{sel.s1}}</div><div style="color: #7fc7a2">{{sel.s2}}</div></div>
+        <div style="height: 1px; background: #3a2c20"></div>
+        <sc-if value="{{here}}" hint-placeholder-val="{{ false }}"><div style="font-size: 14px; color: #b9aa8c">Bạn đang ở đây. Chọn thành khác để lên đường.</div></sc-if>
+        <sc-if value="{{canGo}}" hint-placeholder-val="{{ true }}">
+          <div style="font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis" title="{{route}}"><span style="color: #b9aa8c">Lộ trình</span> {{route}}</div>
+          <sc-for list="{{modes}}" as="m" hint-placeholder-count="3">
+            <button class="mode {{m.cls}}" onClick="{{m.pick}}">
+              <span><span style="display: block; font-size: 14px; font-weight: 600; white-space: nowrap">{{m.name}}</span><span style="display: block; font-size: 12px; color: #b9aa8c; white-space: nowrap">{{m.note}}</span></span>
+              <span style="text-align: right; font-size: 13px; white-space: nowrap"><span style="display: block; font-weight: 600">{{m.days}} ngày</span><span style="display: block; color: #b9aa8c">{{m.fee}}</span></span>
+            </button>
+          </sc-for>
+          <button class="go {{goCls}}" style="margin-top: auto" onClick="{{go}}">{{goText}}</button>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.C = [[1,"Lạc Dương",558,295,1000,1,"Trung Nguyên Đế Đô","Ôn đới bốn mùa rõ rệt","Đồng bằng châu thổ sông Lạc Thủy trù phú","Cổ Vật Hoàng Cung","Thiết Giáp Binh Khí"],[2,"Trường An",416,309,1120,2,"Quan Trung Cửa Ngõ Tây Vực","Khô lạnh gió cát Tây Lương","Thung lũng sông Vị Thủy & Đèo Đồng Quan","Chiến Mã Tây Lương","Thảm Lông Dê & Đao Kiếm"],[3,"Nghiệp Thành",634,227,930,2,"Hà Bắc Phì Nhiêu","Gió bấc khô ráo mát mẻ","Đồng bằng Chương Thủy đại kho lương thực","Lương Thảo Ngũ Cốc","Thiết Đột Kỵ Binh"],[4,"Trác Huyện",699,100,950,2,"U Châu Biên Cương","Lạnh giá sương muối quanh năm","Vườn đào thôn dã & gò đồi bắc bộ","Lụa Dệt Dân Gian","Rượu Trác Huyện Thơm Nồng"],[5,"Quảng Tông",666,197,1050,3,"Cự Lộc Sa Trường","Khắc nghiệt sương mù hoàng thổ","Bình nguyên đầm lầy hiểm trở Cự Lộc","Bùa Chú Khăn Vàng","Dược Thảo Trị Thương"],[6,"Bình Nguyên",717,194,980,2,"Thanh Châu Duyên Hải","Gió biển mát mẻ ôn hòa","Vùng đất châu thổ hạ lưu Hoàng Hà","Muối Biển Tinh Khiết","Lương Thực Lưu Dân"],[7,"Hứa Xương",614,319,1020,1,"Dự Châu Tâm Điểm","Thuận hòa mưa nắng điều độ","Đồng bằng đồn điền Tào Ngụy quân quản","Quân Nhu Đồn Điền","Binh Thư Chiến Lược"],[8,"Bắc Bình",780,84,1100,3,"Biên Ải Tuyết Sơn","Hàn đới tuyết phủ cực bắc","Thảo nguyên biên cương lạnh buốt","Bạch Mã Tuấn Mã","Da Hồ Ly & Tuyết Sâm"],[9,"Hạ Phì",779,308,970,2,"Từ Châu Thủy Trấn","Mưa nhiều ấm áp ẩm ướt","Đất đỏ trù phú nằm giữa Tứ Thủy & Hoài Hà","Cá Hoài Hà & Cung Tiễn","Gạo Nếp Thượng Hạng"],[10,"Tương Dương",546,398,1000,2,"Kinh Tương Yết Hầu","Ôn nhuận gió sông mát lành","Giao lộ Hán Thủy & Đồi Lộc Môn","Chiến Thuyền Hán Thủy","Cá Tươi & Văn Sách"],[11,"Xích Bích",616,486,1080,2,"Trường Giang Hiểm Giới","Gió đông nam ẩm ướt","Vách đá sừng sững bên dòng Trường Giang","Dầu Hỏa Chiến Hạm","Thảo Dược Ven Sông"],[12,"Giang Lăng",548,466,1030,2,"Nam Quận Thành Lũy","Mưa phùn sương khói mờ ảo","Thành trì kiên cố đầm lầy nam Kinh Châu","Gỗ Đóng Thuyền Chiến","Lương Thảo Thủy Lộ"],[13,"Kiến Nghiệp",811,398,1150,1,"Giang Đông Thủy Quốc","Nhiệt đới gió mùa mát rượi","Kinh đô Đông Ngô bên bờ Thái Hồ","Trà Long Tỉnh","Tơ Lụa & Gốm Sứ Tinh Xảo"],[14,"Hán Trung",341,357,1060,3,"Tần Lĩnh Hiểm Đạo","Sương giá mù sương núi cao","Hiểm đạo Kiếm Các vách đá cheo leo","Linh Chi & Trầm Hương","Quặng Sắt Hán Trung"],[15,"Thành Đô",223,453,920,1,"Thiên Phủ Ba Thục","Ấm áp bốn mùa không tuyết","Bình nguyên Ba Thục màu mỡ trù phú","Thục Cẩm Danh Trấn","Mật Gấu & Trà Thục Sơn"],[16,"Uyển Thành",561,360,1020,2,"Nam Dương Yết Hầu","Ôn hòa mưa thuận ven sông","Bình nguyên Dục Thủy nối liền Trung Nguyên và Kinh Tương","Thảo Dược Nam Dương","Binh Giáp Tây Lương"],[17,"Thọ Xuân",732,377,1060,2,"Hoài Nam Trọng Trấn","Ẩm ướt mưa nhiều bốn mùa","Đồng bằng phì nhiêu ven bờ sông Hoài Thủy","Lúa Nước Hoài Nam","Binh Khí Hoài Thủy"],[18,"Thượng Đảng",584,232,990,2,"Thái Hành Hiểm Trấn","Khô lạnh gió núi Thái Hành","Cao nguyên hiểm trở nhìn xuống Trung Nguyên","Quặng Sắt Thượng Đảng","Chiến Mã Tịnh Châu"],[19,"Tây Lương",166,163,1140,3,"Lương Châu Sa Mạc","Gió cát khô lạnh sa mạc cằn cỗi","Thảo nguyên sa mạc cửa ngõ Con Đường Tơ Lụa","Hãn Huyết Chiến Mã","Tơ Lụa Tây Vực & Đao Sắt"],[20,"Giao Chỉ",300,784,1180,2,"Lĩnh Nam Hải Lộ","Nhiệt đới ẩm ấm gió biển quanh năm","Đồng bằng duyên hải rừng rậm cận kề Biển Đông","Nam Hải Dạ Minh Châu","Trầm Hương Lĩnh Nam & Gỗ Quý"]].map((r) => ({ id: r[0], name: r[1], x: r[2] * .8, y: r[3] * .8, pf: r[4], dg: r[5], biome: r[6], climate: r[7], topo: r[8], s1: r[9], s2: r[10] }));
+    this.R = [[1,2,3],[1,3,3],[1,7,2],[1,16,2],[1,18,2],[2,3,4],[2,14,3],[2,18,3],[2,19,4],[3,4,3],[3,5,2],[3,18,2],[4,5,2],[4,6,3],[4,8,1],[5,6,1],[6,9,3],[7,9,3],[7,10,2],[7,16,2],[7,17,2],[9,13,3],[9,17,2],[10,12,2],[10,14,3],[10,16,2],[10,20,8],[11,12,2],[11,13,3],[12,20,7],[13,17,2],[14,15,4],[14,19,4],[16,17,3]];
+    this.by = {}; this.C.forEach((c) => { this.by[c.id] = c; });
+    const h = this.by[1];
+    this.state = { cur: 1, sel: 2, layer: 'city', mode: 'walk', day: 29, cash: 930, tired: 12, moving: false, px: h.x, py: h.y };
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  path(a, b) {
+    const d = { [a]: 0 }, prev = {}, seen = {};
+    for (;;) {
+      let u = null; Object.keys(d).forEach((k) => { if (!seen[k] && (u === null || d[k] < d[u])) u = k; });
+      if (u === null) return null; u = +u; seen[u] = 1; if (u === b) break;
+      this.R.forEach(([x, y, w]) => { const v = x === u ? y : y === u ? x : 0; if (v && (d[v] === undefined || d[u] + w < d[v])) { d[v] = d[u] + w; prev[v] = u; } });
+    }
+    const p = [b]; while (p[0] !== a) p.unshift(prev[p[0]]);
+    return { p, days: d[b] };
+  }
+  travel(r, m) {
+    const pts = r.p.map((i) => this.by[i]);
+    const seg = pts.slice(1).map((c, i) => Math.hypot(c.x - pts[i].x, c.y - pts[i].y));
+    const total = seg.reduce((a, b) => a + b, 0), t0 = performance.now(), dur = 900 + m.days * 260;
+    this.setState({ moving: true });
+    const step = (t) => {
+      let k = Math.min(1, (t - t0) / dur); const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      let d = e * total, i = 0; while (i < seg.length - 1 && d > seg[i]) { d -= seg[i]; i++; }
+      const q = seg[i] ? d / seg[i] : 1, a = pts[i], b = pts[i + 1];
+      this.setState({ px: a.x + (b.x - a.x) * q, py: a.y + (b.y - a.y) * q });
+      if (k < 1) this.raf = requestAnimationFrame(step);
+      else { const s = this.state, dest = r.p[r.p.length - 1]; this.setState({ moving: false, cur: dest, day: s.day + m.days, cash: s.cash - m.feeN, tired: Math.min(100, s.tired + m.tire) }); }
+    };
+    this.raf = requestAnimationFrame(step);
+  }
+  renderVals() {
+    const s = this.state, cur = this.by[s.cur], sel = this.by[s.sel], here = s.cur === s.sel;
+    const r = here ? null : this.path(s.cur, s.sel), onPath = {};
+    if (r) r.p.slice(1).forEach((v, i) => { onPath[Math.min(v, r.p[i]) + '-' + Math.max(v, r.p[i])] = 1; });
+    const base = r ? r.days : 0;
+    const M = [
+      { k: 'walk', name: 'Bộ hành', note: 'Không tốn tiền, mệt nhất', days: base, feeN: 0, tire: base * 7 },
+      { k: 'horse', name: 'Dịch mã', note: 'Nhanh nhất', days: Math.max(1, Math.ceil(base * .65)), feeN: base * 15, tire: Math.max(1, Math.ceil(base * .65)) * 4 },
+      { k: 'escort', name: 'Tiêu cục', note: 'Không gặp cướp đường', days: base, feeN: base * 25, tire: base * 3 }
+    ];
+    const m = M.find((x) => x.k === s.mode), afford = m.feeN <= s.cash;
+    const lines = this.R.map(([a, b, d]) => { const A = this.by[a], B = this.by[b], key = a + '-' + b, act = onPath[key];
+      return { x1: A.x, y1: A.y, x2: B.x, y2: B.y, c: act ? '#a8321f' : '#2a1f16', w: act ? 4 : 1.4, d: act ? '0' : '5 5', o: act ? 1 : .55 }; });
+    const tags = r ? r.p.slice(1).map((v, i) => { const A = this.by[r.p[i]], B = this.by[v], w = this.R.find(([a, b]) => (a === v && b === r.p[i]) || (b === v && a === r.p[i]))[2]; return { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2, d: w + 'n' }; }) : [];
+    const pct = (c) => Math.round((c.pf - 1000) / 10);
+    const col = (c) => s.layer === 'price' ? (c.pf >= 1100 ? '#a8321f' : c.pf >= 1010 ? '#c9962e' : '#3f8f73') : s.layer === 'danger' ? ['', '#3f8f73', '#c9962e', '#a8321f'][c.dg] : c.id === s.cur ? '#a8321f' : '#ecdfc2';
+    const lab = (c) => s.layer === 'price' ? `${c.name} ${pct(c) > 0 ? '+' : ''}${pct(c)}%` : c.name;
+    return {
+      curName: cur.name, day: s.day, cash: s.cash, tired: s.tired, px: s.px, py: s.py, lines, tags, here, canGo: !here,
+      cities: this.C.map((c) => ({ ...c, col: col(c), label: lab(c), cls: (c.id === s.sel ? 'selc ' : '') + (c.id === s.cur ? 'cur' : ''), pick: () => { if (!s.moving) this.setState({ sel: c.id }); } })),
+      layers: [['city', 'Thành trì'], ['price', 'Giá hàng'], ['danger', 'Độ hiểm trở']].map(([k, label]) => ({ label, cls: s.layer === k ? 'layon' : '', pick: () => this.setState({ layer: k }) })),
+      legend: s.layer === 'price' ? 'Xanh rẻ · Vàng thường · Đỏ đắt' : s.layer === 'danger' ? 'Xanh an toàn · Vàng có cướp · Đỏ rất hiểm' : 'Đường đỏ là lộ trình đang chọn',
+      sel: { ...sel, price: (pct(sel) > 0 ? '+' : '') + pct(sel) + '%', dangerText: ['', 'thấp', 'vừa', 'cao'][sel.dg] },
+      route: r ? r.p.map((i) => this.by[i].name).join(' → ') : '',
+      modes: M.map((x) => ({ ...x, fee: x.feeN ? x.feeN + ' quan' : 'Miễn phí', cls: x.k === s.mode ? 'modeon' : '', pick: () => this.setState({ mode: x.k }) })),
+      goCls: s.moving || !afford ? 'goff' : '', goText: s.moving ? 'Đang đi đường' : !afford ? 'Không đủ tiền' : `Lên đường · ${m.days} ngày`,
+      go: () => { if (!s.moving && afford && r) this.travel(r, m); }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -171,6 +171,14 @@ internal sealed class WorldMapScreen : IScreenContribution
             attention.Add(new ScreenAlert("Thành này bị cô lập, không có đường bộ thông thương ra bên ngoài.", AlertLevel.Warning));
         }
 
+        var bestExportCity = _map.Citadels
+            .Where(c => c.Id != currentCity.Id)
+            .OrderByDescending(c => c.PriceFactorPermille)
+            .FirstOrDefault();
+        var recommendation = bestExportCity is not null && bestExportCity.PriceFactorPermille > currentCity.PriceFactorPermille
+            ? $"Từ {currentCity.NameVi}, có thể chọn đường sang {bestExportCity.NameVi} (vật giá {bestExportCity.PriceFactorPermille / 10.0:0.#}%) để bán hàng chênh giá hoặc thuê tiêu cục hộ tống."
+            : $"Đang ở {currentCity.NameVi}. Chọn một thành trên bản đồ để xem lộ trình ngắn nhất, chi phí lương thảo và độ hiểm trở trước khi lên đường.";
+
         return new ScreenModel(
             ScreenId,
             Title,
@@ -178,35 +186,10 @@ internal sealed class WorldMapScreen : IScreenContribution
             sections,
             Array.Empty<ScreenCommand>(),
             headline,
-            attention);
+            attention,
+            recommendation);
     }
 
-    private int CalculateShortestPath(long fromId, long toId)
-    {
-        // Simple BFS shortest path on 15 citadels
-        var queue = new Queue<(long Node, int Dist)>();
-        var visited = new HashSet<long>();
-        queue.Enqueue((fromId, 0));
-        visited.Add(fromId);
-
-        while (queue.Count > 0)
-        {
-            var (curr, dist) = queue.Dequeue();
-            if (curr == toId)
-            {
-                return dist;
-            }
-
-            foreach (var n in _map.RouteNeighbours(curr))
-            {
-                if (visited.Add(n))
-                {
-                    var d = _map.TravelDays(curr, n);
-                    queue.Enqueue((n, dist + Math.Max(1, d)));
-                }
-            }
-        }
-
-        return 5; // Fallback estimate
-    }
+    private int CalculateShortestPath(long fromId, long toId) =>
+        _map.QuoteTravel(fromId, toId, TravelMode.Walk).BaseDays;
 }

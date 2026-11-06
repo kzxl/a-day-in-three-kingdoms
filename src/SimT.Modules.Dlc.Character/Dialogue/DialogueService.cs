@@ -43,7 +43,8 @@ internal sealed class DialogueService : IDialogueModule
         var map = _context.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
         var playerState = _context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
         var npc = npcs.Find(npcId) ?? npcs.All.First();
-        var citadel = map.Find(npc.CitadelId);
+        var currentCityId = playerState.CurrentCityId;
+        var citadel = map.Find(currentCityId);
         var locationVi = citadel?.NameVi ?? "Lạc Dương";
         var locationHan = ResolveCitadelHan(citadel?.Code);
 
@@ -57,12 +58,24 @@ internal sealed class DialogueService : IDialogueModule
         }
 
         var (portraitFull, portraitFace, _) = SceneArtCatalog.ResolveNpcArt(npc);
+        var (blinkPath, talkPath) = SceneArtCatalog.ResolvePortraitFrames(npc);
         var bgPath = ResolveTalkBackground(SceneArtCatalog.ClassifyArchetype(npc));
-        var choices = BuildChoices(npc, playerState.CurrentCityId);
+        var choices = BuildChoices(npc, currentCityId);
 
-        var nearby = npcs.FindByCitadel(npc.CitadelId)
-            .OrderByDescending(n => n.Id == npc.Id)
-            .ThenBy(n => n.Id)
+        _context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
+        var candidateNpcs = new List<NpcDef> { npc };
+        if (npcs.FindByCode("npc_0003") is { } gy && candidateNpcs.All(x => x.Id != gy.Id)) candidateNpcs.Add(gy);
+        if (npcs.FindByCode("npc_0002") is { } zf && candidateNpcs.All(x => x.Id != zf.Id)) candidateNpcs.Add(zf);
+        foreach (var local in npcs.All)
+        {
+            if (candidateNpcs.All(x => x.Id != local.Id) &&
+                (society?.GetNpcActivity(local.Id)?.CurrentCitadelId ?? local.CitadelId) == currentCityId)
+            {
+                candidateNpcs.Add(local);
+            }
+        }
+
+        var nearby = candidateNpcs
             .Take(5)
             .Select(n =>
             {
@@ -93,7 +106,9 @@ internal sealed class DialogueService : IDialogueModule
             Lines: lines,
             Choices: choices,
             NearbyNpcs: nearby,
-            FeedbackVi: string.IsNullOrWhiteSpace(feedbackVi) ? null : ClampLine90(feedbackVi!));
+            FeedbackVi: string.IsNullOrWhiteSpace(feedbackVi) ? null : ClampLine90(feedbackVi!),
+            BlinkPath: blinkPath,
+            TalkPath: talkPath);
     }
 
     public TalkChoiceOutcome HandleChoice(long npcId, string choiceId)
@@ -218,7 +233,10 @@ internal sealed class DialogueService : IDialogueModule
             return false;
 
         var playerState = _context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
-        if (playerState.CurrentCityId != npc.CitadelId || npc.Attributes.War < 30)
+        _context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
+        var npcCityId = society?.GetNpcActivity(npc.Id)?.CurrentCitadelId ?? npc.CitadelId;
+        var isVisitingHero = npc.Code is "npc_0002" or "npc_0003";
+        if ((!isVisitingHero && playerState.CurrentCityId != npcCityId) || npc.Attributes.War < 30)
             return false;
 
         if (_context.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null)
@@ -232,15 +250,16 @@ internal sealed class DialogueService : IDialogueModule
 
     private string BuildMarketQuoteLine(NpcDef npc)
     {
+        var cityId = _context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState).CurrentCityId;
         var map = _context.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
-        var cityName = map.Find(npc.CitadelId)?.NameVi ?? "thành này";
+        var cityName = map.Find(cityId)?.NameVi ?? "thành này";
         if (!_context.Capabilities.TryGet<IMarketTrade>(CapabilityIds.MarketTrade, out var trade) || trade is null)
             return ClampLine90($"Chợ {cityName} hôm nay buôn bán bình ổn, lương thảo dồi dào.");
 
         var items = _context.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
         var quotes = items.All
             .Take(3)
-            .Select(i => $"{i.NameVi} {trade.QuoteBuy(npc.CitadelId, i.Id)} văn")
+            .Select(i => $"{i.NameVi} {trade.QuoteBuy(cityId, i.Id)} văn")
             .ToList();
 
         return ClampLine90($"Giá chợ {cityName}: {string.Join(", ", quotes)}.");

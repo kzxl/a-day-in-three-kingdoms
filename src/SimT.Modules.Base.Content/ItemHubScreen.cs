@@ -156,7 +156,8 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
                 new ScreenSection($"Bách Vật Đồ Giám — Danh Mục {activeFilterLabel}", HubColumns, rows)
             ],
             navCommands,
-            metrics);
+            metrics,
+            Recommendation: "Tra cứu giá gốc, hạn bảo quản và vùng xuất xứ của 24 vật phẩm để lập kế hoạch buôn bán và canh tác.");
     }
 
     public string? Execute(string commandId)

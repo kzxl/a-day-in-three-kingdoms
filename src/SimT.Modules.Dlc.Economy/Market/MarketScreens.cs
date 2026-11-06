@@ -220,6 +220,8 @@ internal sealed class StallScreen : IScreenContribution
             sections.Insert(0, new ScreenSection("🎪 Sạp Chuyên Doanh & Hàng NPC Giảm Giá", npcColumns, npcRows));
         }
 
+        var recommendation = $"Tại chợ {city.NameVi}, ưu tiên mua mặt hàng đang rẻ hơn giá gốc rồi chở sang thành có hệ số giá cao hơn để hưởng chênh lệch.";
+
         return new ScreenModel(
             ScreenId,
             $"{Title} — {city.NameVi}",
@@ -227,7 +229,8 @@ internal sealed class StallScreen : IScreenContribution
             sections,
             [],
             metrics,
-            alerts);
+            alerts,
+            recommendation);
     }
 
     private Func<int, string> BuyOfferPreview(long unitPrice, int stock) => quantity =>
@@ -381,7 +384,8 @@ internal sealed class WarehouseScreen : IScreenContribution
                     new ScreenMetric("Phí thuê", Fmt(_warehouse.DefaultMonthlyRent), "quan/tháng", MetricTone.Warning),
                     new ScreenMetric("Hàng bền", "không hư", "nếu hạn = 0")
                 ],
-                [new ScreenAlert($"Kho tại {city.NameVi} chưa thuê: hàng dễ hỏng đang nằm trong túi.", AlertLevel.Info)]);
+                [new ScreenAlert($"Kho tại {city.NameVi} chưa thuê: hàng dễ hỏng đang nằm trong túi.", AlertLevel.Info)],
+                $"Thuê kho tại {city.NameVi} ({_warehouse.DefaultMonthlyRent} quan/tháng) để cất giữ lương thực và hàng dễ hỏng trước khi đi xa.");
         }
 
         var stock = _warehouse.Stock(city.Id);
@@ -501,6 +505,10 @@ internal sealed class WarehouseScreen : IScreenContribution
             sections.Add(new ScreenSection($"Hành Trang Sở Tại ({bagRows.Count} mặt hàng đang mang theo)", Columns, bagRows));
         }
 
+        var warehouseRec = atRisk > 0
+            ? $"Có {atRisk} đơn vị hàng trong kho sắp hỏng trong 10 ngày tới — hãy lấy ra bán hoặc dùng ngay."
+            : $"Gửi các mặt hàng có hạn sử dụng vào kho {city.NameVi} để bảo quản hoặc tích trữ chờ giá lên.";
+
         return new ScreenModel(
             ScreenId,
             $"{Title} — {city.NameVi}",
@@ -508,7 +516,8 @@ internal sealed class WarehouseScreen : IScreenContribution
             sections,
             commands,
             metrics,
-            alerts);
+            alerts,
+            warehouseRec);
     }
 
     private Func<int, string> StorePreview(WarehouseInfo info, long itemId, string name)
@@ -614,7 +623,8 @@ internal sealed class PlayerStallScreen : IScreenContribution
                     new("Tiền thuê", $"{_playerStall.DefaultStallRent}", "quan/tháng", MetricTone.Neutral),
                     new("Mô hình", "Bán lẻ", "tự động", MetricTone.Neutral),
                     new("Tình trạng", "Chưa thuê", null, MetricTone.Warning)
-                ]);
+                ],
+                Recommendation: $"Thuê sạp tại {city.NameVi} ({_playerStall.DefaultStallRent} quan/tháng) để bày hàng từ túi và thu tiền bán lẻ mỗi ngày.");
         }
 
         var shelves = _playerStall.Shelves(city.Id);
@@ -717,13 +727,18 @@ internal sealed class PlayerStallScreen : IScreenContribution
             commands.Add(new ScreenCommand("stall:stock_all", "Bày tất cả hàng từ túi lên quầy", Kind: CommandKind.Primary));
         }
 
+        var stallRec = totalShelfUnits == 0
+            ? $"Quầy sạp tại {city.NameVi} đang trống — hãy bày hàng từ túi lên quầy với mức giá +20% để tiểu nhị tự bán."
+            : $"Đang bày {totalShelfUnits} đơn vị hàng trên quầy — giữ biên độ giá +15% đến +25% để bán đều mỗi ngày.";
+
         return new ScreenModel(
             ScreenId,
             $"{Title} — {city.NameVi}",
             $"Tiệm buôn đang mở · khách mua hàng tự động mỗi ngày (Space) · phí thuê {stall.MonthlyRent} quan/tháng",
             sections,
             commands,
-            metrics);
+            metrics,
+            Recommendation: stallRec);
     }
 }
 

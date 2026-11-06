@@ -1,0 +1,394 @@
+.tk-stage-social {
+  position: absolute;
+  inset: 0;
+  background: #15110d;
+  color: #eadfc6;
+  font-family: "Be Vietnam Pro", "Segoe UI", sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+.tk-soc-shell {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tk-soc-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tk-soc-title {
+  margin: 0;
+  font: 700 24px "Noto Serif", "Georgia", serif;
+  color: #f3e6cc;
+}
+
+.tk-soc-sub {
+  margin-top: 2px;
+  font-size: 13px;
+  color: #b9aa8c;
+}
+
+.tk-soc-meta {
+  font-size: 13px;
+  color: #b9aa8c;
+  white-space: nowrap;
+}
+
+.tk-soc-rec {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  background: #241a13;
+  border: 1px solid #6a4f2e;
+  border-left: 3px solid #c4a062;
+}
+
+.tk-soc-rec-tag {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #e8b75c;
+  white-space: nowrap;
+}
+
+.tk-soc-rec-text {
+  flex: 1;
+  font-size: 13px;
+  color: #eadfc6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-soc-toast {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #7fc7a2;
+  white-space: nowrap;
+}
+
+.tk-soc-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #3a2c20;
+}
+
+.tk-soc-tab {
+  height: 40px;
+  padding: 0 18px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #b9aa8c;
+  font: 600 13.5px "Be Vietnam Pro", "Segoe UI", sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tk-soc-tab:hover {
+  color: #f3e6cc;
+}
+
+.tk-soc-tab.is-active {
+  color: #f3e6cc;
+  border-bottom-color: #c4a062;
+}
+
+.tk-soc-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 14px;
+}
+
+.tk-soc-map {
+  position: relative;
+  flex: 1.5;
+  min-width: 0;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  overflow: hidden;
+}
+
+.tk-soc-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 1px dashed #4a3a2a;
+  border-radius: 50%;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.tk-soc-ring-label {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  color: #b9aa8c;
+  white-space: nowrap;
+  background: #1d1611;
+  padding: 0 6px;
+  pointer-events: none;
+}
+
+.tk-soc-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 72px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.tk-soc-center img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid #c4a062;
+  box-sizing: border-box;
+  object-fit: cover;
+}
+
+.tk-soc-center div {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.tk-soc-node {
+  position: absolute;
+  width: 68px;
+  height: 82px;
+  margin-left: -34px;
+  margin-top: -34px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: left 0.45s ease, top 0.45s ease;
+  color: #eadfc6;
+  font-family: inherit;
+  z-index: 3;
+}
+
+.tk-soc-node img {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: block;
+  margin: 0 auto;
+  border: 2px solid #6a4f2e;
+  box-sizing: border-box;
+  object-fit: cover;
+  background: #15110d;
+}
+
+.tk-soc-node span {
+  display: block;
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: center;
+  margin-top: 3px;
+  text-shadow: 0 1px 2px #000;
+}
+
+.tk-soc-node.is-selected img {
+  border-color: #e8b75c;
+  box-shadow: 0 0 0 3px rgba(232, 183, 92, 0.28);
+}
+
+.tk-soc-inspector {
+  width: clamp(280px, 31%, 340px);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.tk-soc-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.tk-soc-head img {
+  width: 68px;
+  height: 68px;
+  border: 1px solid #6a4f2e;
+  object-fit: cover;
+  background: #15110d;
+}
+
+.tk-soc-name {
+  font: 700 18px "Noto Serif", "Georgia", serif;
+  color: #f3e6cc;
+}
+
+.tk-soc-role {
+  font-size: 12px;
+  color: #b9aa8c;
+  margin-top: 2px;
+}
+
+.tk-soc-rank {
+  font-size: 12px;
+  color: #c4a062;
+  margin-top: 2px;
+}
+
+.tk-soc-bar-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.tk-soc-bar {
+  height: 8px;
+  background: #2a1f16;
+  position: relative;
+}
+
+.tk-soc-bar > i {
+  display: block;
+  height: 8px;
+  transition: width 0.35s ease;
+}
+
+.tk-soc-sec {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #b9aa8c;
+  margin-top: 4px;
+}
+
+.tk-soc-act {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #6a4f2e;
+  background: #241a13;
+  color: #eadfc6;
+  font: 600 13px "Be Vietnam Pro", "Segoe UI", sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tk-soc-act:hover {
+  border-color: #c4a062;
+}
+
+.tk-soc-act em {
+  font-style: normal;
+  font-weight: 500;
+  font-size: 11.5px;
+  color: #b9aa8c;
+}
+
+.tk-soc-act.is-primary {
+  background: #a8321f;
+  border-color: #c4a062;
+  color: #f3e6cc;
+}
+
+.tk-soc-act.is-primary em {
+  color: #f3e6cc;
+}
+
+.tk-soc-act.is-disabled {
+  opacity: 0.55;
+}
+
+.tk-soc-skills-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.tk-soc-slots {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tk-soc-slot {
+  height: 116px;
+  border: 1px dashed #6a4f2e;
+  background: #1d1611;
+  color: #b9aa8c;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 8px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.tk-soc-slot.is-full {
+  border-style: solid;
+  border-color: #c4a062;
+  background: #241a13;
+  color: #f3e6cc;
+}
+
+.tk-soc-lib {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tk-soc-card {
+  padding: 12px;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  color: #eadfc6;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 92px;
+  box-sizing: border-box;
+}
+
+.tk-soc-card:hover {
+  border-color: #c4a062;
+}
+
+.tk-soc-card.is-locked {
+  opacity: 0.62;
+}
+
+.tk-soc-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}

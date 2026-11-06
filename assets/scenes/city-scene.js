@@ -1,4 +1,5 @@
 import { SimTBridge } from './bridge.js';
+import { stepCityWalkers, resolveStripBodyHeight } from './sprite-anim.js';
 import { createFrame, clearFrame, composite } from './vendor/pixelfx/src/core/index.js';
 import { safeCreateFx } from './duel-scene.js';
 import * as cherryBlossoms from './vendor/pixelfx/src/fx/weather/cherry-blossoms.js';
@@ -35,6 +36,12 @@ function resolveWeatherModule(effectKey) {
   }
 }
 
+function computeTargetBodyPx(yPct, stageH) {
+  const refScale = Math.max(0.75, Math.min(1.25, (stageH || 660) / 660));
+  const depthT = Math.max(0, Math.min(1, (yPct - 72) / 16));
+  return Math.round((115 + depthT * 35) * refScale);
+}
+
 function renderCityScene(container, scene, bridge) {
   unmountCityScene();
   activeScene = scene;
@@ -43,6 +50,7 @@ function renderCityScene(container, scene, bridge) {
   const npcs = Array.isArray(scene.npcs) ? scene.npcs.slice(0, 6) : [];
   const choices = Array.isArray(scene.choices) ? scene.choices : [];
   const ev = scene.eventCard;
+  const estStageH = Math.max(480, (container.clientHeight || 790) - 130);
 
   const hotspotsHtml = hotspots.map((h) => `
     <button type="button"
@@ -54,23 +62,53 @@ function renderCityScene(container, scene, bridge) {
     </button>
   `).join('');
 
-  const npcsHtml = npcs.map((n) => {
-    const yPct = Number(n.yPercent || 78);
-    const scale = Math.max(0.68, Math.min(1.06, 0.48 + ((yPct - 62) / 30) * 0.56));
+  let walkerIdx = 0;
+  const npcsHtml = npcs.map((n, idx) => {
+    if (n.animPath) {
+      const wIdx = walkerIdx++;
+      const yPct = wIdx === 0 ? 86 : wIdx === 1 ? 88 : Number(n.yPercent || 75);
+      const bodyPx = computeTargetBodyPx(yPct, estStageH);
+      const boxW = Math.round(bodyPx * 0.68);
+      const stripBodyH = resolveStripBodyHeight(n.animPath);
+      const stripScale = bodyPx / stripBodyH;
+      const zIdx = 10 + Math.round(yPct);
+      const initDir = wIdx % 2 === 0 ? 1 : -1;
+      return `
+        <button type="button"
+                class="tk-city-walker"
+                style="top:${yPct}%; width:${boxW}px; height:${bodyPx}px; z-index:${zIdx}"
+                data-walker-idx="${wIdx}"
+                data-walker-scale="${stripScale.toFixed(4)}"
+                data-walker-boxw="${boxW}"
+                data-walker-xpct="${Number(n.xPercent || 50)}"
+                data-npc-idx="${idx}"
+                data-nav-target="npc:${n.npcId}"
+                title="Diện kiến ${escapeHtml(n.nameVi)} (${escapeHtml(n.roleVi)})">
+          <div class="tk-city-walker-sh"></div>
+          <div class="tk-city-walker-sp" data-walker-sp style="background-image:url('${escapeHtml(n.animPath)}'); transform:scale(${(initDir * stripScale).toFixed(3)}, ${stripScale.toFixed(3)})"></div>
+          <div class="tk-city-walker-tag tk-one">
+            <span>${escapeHtml(n.nameVi)}</span>
+            <span class="tk-city-npc-role tk-one">${escapeHtml(n.roleVi)}</span>
+          </div>
+        </button>
+      `;
+    }
+    const yPct = Number(n.yPercent || 76);
+    const bodyPx = computeTargetBodyPx(yPct, estStageH);
     const zIdx = 10 + Math.round(yPct);
     return `
-    <button type="button"
-            class="tk-city-npc"
-            style="left:${n.xPercent}%; top:${yPct}%; --npc-scale:${scale.toFixed(2)}; z-index:${zIdx}"
-            data-nav-target="npc:${n.npcId}"
-            title="Diện kiến ${escapeHtml(n.nameVi)} (${escapeHtml(n.roleVi)})">
-      <div class="tk-city-npc-label tk-one">
-        <span>${escapeHtml(n.nameVi)}</span>
-        <span class="tk-city-npc-role tk-one">${escapeHtml(n.roleVi)}</span>
-      </div>
-      <img class="tk-city-npc-sprite" src="${escapeHtml(n.spritePath)}" alt="${escapeHtml(n.nameVi)}" />
-    </button>
-  `;
+      <button type="button"
+              class="tk-city-npc"
+              style="left:${n.xPercent}%; top:${yPct}%; --npc-body-h:${bodyPx}px; z-index:${zIdx}"
+              data-nav-target="npc:${n.npcId}"
+              title="Diện kiến ${escapeHtml(n.nameVi)} (${escapeHtml(n.roleVi)})">
+        <div class="tk-city-npc-label tk-one">
+          <span>${escapeHtml(n.nameVi)}</span>
+          <span class="tk-city-npc-role tk-one">${escapeHtml(n.roleVi)}</span>
+        </div>
+        <img class="tk-city-npc-sprite" src="${escapeHtml(n.spritePath)}" alt="${escapeHtml(n.nameVi)}" />
+      </button>
+    `;
   }).join('');
 
   const eventHtml = ev ? `
@@ -107,7 +145,7 @@ function renderCityScene(container, scene, bridge) {
         </div>
       </header>
 
-      <div class="tk-city-stage-wrap">
+      <div class="tk-city-stage-wrap" id="tk-city-stage-wrap">
         <div class="tk-city-bg" style="background-image:url('${escapeHtml(scene.backgroundPath)}')"></div>
         <canvas class="tk-city-weather-canvas" id="tk-city-weather-canvas" width="480" height="270"></canvas>
         <div class="tk-city-vignette"></div>
@@ -141,32 +179,67 @@ function renderCityScene(container, scene, bridge) {
     });
   });
 
+  const stageWrap = container.querySelector('#tk-city-stage-wrap');
+  const stageW = Math.max(820, stageWrap?.clientWidth || 1080);
+  const walkers = [];
+  container.querySelectorAll('.tk-city-walker').forEach((el, i) => {
+    const spEl = el.querySelector('[data-walker-sp]');
+    const scale = parseFloat(el.getAttribute('data-walker-scale') || '1') || 1;
+    const boxW = parseFloat(el.getAttribute('data-walker-boxw') || '96') || 96;
+    const halfW = Math.round(boxW / 2);
+    const xPct = parseFloat(el.getAttribute('data-walker-xpct') || '50') || 50;
+    const canWalk = i < 2;
+    const isFirst = i === 0;
+    const min = isFirst ? Math.round(stageW * 0.22) : Math.round(stageW * 0.58);
+    const max = isFirst ? Math.round(stageW * 0.42) : Math.round(stageW * 0.78);
+    const startX = canWalk
+      ? (isFirst ? Math.round(stageW * 0.30) : Math.round(stageW * 0.68))
+      : Math.round(stageW * (xPct / 100));
+    el.style.left = `${startX - halfW}px`;
+    walkers.push({
+      el,
+      spEl,
+      hasStrip: true,
+      walk: canWalk,
+      scale,
+      halfW,
+      x: startX,
+      min,
+      max,
+      dir: i % 2 === 0 ? 1 : -1,
+      wait: 0,
+      dist: 0,
+      fr: canWalk ? 4 : 0,
+      it: i * 0.5
+    });
+  });
+
   const weatherMod = resolveWeatherModule(scene.weatherEffect);
   const canvas = container.querySelector('#tk-city-weather-canvas');
-  if (weatherMod && canvas) {
-    const ctx = canvas.getContext('2d');
-    const frame = createFrame(480, 270);
-    const imgData = ctx.createImageData(480, 270);
-    const fxA = safeCreateFx(weatherMod, { x: 140, y: 135, seed: 11 });
-    const fxB = safeCreateFx(weatherMod, { x: 340, y: 135, seed: 29 });
-    // Pre-warm weather so particles are already falling on initial frame
-    if (fxA) fxA.update(1.5);
-    if (fxB) fxB.update(2.4);
-    let prev = performance.now();
+  const ctx = weatherMod && canvas ? canvas.getContext('2d') : null;
+  const frame = ctx ? createFrame(480, 270) : null;
+  const imgData = ctx ? ctx.createImageData(480, 270) : null;
+  const fxA = ctx ? safeCreateFx(weatherMod, { x: 140, y: 135, seed: 11 }) : null;
+  const fxB = ctx ? safeCreateFx(weatherMod, { x: 340, y: 135, seed: 29 }) : null;
+  if (fxA) fxA.update(1.5);
+  if (fxB) fxB.update(2.4);
 
-    const tick = (now) => {
-      if (activeScene !== scene) return;
-      const dt = Math.min(0.05, (now - prev) / 1000);
-      prev = now;
+  let prev = performance.now();
+  const tick = (now) => {
+    if (activeScene !== scene) return;
+    const dt = Math.min(0.05, (now - prev) / 1000);
+    prev = now;
+    if (walkers.length > 0) stepCityWalkers(walkers, dt);
+    if (ctx && frame && imgData) {
       clearFrame(frame);
       if (fxA) { fxA.update(dt); fxA.draw(frame); }
       if (fxB) { fxB.update(dt); fxB.draw(frame); }
       composite(frame, imgData.data, null, 1);
       ctx.putImageData(imgData, 0, 0);
-      rafId = requestAnimationFrame(tick);
-    };
+    }
     rafId = requestAnimationFrame(tick);
-  }
+  };
+  rafId = requestAnimationFrame(tick);
 }
 
 function unmountCityScene() {

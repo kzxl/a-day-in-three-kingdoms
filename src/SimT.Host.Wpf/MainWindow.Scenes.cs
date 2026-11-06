@@ -14,8 +14,13 @@ public partial class MainWindow
         {
             var scenesDir = Path.Combine(AppContext.BaseDirectory, "assets", "scenes");
             await SceneOverlay.InitializeWarmAsync(scenesDir, skipForSmoke: _isSmoke);
-            if (_loaded && string.Equals(_screenId, CityHubScreenId, StringComparison.Ordinal))
-                TryOpenCityScene();
+            if (_loaded)
+            {
+                if (string.Equals(_screenId, CitySceneScreenId, StringComparison.Ordinal))
+                    TryOpenCityScene();
+                else
+                    TryOpenFeatureSceneForCurrentScreen();
+            }
         };
     }
 
@@ -42,9 +47,9 @@ public partial class MainWindow
         var (seasonVi, weatherFx) = ResolveSeasonAndWeather(_kernel.Today.Month);
         IReadOnlyList<SceneChoice> choices = customChoices ??
         [
-            new("briefing", "🏛️ Nhật trình", "Tiêu điểm & Báo cáo đầu ngày"),
+            new("briefing", "Nhật trình", "Tiêu điểm & Báo cáo đầu ngày"),
             new("stroll", "Du ngoạn phố", "Tản bộ tìm kỳ ngộ"),
-            new("stroll:log", "Sổ dạo phố", "Nhật ký kỳ ngộ"),
+            new("dossier", "Danh sĩ thiên hạ", "Hồ sơ & bát diện năng lực"),
             new("map", "Xem bản đồ", "Hành trình liên thành")
         ];
 
@@ -117,8 +122,8 @@ public partial class MainWindow
             new("market.stall", "Chợ", MatchSub("Mua bán hàng hóa", "Chợ", "Thương", "Thị"), "market.stall", 31, 44),
             new("market.warehouse", "Kho", MatchSub("Trữ hàng bảo quản", "Khố", "Kho", "Xưởng"), "market.warehouse", 38, 26),
             new("politics.court", "Quan phủ", MatchSub("Nhậm chức chính sự", "Cung", "Phủ", "Điện", "Đàn"), "politics.court", 52, 20),
-            new("military.arena", "Lôi đài", MatchSub("Tỷ võ binh nghiệp", "Lôi Đài", "Doanh", "Trường"), "military.arena", 68, 30),
-            new("world.map", "Cổng thành", MatchSub("Khởi hành viễn chinh", "Dịch", "Đạo", "Trại"), "world.map", 83, 44)
+            new("military.arena", "Lôi đài", MatchSub("Tỷ võ binh nghiệp", "Lôi Đài", "Doanh", "Trường"), "military.arena", 64, 30),
+            new("world.map", "Cổng thành", MatchSub("Khởi hành viễn chinh", "Dịch", "Đạo", "Trại"), "world.map", 77, 44)
         ];
     }
 
@@ -129,21 +134,25 @@ public partial class MainWindow
 
         _kernel.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
         var list = new List<NpcDef>();
+        if (reg.FindByCode("npc_0003") is { } gy) list.Add(gy);
+        if (reg.FindByCode("npc_0002") is { } zf) list.Add(zf);
         foreach (var npc in reg.All)
         {
+            if (list.Any(x => x.Id == npc.Id)) continue;
             if ((society?.GetNpcActivity(npc.Id)?.CurrentCitadelId ?? npc.CitadelId) != cityId) continue;
             list.Add(npc);
             if (list.Count >= 6) break;
         }
 
-        double[] xs = [24, 41, 58, 74, 15, 84];
-        double[] ys = [72, 74, 73, 76, 88, 89];
+        double[] xs = [35, 65, 50, 17, 85, 8];
+        double[] ys = [87, 88, 73, 75, 76, 86];
         var sprites = new List<CityNpcSprite>(list.Count);
         for (var i = 0; i < list.Count; i++)
         {
             var npc = list[i];
             var (_, facePath, spritePath) = SceneArtCatalog.ResolveNpcArt(npc);
-            sprites.Add(new CityNpcSprite(npc.Id, npc.Code, TrimSingleLine(npc.NameVi, 24), RoleTitleVi.Format(npc.Role), spritePath, facePath, xs[i], ys[i]));
+            var (animPath, _) = SceneArtCatalog.ResolveNpcAnim(npc);
+            sprites.Add(new CityNpcSprite(npc.Id, npc.Code, TrimSingleLine(RoleTitleVi.ShortName(npc.NameVi), 24), RoleTitleVi.Format(npc.Role), spritePath, facePath, xs[i], ys[i], animPath));
         }
         return sprites;
     }
@@ -187,14 +196,18 @@ public partial class MainWindow
         var pSp = attrs.Attributes.Wil >= 80 ? 10 : 0;
         var oSp = npc.Attributes.Wil >= 80 ? 10 : 0;
         var (_, npcFace, npcSprite) = SceneArtCatalog.ResolveNpcArt(npc);
+        var (oppAnimPath, oppAnimKey) = SceneArtCatalog.ResolveNpcAnim(npc);
+        var (playerAnimPath, playerAnimKey) = SceneArtCatalog.ResolvePlayerAnim();
 
         var playerFighter = new DuelFighterView(
             playerState.Name, $"Võ lực {attrs.Attributes.War} · {TroopBranchHelper.NameVi(playerBranch)}",
-            SceneArtCatalog.PlayerPortraitFace, SceneArtCatalog.PlayerSprite, playerBranch, pMaxHp, pMaxHp, pSp, 100);
+            SceneArtCatalog.PlayerPortraitFace, SceneArtCatalog.PlayerSprite, playerBranch, pMaxHp, pMaxHp, pSp, 100,
+            playerAnimPath, playerAnimKey);
 
         var oppFighter = new DuelFighterView(
             npc.NameVi, $"Võ lực {npc.Attributes.War} · {TroopBranchHelper.NameVi(oppBranch)}",
-            npcFace, npcSprite, oppBranch, oMaxHp, oMaxHp, oSp, 100);
+            npcFace, npcSprite, oppBranch, oMaxHp, oMaxHp, oSp, 100,
+            oppAnimPath, oppAnimKey);
 
         IReadOnlyList<SceneChoice> choices = result is null
             ? [
@@ -236,6 +249,10 @@ public partial class MainWindow
         if (activeScene is CityScene city) HandleCitySceneMessage(type, message.Id ?? string.Empty, city);
         else if (activeScene is TalkScene talk) HandleTalkSceneMessage(type, message.Id ?? string.Empty, talk);
         else if (activeScene is DuelScene duel) HandleDuelSceneMessage(type, message.Id ?? string.Empty, duel);
+        else if (activeScene is MapScene map) HandleMapSceneMessage(type, message.Id ?? string.Empty, map);
+        else if (activeScene is SocialScene social) HandleSocialSceneMessage(type, message.Id ?? string.Empty, social);
+        else if (activeScene is MarketScene market) HandleMarketSceneMessage(type, message.Id ?? string.Empty, market);
+        else if (activeScene is DossierScene dossier) HandleDossierSceneMessage(type, message.Id ?? string.Empty, dossier);
     }
 
     private void HandleCitySceneMessage(string type, string id, CityScene _)
@@ -280,6 +297,7 @@ public partial class MainWindow
             ShowNotification($"[{resolved.LocationName} · {resolved.Title}] {resolved.RewardSummary}");
             PresentStrollResultInCityScene(resolved);
         }
+        else if (id == "dossier") SelectScreen("npc.directory");
         else if (id == "map") SelectScreen("world.map");
     }
 

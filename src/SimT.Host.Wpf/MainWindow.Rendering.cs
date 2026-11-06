@@ -1,10 +1,7 @@
-using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using SimT.Contracts;
 using SimT.Contracts.Ledger;
-using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 using SimT.Host.Wpf.Controls;
@@ -25,9 +22,9 @@ public partial class MainWindow
         }
 
         if (NavList.SelectedItem is not NavEntry entry)
-        {
             return;
-        }
+
+        EnsureActiveGroupExpanded(entry);
 
         if (!string.Equals(_screenId, entry.ScreenId, StringComparison.Ordinal))
         {
@@ -41,34 +38,17 @@ public partial class MainWindow
         _firstSection = null;
         SyncStrategicNavigation(_screenId);
 
-        if (entry.ScreenId == CityHubScreenId)
-        {
-            RenderCityHub();
-            RefreshBadges();
-            return;
-        }
-
-        if (entry.ScreenId == LedgerScreenId)
-        {
-            RenderLedger();
-            RefreshBadges();
-            AnimatePageTransition();
-            return;
-        }
-
-        if (entry.ScreenId == "society.chronicle")
-        {
-            RenderChronicle();
-            RefreshBadges();
-            AnimatePageTransition();
-            return;
-        }
+        if (entry.ScreenId == CitySceneScreenId) { RenderCityScene(); RefreshBadges(); return; }
+        if (entry.ScreenId == CityHubScreenId) { RenderCityHub(); RefreshBadges(); return; }
+        if (entry.ScreenId == LedgerScreenId) { RenderLedger(); RefreshBadges(); AnimatePageTransition(); return; }
+        if (entry.ScreenId == "society.chronicle") { RenderChronicle(); RefreshBadges(); AnimatePageTransition(); return; }
 
         var contribution = _kernel.Ui.Screens.FirstOrDefault(screen => screen.ScreenId == entry.ScreenId);
         if (contribution is null)
         {
             ScreenTitle.Text = entry.Title;
             ScreenStatus.Text = "Module cung cấp màn hình này đang tắt.";
+            UpdateRecommendationBanner(null);
             KpiStrip.Children.Clear();
             AlertFeed.ItemsSource = null;
             GlobalCommands.Children.Clear();
@@ -77,10 +57,12 @@ public partial class MainWindow
         }
 
         var model = contribution.Render();
+        UpdateRecommendationBanner(model.Recommendation);
 
         if (entry.ScreenId == "world.map")
         {
             RenderWorldMapScreen(model);
+            TryOpenMapScene(model.Recommendation);
             RefreshBadges();
             AnimatePageTransition();
             return;
@@ -102,14 +84,19 @@ public partial class MainWindow
             return;
         }
 
+        if (entry.ScreenId == "social.network")
+            TryOpenSocialScene(model.Recommendation);
+        else if (entry.ScreenId == "market.stall")
+            TryOpenMarketScene(model.Recommendation);
+        else if (entry.ScreenId == "npc.directory")
+            TryOpenDossierScene(model.Recommendation);
+
         ScreenTitle.Text = model.Title;
         ScreenStatus.Text = model.StatusLine;
 
         KpiStrip.Children.Clear();
         foreach (var metric in model.Headline)
-        {
             KpiStrip.Children.Add(BuildMetric(metric));
-        }
 
         AlertFeed.ItemsSource = model.Attention.Count == 0
             ? null
@@ -117,9 +104,7 @@ public partial class MainWindow
 
         GlobalCommands.Children.Clear();
         foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
-        {
             GlobalCommands.Children.Add(CommandButton(command, command.Id));
-        }
 
         var longest = model.Sections.Count == 0 ? 0 : model.Sections.Max(section => section.Rows.Count);
         FilterBox.Visibility = longest > 6 ? Visibility.Visible : Visibility.Collapsed;
@@ -142,9 +127,7 @@ public partial class MainWindow
                 new("all", "Tất cả", model.Sections.Sum(s => s.Rows.Count))
             };
             for (var i = 0; i < model.Sections.Count; i++)
-            {
                 tabItems.Add(new GameTabItem($"sec:{i}", model.Sections[i].Heading, model.Sections[i].Rows.Count));
-            }
 
             var tabs = new GameTabs(tabItems, Math.Clamp(_selectedSectionTab, 0, tabItems.Count - 1));
             tabs.SelectionChanged += (idx, _) =>
@@ -159,14 +142,11 @@ public partial class MainWindow
         {
             if (_selectedSectionTab > 0 && _selectedSectionTab - 1 != i)
                 continue;
-
             ContentPanel.Children.Add(BuildCard(Filtered(model.Sections[i])));
         }
 
         if (model.Sections.Count == 0)
-        {
             ContentPanel.Children.Add(EmptyState(model.StatusLine));
-        }
 
         ContentPanel.Children.Add(MonthFooter());
         RestoreDetail(model);
@@ -188,12 +168,26 @@ public partial class MainWindow
         PageRoot.BeginAnimation(OpacityProperty, animOpacity);
     }
 
+    private void UpdateRecommendationBanner(string? recommendation)
+    {
+        if (string.IsNullOrWhiteSpace(recommendation))
+        {
+            RecommendationBanner.Visibility = Visibility.Collapsed;
+            RecommendationText.Text = string.Empty;
+            return;
+        }
+
+        RecommendationText.Text = recommendation;
+        RecommendationBanner.Visibility = Visibility.Visible;
+    }
+
     private void RenderLedger()
     {
         var lines = _kernel.Ledger.Recent(300);
 
         ScreenTitle.Text = "Sổ Cái";
         ScreenStatus.Text = $"{lines.Count} bút toán gần nhất · mọi khoản tiền đi qua một nơi duy nhất";
+        UpdateRecommendationBanner("Đối chiếu dòng tiền thu chi mỗi tháng để cân đối chi phí kho bãi, ruộng đất và bổng lộc gia thần.");
         KpiStrip.Children.Clear();
         KpiStrip.Children.Add(BuildMetric(new ScreenMetric("Số dư", _kernel.Ledger.Balance.ToString("N0", Vietnamese), "quan")));
         KpiStrip.Children.Add(BuildMetric(new ScreenMetric("Trong két", _kernel.Ledger.Safe.ToString("N0", Vietnamese), "quan")));
@@ -231,196 +225,7 @@ public partial class MainWindow
 
         ContentPanel.Children.Add(MonthFooter());
         if (_detailKey is null)
-        {
             CloseInspector();
-        }
-    }
-
-    private void RenderWorldMapScreen(ScreenModel model)
-    {
-        ScreenTitle.Text = model.Title;
-        ScreenStatus.Text = model.StatusLine;
-
-        KpiStrip.Children.Clear();
-        foreach (var metric in model.Headline)
-        {
-            KpiStrip.Children.Add(BuildMetric(metric));
-        }
-
-        AlertFeed.ItemsSource = model.Attention.Count == 0
-            ? null
-            : model.Attention.Select(alert => new AlertVm(alert)).ToList();
-
-        GlobalCommands.Children.Clear();
-        foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
-        {
-            GlobalCommands.Children.Add(CommandButton(command, command.Id));
-        }
-
-        FilterBox.Visibility = Visibility.Collapsed;
-        FilterHint.Visibility = Visibility.Collapsed;
-
-        ContentPanel.Children.Clear();
-
-        if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
-            _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
-        {
-            var mapCtrl = new Controls.GameWorldMapControl(map, player.CurrentCityId, _kernel);
-            mapCtrl.TravelRequested += async (targetId, mode) =>
-            {
-                var modeStr = mode switch
-                {
-                    TravelMode.Horse => "horse",
-                    TravelMode.Caravan => "caravan",
-                    _ => "walk"
-                };
-                await ExecuteScreenCommandAsync($"travel:{targetId}:{modeStr}", "world.map");
-            };
-            ContentPanel.Children.Add(mapCtrl);
-        }
-
-        foreach (var section in model.Sections)
-        {
-            ContentPanel.Children.Add(BuildCard(Filtered(section)));
-        }
-
-        ContentPanel.Children.Add(MonthFooter());
-        RestoreDetail(model);
-        RefreshBadges();
-        AnimatePageTransition();
-    }
-
-
-
-    private void RenderDestinyTreeScreen(ScreenModel model)
-    {
-        ScreenTitle.Text = model.Title;
-        ScreenStatus.Text = model.StatusLine;
-
-        KpiStrip.Children.Clear();
-        foreach (var metric in model.Headline)
-        {
-            KpiStrip.Children.Add(BuildMetric(metric));
-        }
-
-        AlertFeed.ItemsSource = model.Attention.Count == 0
-            ? null
-            : model.Attention.Select(alert => new AlertVm(alert)).ToList();
-
-        GlobalCommands.Children.Clear();
-        foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
-        {
-            GlobalCommands.Children.Add(CommandButton(command, command.Id));
-        }
-
-        FilterBox.Visibility = Visibility.Collapsed;
-        FilterHint.Visibility = Visibility.Collapsed;
-
-        ContentPanel.Children.Clear();
-
-        // 1. Interactive PoE-Style Visual Destiny Tree Canvas Control
-        if (_kernel.Capabilities.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var destiny) && destiny is not null)
-        {
-            var treeCtrl = new Controls.GameDestinyTreeControl(destiny);
-            treeCtrl.LearnRequested += async nodeId =>
-            {
-                await ExecuteScreenCommandAsync($"destiny:learn:{nodeId}", "player.destiny");
-            };
-            treeCtrl.RespecRequested += async () =>
-            {
-                await ExecuteScreenCommandAsync("destiny:respec", "player.destiny");
-            };
-            treeCtrl.EvaluateRequested += async () =>
-            {
-                await ExecuteScreenCommandAsync("destiny:evaluate", "player.destiny");
-            };
-            ContentPanel.Children.Add(treeCtrl);
-        }
-
-        // 2. Tabular Milestones & Breakthrough Achievements
-        var milestoneSection = model.Sections.FirstOrDefault(s => s.Heading.Contains("KỲ NGỘ", StringComparison.OrdinalIgnoreCase))
-            ?? model.Sections.LastOrDefault();
-
-        if (milestoneSection is not null)
-        {
-            ContentPanel.Children.Add(BuildCard(Filtered(milestoneSection)));
-        }
-
-        ContentPanel.Children.Add(MonthFooter());
-        RestoreDetail(model);
-        RefreshBadges();
-        AnimatePageTransition();
-    }
-
-    private void RenderFarmFieldScreen(ScreenModel model)
-    {
-        ScreenTitle.Text = model.Title;
-        ScreenStatus.Text = model.StatusLine;
-
-        KpiStrip.Children.Clear();
-        foreach (var metric in model.Headline)
-        {
-            KpiStrip.Children.Add(BuildMetric(metric));
-        }
-
-        AlertFeed.ItemsSource = model.Attention.Count == 0
-            ? null
-            : model.Attention.Select(alert => new AlertVm(alert)).ToList();
-
-        GlobalCommands.Children.Clear();
-        foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
-        {
-            GlobalCommands.Children.Add(CommandButton(command, command.Id));
-        }
-
-        FilterBox.Visibility = Visibility.Collapsed;
-        FilterHint.Visibility = Visibility.Collapsed;
-
-        ContentPanel.Children.Clear();
-
-        // 1. Visual Farmland Tile Grid Control
-        if (_kernel.Capabilities.TryGet<ICultivationEstate>(CapabilityIds.CultivationEstate, out var estate) && estate is not null &&
-            _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
-            _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
-        {
-            var farmCtrl = new Controls.GameFarmFieldControl(estate, map, player.CurrentCityId, _kernel.Clock);
-            farmCtrl.RentRequested += async plotId =>
-            {
-                await ExecuteScreenCommandAsync($"rent:{plotId}", "cultivation.farm");
-            };
-            farmCtrl.PlantRequested += async (plotId, cropCode) =>
-            {
-                await ExecuteScreenCommandAsync($"plant:{plotId}:{cropCode}", "cultivation.farm");
-            };
-            farmCtrl.HarvestRequested += async plotId =>
-            {
-                await ExecuteScreenCommandAsync($"harvest:{plotId}", "cultivation.farm");
-            };
-            farmCtrl.FertilizeRequested += async plotId =>
-            {
-                await ExecuteScreenCommandAsync($"fertilize:{plotId}", "cultivation.farm");
-            };
-            farmCtrl.BuySeedRequested += async (cropCode, qty) =>
-            {
-                await ExecuteScreenCommandAsync($"buy_seed:{player.CurrentCityId}:{cropCode}:{qty}", "cultivation.farm");
-            };
-            farmCtrl.BuyFertilizerRequested += async qty =>
-            {
-                await ExecuteScreenCommandAsync($"buy_fertilizer:{player.CurrentCityId}:{qty}", "cultivation.farm");
-            };
-            ContentPanel.Children.Add(farmCtrl);
-        }
-
-        // 2. Auxiliary Sections (Facilities, Harvest History) below the field
-        foreach (var section in model.Sections.Where(s => !s.Heading.Contains("QUỸ ĐẤT", StringComparison.OrdinalIgnoreCase) && !s.Heading.StartsWith("KHU VỰC CANH TÁC", StringComparison.OrdinalIgnoreCase)))
-        {
-            ContentPanel.Children.Add(BuildCard(Filtered(section)));
-        }
-
-        ContentPanel.Children.Add(MonthFooter());
-        RestoreDetail(model);
-        RefreshBadges();
-        AnimatePageTransition();
     }
 
     private GameMetricCard BuildMetric(ScreenMetric metric) => new(metric);
@@ -457,9 +262,7 @@ public partial class MainWindow
     private ScreenSection Filtered(ScreenSection section)
     {
         if (string.IsNullOrWhiteSpace(_filter))
-        {
             return section;
-        }
 
         var needle = _filter.Trim();
         var rows = section.Rows
@@ -473,9 +276,7 @@ public partial class MainWindow
     {
         var text = FilterBox.Text ?? string.Empty;
         if (string.Equals(text, _filter, StringComparison.Ordinal))
-        {
             return;
-        }
 
         _filter = text;
         FilterHint.Visibility = string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
@@ -488,15 +289,11 @@ public partial class MainWindow
 
         var portraitStrip = TryBuildPortraitStrip(section);
         if (portraitStrip is not null)
-        {
             bodyStack.Children.Add(portraitStrip);
-        }
 
         var slotStrip = TryBuildItemSlotStrip(section);
         if (slotStrip is not null)
-        {
             bodyStack.Children.Add(slotStrip);
-        }
 
         bodyStack.Children.Add(BuildGrid(section, wideColumn));
 
@@ -514,9 +311,7 @@ public partial class MainWindow
         var columns = section.Columns;
 
         if (rows.Count == 0)
-        {
             return EmptyState("Chưa có dữ liệu trong mục này.");
-        }
 
         var visibleColumns = Math.Min(6, columns.Count);
         var numeric = new bool[columns.Count];
@@ -543,7 +338,6 @@ public partial class MainWindow
                     best = index;
                 }
             }
-
             flexColumn = best;
         }
 
@@ -554,9 +348,7 @@ public partial class MainWindow
             ShowInspector(sec, row);
             var modalCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("npc:modal:"));
             if (modalCmd is not null && long.TryParse(modalCmd.Id["npc:modal:".Length..], out var id))
-            {
                 TryOpenNpcModal(id);
-            }
         };
 
         if (_firstGrid is null)
@@ -566,65 +358,6 @@ public partial class MainWindow
         }
 
         return table;
-    }
-
-    private void RenderCityHub()
-    {
-        SceneOverlay.HideScene();
-        ScreenTitle.Text = "Nhật Trình Chiến Lược";
-        ScreenStatus.Text = "Đại điện quân cơ · Nắm bắt thời cuộc, tiêu điểm ngày và cơ hội thương đạo";
-        KpiStrip.Children.Clear();
-        AlertFeed.ItemsSource = null;
-        GlobalCommands.Children.Clear();
-        FilterBox.Visibility = Visibility.Collapsed;
-        FilterHint.Visibility = Visibility.Collapsed;
-        ContentPanel.Children.Clear();
-
-        var briefing = new GameStrategicBriefingControl();
-        briefing.RequestNavigate += targetScreen => SelectScreen(targetScreen);
-        briefing.RequestOpenCityScene += () => SelectScreen(CitySceneScreenId);
-        briefing.RequestRest += () => Rest_Click(this, new RoutedEventArgs());
-        briefing.RequestStroll += () => TriggerCityStroll(preferModalWhenOutsideScene: true);
-        briefing.RequestTalkNpc += npcId => TryOpenTalkScene(npcId);
-
-        briefing.Bind(_kernel);
-        ContentPanel.Children.Add(briefing);
-    }
-
-    private void RenderCityScene()
-    {
-        ScreenTitle.Text = "Trong Thành";
-        ScreenStatus.Text = "Trung tâm thành trì · bấm địa điểm hoặc danh sĩ để tương tác";
-        KpiStrip.Children.Clear();
-        AlertFeed.ItemsSource = null;
-        GlobalCommands.Children.Clear();
-        FilterBox.Visibility = Visibility.Collapsed;
-        FilterHint.Visibility = Visibility.Collapsed;
-        ContentPanel.Children.Clear();
-        ContentPanel.Children.Add(EmptyState("Cảnh Trong Thành đang hiển thị trên lớp phủ tương tác. Bấm nút [Nhật Trình] để trở lại đại điện chiến lược."));
-        TryOpenCityScene();
-    }
-
-    private void RenderChronicle()
-    {
-        SceneOverlay.HideScene();
-        ScreenTitle.Text = "Thiên Hạ Biên Niên Sử";
-        ScreenStatus.Text = "Kỷ yếu thời cuộc · Nắm bắt biến động thiên hạ và đưa ra quyết sách can thiệp";
-        KpiStrip.Children.Clear();
-        AlertFeed.ItemsSource = null;
-        GlobalCommands.Children.Clear();
-        FilterBox.Visibility = Visibility.Collapsed;
-        FilterHint.Visibility = Visibility.Collapsed;
-        ContentPanel.Children.Clear();
-
-        var chronicleView = new GameChronicleView();
-        chronicleView.EventInteracted += () =>
-        {
-            UpdateHeader();
-            ShowNotification("Đã thực thi quyết sách dã sử thành công!");
-        };
-        chronicleView.Bind(_kernel);
-        ContentPanel.Children.Add(chronicleView);
     }
 
     private Border EmptyState(string message) => new GameEmptyState(

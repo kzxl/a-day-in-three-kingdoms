@@ -1,4 +1,5 @@
 import { SimTBridge } from './bridge.js';
+import { createPortraitAnimator } from './sprite-anim.js';
 
 const HAN_NUMERALS = ['壹', '貳', '參', '肆', '伍'];
 
@@ -6,6 +7,8 @@ let currentScene = null;
 let currentLineIdx = 0;
 let keyHandler = null;
 let moveHandler = null;
+let rafId = null;
+let portraitAnim = null;
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -19,16 +22,14 @@ function advanceLine(container) {
   if (!currentScene || !Array.isArray(currentScene.lines) || currentScene.lines.length === 0) {
     return;
   }
+  if (portraitAnim && portraitAnim.isTyping()) {
+    portraitAnim.completeLine();
+    return;
+  }
   currentLineIdx = (currentLineIdx + 1) % currentScene.lines.length;
-  const lineEl = container.querySelector('#tk-talk-line');
   const countEl = container.querySelector('#tk-talk-count');
-  if (lineEl) {
-    lineEl.style.opacity = '0';
-    setTimeout(() => {
-      if (!currentScene) return;
-      lineEl.textContent = `“${currentScene.lines[currentLineIdx]}”`;
-      lineEl.style.opacity = '1';
-    }, 90);
+  if (portraitAnim) {
+    portraitAnim.setLine(currentScene.lines[currentLineIdx]);
   }
   if (countEl) {
     countEl.textContent = `${currentLineIdx + 1} / ${currentScene.lines.length}`;
@@ -76,6 +77,12 @@ function renderTalkScene(container, scene, bridge) {
     `;
   }).join('');
 
+  const hasFrames = Boolean(scene.blinkPath && scene.talkPath);
+  const portraitFramesHtml = hasFrames ? `
+    <img class="tk-char-img tk-char-frame" id="tk-char-blink" src="${escapeHtml(scene.blinkPath)}" alt="" />
+    <img class="tk-char-img tk-char-frame" id="tk-char-talk" src="${escapeHtml(scene.talkPath)}" alt="" />
+  ` : '';
+
   container.innerHTML = `
     <div class="tk-talk-stage" id="tk-talk-stage">
       <div class="tk-layer tk-talk-bg" style="background-image:url('${escapeHtml(scene.backgroundPath)}')"></div>
@@ -95,7 +102,8 @@ function renderTalkScene(container, scene, bridge) {
       <div class="tk-layer tk-talk-char-layer">
         <div class="tk-char-rig">
           <div class="tk-char-breath">
-            <img class="tk-char-img" src="${escapeHtml(scene.portraitFull)}" alt="${escapeHtml(scene.nameVi)}" />
+            <img class="tk-char-img" id="tk-char-base" src="${escapeHtml(scene.portraitFull)}" alt="${escapeHtml(scene.nameVi)}" />
+            ${portraitFramesHtml}
           </div>
         </div>
       </div>
@@ -157,6 +165,25 @@ function renderTalkScene(container, scene, bridge) {
     </div>
   `;
 
+  const lineEl = container.querySelector('#tk-talk-line');
+  portraitAnim = createPortraitAnimator({
+    baseEl: container.querySelector('#tk-char-base'),
+    blinkEl: container.querySelector('#tk-char-blink'),
+    talkEl: container.querySelector('#tk-char-talk'),
+    lineEl
+  });
+  portraitAnim.setLine(lines[0]);
+
+  let prev = performance.now();
+  const tick = (now) => {
+    if (currentScene !== scene) return;
+    const dt = Math.min(0.05, (now - prev) / 1000);
+    prev = now;
+    if (portraitAnim) portraitAnim.step(dt);
+    rafId = requestAnimationFrame(tick);
+  };
+  rafId = requestAnimationFrame(tick);
+
   const stageEl = container.querySelector('#tk-talk-stage');
   moveHandler = (e) => {
     if (!stageEl) return;
@@ -209,6 +236,10 @@ function renderTalkScene(container, scene, bridge) {
 }
 
 function unmountTalkScene() {
+  if (rafId) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
   if (keyHandler) {
     window.removeEventListener('keydown', keyHandler);
     keyHandler = null;
@@ -217,6 +248,7 @@ function unmountTalkScene() {
     window.removeEventListener('mousemove', moveHandler);
     moveHandler = null;
   }
+  portraitAnim = null;
   currentScene = null;
 }
 

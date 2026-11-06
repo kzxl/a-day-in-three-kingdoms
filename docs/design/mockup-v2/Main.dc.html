@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Đấu võ toàn thân</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Noto+Serif:wght@600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.bg{background-image:url(/art/backgrounds/arena.png);background-size:cover;background-position:center;image-rendering:pixelated}
+.sp{position:absolute;left:0;top:0;width:340px;height:170px;transform-origin:170px 170px;image-rendering:pixelated;background-repeat:no-repeat;will-change:transform}
+.gy{background-image:url(/art/anim/guan_yu.png)}
+.zf{background-image:url(/art/anim/zhang_fei.png)}
+.sh{position:absolute;left:0;top:0;width:190px;height:26px;border-radius:50%;background:rgba(21,17,13,.42)}
+.sl{position:absolute;left:0;top:0;width:136px;height:104px;transform-origin:44px 92px;image-rendering:pixelated;background-image:url(pixelfx:melee/sword-slash);background-repeat:no-repeat}
+.fg{background-image:url(/art/portraits/guan_yu/face.webp);background-size:cover}
+.fz{background-image:url(/art/portraits/zhang_fei/face.webp);background-size:cover}
+.btn{height:44px;padding:0 18px;border:1px solid #6a4f2e;background:#241a13;color:#eadfc6;font:600 14px 'Be Vietnam Pro',sans-serif;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#c4a062;color:#f3e6cc}
+.on{background:#a8321f;border-color:#c4a062;color:#f3e6cc}
+.hp{height:10px;transition:width .35s ease-out;background:#a8321f}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; position: relative; overflow: hidden; background: #15110d; font-family: 'Be Vietnam Pro', sans-serif; color: #eadfc6">
+  <div style="position: absolute; left: 0; top: 0; width: 1280px; height: 648px; overflow: hidden">
+    <div style="position: absolute; left: 0; top: 0; width: 1280px; height: 648px; transform: {{shake}}">
+      <div class="bg" style="position: absolute; left: -24px; top: -24px; width: 1328px; height: 696px"></div>
+      <div class="sh" style="transform: {{gS}}"></div>
+      <div class="sh" style="transform: {{zS}}"></div>
+      <div class="sp gy" style="transform: {{gT}}; background-position: {{gP}}; filter: {{gF}}"></div>
+      <div class="sp zf" style="transform: {{zT}}; background-position: {{zP}}; filter: {{zF}}"></div>
+      <sc-if value="{{showSlash}}" hint-placeholder-val="{{ false }}">
+        <div class="sl" style="transform: {{sT}}; background-position: {{sP}}"></div>
+      </sc-if>
+      <sc-if value="{{showNum}}" hint-placeholder-val="{{ false }}">
+        <div style="position: absolute; left: 0; top: 0; transform: {{nT}}; opacity: {{nO}}; font: 700 44px 'Noto Serif', serif; color: #f3e6cc; text-shadow: 3px 3px 0 #a8321f, -2px -2px 0 #15110d; white-space: nowrap">{{num}}</div>
+      </sc-if>
+    </div>
+    <div style="position: absolute; left: 20px; top: 16px; width: 400px; display: flex; gap: 12px; align-items: center; padding: 10px 12px; background: rgba(21,17,13,.86); border: 1px solid #3a2c20">
+      <div class="fg" style="width: 52px; height: 52px; flex: none"></div>
+      <div style="flex: 1; min-width: 0">
+        <div style="font: 700 17px 'Noto Serif', serif; color: #f3e6cc; white-space: nowrap">Quan Vũ</div>
+        <div style="height: 10px; margin-top: 6px; background: #2a1f16"><div class="hp" style="width: {{gHp}}%"></div></div>
+      </div>
+    </div>
+    <div style="position: absolute; right: 20px; top: 16px; width: 400px; display: flex; flex-direction: row-reverse; gap: 12px; align-items: center; padding: 10px 12px; background: rgba(21,17,13,.86); border: 1px solid #3a2c20">
+      <div class="fz" style="width: 52px; height: 52px; flex: none"></div>
+      <div style="flex: 1; min-width: 0; text-align: right">
+        <div style="font: 700 17px 'Noto Serif', serif; color: #f3e6cc; white-space: nowrap">Trương Phi</div>
+        <div style="height: 10px; margin-top: 6px; background: #2a1f16; display: flex; justify-content: flex-end"><div class="hp" style="width: {{zHp}}%"></div></div>
+      </div>
+    </div>
+  </div>
+  <div style="position: absolute; left: 0; bottom: 0; width: 1280px; height: 72px; box-sizing: border-box; padding: 0 20px; display: flex; gap: 10px; align-items: center; background: #1d1611; border-top: 1px solid #3a2c20">
+    <div style="flex: 1; font-size: 14px; color: #b9aa8c; white-space: nowrap">{{log}}</div>
+    <button class="btn {{s1}}" onClick="{{sp1}}">Tốc độ thường</button>
+    <button class="btn {{s2}}" onClick="{{sp2}}">Xem chậm</button>
+    <button class="btn" onClick="{{reset}}">Đấu lại</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.V = 300; this.STEP = 28; this.REACH = 300; this.FLOOR = 610;
+    this.T = [.07, .08, .13, .06, .05, .1, .1, .12];
+    this.state = { slow: false, n: 0 };
+    this.init();
+  }
+  init() {
+    this.g = { name: 'Quan Vũ', x: 310, home: 310, dir: 1, S: 2.85, atk: [12, 14, 16, 16, 15, 17, 18, 19], fr: 0, hp: 100, flash: 0, hit: -1, kb: 0, back: false, dist: 0 };
+    this.z = { name: 'Trương Phi', x: 970, home: 970, dir: -1, S: 3.15, atk: [12, 13, 14, 15, 16, 17, 18, 19], fr: 0, hp: 100, flash: 0, hit: -1, kb: 0, back: false, dist: 0 };
+    this.a = this.g; this.d = this.z; this.ph = 'idle'; this.pt = 0; this.it = 0; this.stop = 0; this.sh = 0; this.sl = -1; this.num = null; this.log = 'Hai tướng thủ thế.';
+  }
+  componentDidMount() { this.last = performance.now(); const loop = (t) => { this.frame(t); this.raf = requestAnimationFrame(loop); }; this.raf = requestAnimationFrame(loop); }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  frame(t) {
+    let dt = Math.min(.05, (t - this.last) / 1000); this.last = t;
+    if (this.state.slow) dt *= .3;
+    this.sh = Math.max(0, this.sh - dt * 4.5);
+    if (this.num) { this.num.t += dt; if (this.num.t > 1) this.num = null; }
+    if (this.sl >= 0) { this.sl += dt * 30; if (this.sl >= 24) this.sl = -1; }
+    [this.g, this.z].forEach((f) => { f.flash = Math.max(0, f.flash - dt); });
+    if (this.stop > 0) this.stop -= dt; else this.step(dt);
+    this.setState({ n: this.state.n + 1 });
+  }
+  idle(f, dt) { f.fr = [0, 1, 2, 3][Math.floor(this.it / .26) % 4]; }
+  walk(f, dist, reverse) { f.dist += dist; const i = Math.floor(f.dist / this.STEP) % 8; f.fr = 4 + (reverse ? 7 - i : i); }
+  defender(f, dt) {
+    if (f.hit >= 0) {
+      f.hit += dt; const k = Math.min(1, f.hit / .42);
+      f.x += -f.dir * f.kb * (1 - k) * dt;
+      f.fr = f.hit < .16 ? 20 : f.hit < .34 ? 21 : 22;
+      if (f.hit > .56) { f.hit = -1; if (f.hp <= 0) { f.fr = 23; return; } f.back = true; }
+      return;
+    }
+    if (f.back) {
+      const d = f.home - f.x, s = this.V * .7 * dt;
+      if (Math.abs(d) <= s) { f.x = f.home; f.back = false; } else { f.x += Math.sign(d) * s; this.walk(f, s, true); return; }
+    }
+    if (f.hp > 0) this.idle(f, dt);
+  }
+  step(dt) {
+    this.it += dt; this.pt += dt;
+    const a = this.a, d = this.d;
+    if (this.ph === 'idle') { this.idle(a, dt); this.defender(d, dt);
+      if (this.pt > .8 && !d.back) { this.ph = 'go'; this.pt = 0; this.log = a.name + ' tiến lên.'; } return; }
+    if (this.ph === 'go') { this.defender(d, dt); const s = this.V * dt; a.x += a.dir * s; this.walk(a, s);
+      if (Math.abs(a.x - d.x) <= this.REACH) { this.ph = 'hit'; this.pt = 0; this.x0 = a.x; this.done = false; this.log = a.name + ' vung vũ khí.'; } return; }
+    if (this.ph === 'hit') {
+      this.defender(d, dt);
+      let i = 0, acc = 0; while (i < 7 && this.pt >= acc + this.T[i]) { acc += this.T[i]; i++; }
+      a.fr = a.atk[i];
+      const t0 = .34, t1 = .44, k = Math.max(0, Math.min(1, (this.pt - t0) / (t1 - t0)));
+      a.x = this.x0 + a.dir * 58 * (k * k * (3 - 2 * k));
+      if (i >= 5 && !this.done) this.impact();
+      if (this.pt >= .71) { this.ph = 'away'; this.pt = 0; }
+      return;
+    }
+    if (this.ph === 'away') { this.defender(d, dt);
+      if (this.pt < .16) { this.idle(a, dt); return; }
+      const r = a.home - a.x, s = this.V * .85 * dt;
+      if (Math.abs(r) <= s) { a.x = a.home;
+        if (d.hp <= 0 && d.hit < 0) { this.ph = 'ko'; this.pt = 0; this.log = d.name + ' khuỵu xuống. Hết trận.'; return; }
+        if (d.hit < 0 && !d.back) { this.a = d; this.d = a; this.ph = 'idle'; this.pt = 0; }
+        else this.idle(a, dt);
+      } else { a.x += Math.sign(r) * s; this.walk(a, s, true); }
+      return;
+    }
+    if (this.ph === 'ko') { this.idle(a, dt); d.fr = 23; if (this.pt > 2.4) this.init(); }
+  }
+  impact() {
+    const a = this.a, d = this.d; this.done = true;
+    const crit = Math.random() < .3, v = (16 + Math.round(Math.random() * 12)) * (crit ? 2 : 1);
+    d.hp = Math.max(0, d.hp - v); d.hit = 0; d.kb = 340; d.flash = .09; d.fr = 20;
+    this.stop = .1; this.sh = 1; this.sl = 0; this.slx = a.x + a.dir * 120; this.sdir = a.dir;
+    this.num = { v: (crit ? 'Chí mạng -' : '-') + v, x: d.x - 40, t: 0 };
+    this.log = d.name + ' trúng đòn, mất ' + v + ' sinh lực.';
+  }
+  renderVals() {
+    const g = this.g, z = this.z, F = this.FLOOR, s = this.state;
+    const bob = (f) => (f.fr >= 4 && f.fr <= 11) ? -Math.abs(Math.sin(f.dist / (this.STEP * 4) * Math.PI)) * 7 : 0;
+    const T = (f) => `translate3d(${f.x - 170}px, ${F - 170 + bob(f)}px, 0) scale(${f.dir * f.S}, ${f.S})`;
+    const Sh = (f) => `translate3d(${Math.round(f.x - 95)}px, ${F - 14}px, 0)`;
+    const sk = this.sh, sl = Math.max(0, Math.floor(this.sl));
+    const ox = Math.round(Math.sin(this.last / 21) * 11 * sk), oy = Math.round(Math.cos(this.last / 17) * 8 * sk);
+    const n = this.num;
+    return {
+      gT: T(g), zT: T(z), gS: Sh(g), zS: Sh(z), gP: `-${g.fr * 340}px 0`, zP: `-${z.fr * 340}px 0`,
+      gF: g.flash > 0 ? 'brightness(2.6)' : 'none', zF: z.flash > 0 ? 'brightness(2.6)' : 'none',
+      shake: `translate3d(${ox}px, ${oy}px, 0)`,
+      showSlash: this.sl >= 0, sT: `translate3d(${Math.round((this.slx || 0) - 44)}px, ${F - 260}px, 0) scale(${(this.sdir || 1) * 3}, 3)`,
+      sP: `-${(sl % 5) * 136}px -${Math.floor(sl / 5) * 104}px`,
+      showNum: !!n, num: n ? n.v : '', nT: n ? `translate3d(${Math.round(n.x)}px, ${Math.round(300 - n.t * 70)}px, 0)` : 'none', nO: n ? Math.min(1, (1 - n.t) * 2.2) : 0,
+      gHp: g.hp, zHp: z.hp, log: this.log, s1: s.slow ? '' : 'on', s2: s.slow ? 'on' : '',
+      sp1: () => this.setState({ slow: false }), sp2: () => this.setState({ slow: true }), reset: () => this.init()
+    };
+  }
+}
+</script>
+</body>
+</html>
