@@ -275,6 +275,7 @@
 
             <!-- ===== WebView2 Scene Overlay ===== -->
             <scenes:SceneOverlayControl x:Name="SceneOverlay" Grid.Column="1" Panel.ZIndex="15" Visibility="Collapsed" />
+            <controls:GameDebugOverlayControl x:Name="DebugOverlay" Grid.Column="1" Panel.ZIndex="99" Visibility="Collapsed" />
 
             <!-- ===== Inspector: overlays the page ===== -->
             <Border x:Name="InspectorScrim" Grid.Column="1" Panel.ZIndex="19" Visibility="Collapsed"

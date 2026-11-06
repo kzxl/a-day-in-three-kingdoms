@@ -63,6 +63,7 @@ public partial class MainWindow : Window
         UpdateHeader();
         _loaded = true;
         RenderSelected();
+        Loaded += (_, _) => { var sw = System.Diagnostics.Stopwatch.StartNew(); var lastT = 0.0; CompositionTarget.Rendering += (_, _) => { var curT = sw.Elapsed.TotalSeconds; var dt = curT - lastT; lastT = curT; if (DebugOverlay.Visibility == Visibility.Visible) { DebugOverlay.Diagnostics.BeginFrame(); DebugOverlay.Diagnostics.EndFrame(dt); DebugOverlay.Refresh(dt); } }; };
     }
 
     // ---------------------------------------------------------------- rail
@@ -406,6 +407,10 @@ public partial class MainWindow : Window
 
         switch (e.Key)
         {
+            case System.Windows.Input.Key.F3:
+                DebugOverlay.ToggleVisibility();
+                e.Handled = true;
+                break;
             case System.Windows.Input.Key.Space:
                 _ = AdvanceAsync(1);
                 e.Handled = true;
