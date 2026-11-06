@@ -1,12 +1,12 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using SimT.Contracts.Diagnostics;
+using SimT.Contracts.Primitives;
 
 namespace SimT.Core.Diagnostics;
 
 /// <summary>
 /// Sovereign high-resolution diagnostics profiler.
-/// Measures operation latencies with low allocation overhead using high-frequency timestamps.
+/// Measures operation latencies with low allocation overhead using high-frequency timestamps and ValueStopwatch.
 /// </summary>
 public sealed class EngineProfiler : IEngineProfiler
 {
@@ -47,8 +47,8 @@ public sealed class EngineProfiler : IEngineProfiler
             long totalTicks = Volatile.Read(ref _totalStopwatchTicks);
             long maxTicks = Volatile.Read(ref _maxStopwatchTicks);
 
-            double totalMs = (double)totalTicks / Stopwatch.Frequency * 1000.0;
-            double maxMs = (double)maxTicks / Stopwatch.Frequency * 1000.0;
+            double totalMs = TimeSpan.FromTicks(totalTicks).TotalMilliseconds;
+            double maxMs = TimeSpan.FromTicks(maxTicks).TotalMilliseconds;
             double avgMs = count > 0 ? totalMs / count : 0.0;
 
             return new ProfileMetricSnapshot(Category, Operation, count, totalMs, maxMs, avgMs);
@@ -88,13 +88,13 @@ public sealed class EngineProfiler : IEngineProfiler
     private sealed class ProfilerScope : IDisposable
     {
         private readonly OperationTracker _tracker;
-        private readonly long _startTicks;
+        private readonly ValueStopwatch _stopwatch;
         private bool _disposed;
 
         public ProfilerScope(OperationTracker tracker)
         {
             _tracker = tracker;
-            _startTicks = Stopwatch.GetTimestamp();
+            _stopwatch = ValueStopwatch.StartNew();
         }
 
         public void Dispose()
@@ -102,8 +102,7 @@ public sealed class EngineProfiler : IEngineProfiler
             if (!_disposed)
             {
                 _disposed = true;
-                long elapsed = Stopwatch.GetTimestamp() - _startTicks;
-                _tracker.Record(elapsed);
+                _tracker.Record(_stopwatch.GetElapsedTime().Ticks);
             }
         }
     }

@@ -1,5 +1,5 @@
-using System.Globalization;
 using SimT.Contracts.Narrative;
+using SimT.Contracts.Primitives;
 
 namespace SimT.Core.Narrative;
 
@@ -108,8 +108,11 @@ public sealed class EventDeckEngine : IEventDeckEngine
             };
         }
 
-        if (TryCompareNumeric(actualVal, targetVal, out double actualNum, out double targetNum))
+        if (IsNumericType(actualVal) && IsNumericType(targetVal))
         {
+            double actualNum = FastConvert.AsDouble(actualVal);
+            double targetNum = FastConvert.AsDouble(targetVal);
+
             return condition.Operator switch
             {
                 ConditionOperator.Equals => Math.Abs(actualNum - targetNum) < 0.0001,
@@ -122,8 +125,8 @@ public sealed class EventDeckEngine : IEventDeckEngine
             };
         }
 
-        string actualStr = actualVal.ToString() ?? string.Empty;
-        string targetStr = targetVal.ToString() ?? string.Empty;
+        string actualStr = FastConvert.AsString(actualVal);
+        string targetStr = FastConvert.AsString(targetVal);
 
         return condition.Operator switch
         {
@@ -134,36 +137,10 @@ public sealed class EventDeckEngine : IEventDeckEngine
         };
     }
 
-    private static bool TryCompareNumeric(object a, object b, out double numA, out double numB)
+    private static bool IsNumericType(object val) => val switch
     {
-        if (TryToDouble(a, out numA) && TryToDouble(b, out numB))
-        {
-            return true;
-        }
-        numA = 0;
-        numB = 0;
-        return false;
-    }
-
-    private static bool TryToDouble(object val, out double result)
-    {
-        switch (val)
-        {
-            case sbyte sb: result = sb; return true;
-            case byte b: result = b; return true;
-            case short s: result = s; return true;
-            case ushort us: result = us; return true;
-            case int i: result = i; return true;
-            case uint ui: result = ui; return true;
-            case long l: result = l; return true;
-            case ulong ul: result = ul; return true;
-            case float f: result = f; return true;
-            case double d: result = d; return true;
-            case decimal dec: result = (double)dec; return true;
-            case string str: return double.TryParse(str, NumberStyles.Any, CultureInfo.InvariantCulture, out result);
-            default:
-                result = 0;
-                return false;
-        }
-    }
+        sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal => true,
+        string str => double.TryParse(str, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _),
+        _ => false
+    };
 }
