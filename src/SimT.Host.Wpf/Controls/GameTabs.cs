@@ -27,7 +27,7 @@ public sealed class GameTabs : Border
 
     public event Action<int, GameTabItem>? SelectionChanged;
 
-    public GameTabs()
+    public GameTabs(IEnumerable<GameTabItem> items, int selectedIndex = 0)
     {
         BorderBrush = BarBorderBrush;
         BorderThickness = new Thickness(0, 0, 0, 1);
@@ -35,11 +35,10 @@ public sealed class GameTabs : Border
 
         _strip = new WrapPanel { Orientation = Orientation.Horizontal };
         Child = _strip;
-    }
 
-    public GameTabs(IEnumerable<GameTabItem> items, int selectedIndex = 0) : this()
-    {
-        SetTabs(items, selectedIndex);
+        _items.AddRange(items);
+        _selectedIndex = Math.Clamp(selectedIndex, 0, Math.Max(0, _items.Count - 1));
+        RebuildVisuals();
     }
 
     public int SelectedIndex
@@ -51,27 +50,6 @@ public sealed class GameTabs : Border
     public GameTabItem? SelectedTab =>
         _selectedIndex >= 0 && _selectedIndex < _items.Count ? _items[_selectedIndex] : null;
 
-    public void SetTabs(IEnumerable<GameTabItem> items, int selectedIndex = 0)
-    {
-        var newItems = items as IList<GameTabItem> ?? items.ToList();
-
-        if (AreTabsEquivalent(_items, newItems))
-        {
-            var clamped = Math.Clamp(selectedIndex, 0, Math.Max(0, _items.Count - 1));
-            if (_selectedIndex != clamped)
-            {
-                _selectedIndex = clamped;
-                UpdateVisualStyles();
-            }
-            return;
-        }
-
-        _items.Clear();
-        _items.AddRange(newItems);
-        _selectedIndex = Math.Clamp(selectedIndex, 0, Math.Max(0, _items.Count - 1));
-        RebuildVisuals();
-    }
-
     public void SelectIndex(int index, bool notify = true)
     {
         if (index < 0 || index >= _items.Count) return;
@@ -82,21 +60,6 @@ public sealed class GameTabs : Border
         {
             SelectionChanged?.Invoke(_selectedIndex, _items[_selectedIndex]);
         }
-    }
-
-    private static bool AreTabsEquivalent(List<GameTabItem> current, IList<GameTabItem> next)
-    {
-        if (current.Count != next.Count) return false;
-        for (var i = 0; i < current.Count; i++)
-        {
-            if (current[i].Key != next[i].Key ||
-                current[i].Title != next[i].Title ||
-                current[i].Count != next[i].Count)
-            {
-                return false;
-            }
-        }
-        return true;
     }
 
     private void UpdateVisualStyles()

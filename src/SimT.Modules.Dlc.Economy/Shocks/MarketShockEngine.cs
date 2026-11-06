@@ -128,6 +128,8 @@ public sealed class MarketShockEngine
         };
     }
 
+    private bool _hasRumorTable;
+
     /// <summary>
     /// Arbitrage Radar: Scans all connected citadels and identifies top trade routes by profit margin.
     /// </summary>
@@ -135,26 +137,57 @@ public sealed class MarketShockEngine
         IWorldMap map,
         IItemCatalog items,
         IMarketTrade trade,
-        int maxResults = 5)
+        int maxResults = 5,
+        GameDate? today = null)
     {
         var citadels = map.Citadels;
         var goods = items.All;
+        var cityCount = citadels.Count;
+        var itemCount = goods.Count;
+        var buyPrices = new long[cityCount, itemCount];
+        var sellPrices = new long[cityCount, itemCount];
+
+        if (trade is MarketService && today is { } currentDate)
+        {
+            PopulateBulkQuotes(citadels, goods, currentDate, buyPrices, sellPrices);
+        }
+        else
+        {
+            var isDefaultMarket = trade is MarketService;
+            for (var c = 0; c < cityCount; c++)
+            {
+                var citadelId = citadels[c].Id;
+                for (var i = 0; i < itemCount; i++)
+                {
+                    var itemId = goods[i].Id;
+                    var buy = trade.QuoteBuy(citadelId, itemId);
+                    buyPrices[c, i] = buy;
+                    sellPrices[c, i] = isDefaultMarket
+                        ? MarketPricing.SellQuote(buy)
+                        : trade.QuoteSell(citadelId, itemId);
+                }
+            }
+        }
+
         var list = new List<ArbitrageOpportunity>();
 
-        foreach (var source in citadels)
+        for (var s = 0; s < cityCount; s++)
         {
-            foreach (var target in citadels)
+            var source = citadels[s];
+            for (var t = 0; t < cityCount; t++)
             {
-                if (source.Id == target.Id) continue;
+                if (s == t) continue;
+                var target = citadels[t];
 
-                foreach (var item in goods)
+                for (var i = 0; i < itemCount; i++)
                 {
-                    var buyAtSource = trade.QuoteBuy(source.Id, item.Id);
-                    var sellAtTarget = trade.QuoteSell(target.Id, item.Id);
+                    var buyAtSource = buyPrices[s, i];
+                    var sellAtTarget = sellPrices[t, i];
                     var profit = sellAtTarget - buyAtSource;
 
                     if (buyAtSource > 0 && profit > 4)
                     {
+                        var item = goods[i];
                         var margin = (int)((profit * 100) / buyAtSource);
                         var advice = margin >= 50
                             ? "🔥 Cơ hội ngàn vàng: Biên lợi nhuận béo bở!"
@@ -181,5 +214,55 @@ public sealed class MarketShockEngine
                    .ThenByDescending(x => x.ProfitPerUnit)
                    .Take(maxResults)
                    .ToList();
+    }
+
+    private void PopulateBulkQuotes(
+        IReadOnlyList<CitadelDef> citadels,
+        IReadOnlyList<ItemDef> goods,
+        GameDate today,
+        long[,] buyPrices,
+        long[,] sellPrices)
+    {
+        var listings = new Dictionary<(long CityId, long ItemId), (int Stock, int Baseline)>();
+        var listingRows = _db.Query(
+            "SELECT citadel_id, item_id, COALESCE(stock, 0), COALESCE(baseline_stock, 40) FROM mk_stall_listing",
+            r => (City: r.GetInt64(0), Item: r.GetInt64(1), Stock: r.GetInt32(2), Baseline: r.GetInt32(3)));
+        foreach (var row in listingRows)
+            listings[(row.City, row.Item)] = (row.Stock, row.Baseline);
+
+        Dictionary<(long CityId, long ItemId), int>? rumors = null;
+        if (_hasRumorTable || _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='cv_market_rumor'") > 0)
+        {
+            _hasRumorTable = true;
+            var rumorRows = _db.Query(
+                "SELECT citadel_id, item_id, price_mult_permille FROM cv_market_rumor WHERE is_active = 1 AND start_day <= @day AND end_day >= @day ORDER BY id ASC",
+                r => (City: r.GetInt64(0), Item: r.GetInt64(1), Mult: r.GetInt32(2)),
+                DbArgs.One("@day", today.DayIndex));
+            if (rumorRows.Count > 0)
+            {
+                rumors = new Dictionary<(long CityId, long ItemId), int>();
+                foreach (var r in rumorRows)
+                {
+                    if (r.Mult > 0)
+                        rumors[(r.City, r.Item)] = r.Mult;
+                }
+            }
+        }
+
+        var month = today.Month;
+        for (var c = 0; c < citadels.Count; c++)
+        {
+            var citadel = citadels[c];
+            for (var i = 0; i < goods.Count; i++)
+            {
+                var item = goods[i];
+                var (stock, baseline) = listings.TryGetValue((citadel.Id, item.Id), out var sb) ? sb : (0, 40);
+                var baseQuote = MarketPricing.Quote(item, citadel, month, stock, baseline);
+                var factor = rumors is not null && rumors.TryGetValue((citadel.Id, item.Id), out var f) ? f : 1000;
+                var buy = factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
+                buyPrices[c, i] = buy;
+                sellPrices[c, i] = MarketPricing.SellQuote(buy);
+            }
+        }
     }
 }

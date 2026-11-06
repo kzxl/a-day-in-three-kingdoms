@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Threading;
 using SimT.Contracts.Playing;
+using SimT.Contracts.Scenes;
 using SimT.Contracts.Ui;
 using SimT.Host.Wpf.Controls;
 
@@ -8,6 +10,8 @@ namespace SimT.Host.Wpf;
 
 public partial class MainWindow
 {
+    private DispatcherOperation? _pendingNavOp;
+
     private void BuildStrategicRibbon()
     {
         var ribbonItems = new ObservableCollection<CommandRibbonItem>
@@ -95,24 +99,32 @@ public partial class MainWindow
         {
             var targetScreen = e.SubItem?.Id
                 ?? (_lastScreenPerGroup.TryGetValue(e.Item.Id, out var lastScreen) ? lastScreen : e.Item.Tag as string);
-            if (!string.IsNullOrEmpty(targetScreen))
-            {
-                SelectScreen(targetScreen);
-            }
-        };
+            if (string.IsNullOrEmpty(targetScreen)) return;
 
-        ScreenGroupTabs.SelectionChanged += (_, item) =>
-        {
-            if (!string.IsNullOrEmpty(item.Key) && item.Key != _screenId)
-            {
-                SelectScreen(item.Key);
-            }
+            _lastScreenPerGroup[e.Item.Id] = targetScreen;
+            StrategicRibbon.SelectedItemId = e.Item.Id;
+            StrategicRibbon.SelectedSubItemId = targetScreen;
+
+            _pendingNavOp?.Abort();
+            _pendingNavOp = null;
+
+            if (string.Equals(targetScreen, _screenId, StringComparison.Ordinal) &&
+                SceneOverlay.ActiveScene is not (TalkScene or DuelScene))
+                return;
+
+            _pendingNavOp = Dispatcher.BeginInvoke(
+                DispatcherPriority.Background,
+                new Action(() =>
+                {
+                    _pendingNavOp = null;
+                    SelectScreen(targetScreen);
+                }));
         };
     }
 
     public void SyncStrategicNavigation(string screenId)
     {
-        if (StrategicRibbon?.ItemsSource is null || ScreenGroupTabs is null) return;
+        if (StrategicRibbon?.ItemsSource is null) return;
 
         var activeGroup = StrategicRibbon.ItemsSource
             .FirstOrDefault(g => g.SubItems.Any(s => string.Equals(s.Id, screenId, StringComparison.Ordinal)))
@@ -121,14 +133,6 @@ public partial class MainWindow
         _lastScreenPerGroup[activeGroup.Id] = screenId;
         StrategicRibbon.SelectedItemId = activeGroup.Id;
         StrategicRibbon.SelectedSubItemId = screenId;
-
-        var tabs = activeGroup.SubItems
-            .Select(s => new GameTabItem(s.Id, s.Title))
-            .ToList();
-
-        int selectedIdx = tabs.FindIndex(t => string.Equals(t.Key, screenId, StringComparison.Ordinal));
-        if (selectedIdx < 0) selectedIdx = 0;
-        ScreenGroupTabs.SetTabs(tabs, selectedIdx);
     }
 
     private void RefreshBadges(bool force = false)

@@ -150,4 +150,51 @@ public sealed class AdvancedEconomyTests
         logistics.DeleteRoute(routes[0].Id);
         Assert.Empty(logistics.GetRoutes());
     }
+
+    [Fact]
+    public void ScanArbitrageCorridors_matches_individual_quotes_and_renders_bank_screen_under_20ms()
+    {
+        using var host = new DlcTestHost();
+        using var kernel = host.Boot();
+        var map = kernel.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
+        var items = kernel.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
+        var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
+        var shockEngine = new MarketShockEngine(kernel.Db);
+
+        // Verify bulk path (with today) and fallback path (without today) produce identical results
+        var bulkResult = shockEngine.ScanArbitrageCorridors(map, items, trade, 6, kernel.Today);
+        var fallbackResult = shockEngine.ScanArbitrageCorridors(map, items, trade, 6, today: null);
+        Assert.Equal(fallbackResult, bulkResult);
+
+        foreach (var opp in bulkResult)
+        {
+            var item = items.FindByCode(opp.ItemCode);
+            Assert.NotNull(item);
+            Assert.Equal(trade.QuoteBuy(opp.SourceCitadelId, item.Id), opp.BuyPriceAtSource);
+            Assert.Equal(trade.QuoteSell(opp.TargetCitadelId, item.Id), opp.SellPriceAtTarget);
+        }
+
+        // Warm up JIT once, then assert every screen renders under 20ms (including after advancing a day)
+        foreach (var screen in kernel.Ui.Screens)
+            _ = screen.Render();
+
+        kernel.AdvanceDays(1);
+
+        foreach (var screen in kernel.Ui.Screens)
+        {
+            var bestMs = double.MaxValue;
+            for (var run = 0; run < 3; run++)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var model = screen.Render();
+                sw.Stop();
+                Assert.NotNull(model);
+                if (sw.Elapsed.TotalMilliseconds < bestMs)
+                    bestMs = sw.Elapsed.TotalMilliseconds;
+            }
+            Assert.True(
+                bestMs < 20.0,
+                $"Expected {screen.ScreenId}.Render() < 20ms, actual {bestMs:F2}ms");
+        }
+    }
 }

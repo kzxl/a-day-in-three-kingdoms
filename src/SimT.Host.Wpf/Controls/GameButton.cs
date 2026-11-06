@@ -69,9 +69,11 @@ public sealed class GameButton : Button
     private static readonly Brush DangerFg = Freeze(new SolidColorBrush(Color.FromRgb(0xF2, 0xA4, 0x99)));
 
     private static readonly Brush AccentBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xC4, 0xA0, 0x62)));
+    private static readonly Dictionary<string, Geometry> IconGeometryCache = new(StringComparer.Ordinal);
 
     private readonly TranslateTransform _pressTransform = new(0, 0);
     private string _baseLabel = string.Empty;
+    private bool _isInitializing;
 
     public GameButton()
     {
@@ -84,7 +86,7 @@ public sealed class GameButton : Button
         RenderTransform = _pressTransform;
         SnapsToDevicePixels = true;
 
-        Loaded += (_, _) => ApplyVisualState();
+        ApplyVisualState();
         IsEnabledChanged += (_, _) => Opacity = IsEnabled ? 1.0 : 0.42;
     }
 
@@ -95,11 +97,13 @@ public sealed class GameButton : Button
         string? iconPathData = null,
         bool isCompact = false) : this()
     {
+        _isInitializing = true;
         _baseLabel = label;
         Variant = variant;
         CostText = costText;
         IconPathData = iconPathData;
         IsCompact = isCompact;
+        _isInitializing = false;
         RebuildInnerContent();
         ApplyVisualState();
     }
@@ -186,7 +190,7 @@ public sealed class GameButton : Button
 
     private static void OnVisualStatePropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is GameButton btn)
+        if (d is GameButton { _isInitializing: false } btn)
         {
             btn.RebuildInnerContent();
             btn.ApplyVisualState();
@@ -209,14 +213,18 @@ public sealed class GameButton : Button
 
         if (!string.IsNullOrWhiteSpace(IconPathData))
         {
-            Geometry geom;
-            try
+            if (!IconGeometryCache.TryGetValue(IconPathData, out var geom))
             {
-                geom = Geometry.Parse(IconPathData);
-            }
-            catch
-            {
-                geom = Geometry.Empty;
+                try
+                {
+                    geom = Geometry.Parse(IconPathData);
+                    geom.Freeze();
+                }
+                catch
+                {
+                    geom = Geometry.Empty;
+                }
+                IconGeometryCache[IconPathData] = geom;
             }
 
             var iconBrush = Variant == GameButtonVariant.Primary ? PrimaryFg : AccentBrush;

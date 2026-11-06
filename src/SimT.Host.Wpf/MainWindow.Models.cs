@@ -101,7 +101,9 @@ public partial class MainWindow
             SealHan = sealHan;
             Group = groupInfo.Name;
             GroupInfo = groupInfo;
-            IconGeometry = Geometry.Parse(iconPathData);
+            var geom = Geometry.Parse(iconPathData);
+            geom.Freeze();
+            IconGeometry = geom;
             groupInfo.Entries.Add(this);
         }
 
@@ -162,16 +164,14 @@ public partial class MainWindow
     /// <summary>Row shape the DataGrid binds to: cells, chip buttons and the model behind it.</summary>
     public sealed class RowVm
     {
-        public RowVm(ScreenSection section, ScreenRow row, MainWindow owner)
+        public RowVm(ScreenSection section, ScreenRow row, MainWindow? _ = null)
         {
             Section = section;
             Row = row;
             Cells = row.Cells.Select(CellVm.Create).ToArray();
             Chips = row.Commands
                 .Where(command => !command.RequiresQuantity)
-                .Select(command => new ChipVm(
-                    command,
-                    (Style)owner.FindResource(command.Kind == CommandKind.Danger ? "DangerButton" : "ChipButton")))
+                .Select(command => new ChipVm(command))
                 .ToList();
         }
 
@@ -184,7 +184,7 @@ public partial class MainWindow
         public IReadOnlyList<ChipVm> Chips { get; }
     }
 
-    public sealed record ChipVm(ScreenCommand Command, Style Style)
+    public sealed record ChipVm(ScreenCommand Command)
     {
         public string Id => Command.Id;
 

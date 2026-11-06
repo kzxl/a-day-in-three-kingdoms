@@ -120,7 +120,7 @@ window.addEventListener('message', (event) => {
 });
 
 window.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && (activeKind === 'talk' || activeKind === 'duel')) {
+  if (event.key === 'Escape' && activeKind !== 'none' && activeKind !== 'city') {
     event.preventDefault();
     SimTBridge.sendClose(activeSceneId);
   }

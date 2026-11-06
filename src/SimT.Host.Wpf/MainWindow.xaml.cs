@@ -261,6 +261,7 @@ public partial class MainWindow : Window
 
     public bool SelectScreen(string screenId)
     {
+        _pendingNavOp?.Abort(); _pendingNavOp = null;
         if (string.Equals(screenId, "finance.ledger", StringComparison.Ordinal))
             screenId = LedgerScreenId;
 
@@ -353,7 +354,10 @@ public partial class MainWindow : Window
                 }
                 break;
             case System.Windows.Input.Key.Escape:
-                CloseInspector(); e.Handled = true; break;
+                if (SceneOverlay.ActiveScene is MapScene or SocialScene or MarketScene or DossierScene) SelectScreen(CitySceneScreenId);
+                else if (SceneOverlay.ActiveScene is TalkScene or DuelScene) { SceneOverlay.HideScene(); RenderSelected(); }
+                else CloseInspector();
+                e.Handled = true; break;
             case >= System.Windows.Input.Key.D1 and <= System.Windows.Input.Key.D9:
                 var index = e.Key - System.Windows.Input.Key.D1;
                 if (index < NavList.Items.Count) { NavList.SelectedIndex = index; e.Handled = true; }

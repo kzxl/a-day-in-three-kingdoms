@@ -26,6 +26,14 @@ public sealed class GameTable : Grid
     private static readonly Brush CinnabarMark = Freeze(new(Color.FromRgb(0xA8, 0x32, 0x1F)));
     private static readonly Brush JadeBrush = Freeze(new(Color.FromRgb(0x3F, 0x6B, 0x55)));
     private static readonly Brush BronzeBrush = Freeze(new(Color.FromRgb(0xC4, 0xA0, 0x62)));
+    private static readonly Style RowContainerStyle = CreateRowContainerStyle();
+    private static readonly ControlTemplate FlatListTemplate = CreateFlatListTemplate();
+    private static readonly Geometry SortAscGeom = ParseFrozen("M4,14 L10,6 L16,14 Z");
+    private static readonly Geometry SortDescGeom = ParseFrozen("M4,6 L10,14 L16,6 Z");
+    private static readonly Geometry GainGeom = ParseFrozen("M4,13 L9,6 L14,13 Z");
+    private static readonly Geometry LossGeom = ParseFrozen("M4,6 L9,13 L14,6 Z");
+    private static readonly Geometry DotsGeom = ParseFrozen("M4,12 A1.5,1.5 0 1,0 4,12.1 M12,12 A1.5,1.5 0 1,0 12,12.1 M20,12 A1.5,1.5 0 1,0 20,12.1");
+    private static readonly Dictionary<string, Geometry> CategoryGeomCache = new(StringComparer.Ordinal);
 
     private readonly ScreenSection _section;
     private readonly List<RowVm> _allRows;
@@ -61,14 +69,21 @@ public sealed class GameTable : Grid
         {
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
-            MaxHeight = 440,
+            MaxHeight = _allRows.Count <= 16 ? double.PositiveInfinity : 440,
             HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            ItemContainerStyle = CreateRowContainerStyle()
+            ItemContainerStyle = RowContainerStyle
         };
-        ScrollViewer.SetHorizontalScrollBarVisibility(_listBox, ScrollBarVisibility.Disabled);
-        ScrollViewer.SetCanContentScroll(_listBox, true);
-        VirtualizingPanel.SetIsVirtualizing(_listBox, true);
-        VirtualizingPanel.SetVirtualizationMode(_listBox, VirtualizationMode.Recycling);
+        if (_allRows.Count <= 16)
+        {
+            _listBox.Template = FlatListTemplate;
+        }
+        else
+        {
+            ScrollViewer.SetHorizontalScrollBarVisibility(_listBox, ScrollBarVisibility.Disabled);
+            ScrollViewer.SetCanContentScroll(_listBox, true);
+            VirtualizingPanel.SetIsVirtualizing(_listBox, true);
+            VirtualizingPanel.SetVirtualizationMode(_listBox, VirtualizationMode.Recycling);
+        }
 
         _listBox.MouseDoubleClick += (_, _) =>
         {
@@ -95,11 +110,9 @@ public sealed class GameTable : Grid
             var isSorted = _sortColumn == colIdx;
             var btn = new Border
             {
-                Background = Brushes.Transparent,
-                BorderBrush = HeaderBorder,
+                Background = Brushes.Transparent, BorderBrush = HeaderBorder,
                 BorderThickness = new Thickness(0, 0, 0, 1),
-                Padding = new Thickness(colIdx == 0 ? 36 : 8, 6, 8, 6),
-                Cursor = Cursors.Hand
+                Padding = new Thickness(colIdx == 0 ? 36 : 8, 6, 8, 6), Cursor = Cursors.Hand
             };
 
             var stack = new StackPanel
@@ -109,24 +122,17 @@ public sealed class GameTable : Grid
             };
             stack.Children.Add(new TextBlock
             {
-                Text = _section.Columns[colIdx].ToUpperInvariant(),
-                FontSize = 10.5,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = isSorted ? HeaderActiveFg : HeaderFg,
-                VerticalAlignment = VerticalAlignment.Center
+                Text = _section.Columns[colIdx].ToUpperInvariant(), FontSize = 10.5, FontWeight = FontWeights.SemiBold,
+                Foreground = isSorted ? HeaderActiveFg : HeaderFg, VerticalAlignment = VerticalAlignment.Center
             });
 
             if (isSorted)
             {
                 stack.Children.Add(new Path
                 {
-                    Data = Geometry.Parse(_sortAscending ? "M4,14 L10,6 L16,14 Z" : "M4,6 L10,14 L16,6 Z"),
-                    Fill = HeaderActiveFg,
-                    Width = 8,
-                    Height = 8,
-                    Stretch = Stretch.Uniform,
-                    Margin = new Thickness(5, 0, 0, 0),
-                    VerticalAlignment = VerticalAlignment.Center
+                    Data = _sortAscending ? SortAscGeom : SortDescGeom, Fill = HeaderActiveFg,
+                    Width = 8, Height = 8, Stretch = Stretch.Uniform,
+                    Margin = new Thickness(5, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center
                 });
             }
 
@@ -175,29 +181,13 @@ public sealed class GameTable : Grid
         var baseBg = rowIndex % 2 == 0 ? RowEvenBg : RowOddBg;
         var card = new Border
         {
-            Background = baseBg,
-            BorderBrush = RowBorder,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(5),
-            MinHeight = 38,
-            Padding = new Thickness(6, 4, 8, 4),
-            Margin = new Thickness(0, 0, 0, 3),
-            SnapsToDevicePixels = true
+            Background = baseBg, BorderBrush = RowBorder, BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5), MinHeight = 38, Padding = new Thickness(6, 4, 8, 4),
+            Margin = new Thickness(0, 0, 0, 3), SnapsToDevicePixels = true
         };
 
         var rowGrid = new Grid();
         ApplyColumnLayout(rowGrid);
-
-        var selectBar = new Border
-        {
-            Width = 3,
-            CornerRadius = new CornerRadius(1.5),
-            Background = Brushes.Transparent,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new Thickness(0, 2, 0, 2)
-        };
-        SetColumn(selectBar, 0);
-        rowGrid.Children.Add(selectBar);
 
         for (var col = 0; col < _visibleColumns; col++)
         {
@@ -207,39 +197,52 @@ public sealed class GameTable : Grid
             rowGrid.Children.Add(cellElement);
         }
 
-        var actionsPanel = new StackPanel
+        Border? selectBar = null;
+        StackPanel? actionsPanel = null;
+        void EnsureInteractiveChrome(bool sel, bool hov)
         {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Visibility = Visibility.Hidden
-        };
-
-        if (_hasActions)
-        {
-            foreach (var chip in vm.Chips)
+            if (sel && selectBar is null)
             {
-                var variant = chip.Style == Application.Current.FindResource("PrimaryButton")
-                    ? GameButtonVariant.Primary
-                    : chip.Style == Application.Current.FindResource("DangerButton")
-                        ? GameButtonVariant.Danger
-                        : GameButtonVariant.Secondary;
-                var btn = new GameButton(chip.Label, variant, isCompact: true) { Tag = chip.Id, Margin = new Thickness(0, 0, 5, 0) };
-                btn.Click += (s, e) => { e.Handled = true; ActionClicked?.Invoke(s, e); };
-                actionsPanel.Children.Add(btn);
+                selectBar = new Border
+                {
+                    Width = 3, CornerRadius = new CornerRadius(1.5), Background = CinnabarMark,
+                    HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 2, 0, 2)
+                };
+                SetColumn(selectBar, 0);
+                rowGrid.Children.Add(selectBar);
+            }
+            if ((hov || sel) && actionsPanel is null && _hasActions && vm.Chips.Count > 0)
+            {
+                actionsPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                foreach (var chip in vm.Chips)
+                {
+                    var variant = chip.Command.Kind switch
+                    {
+                        CommandKind.Primary => GameButtonVariant.Primary,
+                        CommandKind.Danger => GameButtonVariant.Danger,
+                        _ => GameButtonVariant.Secondary
+                    };
+                    var btn = new GameButton(chip.Label, variant, isCompact: true) { Tag = chip.Id, Margin = new Thickness(0, 0, 5, 0) };
+                    btn.Click += (s, e) => { e.Handled = true; ActionClicked?.Invoke(s, e); };
+                    actionsPanel.Children.Add(btn);
+                }
+                SetColumn(actionsPanel, _visibleColumns);
+                rowGrid.Children.Add(actionsPanel);
             }
         }
-        SetColumn(actionsPanel, _visibleColumns);
-        rowGrid.Children.Add(actionsPanel);
 
-        var detailBtn = new GameButton(string.Empty, GameButtonVariant.Icon,
-            iconPathData: "M4,12 A1.5,1.5 0 1,0 4,12.1 M12,12 A1.5,1.5 0 1,0 12,12.1 M20,12 A1.5,1.5 0 1,0 20,12.1",
-            isCompact: true)
+        var detailBtn = new Border
         {
-            ToolTip = "Xem chi tiết dòng này (double-click hoặc Enter)",
-            HorizontalAlignment = HorizontalAlignment.Right
+            Width = 28, Height = 26, Background = HeaderBg, BorderBrush = HeaderBorder, BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4), Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center, ToolTip = "Xem chi tiết dòng này (double-click hoặc Enter)",
+            Child = new Path { Data = DotsGeom, Stroke = BronzeBrush, StrokeThickness = 1.5, Width = 11.5, Height = 11.5, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
         };
-        detailBtn.Click += (_, e) => { e.Handled = true; RowInspected?.Invoke(_section, vm.Row); };
+        detailBtn.MouseLeftButtonDown += (_, e) => { e.Handled = true; RowInspected?.Invoke(_section, vm.Row); };
         SetColumn(detailBtn, _visibleColumns + 1);
         rowGrid.Children.Add(detailBtn);
 
@@ -250,10 +253,11 @@ public sealed class GameTable : Grid
         {
             var sel = item.IsSelected;
             var hov = card.IsMouseOver;
+            if (hov || sel) EnsureInteractiveChrome(sel, hov);
             card.Background = sel ? RowSelectedBg : (hov ? RowHoverBg : baseBg);
             card.BorderBrush = hov || sel ? RowHoverBorder : RowBorder;
-            selectBar.Background = sel ? CinnabarMark : Brushes.Transparent;
-            actionsPanel.Visibility = (hov || sel) ? Visibility.Visible : Visibility.Hidden;
+            if (selectBar is not null) selectBar.Background = sel ? CinnabarMark : Brushes.Transparent;
+            if (actionsPanel is not null) actionsPanel.Visibility = (hov || sel) ? Visibility.Visible : Visibility.Hidden;
         }
 
         card.MouseEnter += (_, _) => SyncRowState();
@@ -265,71 +269,66 @@ public sealed class GameTable : Grid
 
     private UIElement BuildCellVisual(ScreenRow rawRow, CellVm cell, bool isFirstColumn)
     {
-        var host = new DockPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(isFirstColumn ? 8 : 6, 0, 6, 0) };
-        if (isFirstColumn)
+        var content = BuildCellContent(rawRow, cell);
+        if (!isFirstColumn)
         {
-            var leadIcon = BuildLeadingIcon(rawRow, cell.Text);
-            leadIcon.Margin = new Thickness(0, 0, 8, 0);
-            DockPanel.SetDock(leadIcon, Dock.Left);
-            host.Children.Add(leadIcon);
+            content.Margin = new Thickness(6, 0, 6, 0);
+            return content;
         }
 
+        var host = new DockPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 6, 0) };
+        var leadIcon = BuildLeadingIcon(rawRow, cell.Text);
+        leadIcon.Margin = new Thickness(0, 0, 8, 0);
+        DockPanel.SetDock(leadIcon, Dock.Left);
+        host.Children.Add(leadIcon);
+        host.Children.Add(content);
+        return host;
+    }
+
+    private static FrameworkElement BuildCellContent(ScreenRow rawRow, CellVm cell)
+    {
         if (cell.HasProgress)
-        {
-            host.Children.Add(new GameProgressBar(null, cell.ProgressValue, cell.ProgressMax, GameProgressTone.Stamina, compact: true) { Width = 108, HorizontalAlignment = HorizontalAlignment.Left });
-            return host;
-        }
+            return new GameProgressBar(null, cell.ProgressValue, cell.ProgressMax, GameProgressTone.Stamina, compact: true)
+            {
+                Width = 108, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center
+            };
 
         if (cell.IsBadge)
-        {
-            host.Children.Add(new Border
+            return new Border
             {
-                Background = cell.BadgeBackground,
-                BorderBrush = cell.BadgeBorder,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(6, 2, 6, 2),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Center,
+                Background = cell.BadgeBackground, BorderBrush = cell.BadgeBorder, BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 2, 6, 2),
+                HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center,
                 Child = new TextBlock { Text = cell.Text, Foreground = cell.BadgeForeground, FontSize = 11, FontWeight = FontWeights.SemiBold }
-            });
-            return host;
-        }
+            };
 
-        if (cell.IsNumeric || cell.Text.StartsWith('+') || cell.Text.StartsWith('−') || cell.Text.StartsWith('-'))
+        var isGain = cell.Text.StartsWith('+') || (cell.IsNumeric && cell.NumericValue > 0 && rawRow.Cells.Contains("thu"));
+        var isLoss = cell.Text.StartsWith('−') || cell.Text.StartsWith('-') || (cell.IsNumeric && cell.NumericValue < 0);
+        if (isGain || isLoss)
         {
             var numStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-            var isGain = cell.Text.StartsWith('+') || (cell.IsNumeric && cell.NumericValue > 0 && rawRow.Cells.Contains("thu"));
-            var isLoss = cell.Text.StartsWith('−') || cell.Text.StartsWith('-') || (cell.IsNumeric && cell.NumericValue < 0);
-            if (isGain || isLoss)
+            numStack.Children.Add(new Path
             {
-                numStack.Children.Add(new Path
-                {
-                    Data = Geometry.Parse(isGain ? "M4,13 L9,6 L14,13 Z" : "M4,6 L9,13 L14,6 Z"),
-                    Fill = isGain ? JadeBrush : CinnabarMark,
-                    Width = 7,
-                    Height = 7,
-                    Stretch = Stretch.Uniform,
-                    Margin = new Thickness(0, 0, 4, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                });
-            }
-
+                Data = isGain ? GainGeom : LossGeom, Fill = isGain ? JadeBrush : CinnabarMark,
+                Width = 7, Height = 7, Stretch = Stretch.Uniform,
+                Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center
+            });
             numStack.Children.Add(new TextBlock
             {
-                Text = cell.Text,
-                FontFamily = cell.FontFamily,
-                Foreground = isGain ? JadeBrush : (isLoss ? CinnabarMark : cell.TextForeground),
-                FontSize = 12.5,
-                TextAlignment = TextAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center
+                Text = cell.Text, FontFamily = cell.FontFamily,
+                Foreground = isGain ? JadeBrush : CinnabarMark,
+                FontSize = 12.5, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center
             });
-            host.Children.Add(numStack);
-            return host;
+            return numStack;
         }
 
-        host.Children.Add(new TextBlock { Text = cell.Text, FontFamily = cell.FontFamily, Foreground = cell.TextForeground, FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-        return host;
+        return new TextBlock
+        {
+            Text = cell.Text, FontFamily = cell.FontFamily, Foreground = cell.TextForeground, FontSize = 12.5,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextAlignment = cell.IsNumeric ? TextAlignment.Right : TextAlignment.Left,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
     }
 
     private static FrameworkElement BuildLeadingIcon(ScreenRow row, string firstCellText)
@@ -349,10 +348,14 @@ public sealed class GameTable : Grid
         if (isNpcRow || (!isItemRow && !string.IsNullOrWhiteSpace(row.IconHint) && row.IconHint.StartsWith("npc:", StringComparison.Ordinal)))
             return GamePortraitCard.BuildAvatarElement(row, 24);
 
+        var pathData = GameItemSlot.ResolveCategoryIconPath(firstCellText, row.IconHint);
+        if (!CategoryGeomCache.TryGetValue(pathData, out var geom))
+            CategoryGeomCache[pathData] = geom = ParseFrozen(pathData);
+
         return new Border
         {
             Width = 22, Height = 22, Background = HeaderBg, BorderBrush = HeaderBorder, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4),
-            Child = new Path { Data = Geometry.Parse(GameItemSlot.ResolveCategoryIconPath(firstCellText, row.IconHint)), Stroke = BronzeBrush, StrokeThickness = 1.4, Width = 12, Height = 12, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+            Child = new Path { Data = geom, Stroke = BronzeBrush, StrokeThickness = 1.4, Width = 12, Height = 12, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
         };
     }
 
@@ -382,5 +385,14 @@ public sealed class GameTable : Grid
         return style;
     }
 
+    private static ControlTemplate CreateFlatListTemplate()
+    {
+        var panel = new FrameworkElementFactory(typeof(StackPanel));
+        panel.SetValue(Panel.IsItemsHostProperty, true);
+        var template = new ControlTemplate(typeof(ListBox)) { VisualTree = panel };
+        template.Seal();
+        return template;
+    }
+    private static Geometry ParseFrozen(string data) { var g = Geometry.Parse(data); g.Freeze(); return g; }
     private static Brush Freeze(SolidColorBrush b) { b.Freeze(); return b; }
 }

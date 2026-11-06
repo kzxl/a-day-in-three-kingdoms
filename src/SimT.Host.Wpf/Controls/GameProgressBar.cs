@@ -50,13 +50,17 @@ public sealed class GameProgressBar : Grid
         GameProgressTone tone = GameProgressTone.Affection,
         bool compact = false)
     {
-        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var showHeader = !compact || !string.IsNullOrWhiteSpace(label);
+        if (showHeader)
+        {
+            RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        }
 
         _headerRow = new DockPanel
         {
             Margin = new Thickness(0, 0, 0, 3),
-            Visibility = compact && string.IsNullOrWhiteSpace(label) ? Visibility.Collapsed : Visibility.Visible
+            Visibility = showHeader ? Visibility.Visible : Visibility.Collapsed
         };
 
         _valueBlock = new TextBlock
@@ -78,14 +82,17 @@ public sealed class GameProgressBar : Grid
             TextTrimming = TextTrimming.CharacterEllipsis
         };
         _headerRow.Children.Add(_labelBlock);
-        SetRow(_headerRow, 0);
-        Children.Add(_headerRow);
+        if (showHeader)
+        {
+            SetRow(_headerRow, 0);
+            Children.Add(_headerRow);
+        }
 
         _canvas = new TickTrackCanvas
         {
             Height = compact ? 8 : 11
         };
-        SetRow(_canvas, 1);
+        if (showHeader) SetRow(_canvas, 1);
         Children.Add(_canvas);
 
         _tone = tone;

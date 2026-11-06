@@ -228,6 +228,7 @@ public sealed class GamePortraitCard : Border
             var bmp = new BitmapImage();
             bmp.BeginInit();
             bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.DecodePixelWidth = 96;
             bmp.UriSource = new Uri(fullPath, UriKind.Absolute);
             bmp.EndInit();
             bmp.Freeze();

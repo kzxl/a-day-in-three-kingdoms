@@ -30,7 +30,6 @@ public partial class MainWindow
         {
             _detailKey = null;
             _selectedSectionTab = 0;
-            SceneOverlay.HideScene();
         }
 
         _screenId = entry.ScreenId;
@@ -40,31 +39,31 @@ public partial class MainWindow
 
         if (entry.ScreenId == CitySceneScreenId) { RenderCityScene(); RefreshBadges(); return; }
         if (entry.ScreenId == CityHubScreenId) { RenderCityHub(); RefreshBadges(); return; }
-        if (entry.ScreenId == LedgerScreenId) { RenderLedger(); RefreshBadges(); AnimatePageTransition(); return; }
+        if (entry.ScreenId == LedgerScreenId) { SceneOverlay.HideScene(); RenderLedger(); RefreshBadges(); AnimatePageTransition(); return; }
         if (entry.ScreenId == "society.chronicle") { RenderChronicle(); RefreshBadges(); AnimatePageTransition(); return; }
 
         var contribution = _kernel.Ui.Screens.FirstOrDefault(screen => screen.ScreenId == entry.ScreenId);
         if (contribution is null)
         {
-            ScreenTitle.Text = entry.Title;
-            ScreenStatus.Text = "Module cung cấp màn hình này đang tắt.";
-            UpdateRecommendationBanner(null);
-            KpiStrip.Children.Clear();
-            AlertFeed.ItemsSource = null;
-            GlobalCommands.Children.Clear();
-            ContentPanel.Children.Clear();
+            SceneOverlay.HideScene();
+            ClearWpfPageContent(entry.Title, "Module cung cấp màn hình này đang tắt.");
             return;
         }
 
+        if (TryOpenFeatureScene(entry.ScreenId))
+        {
+            ClearWpfPageContent(entry.Title);
+            RefreshBadges();
+            return;
+        }
+
+        SceneOverlay.HideScene();
         var model = contribution.Render();
         UpdateRecommendationBanner(model.Recommendation);
 
         if (entry.ScreenId == "world.map")
         {
             RenderWorldMapScreen(model);
-            TryOpenMapScene(model.Recommendation);
-            RefreshBadges();
-            AnimatePageTransition();
             return;
         }
 
@@ -83,13 +82,6 @@ public partial class MainWindow
             AnimatePageTransition();
             return;
         }
-
-        if (entry.ScreenId == "social.network")
-            TryOpenSocialScene(model.Recommendation);
-        else if (entry.ScreenId == "market.stall")
-            TryOpenMarketScene(model.Recommendation);
-        else if (entry.ScreenId == "npc.directory")
-            TryOpenDossierScene(model.Recommendation);
 
         ScreenTitle.Text = model.Title;
         ScreenStatus.Text = model.StatusLine;
@@ -138,17 +130,36 @@ public partial class MainWindow
             ContentPanel.Children.Add(tabs);
         }
 
+        var immediateLimit = (_selectedSectionTab == 0 && !_isSmoke && _detailKey is null) ? 3 : model.Sections.Count;
+        var deferredSections = new List<ScreenSection>();
         for (var i = 0; i < model.Sections.Count; i++)
         {
             if (_selectedSectionTab > 0 && _selectedSectionTab - 1 != i)
                 continue;
-            ContentPanel.Children.Add(BuildCard(Filtered(model.Sections[i])));
+            if (i < immediateLimit)
+                ContentPanel.Children.Add(BuildCard(Filtered(model.Sections[i])));
+            else
+                deferredSections.Add(model.Sections[i]);
         }
 
         if (model.Sections.Count == 0)
             ContentPanel.Children.Add(EmptyState(model.StatusLine));
 
-        ContentPanel.Children.Add(MonthFooter());
+        var footer = MonthFooter();
+        ContentPanel.Children.Add(footer);
+        if (deferredSections.Count > 0)
+        {
+            var expectedScreen = _screenId;
+            var expectedTab = _selectedSectionTab;
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, new Action(() =>
+            {
+                if (_screenId != expectedScreen || _selectedSectionTab != expectedTab) return;
+                var insertIdx = ContentPanel.Children.IndexOf(footer);
+                if (insertIdx < 0) insertIdx = ContentPanel.Children.Count;
+                foreach (var sec in deferredSections)
+                    ContentPanel.Children.Insert(insertIdx++, BuildCard(Filtered(sec)));
+            }));
+        }
         RestoreDetail(model);
         RefreshBadges();
         AnimatePageTransition();
@@ -166,6 +177,20 @@ public partial class MainWindow
         };
         PageTransform.BeginAnimation(TranslateTransform.YProperty, animTranslate);
         PageRoot.BeginAnimation(OpacityProperty, animOpacity);
+    }
+
+    private void ClearWpfPageContent(string title, string status = "")
+    {
+        ScreenTitle.Text = title;
+        ScreenStatus.Text = status;
+        UpdateRecommendationBanner(null);
+        KpiStrip.Children.Clear();
+        AlertFeed.ItemsSource = null;
+        GlobalCommands.Children.Clear();
+        FilterBox.Visibility = Visibility.Collapsed;
+        FilterHint.Visibility = Visibility.Collapsed;
+        ContentPanel.Children.Clear();
+        CloseInspector();
     }
 
     private void UpdateRecommendationBanner(string? recommendation)
@@ -236,11 +261,8 @@ public partial class MainWindow
         {
             Tag = id,
             Margin = new Thickness(0, 0, 8, 0),
-            ToolTip = command.Cost is null
-                ? null
-                : new GameRichTooltip(command.Label, $"Chi phí: {command.Cost}")
+            ToolTip = command.Cost is null ? null : new GameRichTooltip(command.Label, $"Chi phí: {command.Cost}")
         };
-
         button.Click += RowCommand_Click;
         return button;
     }
@@ -250,13 +272,6 @@ public partial class MainWindow
         CommandKind.Primary => GameButtonVariant.Primary,
         CommandKind.Danger => GameButtonVariant.Danger,
         _ => GameButtonVariant.Secondary
-    };
-
-    private string StyleFor(CommandKind kind) => kind switch
-    {
-        CommandKind.Primary => "PrimaryButton",
-        CommandKind.Danger => "DangerButton",
-        _ => "GhostButton"
     };
 
     private ScreenSection Filtered(ScreenSection section)

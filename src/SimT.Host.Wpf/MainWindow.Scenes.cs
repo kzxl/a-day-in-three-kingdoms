@@ -18,8 +18,8 @@ public partial class MainWindow
             {
                 if (string.Equals(_screenId, CitySceneScreenId, StringComparison.Ordinal))
                     TryOpenCityScene();
-                else
-                    TryOpenFeatureSceneForCurrentScreen();
+                else if (TryOpenFeatureScene(_screenId))
+                    ClearWpfPageContent(ScreenTitle.Text);
             }
         };
     }

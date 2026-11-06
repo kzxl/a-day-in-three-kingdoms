@@ -15,6 +15,8 @@ public sealed class BankScreen : IScreenContribution
     private readonly IPlayerState _player;
     private readonly IWallet _wallet;
     private readonly IGameClock _clock;
+    private long _cachedRadarDay = -1;
+    private IReadOnlyList<ScreenRow>? _cachedRadarRows;
 
     public BankScreen(
         BankingService banking,
@@ -108,34 +110,41 @@ public sealed class BankScreen : IScreenContribution
 
         sections.Add(new ScreenSection($"📜 Ngân Phiếu Đang Sở Hữu ({drafts.Count} phiếu lưu thông)", draftColumns, draftRows));
 
-        // 2. Arbitrage Intelligence Radar
-        var arbitrage = _shocks.ScanArbitrageCorridors(_map, _items, _trade, 6);
-        var radarColumns = new[] { "Hàng Hóa", "Thành Xuất Xứ (Giá Mua)", "Thành Tiêu Thụ (Giá Bán)", "Lợi Nhuận/Đvị", "Biên Lợi Nhuận", "Khuyến Nghị" };
-        var radarRows = new List<ScreenRow>();
-        foreach (var opp in arbitrage)
+        // 2. Arbitrage Intelligence Radar (computed once per game day)
+        var todayIndex = _clock.Today.DayIndex;
+        if (_cachedRadarRows is null || _cachedRadarDay != todayIndex)
         {
-            radarRows.Add(new ScreenRow(
-                [
-                    opp.ItemNameVi,
-                    $"{opp.SourceCitadelName} ({opp.BuyPriceAtSource}q)",
-                    $"{opp.TargetCitadelName} ({opp.SellPriceAtTarget}q)",
-                    $"+{opp.ProfitPerUnit:N0} quan",
-                    $"+{opp.ProfitMarginPercent}%",
-                    opp.StrategicAdvice
-                ],
-                [],
-                Title: $"{opp.ItemNameVi}: {opp.SourceCitadelName} ➔ {opp.TargetCitadelName}",
-                Details:
-                [
-                    new ScreenDetail("Mặt hàng", opp.ItemNameVi),
-                    new ScreenDetail("Thành thu mua giá rẻ", $"{opp.SourceCitadelName} (Giá: {opp.BuyPriceAtSource} Quan)"),
-                    new ScreenDetail("Thành tiêu thụ giá cao", $"{opp.TargetCitadelName} (Giá: {opp.SellPriceAtTarget} Quan)"),
-                    new ScreenDetail("Lợi nhuận ròng", $"+{opp.ProfitPerUnit} Quan mỗi đơn vị hàng hóa"),
-                    new ScreenDetail("Chiến lược đề xuất", opp.StrategicAdvice)
-                ]));
+            var arbitrage = _shocks.ScanArbitrageCorridors(_map, _items, _trade, 6, _clock.Today);
+            var radarRows = new List<ScreenRow>(arbitrage.Count);
+            foreach (var opp in arbitrage)
+            {
+                radarRows.Add(new ScreenRow(
+                    [
+                        opp.ItemNameVi,
+                        $"{opp.SourceCitadelName} ({opp.BuyPriceAtSource}q)",
+                        $"{opp.TargetCitadelName} ({opp.SellPriceAtTarget}q)",
+                        $"+{opp.ProfitPerUnit:N0} quan",
+                        $"+{opp.ProfitMarginPercent}%",
+                        opp.StrategicAdvice
+                    ],
+                    [],
+                    Title: $"{opp.ItemNameVi}: {opp.SourceCitadelName} ➔ {opp.TargetCitadelName}",
+                    Details:
+                    [
+                        new ScreenDetail("Mặt hàng", opp.ItemNameVi),
+                        new ScreenDetail("Thành thu mua giá rẻ", $"{opp.SourceCitadelName} (Giá: {opp.BuyPriceAtSource} Quan)"),
+                        new ScreenDetail("Thành tiêu thụ giá cao", $"{opp.TargetCitadelName} (Giá: {opp.SellPriceAtTarget} Quan)"),
+                        new ScreenDetail("Lợi nhuận ròng", $"+{opp.ProfitPerUnit} Quan mỗi đơn vị hàng hóa"),
+                        new ScreenDetail("Chiến lược đề xuất", opp.StrategicAdvice)
+                    ]));
+            }
+
+            _cachedRadarDay = todayIndex;
+            _cachedRadarRows = radarRows;
         }
 
-        sections.Add(new ScreenSection($"📡 Thương Báo Tam Quốc — Radar Tuyến Buôn Chênh Lệch Lời Nhất", radarColumns, radarRows));
+        var radarColumns = new[] { "Hàng Hóa", "Thành Xuất Xứ (Giá Mua)", "Thành Tiêu Thụ (Giá Bán)", "Lợi Nhuận/Đvị", "Biên Lợi Nhuận", "Khuyến Nghị" };
+        sections.Add(new ScreenSection($"📡 Thương Báo Tam Quốc — Radar Tuyến Buôn Chênh Lệch Lời Nhất", radarColumns, _cachedRadarRows));
 
         return new ScreenModel(
             ScreenId,

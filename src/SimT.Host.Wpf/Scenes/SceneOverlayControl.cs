@@ -271,8 +271,9 @@ public sealed class SceneOverlayControl : Border, IDisposable
         if (normalizedType == "close")
         {
             var closedScene = _activeScene;
-            HideScene();
             ClientMessageReceived?.Invoke(message, closedScene);
+            if (ReferenceEquals(_activeScene, closedScene))
+                HideScene();
             return;
         }
 

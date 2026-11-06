@@ -6,16 +6,14 @@ namespace SimT.Host.Wpf;
 
 public partial class MainWindow
 {
-    private void TryOpenFeatureSceneForCurrentScreen()
+    public bool TryOpenFeatureScene(string screenId, string? recommendation = null) => screenId switch
     {
-        switch (_screenId)
-        {
-            case "world.map": TryOpenMapScene(); break;
-            case "social.network": TryOpenSocialScene(); break;
-            case "market.stall": TryOpenMarketScene(); break;
-            case "npc.directory": TryOpenDossierScene(); break;
-        }
-    }
+        "world.map" => TryOpenMapScene(recommendation),
+        "social.network" => TryOpenSocialScene(recommendation),
+        "market.stall" => TryOpenMarketScene(recommendation),
+        "npc.directory" => TryOpenDossierScene(recommendation),
+        _ => false
+    };
 
     public bool TryOpenMapScene(string? recommendation = null)
     {
@@ -214,7 +212,11 @@ public partial class MainWindow
         var regionVi = RoleTitleVi.FormatRegion(city?.Region);
         var (seasonVi, _) = ResolveSeasonAndWeather(_kernel.Today.Month);
 
-        var itemViews = new List<MarketItemView>();
+        var otherCities = map.Citadels
+            .Where(c => c.Id != cityId)
+            .Select(c => (Citadel: c, Days: map.QuoteTravel(cityId, c.Id, TravelMode.Walk).BaseDays))
+            .ToList();
+        var itemViews = new List<MarketItemView>(items.All.Count);
         string? bestArbitrageTip = null;
         long bestArbitrageGain = 0;
 
@@ -228,14 +230,11 @@ public partial class MainWindow
             if (hist.Count == 0 || hist[^1] != buyPrice)
                 hist.Add(buyPrice);
 
-            var bestCities = map.Citadels
-                .Where(c => c.Id != cityId)
-                .Select(c =>
+            var bestCities = otherCities
+                .Select(x =>
                 {
-                    var estSell = trade.QuoteSell(c.Id, item.Id);
-                    var diff = estSell - buyPrice;
-                    var days = map.QuoteTravel(cityId, c.Id, TravelMode.Walk).BaseDays;
-                    return new MarketArbitrageView(c.Id, c.NameVi, days, estSell, diff);
+                    var estSell = trade.QuoteSell(x.Citadel.Id, item.Id);
+                    return new MarketArbitrageView(x.Citadel.Id, x.Citadel.NameVi, x.Days, estSell, estSell - buyPrice);
                 })
                 .OrderByDescending(x => x.DiffPerUnit)
                 .Take(3)
