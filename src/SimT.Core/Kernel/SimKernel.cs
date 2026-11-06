@@ -1,6 +1,8 @@
 using SimT.Contracts;
 using SimT.Contracts.Commands;
 using SimT.Contracts.Localization;
+using SimT.Contracts.Narrative;
+using SimT.Core.Narrative;
 using SimT.Contracts.Simulation;
 using SimT.Core.Commands;
 using SimT.Core.Localization;
@@ -61,6 +63,10 @@ public sealed class SimKernel : IDisposable
     private readonly SimulationRunner _simulation;
     private readonly CheckpointManager _checkpoints;
     private readonly LocalizationService _localization = new();
+    private readonly EngineProfiler _profiler = new();
+    private readonly EventDeckEngine _eventDeck = new();
+    private readonly SlotSaveManager _slotSaves;
+    private readonly AsyncSimulationWorker _asyncSimulation;
     private bool _disposed;
 
     private SimKernel(
@@ -88,6 +94,8 @@ public sealed class SimKernel : IDisposable
         var dbPath = db.DatabasePath;
         var baseDir = Path.GetDirectoryName(Path.GetFullPath(string.IsNullOrEmpty(dbPath) ? "campaign.db" : dbPath)) ?? string.Empty;
         _checkpoints = new CheckpointManager(db, dbPath, Path.Combine(baseDir, "checkpoints"));
+        _slotSaves = new SlotSaveManager(db, dbPath, Path.Combine(baseDir, "saves"));
+        _asyncSimulation = new AsyncSimulationWorker(clock, new TextLog("async_sim", null));
         _simulation = new SimulationRunner(this);
 
         _invariants = new InvariantRunner(new KernelInvariantContext(db, clock, ledger));
@@ -126,6 +134,14 @@ public sealed class SimKernel : IDisposable
     public ICheckpointManager Checkpoints => _checkpoints;
 
     public ILocalizationService Localization => _localization;
+
+    public IEngineProfiler Profiler => _profiler;
+
+    public IEventDeckEngine EventDeck => _eventDeck;
+
+    public ISlotSaveManager SlotSaves => _slotSaves;
+
+    public IAsyncSimulationWorker AsyncSimulation => _asyncSimulation;
 
     public GameDate Today => _clock.Today;
 
@@ -183,6 +199,10 @@ public sealed class SimKernel : IDisposable
             {
                 ActionTime = actionTime
             };
+            broker.Provide("core.profiler", kernel.Profiler);
+            broker.Provide("core.event_deck", kernel.EventDeck);
+            broker.Provide("core.slot_saves", kernel.SlotSaves);
+            broker.Provide("core.async_simulation", kernel.AsyncSimulation);
 
             var campaign = new CampaignStart(product.Seed, product.StartLocationCode, product.StartingCash);
 
