@@ -231,6 +231,18 @@
   width: 100%;
 }
 
+.dossier-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #1a140f;
+  border-color: #3a2c20;
+  color: #9e8f75;
+  font-size: 12px;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .dossier-skill-box {
   margin-top: auto;
   padding: 10px 12px;

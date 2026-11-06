@@ -175,6 +175,12 @@ function paintListAndCard(bridge) {
 
   const affPct = Math.max(0, Math.min(100, current.affinity || 0));
   const portraitSrc = current.profilePath || current.facePath || 'art/portraits/scholar/face.webp';
+  const isLocal = Boolean(current.isLocal);
+  const remoteLabel = 'Đang ở ' + (current.cityNameVi || 'thành khác');
+  const disabledAttr = isLocal ? '' : ' disabled';
+  const visitLabel = isLocal ? 'Bái phỏng' : remoteLabel;
+  const sparLabel = isLocal ? 'So tài' : remoteLabel;
+  const talkLabel = isLocal ? 'Mở cảnh nói chuyện' : remoteLabel;
 
   cardEl.innerHTML =
     '<div class="dossier-left-pane">' +
@@ -184,10 +190,10 @@ function paintListAndCard(bridge) {
       '<div class="dossier-aff-row"><span style="color:#b9aa8c">Hảo cảm</span><span>' + (current.affinity || 0) + ' / 100</span></div>' +
       '<div class="dossier-bar" style="flex:none"><i style="width:' + affPct + '%"></i></div>' +
       '<div class="dossier-btn-row">' +
-        '<button type="button" class="dossier-btn pri" id="btn-dossier-visit">Bái phỏng</button>' +
-        '<button type="button" class="dossier-btn" id="btn-dossier-spar">So tài</button>' +
+        '<button type="button" class="dossier-btn pri" id="btn-dossier-visit"' + disabledAttr + '>' + esc(visitLabel) + '</button>' +
+        '<button type="button" class="dossier-btn" id="btn-dossier-spar"' + disabledAttr + '>' + esc(sparLabel) + '</button>' +
       '</div>' +
-      '<button type="button" class="dossier-btn full" id="btn-dossier-talk">Mở cảnh nói chuyện</button>' +
+      '<button type="button" class="dossier-btn full" id="btn-dossier-talk"' + disabledAttr + '>' + esc(talkLabel) + '</button>' +
       '<div class="dossier-skill-box">' +
         '<div class="dossier-skill-label">ĐẶC KỸ</div>' +
         '<div class="dossier-skill-name">' + esc(current.skillNameVi || 'Chưa khai mở') + '</div>' +
@@ -220,15 +226,15 @@ function paintListAndCard(bridge) {
     '</div>';
 
   const visitBtn = document.getElementById('btn-dossier-visit');
-  if (visitBtn) {
+  if (visitBtn && isLocal) {
     visitBtn.addEventListener('click', () => bridge.sendChoice('dossier', `visit:${current.id}`));
   }
   const sparBtn = document.getElementById('btn-dossier-spar');
-  if (sparBtn) {
+  if (sparBtn && isLocal) {
     sparBtn.addEventListener('click', () => bridge.sendChoice('dossier', `spar:${current.id}`));
   }
   const talkBtn = document.getElementById('btn-dossier-talk');
-  if (talkBtn) {
+  if (talkBtn && isLocal) {
     talkBtn.addEventListener('click', () => bridge.sendNavigate('dossier', `npc:${current.id}`));
   }
 }

@@ -159,10 +159,20 @@ function updateBars(container, pHp, pMaxHp, pSp, pMaxSp, oHp, oMaxHp, oSp, oMaxS
 const waitMs = (ms) => new Promise((r) => setTimeout(r, Math.max(16, ms / speedMult)));
 
 function revealDuelResult(container, scene) {
-  const rounds = scene?.result?.roundLogs;
-  if (!Array.isArray(rounds) || rounds.length === 0 || !duelAnim) return;
-  const last = rounds[rounds.length - 1];
+  if (!scene?.result) return;
+  const rounds = scene.result.roundLogs;
   const roundPill = container.querySelector('#tk-round-pill');
+  if (!Array.isArray(rounds) || rounds.length === 0) {
+    if (roundPill) roundPill.textContent = '0 Hiệp';
+    const narEl = container.querySelector('#tk-duel-narrative');
+    if (narEl && scene.result.combatSummaryVi) narEl.innerHTML = formatNarrativeHtml(scene.result.combatSummaryVi, 90);
+    const banner = container.querySelector('#tk-duel-banner');
+    if (banner) { banner.hidden = false; banner.classList.add('show'); }
+    container.querySelectorAll('[data-post-duel]').forEach((btn) => { btn.hidden = false; });
+    return;
+  }
+  if (!duelAnim) return;
+  const last = rounds[rounds.length - 1];
   if (roundPill) roundPill.textContent = `Hiệp ${rounds.length} / ${rounds.length}`;
   updateBars(container, last.playerHpAfter, scene.player.maxHp, last.playerSpiritAfter, scene.player.maxSpirit, last.opponentHpAfter, scene.opponent.maxHp, last.opponentSpiritAfter, scene.opponent.maxSpirit);
   duelAnim.snapToEnd(last.playerHpAfter, last.opponentHpAfter);
@@ -173,7 +183,11 @@ function revealDuelResult(container, scene) {
 
 async function runReplay(container, scene) {
   const rounds = scene.result?.roundLogs;
-  if (!Array.isArray(rounds) || rounds.length === 0 || !duelAnim) return;
+  if (!Array.isArray(rounds) || rounds.length === 0) {
+    revealDuelResult(container, scene);
+    return;
+  }
+  if (!duelAnim) return;
   const stageBox = container.querySelector('#tk-duel-stage-box');
   const roundPill = container.querySelector('#tk-round-pill');
   const actRow = container.querySelector('#tk-duel-actions');
@@ -245,10 +259,10 @@ function renderDuelScene(container, scene, bridge) {
   const hasReplay = hasResult && Array.isArray(scene.result.roundLogs) && scene.result.roundLogs.length > 0;
   const choices = Array.isArray(scene.choices) ? scene.choices : [];
   const cleanMatchup = escapeHtml(scene.matchupSummaryVi);
-  const stampText = !hasResult ? '' : scene.result.won ? 'ĐẠI THẮNG LÔI ĐÀI' : 'THẤT BẠI ĐÁNG TIẾC';
+  const stampText = !hasResult ? '' : !hasReplay ? 'CHƯA THỂ GIAO ĐẤU' : scene.result.won ? 'ĐẠI THẮNG LÔI ĐÀI' : 'THẤT BẠI ĐÁNG TIẾC';
   const rewardVi = hasResult && scene.result.goldReward > 0
     ? `Phần thưởng lôi đài: +${scene.result.goldReward} Quan`
-    : hasResult ? 'Đã ghi nhận kết quả giao đấu.' : '';
+    : hasReplay ? 'Đã ghi nhận kết quả giao đấu.' : '';
 
   const choicesHtml = choices.map((c, idx) => {
     const isBranch = String(c.id || '').startsWith('branch:');
@@ -265,8 +279,8 @@ function renderDuelScene(container, scene, bridge) {
           <span class="tk-duel-matchup tk-one">${branchSvgIcon(p.branch)}<span>${cleanMatchup}</span>${branchSvgIcon(o.branch)}</span>
         </div>
         <div class="tk-duel-controls">
-          <span class="tk-round-pill tk-num" id="tk-round-pill">${hasResult ? `Hiệp 1 / ${scene.result.rounds}` : 'Chọn Binh Chủng'}</span>
-          ${hasResult ? '<button type="button" class="tk-speed-btn active" data-speed="1">1x</button><button type="button" class="tk-speed-btn" data-speed="2">2x</button><button type="button" class="tk-speed-btn" data-speed="4">4x</button><button type="button" class="tk-skip-btn" id="tk-duel-skip">Bỏ qua</button>' : ''}
+          <span class="tk-round-pill tk-num" id="tk-round-pill">${hasReplay ? `Hiệp 1 / ${scene.result.rounds}` : hasResult ? '0 Hiệp' : 'Chọn Binh Chủng'}</span>
+          ${hasReplay ? '<button type="button" class="tk-speed-btn active" data-speed="1">1x</button><button type="button" class="tk-speed-btn" data-speed="2">2x</button><button type="button" class="tk-speed-btn" data-speed="4">4x</button><button type="button" class="tk-skip-btn" id="tk-duel-skip">Bỏ qua</button>' : ''}
           <button type="button" class="tk-close-btn" id="tk-duel-close">[ESC] Đóng</button>
         </div>
       </header>
@@ -308,7 +322,7 @@ function renderDuelScene(container, scene, bridge) {
       <footer class="tk-duel-dock">
         <div class="tk-duel-logbox">
           <div class="tk-duel-actions-row" id="tk-duel-actions"><span>${escapeHtml(p.nameVi)} chuẩn bị xuất chiêu</span><span>${escapeHtml(o.nameVi)} thủ thế nghênh địch</span></div>
-          <div class="tk-duel-narrative" id="tk-duel-narrative">${formatNarrativeHtml(hasResult ? 'Trống trận vang rền, hai võ sĩ lao vào giao phong!' : 'Hãy chọn binh chủng xuất chiến để bắt đầu tỷ võ lôi đài.', 90)}</div>
+          <div class="tk-duel-narrative" id="tk-duel-narrative">${formatNarrativeHtml(!hasResult ? 'Hãy chọn binh chủng xuất chiến để bắt đầu tỷ võ lôi đài.' : hasReplay ? 'Trống trận vang rền, hai võ sĩ lao vào giao phong!' : scene.result.combatSummaryVi, 90)}</div>
           <div class="tk-duel-Note" id="tk-duel-note">${cleanMatchup}</div>
         </div>
         <div class="tk-choices-col tk-duel-choices">${choicesHtml}</div>

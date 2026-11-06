@@ -7,14 +7,9 @@ using SimT.Contracts.Time;
 
 namespace SimT.Modules.Dlc.Character;
 
-internal sealed class DialogueService : IDialogueModule
+internal sealed class DialogueService(ModuleContext context) : IDialogueModule
 {
-    private readonly ModuleContext _context;
-
-    public DialogueService(ModuleContext context)
-    {
-        _context = context;
-    }
+    private readonly ModuleContext _context = context;
 
     public IReadOnlyList<string> GetLinesForNpc(long npcId, string relationTierKey)
     {
@@ -24,20 +19,17 @@ internal sealed class DialogueService : IDialogueModule
 
         var lines = QueryLines("npc", npc.Code, tier);
         if (lines.Count == 0)
-        {
-            var roleGroup = MapToSeededRoleGroup(SceneArtCatalog.ClassifyArchetype(npc));
-            lines = QueryLines("role", roleGroup, tier);
-        }
-
+            lines = QueryLines("role", MapToSeededRoleGroup(SceneArtCatalog.ClassifyArchetype(npc)), tier);
         if (lines.Count == 0)
-        {
             lines = QueryLines("role", "commoner", "stranger");
-        }
 
         return lines.Select(ClampLine90).ToList();
     }
 
-    public TalkScene BuildTalkScene(long npcId, string? feedbackVi = null)
+    public TalkScene BuildTalkScene(long npcId, string? feedbackVi = null) =>
+        BuildTalkSceneCore(npcId, feedbackVi, customChoices: null);
+
+    private TalkScene BuildTalkSceneCore(long npcId, string? feedbackVi, IReadOnlyList<SceneChoice>? customChoices)
     {
         var npcs = _context.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
         var map = _context.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
@@ -60,53 +52,30 @@ internal sealed class DialogueService : IDialogueModule
         var (portraitFull, portraitFace, _) = SceneArtCatalog.ResolveNpcArt(npc);
         var (blinkPath, talkPath) = SceneArtCatalog.ResolvePortraitFrames(npc);
         var bgPath = ResolveTalkBackground(SceneArtCatalog.ClassifyArchetype(npc));
-        var choices = BuildChoices(npc, currentCityId);
+        var choices = customChoices ?? BuildChoices(npc, currentCityId);
 
         _context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
-        var candidateNpcs = new List<NpcDef> { npc };
-        foreach (var local in npcs.All)
-        {
-            if (candidateNpcs.All(x => x.Id != local.Id) &&
-                local.CurrentCitadelId(society) == currentCityId)
-            {
-                candidateNpcs.Add(local);
-            }
-        }
-
-        var nearby = candidateNpcs
+        var nearby = new[] { npc }
+            .Concat(npcs.All.Where(n => n.Id != npc.Id && n.CurrentCitadelId(society) == currentCityId))
             .Take(5)
-            .Select(n =>
-            {
-                var art = SceneArtCatalog.ResolveNpcArt(n);
-                var shortName = n.NameVi.Contains('(')
-                    ? n.NameVi[..n.NameVi.IndexOf('(')].Trim()
-                    : n.NameVi;
-                return new SceneNpcThumb(n.Id, shortName, art.PortraitFace, n.Id == npc.Id);
-            })
+            .Select(n => new SceneNpcThumb(
+                n.Id,
+                RoleTitleVi.ShortName(n.NameVi),
+                SceneArtCatalog.ResolveNpcArt(n).PortraitFace,
+                n.Id == npc.Id))
             .ToList();
 
         return new TalkScene(
-            SceneId: $"talk:{npc.Id}",
-            NpcId: npc.Id,
-            NpcCode: npc.Code,
-            NameVi: npc.NameVi,
-            NameHan: string.IsNullOrWhiteSpace(npc.NameHan) ? "漢" : npc.NameHan,
-            StyleNameVi: npc.StyleNameVi,
-            RoleVi: RoleTitleVi.Format(npc.Role),
+            SceneId: $"talk:{npc.Id}", NpcId: npc.Id, NpcCode: npc.Code,
+            NameVi: npc.NameVi, NameHan: string.IsNullOrWhiteSpace(npc.NameHan) ? "漢" : npc.NameHan,
+            StyleNameVi: npc.StyleNameVi, RoleVi: RoleTitleVi.Format(npc.Role),
             PersonalityVi: RoleTitleVi.FormatPersonality(npc.Personality),
-            LocationNameVi: locationVi,
-            LocationHan: locationHan,
-            Affinity: affinity,
-            RelationTierVi: tierVi,
-            PortraitFull: portraitFull,
-            PortraitFace: portraitFace,
-            BackgroundPath: bgPath,
-            Lines: lines,
-            Choices: choices,
-            NearbyNpcs: nearby,
+            LocationNameVi: locationVi, LocationHan: locationHan,
+            Affinity: affinity, RelationTierVi: tierVi,
+            PortraitFull: portraitFull, PortraitFace: portraitFace, BackgroundPath: bgPath,
+            Lines: lines, Choices: choices, NearbyNpcs: nearby,
             FeedbackVi: string.IsNullOrWhiteSpace(feedbackVi) ? null : ClampLine90(feedbackVi!),
-            BlinkPath: blinkPath,
-            TalkPath: talkPath);
+            BlinkPath: blinkPath, TalkPath: talkPath);
     }
 
     public TalkChoiceOutcome HandleChoice(long npcId, string choiceId)
@@ -117,8 +86,20 @@ internal sealed class DialogueService : IDialogueModule
             return new TalkChoiceOutcome(false, "Không tìm thấy nhân vật.", CloseScene: true);
 
         RecordVisit(npc.Id);
+        var normalized = choiceId.Trim().ToLowerInvariant();
+        if (normalized == "gift:cancel")
+        {
+            var cancelMsg = $"Bạn cất lại hành trang, tiếp tục đàm đạo cùng {RoleTitleVi.ShortName(npc.NameVi)}.";
+            return new TalkChoiceOutcome(true, cancelMsg, UpdatedScene: BuildTalkScene(npc.Id, cancelMsg));
+        }
 
-        switch (choiceId.Trim().ToLowerInvariant())
+        if (normalized.StartsWith("gift:", StringComparison.Ordinal) &&
+            long.TryParse(normalized["gift:".Length..], out var giftItemId))
+        {
+            return ExecuteGiftItem(npc, giftItemId);
+        }
+
+        switch (normalized)
         {
             case "chat":
             {
@@ -154,9 +135,8 @@ internal sealed class DialogueService : IDialogueModule
             case "gift":
             {
                 var playerState = _context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
-                var bag = _context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
-                var firstRow = bag.Rows(playerState.CurrentCityId).FirstOrDefault(r => r.Quantity > 0);
-                if (firstRow is null ||
+                var giftChoices = BuildGiftChoices(playerState.CurrentCityId);
+                if (giftChoices.Count == 0 ||
                     !_context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) ||
                     social is null)
                 {
@@ -164,19 +144,8 @@ internal sealed class DialogueService : IDialogueModule
                     return new TalkChoiceOutcome(false, noGift, UpdatedScene: BuildTalkScene(npc.Id, noGift));
                 }
 
-                string msg;
-                try
-                {
-                    var raw = social.GiftNpc(npc.Id, firstRow.ItemId);
-                    msg = SummarizeFeedback(raw, $"{npc.NameVi} vui vẻ nhận lễ vật bạn trao tặng.");
-                }
-                catch (SimException ex)
-                {
-                    msg = ClampLine90(ex.Message);
-                }
-
-                var updated = BuildTalkScene(npc.Id, msg);
-                return new TalkChoiceOutcome(true, msg, UpdatedScene: updated);
+                var prompt = ClampLine90($"Chọn lễ vật trong hành trang để biếu tặng {RoleTitleVi.ShortName(npc.NameVi)}.");
+                return new TalkChoiceOutcome(true, prompt, UpdatedScene: BuildTalkSceneCore(npc.Id, prompt, giftChoices));
             }
 
             case "duel":
@@ -196,6 +165,53 @@ internal sealed class DialogueService : IDialogueModule
         }
     }
 
+    private TalkChoiceOutcome ExecuteGiftItem(NpcDef npc, long itemId)
+    {
+        if (!_context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) || social is null)
+        {
+            const string noSocial = "Không thể tặng lễ vật lúc này.";
+            return new TalkChoiceOutcome(false, noSocial, UpdatedScene: BuildTalkScene(npc.Id, noSocial));
+        }
+
+        string msg;
+        var ok = true;
+        try
+        {
+            var raw = social.GiftNpc(npc.Id, itemId);
+            msg = SummarizeFeedback(raw, $"{npc.NameVi} vui vẻ nhận lễ vật bạn trao tặng.");
+        }
+        catch (SimException ex)
+        {
+            msg = ClampLine90(ex.Message);
+            ok = false;
+        }
+
+        return new TalkChoiceOutcome(ok, msg, UpdatedScene: BuildTalkScene(npc.Id, msg));
+    }
+
+    private IReadOnlyList<SceneChoice> BuildGiftChoices(long currentCityId)
+    {
+        var bag = _context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var items = _context.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
+        var list = bag.Rows(currentCityId)
+            .Where(r => r.Quantity > 0)
+            .Select(r => (Row: r, Item: items.Find(r.ItemId)))
+            .Where(x => x.Item is not null)
+            .OrderByDescending(x => x.Item!.BasePrice)
+            .ThenBy(x => x.Item!.Id)
+            .Take(5)
+            .Select(x => new SceneChoice(
+                $"gift:{x.Item!.Id}",
+                Clamp40($"Tặng {x.Item.NameVi} (còn {x.Row.Quantity})"),
+                $"{x.Item.BasePrice} quan"))
+            .ToList();
+
+        if (list.Count > 0)
+            list.Add(new SceneChoice("gift:cancel", "Thôi", "Quay lại"));
+
+        return list;
+    }
+
     private IReadOnlyList<SceneChoice> BuildChoices(NpcDef npc, long currentCityId)
     {
         var list = new List<SceneChoice>
@@ -207,12 +223,17 @@ internal sealed class DialogueService : IDialogueModule
         if (_context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
         {
             var bag = _context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
-            var firstItem = bag.Rows(currentCityId).FirstOrDefault(r => r.Quantity > 0);
-            if (firstItem is not null)
+            var heldRows = bag.Rows(currentCityId).Where(r => r.Quantity > 0).ToList();
+            if (heldRows.Count > 0)
             {
                 var items = _context.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
-                var itemName = items.Find(firstItem.ItemId)?.NameVi ?? "Lễ vật";
-                list.Add(new SceneChoice("gift", "Tặng quà kết giao", Clamp40(itemName)));
+                var topName = heldRows
+                    .Select(r => items.Find(r.ItemId))
+                    .Where(i => i is not null)
+                    .OrderByDescending(i => i!.BasePrice)
+                    .FirstOrDefault()?.NameVi ?? "Lễ vật";
+                var hint = heldRows.Count == 1 ? Clamp40(topName) : $"{heldRows.Count} loại lễ vật";
+                list.Add(new SceneChoice("gift", "Tặng quà kết giao", hint));
             }
         }
 

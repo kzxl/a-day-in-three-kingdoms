@@ -61,9 +61,7 @@ public partial class MainWindow
             !_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) || reg is null ||
             !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) || map is null ||
             !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
-        {
             return false;
-        }
 
         var currentCityId = playerState.CurrentCityId;
         var currentCityName = map.Find(currentCityId)?.NameVi ?? "Lạc Dương";
@@ -78,8 +76,7 @@ public partial class MainWindow
 
         var candidateNpcs = reg.FindByCitadel(currentCityId)
             .OrderByDescending(n => relMap.TryGetValue(n.Id, out var r) ? r.Affinity + 1000 : 0)
-            .Take(8)
-            .ToList();
+            .Take(8).ToList();
         foreach (var r in social.AllRelationships().OrderByDescending(x => x.Affinity))
         {
             if (candidateNpcs.Count >= 8) break;
@@ -98,22 +95,19 @@ public partial class MainWindow
             var npc = candidateNpcs[i];
             relMap.TryGetValue(npc.Id, out var rel);
             var aff = rel?.Affinity ?? 0;
-            var trust = rel?.Trust ?? 0;
             var req = social.GetRecruitRequirement(npc.Id);
             var rankCode = req.Rank.ToString();
             var (_, facePath, _) = SceneArtCatalog.ResolveNpcArt(npc);
-            var profilePath = SceneArtCatalog.ResolveProfileArt(npc);
             var firstSkill = npc.Skills.FirstOrDefault();
             var tierTitle = aff >= 80 ? "Tri kỷ" : aff >= 60 ? "Thân thiết" : aff >= 35 ? "Quen biết" : "Sơ giao";
             var tierKey = aff >= 80 ? "sworn" : aff >= 60 ? "trusted" : aff >= 35 ? "friend" : "known";
             var angle = (i * (360.0 / Math.Max(1, candidateNpcs.Count)) - 90.0 + 360.0) % 360.0;
-            var shortName = RoleTitleVi.ShortName(npc.NameVi);
 
             nodeViews.Add(new SocialNodeView(
-                npc.Id, npc.Code, shortName, RoleTitleVi.Format(npc.Role), rankCode,
+                npc.Id, npc.Code, RoleTitleVi.ShortName(npc.NameVi), RoleTitleVi.Format(npc.Role), rankCode,
                 map.Find(npc.CitadelId)?.NameVi ?? currentCityName,
-                npc.CitadelId == currentCityId, aff, trust, req.RequiredAffinity, req.SigningFee,
-                tierKey, tierTitle, facePath, profilePath,
+                npc.CitadelId == currentCityId, aff, rel?.Trust ?? 0, req.RequiredAffinity, req.SigningFee,
+                tierKey, tierTitle, facePath, SceneArtCatalog.ResolveProfileArt(npc),
                 firstSkill?.Code ?? string.Empty, firstSkill?.NameVi ?? "—", rankCode,
                 firstSkill?.EffectSummary ?? "—",
                 firstSkill is not null && learnedCodes.Contains(firstSkill.Code),
@@ -121,21 +115,41 @@ public partial class MainWindow
                 retainers.Any(r => r.NpcId == npc.Id), swornIds.Contains(npc.Id), angle));
         }
 
-        var skillViews = BuildSocialSkillViews(reg, progresses, candidateNpcs);
+        var skillViews = SocialScene.BuildSkillViews(reg, progresses, candidateNpcs);
         var letterViews = social.GetLetters(limit: 12).Select(l =>
         {
-            var (_, face, _) = reg.Find(l.SenderNpcId) is { } sender ? SceneArtCatalog.ResolveNpcArt(sender) : ("", "art/portraits/scholar/face.webp", "");
-            var giftText = l.GiftCopper > 0 ? $"{l.GiftCopper} quan" : l.GiftItemQuantity > 0 ? $"{l.GiftItemQuantity} {l.GiftItemNameVi}" : "Thư thăm hỏi";
-            var cleanTitle = l.TitleVi.Length > 2 && !char.IsLetterOrDigit(l.TitleVi[0]) && l.TitleVi.IndexOf(' ') is var sp and > 0 and <= 4 ? l.TitleVi[(sp + 1)..].Trim() : l.TitleVi;
-            return new SocialLetterView(l.Id, RoleTitleVi.ShortName(l.SenderNameVi), face, GameDateCodec.ShortVi(l.SentDate), cleanTitle, l.ContentVi, giftText, l.IsRead, !l.IsClaimed && (l.GiftCopper > 0 || l.GiftItemQuantity > 0));
+            var (_, face, _) = reg.Find(l.SenderNpcId) is { } sender
+                ? SceneArtCatalog.ResolveNpcArt(sender)
+                : ("", "art/portraits/scholar/face.webp", "");
+            var giftText = l.GiftCopper > 0
+                ? $"{l.GiftCopper} quan"
+                : l.GiftItemQuantity > 0 ? $"{l.GiftItemQuantity} {l.GiftItemNameVi}" : "Thư thăm hỏi";
+            var cleanTitle = l.TitleVi.Length > 2 && !char.IsLetterOrDigit(l.TitleVi[0]) &&
+                             l.TitleVi.IndexOf(' ') is var sp and > 0 and <= 4
+                ? l.TitleVi[(sp + 1)..].Trim() : l.TitleVi;
+            return new SocialLetterView(
+                l.Id, RoleTitleVi.ShortName(l.SenderNameVi), face, GameDateCodec.ShortVi(l.SentDate),
+                cleanTitle, l.ContentVi, giftText, l.IsRead,
+                !l.IsClaimed && (l.GiftCopper > 0 || l.GiftItemQuantity > 0));
         }).ToList();
 
         var retainerViews = retainers.Select(r =>
         {
             var npc = reg.Find(r.NpcId);
-            var (_, face, _) = npc is not null ? SceneArtCatalog.ResolveNpcArt(npc) : ("", "art/portraits/general/face.webp", "");
-            var bonus = r.RoleAssigned switch { "accountant" => "Giảm chi phí sổ sách & giao thương", "bodyguard" => "Hộ vệ an toàn trên thương lộ", "advisor" => "Tăng hiệu quả mưu lược & đàm đạo", _ => "Quản lý sản nghiệp & kho bãi" };
-            return new SocialRetainerView(r.NpcId, RoleTitleVi.ShortName(npc?.NameVi ?? $"#{r.NpcId}"), RoleTitleVi.Format(r.RoleAssigned), social.GetNpcRank(r.NpcId).ToString(), face, r.MonthlyStipend, bonus, r.Loyalty);
+            var (_, face, _) = npc is not null
+                ? SceneArtCatalog.ResolveNpcArt(npc)
+                : ("", "art/portraits/general/face.webp", "");
+            var bonus = r.RoleAssigned switch
+            {
+                "accountant" => "Giảm chi phí sổ sách & giao thương",
+                "bodyguard" => "Hộ vệ an toàn trên thương lộ",
+                "advisor" => "Tăng hiệu quả mưu lược & đàm đạo",
+                _ => "Quản lý sản nghiệp & kho bãi"
+            };
+            return new SocialRetainerView(
+                r.NpcId, RoleTitleVi.ShortName(npc?.NameVi ?? $"#{r.NpcId}"),
+                RoleTitleVi.Format(r.RoleAssigned), social.GetNpcRank(r.NpcId).ToString(),
+                face, r.MonthlyStipend, bonus, r.Loyalty);
         }).ToList();
 
         var giftItems = new List<SocialGiftItemView>();
@@ -144,7 +158,10 @@ public partial class MainWindow
                 if (row.Quantity > 0 && items.Find(row.ItemId) is { } item)
                     giftItems.Add(new SocialGiftItemView(item.Id, item.NameVi, row.Quantity));
 
-        var bestGapNode = nodeViews.Where(n => !n.IsRetainer && n.RequiredAffinity > n.Affinity).OrderBy(n => n.RequiredAffinity - n.Affinity).FirstOrDefault();
+        var bestGapNode = nodeViews
+            .Where(n => !n.IsRetainer && n.RequiredAffinity > n.Affinity)
+            .OrderBy(n => n.RequiredAffinity - n.Affinity)
+            .FirstOrDefault();
         var recText = recommendation ?? (bestGapNode is not null
             ? $"Đàm đạo với {bestGapNode.NameVi}: còn {bestGapNode.RequiredAffinity - bestGapNode.Affinity} hảo cảm nữa là đủ mốc chiêu mộ."
             : $"Đàm đạo và tặng quà cho danh sĩ tại {currentCityName} để lĩnh hội tuyệt kỹ.");
@@ -156,44 +173,6 @@ public partial class MainWindow
             nodeViews, skillViews, letterViews, retainerViews, giftItems));
     }
 
-    private static IReadOnlyList<SocialSkillView> BuildSocialSkillViews(
-        INpcRegistry reg, IReadOnlyList<PlayerSkillProgressDef> progresses, IReadOnlyList<NpcDef> localNpcs)
-    {
-        var list = new List<SocialSkillView>();
-        var skillOwners = new Dictionary<string, (NpcDef Npc, NpcSkillDef Skill)>(StringComparer.OrdinalIgnoreCase);
-        foreach (var npc in localNpcs.Concat(reg.All))
-            foreach (var sk in npc.Skills)
-                skillOwners.TryAdd(sk.Code, (npc, sk));
-
-        foreach (var p in progresses)
-        {
-            skillOwners.TryGetValue(p.SkillCode, out var owner);
-            var name = owner.Skill?.NameVi ?? p.SkillCode;
-            var rank = p.Tier switch { >= 5 => "S", 4 => "A", 3 => "B", _ => "C" };
-            var teacherShort = owner.Npc is not null ? RoleTitleVi.ShortName(owner.Npc.NameVi) : "Danh sư";
-            list.Add(new SocialSkillView(
-                p.SkillCode, name, name[..1], rank, owner.Npc?.Id ?? 0, teacherShort,
-                owner.Skill?.EffectSummary ?? "Gia tăng năng lực", "Đã lĩnh hội",
-                true, p.IsEquipped, p.EquippedSlot ?? 0, p.Level, $"Cấp {p.Level}"));
-        }
-
-        foreach (var (code, (npc, sk)) in skillOwners.Take(12))
-        {
-            if (list.Any(x => string.Equals(x.SkillCode, code, StringComparison.OrdinalIgnoreCase)))
-                continue;
-            var rank = sk.Tier switch { >= 5 => "S", 4 => "A", 3 => "B", _ => "C" };
-            var reqAff = sk.Tier switch { >= 5 => 75, 4 => 55, _ => 35 };
-            var teacherShort = RoleTitleVi.ShortName(npc.NameVi);
-            list.Add(new SocialSkillView(
-                code, sk.NameVi, sk.NameVi[..1], rank, npc.Id, teacherShort,
-                sk.EffectSummary, $"Học từ {teacherShort}, cần hảo cảm {reqAff}",
-                false, false, 0, 1, "Chưa lĩnh hội"));
-            if (list.Count >= 9) break;
-        }
-
-        return list;
-    }
-
     public bool TryOpenMarketScene(string? recommendation = null, long selectedItemId = 0)
     {
         if (!SceneOverlay.IsAvailable ||
@@ -202,9 +181,7 @@ public partial class MainWindow
             !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) || map is null ||
             !_kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var bag) || bag is null ||
             !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
-        {
             return false;
-        }
 
         var cityId = playerState.CurrentCityId;
         var city = map.Find(cityId);
@@ -236,9 +213,7 @@ public partial class MainWindow
                     var estSell = trade.QuoteSell(x.Citadel.Id, item.Id);
                     return new MarketArbitrageView(x.Citadel.Id, x.Citadel.NameVi, x.Days, estSell, estSell - buyPrice);
                 })
-                .OrderByDescending(x => x.DiffPerUnit)
-                .Take(3)
-                .ToList();
+                .OrderByDescending(x => x.DiffPerUnit).Take(3).ToList();
 
             if (bestCities.Count > 0 && bestCities[0].DiffPerUnit > bestArbitrageGain && stock > 0)
             {
@@ -261,35 +236,11 @@ public partial class MainWindow
             recText, selectedItemId, itemViews));
     }
 
-    public static string ItemHanziFor(string category, string nameVi)
-    {
-        var n = nameVi.ToLowerInvariant();
-        if (n.Contains("giống") || string.Equals(category, "seed", StringComparison.OrdinalIgnoreCase)) return "種";
-        if (n.Contains("lúa mì") || n.Contains("mạch")) return "麥";
-        if (n.Contains("gạo") || n.Contains("lúa")) return "米";
-        if (n.Contains("muối")) return "鹽";
-        if (n.Contains("rượu")) return "酒";
-        if (n.Contains("trà")) return "茶";
-        if (n.Contains("gấm")) return "錦";
-        if (n.Contains("lụa")) return "絲";
-        if (n.Contains("vải")) return "布";
-        if (n.Contains("gỗ")) return "木";
-        if (n.Contains("than")) return "炭";
-        if (n.Contains("đồng")) return "銅";
-        if (n.Contains("sắt")) return "鐵";
-        if (n.Contains("sâm")) return "參";
-        if (n.Contains("trầm") || n.Contains("hương")) return "香";
-        if (n.Contains("thuốc") || n.Contains("dược")) return "藥";
-        if (n.Contains("cá")) return "魚";
-        if (n.Contains("phân bón")) return "肥";
-        return category.ToLowerInvariant() switch
-        {
-            "grain" => "米", "food" => "食", "medicine" => "藥",
-            "luxury" => "寶", "material" => "材", "farming" => "農", "tool" => "器", _ => "貨"
-        };
-    }
+    public static string ItemHanziFor(string category, string nameVi) =>
+        RoleTitleVi.FormatItemHanzi(category, nameVi);
 
-    private static readonly string[] FeaturedProfileCodes = ["npc_0223", "npc_0205", "npc_0206", "npc_0207", "npc_0221", "npc_0222", "npc_0224", "npc_0225"];
+    private static readonly string[] FeaturedProfileCodes =
+        ["npc_0223", "npc_0205", "npc_0206", "npc_0207", "npc_0221", "npc_0222", "npc_0224", "npc_0225"];
 
     public bool TryOpenDossierScene(string? recommendation = null, long selectedNpcId = 0)
     {
@@ -302,6 +253,7 @@ public partial class MainWindow
         var cityId = playerState.CurrentCityId;
         var cityName = map.Find(cityId)?.NameVi ?? "Lạc Dương";
         _kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social);
+        _kernel.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
         _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs);
 
         var relMap = social?.AllRelationships().ToDictionary(r => r.NpcId) ?? new Dictionary<long, RelationshipDef>();
@@ -310,7 +262,7 @@ public partial class MainWindow
 
         foreach (var code in FeaturedProfileCodes)
             if (reg.FindByCode(code) is { } pNpc && seen.Add(pNpc.Id)) ordered.Add(pNpc);
-        foreach (var lNpc in reg.FindByCitadel(cityId))
+        foreach (var lNpc in reg.All.Where(n => n.CurrentCitadelId(society) == cityId))
             if (seen.Add(lNpc.Id)) ordered.Add(lNpc);
         foreach (var aNpc in reg.All)
             if (seen.Add(aNpc.Id)) ordered.Add(aNpc);
@@ -324,10 +276,13 @@ public partial class MainWindow
             var sk = npc.Skills.FirstOrDefault();
             var a = npc.Attributes;
             var tier = aff >= 80 ? "Tri kỷ" : aff >= 60 ? "Thân thiết" : aff >= 35 ? "Quen biết" : rel is not null ? "Đã gặp" : "Chưa gặp";
+            var npcCityId = npc.CurrentCitadelId(society);
+            var isRetainer = social?.GetRetainer(npc.Id) is not null;
+            var isLocal = npcCityId == cityId || isRetainer;
             return new DossierNpcView(
                 npc.Id, npc.Code, npc.NameVi, npc.NameHan ?? string.Empty, npc.StyleNameVi ?? "—",
                 RoleTitleVi.FormatPersonality(npc.Personality), "Quần Hùng", RoleTitleVi.Format(npc.Role),
-                map.Find(npc.CitadelId)?.NameVi ?? cityName, npc.CitadelId == cityId, rel is not null,
+                map.Find(npcCityId)?.NameVi ?? cityName, isLocal, rel is not null,
                 aff, tier, face, profile, sk?.NameVi ?? "Nội Chính Tinh Thông", "A",
                 sk?.EffectSummary ?? "Gia tăng hiệu suất công việc và uy vọng tại thành trì.",
                 string.IsNullOrWhiteSpace(npc.BioVi) ? "Nhân sĩ danh tiếng thời Tam Quốc, hành trạng được dân gian ca tụng." : npc.BioVi,
@@ -368,24 +323,55 @@ public partial class MainWindow
         TryOpenMarketScene(selectedItemId: itemId);
     }
 
+    private bool TryBlockRemoteDossierNpc(long npcId)
+    {
+        if (!_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) ||
+            reg?.Find(npcId) is not { } npc ||
+            !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var ps) ||
+            ps is null)
+            return false;
+
+        _kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social);
+        if (social?.GetRetainer(npc.Id) is not null)
+            return false;
+
+        var npcCityId = npc.CurrentCitadelId(_kernel.Capabilities);
+        if (npcCityId == ps.CurrentCityId)
+            return false;
+
+        _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map);
+        var cityName = map?.Find(npcCityId)?.NameVi ?? "thành khác";
+        var msg = $"{RoleTitleVi.ShortName(npc.NameVi)} hiện đang ở {cityName}, chưa thể tương tác từ xa.";
+        StatusText.Text = $"Đang ở {cityName}";
+        TryOpenDossierScene(msg, npc.Id);
+        return true;
+    }
+
     private async void HandleDossierSceneMessage(string type, string id, DossierScene _)
     {
         if (type == "navigate" && id.StartsWith("npc:", StringComparison.Ordinal) && long.TryParse(id["npc:".Length..], out var talkId))
         {
-            TryOpenTalkScene(talkId);
+            if (!TryBlockRemoteDossierNpc(talkId))
+                TryOpenTalkScene(talkId);
             return;
         }
         if (type != "choice") return;
         if (id.StartsWith("visit:", StringComparison.Ordinal) && long.TryParse(id["visit:".Length..], out var visitId))
         {
+            if (TryBlockRemoteDossierNpc(visitId)) return;
             await ExecuteScreenCommandAsync($"chat:{visitId}", "social.network");
             TryOpenDossierScene(selectedNpcId: visitId);
         }
         else if (id.StartsWith("spar:", StringComparison.Ordinal) && long.TryParse(id["spar:".Length..], out var sparId) &&
                  _kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) && reg?.Find(sparId) is { } npc)
         {
-            var cityId = _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var ps) && ps is not null ? ps.CurrentCityId : npc.CitadelId;
-            var city = _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) ? map?.Find(cityId)?.NameVi ?? "Lạc Dương" : "Lạc Dương";
+            if (TryBlockRemoteDossierNpc(sparId)) return;
+            var cityId = _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var ps) && ps is not null
+                ? ps.CurrentCityId
+                : npc.CurrentCitadelId(_kernel.Capabilities);
+            var city = _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map)
+                ? map?.Find(cityId)?.NameVi ?? "Lạc Dương"
+                : "Lạc Dương";
             TryOpenDuelScene(npc, city);
         }
     }

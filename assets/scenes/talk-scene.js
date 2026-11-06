@@ -1,7 +1,7 @@
 import { SimTBridge } from './bridge.js';
 import { createPortraitAnimator } from './sprite-anim.js';
 
-const HAN_NUMERALS = ['壹', '貳', '參', '肆', '伍'];
+const HAN_NUMERALS = ['壹', '貳', '參', '肆', '伍', '陸'];
 
 let currentScene = null;
 let currentLineIdx = 0;
@@ -227,7 +227,7 @@ function renderTalkScene(container, scene, bridge) {
       return;
     }
     const digit = parseInt(e.key, 10);
-    if (digit >= 1 && digit <= 5 && choices[digit - 1] && choices[digit - 1].enabled !== false) {
+    if (digit >= 1 && digit <= 6 && choices[digit - 1] && choices[digit - 1].enabled !== false) {
       e.preventDefault();
       bridge.sendChoice(currentScene.sceneId, choices[digit - 1].id);
     }

@@ -59,7 +59,7 @@ public sealed class DialogueTests
     }
 
     [Fact]
-    public void Gift_choice_is_hidden_when_bag_empty_and_shown_when_bag_has_item()
+    public void Gift_choice_opens_item_submenu_sorted_by_price_and_supports_item_selection_and_cancel()
     {
         using var host = new DlcTestHost();
         using var kernel = host.Boot();
@@ -68,18 +68,51 @@ public sealed class DialogueTests
         var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
         var playerState = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
         var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var items = kernel.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
         var localNpc = npcs.FindByCitadel(playerState.CurrentCityId).First();
+        var cityId = playerState.CurrentCityId;
 
         var emptyBagScene = dialogue.BuildTalkScene(localNpc.Id);
         Assert.DoesNotContain(emptyBagScene.Choices, c => c.Id == "gift");
 
-        bag.Add(playerState.CurrentCityId, 1, 1);
+        var distinctItems = items.All.Take(6).ToList();
+        foreach (var it in distinctItems)
+            bag.Add(cityId, it.Id, 2);
+
         var withItemScene = dialogue.BuildTalkScene(localNpc.Id);
         Assert.Contains(withItemScene.Choices, c => c.Id == "gift");
 
-        var giftOutcome = dialogue.HandleChoice(localNpc.Id, "gift");
-        Assert.True(giftOutcome.Ok);
-        Assert.True(giftOutcome.MessageVi.Length <= 90);
+        // Clicking "gift" opens the submenu with up to 5 highest-BasePrice items + "gift:cancel"
+        var giftMenuOutcome = dialogue.HandleChoice(localNpc.Id, "gift");
+        Assert.True(giftMenuOutcome.Ok);
+        Assert.True(giftMenuOutcome.MessageVi.Length <= 90);
+        Assert.NotNull(giftMenuOutcome.UpdatedScene);
+
+        var menuChoices = giftMenuOutcome.UpdatedScene!.Choices;
+        Assert.Equal(6, menuChoices.Count);
+        Assert.Equal("gift:cancel", menuChoices[^1].Id);
+        Assert.Equal("Thôi", menuChoices[^1].LabelVi);
+
+        var expectedTop5 = distinctItems
+            .OrderByDescending(i => i.BasePrice)
+            .ThenBy(i => i.Id)
+            .Take(5)
+            .Select(i => $"gift:{i.Id}")
+            .ToArray();
+        Assert.Equal(expectedTop5, menuChoices.Take(5).Select(c => c.Id).ToArray());
+
+        // Cancel returns to normal choices without consuming items
+        var cancelOutcome = dialogue.HandleChoice(localNpc.Id, "gift:cancel");
+        Assert.True(cancelOutcome.Ok);
+        Assert.NotNull(cancelOutcome.UpdatedScene);
+        Assert.Contains(cancelOutcome.UpdatedScene!.Choices, c => c.Id == "gift");
+
+        // Selecting a specific gift:<itemId> consumes 1 of that item and increases affinity
+        var chosenItem = distinctItems.OrderByDescending(i => i.BasePrice).First();
+        var qtyBefore = bag.Quantity(cityId, chosenItem.Id);
+        var sendGiftOutcome = dialogue.HandleChoice(localNpc.Id, $"gift:{chosenItem.Id}");
+        Assert.True(sendGiftOutcome.Ok);
+        Assert.Equal(qtyBefore - 1, bag.Quantity(cityId, chosenItem.Id));
     }
 
     [Fact]

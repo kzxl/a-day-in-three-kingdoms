@@ -219,6 +219,25 @@ public sealed class LineageTests : IDisposable
         Assert.Equal(MarryAndReadSpouse(first), MarryAndReadSpouse(second));
     }
 
+    [Fact]
+    public void Spouse_names_use_han_era_surnames_and_do_not_collide_with_300_npcs()
+    {
+        using var kernel = _host.Boot();
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var npcNames = npcs.All
+            .Select(n => SimT.Contracts.Scenes.RoleTitleVi.ShortName(n.NameVi))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal(["Vương Thị", "Lưu Thị", "Tôn Thị", "Mã Thị", "Hà Thị"], LineageService.SpouseNames);
+        foreach (var spouseName in LineageService.SpouseNames)
+        {
+            Assert.DoesNotContain(spouseName, npcNames);
+        }
+
+        Command(kernel, "marry");
+        Assert.Contains(House(kernel).SpouseName, LineageService.SpouseNames);
+    }
+
     private static string MarryAndReadSpouse(TestHost host)
     {
         using var kernel = host.Boot();

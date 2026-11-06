@@ -174,6 +174,35 @@ public static class RoleTitleVi
         };
     }
 
+    public static string FormatItemHanzi(string? category, string? nameVi)
+    {
+        var n = (nameVi ?? string.Empty).ToLowerInvariant();
+        var cat = (category ?? string.Empty).ToLowerInvariant();
+        if (n.Contains("giống") || cat == "seed") return "種";
+        if (n.Contains("lúa mì") || n.Contains("mạch")) return "麥";
+        if (n.Contains("gạo") || n.Contains("lúa")) return "米";
+        if (n.Contains("muối")) return "鹽";
+        if (n.Contains("rượu")) return "酒";
+        if (n.Contains("trà")) return "茶";
+        if (n.Contains("gấm")) return "錦";
+        if (n.Contains("lụa")) return "絲";
+        if (n.Contains("vải")) return "布";
+        if (n.Contains("gỗ")) return "木";
+        if (n.Contains("than")) return "炭";
+        if (n.Contains("đồng")) return "銅";
+        if (n.Contains("sắt")) return "鐵";
+        if (n.Contains("sâm")) return "參";
+        if (n.Contains("trầm") || n.Contains("hương")) return "香";
+        if (n.Contains("thuốc") || n.Contains("dược")) return "藥";
+        if (n.Contains("cá")) return "魚";
+        if (n.Contains("phân bón")) return "肥";
+        return cat switch
+        {
+            "grain" => "米", "food" => "食", "medicine" => "藥",
+            "luxury" => "寶", "material" => "材", "farming" => "農", "tool" => "器", _ => "貨"
+        };
+    }
+
     private static bool IsAllAsciiUpper(string text)
     {
         foreach (var ch in text)

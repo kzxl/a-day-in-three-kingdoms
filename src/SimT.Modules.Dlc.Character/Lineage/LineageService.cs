@@ -23,8 +23,8 @@ internal sealed class LineageService : ILineageHouse
     public const long SpouseUpkeep = 40;
     public const long ChildUpkeep = 20;
 
-    private static readonly string[] SpouseNames =
-        ["Nguyễn Thị Lan", "Trần Thị Hoa", "Lê Thị Mai", "Phạm Thị Ngọc", "Đỗ Thị Thu"];
+    internal static readonly string[] SpouseNames =
+        ["Vương Thị", "Lưu Thị", "Tôn Thị", "Mã Thị", "Hà Thị"];
 
     private static readonly string[] ChildNames =
         ["An", "Bình", "Chi", "Dũng", "Hạnh", "Khang", "Linh", "Minh", "Nguyên", "Phúc"];

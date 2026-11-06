@@ -73,6 +73,45 @@ public sealed record SocialScene(
 {
     [JsonPropertyName("kind")]
     public string Kind => "social";
+
+    public static IReadOnlyList<SocialSkillView> BuildSkillViews(
+        SimT.Contracts.Playing.INpcRegistry reg,
+        IReadOnlyList<SimT.Contracts.Playing.PlayerSkillProgressDef> progresses,
+        IReadOnlyList<SimT.Contracts.Playing.NpcDef> localNpcs)
+    {
+        var list = new List<SocialSkillView>();
+        var skillOwners = new Dictionary<string, (SimT.Contracts.Playing.NpcDef Npc, SimT.Contracts.Playing.NpcSkillDef Skill)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var npc in localNpcs.Concat(reg.All))
+            foreach (var sk in npc.Skills)
+                skillOwners.TryAdd(sk.Code, (npc, sk));
+
+        foreach (var p in progresses)
+        {
+            skillOwners.TryGetValue(p.SkillCode, out var owner);
+            var name = owner.Skill?.NameVi ?? p.SkillCode;
+            var rank = p.Tier switch { >= 5 => "S", 4 => "A", 3 => "B", _ => "C" };
+            var teacher = owner.Npc is not null ? RoleTitleVi.ShortName(owner.Npc.NameVi) : "Danh sư";
+            list.Add(new SocialSkillView(
+                p.SkillCode, name, name[..1], rank, owner.Npc?.Id ?? 0, teacher,
+                owner.Skill?.EffectSummary ?? "Gia tăng năng lực", "Đã lĩnh hội",
+                true, p.IsEquipped, p.EquippedSlot ?? 0, p.Level, $"Cấp {p.Level}"));
+        }
+
+        foreach (var (code, (npc, sk)) in skillOwners.Take(12))
+        {
+            if (list.Any(x => string.Equals(x.SkillCode, code, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            var rank = sk.Tier switch { >= 5 => "S", 4 => "A", 3 => "B", _ => "C" };
+            var reqAff = sk.Tier switch { >= 5 => 75, 4 => 55, _ => 35 };
+            var teacher = RoleTitleVi.ShortName(npc.NameVi);
+            list.Add(new SocialSkillView(
+                code, sk.NameVi, sk.NameVi[..1], rank, npc.Id, teacher,
+                sk.EffectSummary, $"Học từ {teacher}, cần hảo cảm {reqAff}",
+                false, false, 0, 1, "Chưa lĩnh hội"));
+            if (list.Count >= 9) break;
+        }
+        return list;
+    }
 }
 
 public sealed record SocialNodeView(
