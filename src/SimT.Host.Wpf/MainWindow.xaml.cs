@@ -553,8 +553,8 @@ public partial class MainWindow : Window
             new()
             {
                 Id = "group.map",
-                Title = "Sa Bàn 13 Châu",
-                Subtitle = "Thiên hạ & lộ trình quan đạo",
+                Title = "Thiên Hạ",
+                Subtitle = "Quan đạo, thành trì & 13 châu",
                 IconPathData = "M3,6 L9,3 L15,6 L21,3 L21,18 L15,21 L9,18 L3,21 Z M9,3 L9,18 M15,6 L15,21",
                 Tag = "world.map"
             },
@@ -619,7 +619,7 @@ public partial class MainWindow : Window
                 activeGroupId = "group.map";
                 tabs = new List<GameTabItem>
                 {
-                    new("world.map", "🗺️ Sa Bàn Thiên Hạ")
+                    new("world.map", "🗺️ Thiên Hạ")
                 };
                 break;
 

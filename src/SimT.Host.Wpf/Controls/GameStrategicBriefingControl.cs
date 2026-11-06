@@ -149,7 +149,7 @@ public sealed class GameStrategicBriefingControl : Border
 
         var mapBtn = new GameButton
         {
-            Content = "🗺️ Sa Bàn 13 Châu",
+            Content = "🗺️ Thiên Hạ",
             Variant = GameButtonVariant.Secondary,
             MinHeight = 36,
             Padding = new Thickness(14, 6, 14, 6)
