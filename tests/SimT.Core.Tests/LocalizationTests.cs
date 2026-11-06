@@ -127,4 +127,54 @@ public sealed class LocalizationTests
             }
         }
     }
+
+    [Fact]
+    public void Entity_localization_adapter_resolves_code_with_fallback()
+    {
+        var loc = new LocalizationService("vi");
+
+        loc.RegisterStrings("vi", new Dictionary<string, string>
+        {
+            ["npc.npc_0005.name"] = "Quan Vũ (Vân Trường)",
+            ["skill.vo_thanh.name"] = "Võ Thánh"
+        });
+
+        loc.RegisterStrings("en", new Dictionary<string, string>
+        {
+            ["npc.npc_0005.name"] = "Guan Yu (Yunchang)",
+            ["skill.vo_thanh.name"] = "God of War"
+        });
+
+        var npc = new SimT.Contracts.Playing.NpcDef(
+            5, "npc_0005", "Quan Vũ (Vân Trường)", "關羽", "Vân Trường", "General", 1,
+            new SimT.Contracts.Playing.CharacterAttributes(98, 95, 80, 65, 70, 60, 75, 50, 95, 90, 85, 80),
+            "HONORABLE", "Võ Thánh uy chấn Hoa Hạ");
+
+        var skill = new SimT.Contracts.Playing.NpcSkillDef(
+            "vo_thanh", "Võ Thánh", "combat", 5, "Uy chấn Hoa Hạ", "Tăng 50% sát thương");
+
+        // 1. Vietnamese active
+        Assert.Equal("Quan Vũ (Vân Trường)", npc.LocalizeName(loc));
+        Assert.Equal("Võ Thánh", skill.LocalizeName(loc));
+
+        // 2. Switch to English
+        loc.SetLocale("en");
+        Assert.Equal("Guan Yu (Yunchang)", npc.LocalizeName(loc));
+        Assert.Equal("God of War", skill.LocalizeName(loc));
+
+        // 3. Dynamic Bilingual mode
+        loc.IsBilingualMode = true;
+        loc.SecondaryLocale = "en";
+        loc.SetLocale("vi");
+        Assert.Equal("Quan Vũ (Vân Trường) · Guan Yu (Yunchang)", npc.LocalizeName(loc));
+        Assert.Equal("Võ Thánh · God of War", skill.LocalizeName(loc));
+
+        // 4. Missing translation key falls back to NameVi
+        var unknownNpc = new SimT.Contracts.Playing.NpcDef(
+            999, "unknown_npc", "Tiểu Binh Khuyết Danh", null, null, "Soldier", 1,
+            new SimT.Contracts.Playing.CharacterAttributes(50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50),
+            "CALM", null);
+
+        Assert.Equal("Tiểu Binh Khuyết Danh", unknownNpc.LocalizeName(loc));
+    }
 }
