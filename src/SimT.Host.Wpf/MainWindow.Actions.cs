@@ -110,6 +110,7 @@ public partial class MainWindow
             }
 
             _kernel.Save();
+            InvalidateBadges();
             UpdateHeader();
             RenderSelected();
             ShowReport(from, _kernel.Today);

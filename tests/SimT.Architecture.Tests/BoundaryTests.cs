@@ -248,6 +248,71 @@ public sealed class BoundaryTests
         }
     }
 
+    [Fact]
+    public void Every_module_screen_belongs_to_exactly_one_strategic_ribbon_group()
+    {
+        var strategicSource = File.ReadAllText(Path.Combine(RepoLayout.Root, "src", "SimT.Host.Wpf", "MainWindow.Strategic.cs"));
+        var groupRx = new System.Text.RegularExpressions.Regex(
+            @"Id\s*=\s*""(group\.[a-z]+)""[\s\S]*?SubItems\s*=\s*\[([\s\S]*?)\]",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+        var subRx = new System.Text.RegularExpressions.Regex(
+            @"new\(\)\s*\{\s*Id\s*=\s*(""[a-z0-9._]+""|CitySceneScreenId|CityHubScreenId|LedgerScreenId)\s*,\s*Title\s*=\s*""([^""]+)""\s*,\s*Subtitle\s*=\s*""([^""]+)""\s*\}",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        var groups = new List<(string GroupId, List<string> ScreenIds)>();
+        foreach (System.Text.RegularExpressions.Match gm in groupRx.Matches(strategicSource))
+        {
+            var groupId = gm.Groups[1].Value;
+            var screenIds = new List<string>();
+            foreach (System.Text.RegularExpressions.Match sm in subRx.Matches(gm.Groups[2].Value))
+            {
+                var rawId = sm.Groups[1].Value;
+                var resolvedId = rawId switch
+                {
+                    "CitySceneScreenId" => "city.scene",
+                    "CityHubScreenId" => "city.hub",
+                    "LedgerScreenId" => "core.ledger",
+                    _ => rawId.Trim('"')
+                };
+                Assert.False(string.IsNullOrWhiteSpace(sm.Groups[2].Value));
+                Assert.False(string.IsNullOrWhiteSpace(sm.Groups[3].Value));
+                screenIds.Add(resolvedId);
+            }
+            groups.Add((groupId, screenIds));
+        }
+
+        Assert.Equal(["group.self", "group.map", "group.trade", "group.social", "group.power"], groups.Select(g => g.GroupId).ToArray());
+
+        var tempDir = Path.Combine(Path.GetTempPath(), "simt-arch-ribbon-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            using var kernel = SimKernel.Open(new KernelOptions(
+                DatabasePath: Path.Combine(tempDir, "campaign.db"),
+                ModulesDirectory: AppContext.BaseDirectory,
+                ProductPath: Path.Combine(RepoLayout.Root, "assets", "products", "merchant-slice.json"),
+                ConstantsPath: Path.Combine(RepoLayout.Root, "assets", "config", "game-constants.json"),
+                BackupDirectory: Path.Combine(tempDir, "backups")));
+
+            var allModuleScreens = kernel.Ui.Screens.Select(s => s.ScreenId).ToList();
+            Assert.NotEmpty(allModuleScreens);
+
+            foreach (var screenId in allModuleScreens.Concat(["city.scene", "city.hub", "core.ledger"]))
+            {
+                var matchingGroups = groups.Where(g => g.ScreenIds.Contains(screenId, StringComparer.Ordinal)).Select(g => g.GroupId).ToList();
+                Assert.True(matchingGroups.Count == 1, $"Screen '{screenId}' must belong to exactly 1 ribbon group, found {matchingGroups.Count}: [{string.Join(", ", matchingGroups)}].");
+            }
+
+            var tradeGroup = groups.Single(g => g.GroupId == "group.trade").ScreenIds;
+            Assert.Contains("market.bank", tradeGroup);
+            Assert.Contains("market.player_bank", tradeGroup);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     public static TheoryData<Assembly> Modules()
     {
         var data = new TheoryData<Assembly>();

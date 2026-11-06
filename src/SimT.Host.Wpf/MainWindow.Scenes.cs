@@ -241,8 +241,12 @@ public partial class MainWindow
         if (type == "close")
         {
             UpdateHeader();
-            InvalidateBadges(); RefreshBadges();
-            RenderSelected();
+            InvalidateBadges();
+            RefreshBadges();
+            if (activeScene is MapScene or SocialScene or MarketScene or DossierScene)
+                SelectScreen(CitySceneScreenId);
+            else
+                RenderSelected();
             return;
         }
 

@@ -192,57 +192,35 @@ public partial class MainWindow : Window
     {
         var today = _kernel.Today;
         ChronoCard.Configure(today, _kernel.Turn, _kernel.Product.StartDate);
-
-        var liquid = _kernel.Ledger.Liquid;
-        var safe = _kernel.Ledger.Safe;
-        var goods = GoodsValue();
-        var netWorth = _kernel.Ledger.Balance + goods;
-        TreasuryCard.Configure(liquid, safe, goods, netWorth);
-
+        var (liquid, safe, goods) = (_kernel.Ledger.Liquid, _kernel.Ledger.Safe, GoodsValue());
+        TreasuryCard.Configure(liquid, safe, goods, _kernel.Ledger.Balance + goods);
         CompactDateText.Text = GameDateCodec.ShortVi(today);
         CompactMoneyText.Text = $"{liquid.ToString("N0", Vietnamese)} quan";
 
         if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) && playerState is not null)
         {
-            var citadelName = "Lạc Dương";
-            var regionName = "Trung Nguyên";
-            if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map is not null &&
-                map.Find(playerState.CurrentCityId) is { } cit)
-            {
-                citadelName = cit.NameVi;
-                regionName = RoleTitleVi.FormatRegion(cit.Region);
-            }
+            var (citadelName, regionName) = ("Lạc Dương", "Trung Nguyên");
+            if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) && map?.Find(playerState.CurrentCityId) is { } cit)
+                (citadelName, regionName) = (cit.NameVi, RoleTitleVi.FormatRegion(cit.Region));
 
             _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs);
             var vitals = attrs?.Vitals;
-
             string? fameStanding = null;
             var shortStanding = "Bách Tính";
             if (_kernel.Capabilities.TryGet<IPlayerReputation>(CapabilityIds.PlayerReputation, out var rep) && rep is not null)
-            {
-                var s = rep.Standing;
-                shortStanding = s.TitleVi;
-                fameStanding = $"{s.TitleVi} · {s.Fame:N0} Uy Danh";
-            }
+                (shortStanding, fameStanding) = (rep.Standing.TitleVi, $"{rep.Standing.TitleVi} · {rep.Standing.Fame:N0} Uy Danh");
 
             CompactPlayerNameText.Text = playerState.Name;
             CompactLocationText.Text = citadelName;
-            CompactVitalsText.Text = vitals is not null
-                ? $"Thể lực {vitals.CurrentStamina}/{vitals.MaxStamina} · Mệt {vitals.Fatigue}% · {shortStanding}"
-                : shortStanding;
+            CompactVitalsText.Text = vitals is not null ? $"Thể lực {vitals.CurrentStamina}/{vitals.MaxStamina} · Mệt {vitals.Fatigue}% · {shortStanding}" : shortStanding;
 
             if (vitals is not null)
             {
-                double stamRatio = vitals.MaxStamina > 0 ? (double)vitals.CurrentStamina / vitals.MaxStamina : 1.0;
-                VisualStaminaFill.Width = Math.Clamp(stamRatio * 65.0, 2.0, 65.0);
+                VisualStaminaFill.Width = Math.Clamp((vitals.MaxStamina > 0 ? (double)vitals.CurrentStamina / vitals.MaxStamina : 1.0) * 65.0, 2.0, 65.0);
                 VisualStaminaText.Text = $"{vitals.CurrentStamina}/{vitals.MaxStamina}";
-
-                double fatRatio = Math.Clamp((double)vitals.Fatigue / 100.0, 0.0, 1.0);
-                VisualFatigueFill.Width = Math.Clamp(fatRatio * 55.0, 2.0, 55.0);
+                VisualFatigueFill.Width = Math.Clamp(Math.Clamp(vitals.Fatigue / 100.0, 0.0, 1.0) * 55.0, 2.0, 55.0);
                 VisualFatigueText.Text = $"{vitals.Fatigue}%";
-                VisualFatigueFill.Background = vitals.Fatigue > 75
-                    ? (Brush)FindResource("Loss")
-                    : new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
+                VisualFatigueFill.Background = vitals.Fatigue > 75 ? (Brush)FindResource("Loss") : new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B));
             }
             VisualStandingText.Text = shortStanding;
             PlayerHudCard.Configure(playerState.Name, citadelName, regionName, vitals, fameStanding);
@@ -253,9 +231,7 @@ public partial class MainWindow : Window
     }
 
     private long GoodsValue() =>
-        _kernel.Capabilities.TryGet<IMarketPortfolio>(CapabilityIds.MarketPortfolio, out var portfolio) && portfolio is not null
-            ? portfolio.InventoryValue()
-            : 0;
+        _kernel.Capabilities.TryGet<IMarketPortfolio>(CapabilityIds.MarketPortfolio, out var portfolio) && portfolio is not null ? portfolio.InventoryValue() : 0;
 
     private void RenderCalendar(GameDate today) => CalendarBar.SetDate(today, _kernel.Turn);
 
@@ -265,84 +241,16 @@ public partial class MainWindow : Window
         CompactDateText.Text = GameDateCodec.ShortVi(today);
     }
 
-    // ---------------------------------------------------------- rail badges
-
     private bool _badgesDirty = true;
     private readonly Dictionary<string, int> _cachedBadgeCounts = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _lastScreenPerGroup = new(StringComparer.Ordinal);
 
-    public void InvalidateBadges()
-    {
-        _badgesDirty = true;
-    }
-
-    private void RefreshBadges(bool force = false)
-    {
-        if (NavList.ItemsSource is not IEnumerable<NavEntry> entries)
-        {
-            return;
-        }
-
-        if (force || _badgesDirty)
-        {
-            _cachedBadgeCounts.Clear();
-            foreach (var screen in _kernel.Ui.Screens)
-            {
-                var alerts = screen.Render().Attention.Count;
-                if (alerts > 0)
-                {
-                    _cachedBadgeCounts[screen.ScreenId] = alerts;
-                }
-            }
-            _badgesDirty = false;
-        }
-
-        foreach (var entry in entries)
-        {
-            entry.SetBadge(_cachedBadgeCounts.GetValueOrDefault(entry.ScreenId));
-        }
-
-        if (StrategicRibbon?.ItemsSource is { } ribbonList)
-        {
-            foreach (var rItem in ribbonList)
-            {
-                var groupCount = rItem.Id switch
-                {
-                    "group.self" => _cachedBadgeCounts.GetValueOrDefault(CityHubScreenId) +
-                                    _cachedBadgeCounts.GetValueOrDefault("player.destiny") +
-                                    _cachedBadgeCounts.GetValueOrDefault("player.reputation") +
-                                    _cachedBadgeCounts.GetValueOrDefault("content.item_hub") +
-                                    _cachedBadgeCounts.GetValueOrDefault(LedgerScreenId),
-                    "group.map" => _cachedBadgeCounts.GetValueOrDefault("world.map"),
-                    "group.trade" => _cachedBadgeCounts.GetValueOrDefault("market.stall") +
-                                     _cachedBadgeCounts.GetValueOrDefault("market.player_stall") +
-                                     _cachedBadgeCounts.GetValueOrDefault("market.warehouse") +
-                                     _cachedBadgeCounts.GetValueOrDefault("caravan.routes") +
-                                     _cachedBadgeCounts.GetValueOrDefault("cultivation.farm") +
-                                     _cachedBadgeCounts.GetValueOrDefault("professions.trades"),
-                    "group.power" => _cachedBadgeCounts.GetValueOrDefault("society.chronicle") +
-                                     _cachedBadgeCounts.GetValueOrDefault("politics.court") +
-                                     _cachedBadgeCounts.GetValueOrDefault("military.arena"),
-                    "group.social" => _cachedBadgeCounts.GetValueOrDefault("npc.directory") +
-                                      _cachedBadgeCounts.GetValueOrDefault("social.network") +
-                                      _cachedBadgeCounts.GetValueOrDefault("lineage.family"),
-                    _ => 0
-                };
-
-                rItem.BadgeText = groupCount > 0 ? groupCount.ToString() : null;
-            }
-            StrategicRibbon.InvalidateVisual();
-        }
-    }
-
-    // ------------------------------------------------------------- screens
+    public void InvalidateBadges() => _badgesDirty = true;
 
     private void Nav_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_loaded && !_isNavigating)
-        {
             RenderSelected();
-        }
     }
 
     public void ShowNotification(string message, GameToastKind? kind = null)
@@ -374,24 +282,12 @@ public partial class MainWindow : Window
             .First();
 
         if (index < 0) return false;
-        if (NavList.SelectedIndex != index)
-            NavList.SelectedIndex = index;
-        else
-            RenderSelected();
-        if (index < 0)
-        {
-            return false;
-        }
+        if (NavList.SelectedIndex == index && string.Equals(_screenId, screenId, StringComparison.Ordinal) && SceneOverlay.ActiveScene is not (TalkScene or DuelScene))
+            return true;
 
         _isNavigating = true;
-        try
-        {
-            NavList.SelectedIndex = index;
-        }
-        finally
-        {
-            _isNavigating = false;
-        }
+        try { NavList.SelectedIndex = index; }
+        finally { _isNavigating = false; }
         RenderSelected();
         return true;
     }
@@ -493,5 +389,4 @@ public partial class MainWindow : Window
     }
 
     private static string FormatRegionName(string? regionCode) => RoleTitleVi.FormatRegion(regionCode);
-
 }

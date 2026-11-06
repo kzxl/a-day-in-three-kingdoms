@@ -24,12 +24,9 @@ public static class SceneArtCatalog
     private static readonly Lazy<ManifestTable> Manifest = new(LoadManifest, isThreadSafe: true);
     public static bool IsManifestLoadedFromDisk => Manifest.Value.LoadedFromDisk;
 
-    public static string ClassifyArchetype(NpcDef npc) =>
-        ClassifyArchetype(npc.Code, npc.Role, npc.Attributes, npc.NameVi, npc.Personality);
+    public static string ClassifyArchetype(NpcDef npc) => ClassifyArchetype(npc.Code, npc.Role, npc.Attributes, npc.NameVi, npc.Personality);
 
-    public static string ClassifyArchetype(
-        string? npcCode, string? rawRole, CharacterAttributes? attributes = null,
-        string? nameVi = null, string? personality = null)
+    public static string ClassifyArchetype(string? npcCode, string? rawRole, CharacterAttributes? attributes = null, string? nameVi = null, string? personality = null)
     {
         var code = NormalizeNpcCode(npcCode, nameVi);
         switch (code)
@@ -91,12 +88,9 @@ public static class SceneArtCatalog
         return "commoner";
     }
 
-    public static (string PortraitFull, string PortraitFace, string SpritePath) ResolveNpcArt(NpcDef npc) =>
-        ResolveNpcArt(npc.Code, npc.Role, npc.Attributes, npc.NameVi, npc.Personality);
+    public static (string PortraitFull, string PortraitFace, string SpritePath) ResolveNpcArt(NpcDef npc) => ResolveNpcArt(npc.Code, npc.Role, npc.Attributes, npc.NameVi, npc.Personality);
 
-    public static (string PortraitFull, string PortraitFace, string SpritePath) ResolveNpcArt(
-        string? npcCode, string? rawRole, CharacterAttributes? attributes = null,
-        string? nameVi = null, string? personality = null)
+    public static (string PortraitFull, string PortraitFace, string SpritePath) ResolveNpcArt(string? npcCode, string? rawRole, CharacterAttributes? attributes = null, string? nameVi = null, string? personality = null)
     {
         var manifest = Manifest.Value;
         var normCode = NormalizeNpcCode(npcCode, nameVi);
@@ -116,16 +110,11 @@ public static class SceneArtCatalog
     public static string ResolveProfileArt(NpcDef npc) => ResolveNpcArt(npc).PortraitFace;
 
     public static (string AnimPath, string AnimKey) ResolvePlayerAnim() =>
-        Manifest.Value.Anim.TryGetValue("traveler", out var rel)
-            ? (PrefixArt(rel), ExtractAnimKey(rel, PlayerAnimKey))
-            : (PlayerAnim, PlayerAnimKey);
+        Manifest.Value.Anim.TryGetValue("traveler", out var rel) ? (PrefixArt(rel), ExtractAnimKey(rel, PlayerAnimKey)) : (PlayerAnim, PlayerAnimKey);
 
-    public static (string? AnimPath, string? AnimKey) ResolveNpcAnim(NpcDef npc) =>
-        ResolveNpcAnim(npc.Code, npc.Role, npc.Attributes, npc.NameVi, npc.Personality);
+    public static (string? AnimPath, string? AnimKey) ResolveNpcAnim(NpcDef npc) => ResolveNpcAnim(npc.Code, npc.Role, npc.Attributes, npc.NameVi, npc.Personality);
 
-    public static (string? AnimPath, string? AnimKey) ResolveNpcAnim(
-        string? npcCode, string? rawRole = null, CharacterAttributes? attributes = null,
-        string? nameVi = null, string? personality = null)
+    public static (string? AnimPath, string? AnimKey) ResolveNpcAnim(string? npcCode, string? rawRole = null, CharacterAttributes? attributes = null, string? nameVi = null, string? personality = null)
     {
         var manifest = Manifest.Value;
         var normCode = NormalizeNpcCode(npcCode, nameVi);
@@ -397,6 +386,7 @@ public static class SceneArtCatalog
 
     private static string? ResolveManifestPath() =>
         CachedScenesDirectory is { } d && File.Exists(Path.Combine(d, "art", "manifest.json")) ? Path.Combine(d, "art", "manifest.json") : null;
+
     private sealed record ManifestTable(
         Dictionary<string, (string Portrait, string Sprite)> Npc, Dictionary<string, (string Portrait, string Sprite)> Archetype,
         Dictionary<string, string> Backgrounds, Dictionary<string, string> Anim,

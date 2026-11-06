@@ -14,16 +14,31 @@ public partial class MainWindow
         {
             new()
             {
-                Id = "group.map",
-                Title = "Sa Bàn 13 Châu",
-                Subtitle = "Thiên hạ & lộ trình",
-                IconPathData = "M3,6 L9,3 L15,6 L21,3 L21,18 L15,21 L9,18 L3,21 Z M9,3 L9,18 M15,6 L15,21",
+                Id = "group.self",
+                Title = "Đại Bản Doanh",
+                Subtitle = "Nội vụ, mệnh cách & sổ cái",
+                IconPathData = "M12,3 L2,12 L5,12 L5,20 L19,20 L19,12 L22,12 Z M10,14 L14,14 L14,20 L10,20 Z",
                 Tag = CitySceneScreenId,
                 SubItems =
                 [
                     new() { Id = CitySceneScreenId, Title = "Trong Thành", Subtitle = "Dạo phố, gặp danh sĩ" },
                     new() { Id = CityHubScreenId, Title = "Nhật Trình", Subtitle = "Tiêu điểm & báo cáo ngày" },
-                    new() { Id = "world.map", Title = "Sa Bàn Thiên Hạ", Subtitle = "Chọn đường sang thành khác" }
+                    new() { Id = "player.destiny", Title = "Mệnh Cách", Subtitle = "Cộng điểm thiên mệnh" },
+                    new() { Id = "player.reputation", Title = "Danh Vọng", Subtitle = "Uy tín từng vùng" },
+                    new() { Id = "content.item_hub", Title = "Đồ Giám", Subtitle = "Tra vật phẩm" },
+                    new() { Id = LedgerScreenId, Title = "Sổ Cái", Subtitle = "Thu chi của bạn" }
+                ]
+            },
+            new()
+            {
+                Id = "group.map",
+                Title = "Thiên Hạ",
+                Subtitle = "Quan đạo, thành trì & 13 châu",
+                IconPathData = "M3,6 L9,3 L15,6 L21,3 L21,18 L15,21 L9,18 L3,21 Z M9,3 L9,18 M15,6 L15,21",
+                Tag = "world.map",
+                SubItems =
+                [
+                    new() { Id = "world.map", Title = "Thiên Hạ", Subtitle = "Chọn đường sang thành khác" }
                 ]
             },
             new()
@@ -47,25 +62,11 @@ public partial class MainWindow
             },
             new()
             {
-                Id = "group.power",
-                Title = "Thế Lực Triều Đình",
-                Subtitle = "Quan trường, quân doanh",
-                IconPathData = "M3,20 L21,20 M5,20 L5,10 M9,20 L9,10 M15,20 L15,10 M19,20 L19,10 M2,10 L12,4 L22,10",
-                Tag = "politics.court",
-                SubItems =
-                [
-                    new() { Id = "society.chronicle", Title = "Thiên Hạ Niên Giám", Subtitle = "Biến động thời cuộc" },
-                    new() { Id = "politics.court", Title = "Quan Trường", Subtitle = "Xin chức, lĩnh bổng" },
-                    new() { Id = "military.arena", Title = "Binh Nghiệp", Subtitle = "Lôi đài, dẹp giặc" }
-                ]
-            },
-            new()
-            {
                 Id = "group.social",
                 Title = "Nhân Duyên Hào Kiệt",
                 Subtitle = "Danh sĩ, quan hệ, dòng họ",
                 IconPathData = "M12,11 A4,4 0 1,0 12,3 A4,4 0 1,0 12,11 M5,20 C5,16 8,14 12,14 C16,14 19,16 19,20",
-                Tag = "social.network",
+                Tag = "npc.directory",
                 SubItems =
                 [
                     new() { Id = "npc.directory", Title = "Danh Sĩ", Subtitle = "Danh bạ mọi nhân vật" },
@@ -75,17 +76,16 @@ public partial class MainWindow
             },
             new()
             {
-                Id = "group.self",
-                Title = "Bản Thân & Sổ Sách",
-                Subtitle = "Mệnh cách, uy danh, sổ cái",
-                IconPathData = "M12,2 L15,9 L22,12 L15,15 L12,22 L9,15 L2,12 L9,9 Z",
-                Tag = "player.destiny",
+                Id = "group.power",
+                Title = "Thế Lực Triều Đình",
+                Subtitle = "Quan trường, niên giám & binh bị",
+                IconPathData = "M3,20 L21,20 M5,20 L5,10 M9,20 L9,10 M15,20 L15,10 M19,20 L19,10 M2,10 L12,4 L22,10",
+                Tag = "society.chronicle",
                 SubItems =
                 [
-                    new() { Id = "player.destiny", Title = "Mệnh Cách", Subtitle = "Cộng điểm thiên mệnh" },
-                    new() { Id = "player.reputation", Title = "Danh Vọng", Subtitle = "Uy tín từng vùng" },
-                    new() { Id = "content.item_hub", Title = "Đồ Giám", Subtitle = "Tra vật phẩm" },
-                    new() { Id = LedgerScreenId, Title = "Sổ Cái", Subtitle = "Thu chi của bạn" }
+                    new() { Id = "society.chronicle", Title = "Thiên Hạ Niên Giám", Subtitle = "Biến động thời cuộc" },
+                    new() { Id = "politics.court", Title = "Quan Trường", Subtitle = "Xin chức, lĩnh bổng" },
+                    new() { Id = "military.arena", Title = "Binh Nghiệp", Subtitle = "Lôi đài, dẹp giặc" }
                 ]
             }
         };
@@ -93,7 +93,8 @@ public partial class MainWindow
         StrategicRibbon.ItemsSource = ribbonItems;
         StrategicRibbon.ItemSelected += (_, e) =>
         {
-            var targetScreen = e.SubItem?.Id ?? (e.Item.Tag as string);
+            var targetScreen = e.SubItem?.Id
+                ?? (_lastScreenPerGroup.TryGetValue(e.Item.Id, out var lastScreen) ? lastScreen : e.Item.Tag as string);
             if (!string.IsNullOrEmpty(targetScreen))
             {
                 SelectScreen(targetScreen);
@@ -117,6 +118,7 @@ public partial class MainWindow
             .FirstOrDefault(g => g.SubItems.Any(s => string.Equals(s.Id, screenId, StringComparison.Ordinal)))
             ?? StrategicRibbon.ItemsSource[0];
 
+        _lastScreenPerGroup[activeGroup.Id] = screenId;
         StrategicRibbon.SelectedItemId = activeGroup.Id;
         StrategicRibbon.SelectedSubItemId = screenId;
 
@@ -129,26 +131,30 @@ public partial class MainWindow
         ScreenGroupTabs.SetTabs(tabs, selectedIdx);
     }
 
-    private void RefreshBadges()
+    private void RefreshBadges(bool force = false)
     {
         if (NavList.ItemsSource is not IEnumerable<NavEntry> entries)
             return;
 
-        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var screen in _kernel.Ui.Screens)
+        if (force || _badgesDirty)
         {
-            var alerts = screen.Render().Attention.Count;
-            if (alerts > 0)
-                counts[screen.ScreenId] = alerts;
+            _cachedBadgeCounts.Clear();
+            foreach (var screen in _kernel.Ui.Screens)
+            {
+                var alerts = screen.Render().Attention.Count;
+                if (alerts > 0)
+                    _cachedBadgeCounts[screen.ScreenId] = alerts;
+            }
+            _badgesDirty = false;
         }
 
         foreach (var entry in entries)
-            entry.SetBadge(counts.GetValueOrDefault(entry.ScreenId));
+            entry.SetBadge(_cachedBadgeCounts.GetValueOrDefault(entry.ScreenId));
 
         foreach (var group in _navGroups)
             group.RefreshGroupBadge();
 
-        RefreshRibbonBadges(counts);
+        RefreshRibbonBadges(_cachedBadgeCounts);
     }
 
     private void RefreshRibbonBadges(IReadOnlyDictionary<string, int> counts)
