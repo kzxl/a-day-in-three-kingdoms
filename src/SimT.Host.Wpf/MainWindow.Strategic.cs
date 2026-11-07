@@ -1,3 +1,4 @@
+using SimT.Contracts.Time;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Threading;
@@ -101,6 +102,18 @@ public partial class MainWindow
                 ?? (_lastScreenPerGroup.TryGetValue(e.Item.Id, out var lastScreen) ? lastScreen : e.Item.Tag as string);
             if (string.IsNullOrEmpty(targetScreen)) return;
 
+            var startDayIdx = GameDate.Create(184, 1, 1).DayIndex;
+            var daysPassed = (long)Math.Max(0, _kernel.Today.DayIndex - startDayIdx);
+            var balance = _kernel.Ledger.Balance;
+            var repTier = _kernel.Capabilities.TryGet<IPlayerReputation>(CapabilityIds.PlayerReputation, out var rep) && rep is not null
+                ? rep.Standing.CurrentTier
+                : 1;
+            var gate = ProgressionGating.Check(targetScreen, daysPassed, balance, repTier);
+            if (!gate.IsUnlocked)
+            {
+                UpdateRecommendationBanner($"🔒 [CHƯA MỞ KHÓA] {e.SubItem?.Title ?? targetScreen}: {gate.ConditionVi}. Hướng dẫn: {gate.AdviceVi}");
+            }
+
             _lastScreenPerGroup[e.Item.Id] = targetScreen;
             StrategicRibbon.SelectedItemId = e.Item.Id;
             StrategicRibbon.SelectedSubItemId = targetScreen;
@@ -181,14 +194,29 @@ public partial class MainWindow
     {
         if (StrategicRibbon?.ItemsSource is null) return;
 
+        var startDayIdx = GameDate.Create(184, 1, 1).DayIndex;
+        var daysPassed = (long)Math.Max(0, _kernel.Today.DayIndex - startDayIdx);
+        var balance = _kernel.Ledger.Balance;
+        var repTier = _kernel.Capabilities.TryGet<IPlayerReputation>(CapabilityIds.PlayerReputation, out var rep) && rep is not null
+            ? rep.Standing.CurrentTier
+            : 1;
+
         foreach (var group in StrategicRibbon.ItemsSource)
         {
             int groupTotal = 0;
             foreach (var sub in group.SubItems)
             {
-                int count = counts.GetValueOrDefault(sub.Id);
-                sub.BadgeText = count > 0 ? count.ToString() : null;
-                groupTotal += count;
+                var gate = ProgressionGating.Check(sub.Id, daysPassed, balance, repTier);
+                if (!gate.IsUnlocked)
+                {
+                    sub.BadgeText = "🔒";
+                }
+                else
+                {
+                    int count = counts.GetValueOrDefault(sub.Id);
+                    sub.BadgeText = count > 0 ? count.ToString() : null;
+                    groupTotal += count;
+                }
             }
             group.BadgeText = groupTotal > 0 ? groupTotal.ToString() : null;
         }

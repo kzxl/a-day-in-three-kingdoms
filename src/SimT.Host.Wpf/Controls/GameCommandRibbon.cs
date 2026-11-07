@@ -110,7 +110,8 @@ public sealed class GameCommandRibbon : Control
 
     private static readonly Typeface TitleTypeface = new(new FontFamily("Noto Serif, Georgia, SimSun, Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
     private static readonly Typeface SubtitleTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
-    private static readonly Typeface BadgeTypeface = new(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+    private static readonly Typeface BadgeTypeface = new(new FontFamily("Segoe UI Emoji, Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+    private static readonly Brush BadgeLockBg = Freeze(new SolidColorBrush(Color.FromRgb(0x3B, 0x2B, 0x1C)));
 
     private const double TabHeight = 48.0, TabSpacing = 6.0, SubHeight = 36.0, SubSpacing = 3.0, LeftCurveWidth = 6.0;
     private (int ItemIdx, int SubIdx) _hovered = (-1, -1);
@@ -375,15 +376,16 @@ public sealed class GameCommandRibbon : Control
     private static void DrawBadge(DrawingContext dc, Rect rect, string? badgeText, double dpi)
     {
         if (string.IsNullOrEmpty(badgeText)) return;
+        bool isLock = badgeText == "🔒";
         FormattedText bFt = new(
             badgeText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-            BadgeTypeface, 9.5, BadgeFg, dpi);
-        double bWidth = Math.Max(16, bFt.Width + 8);
+            BadgeTypeface, isLock ? 8.5 : 9.5, isLock ? GoldAccent : BadgeFg, dpi);
+        double bWidth = Math.Max(16, bFt.Width + (isLock ? 4 : 8));
         const double bHeight = 15;
         double bx = rect.Right - bWidth - 7;
         double by = rect.Top + (rect.Height - bHeight) / 2;
-        dc.DrawRoundedRectangle(BadgeBg, null, new Rect(bx, by, bWidth, bHeight), 4, 4);
-        dc.DrawText(bFt, new Point(bx + (bWidth - bFt.Width) / 2, by + 1));
+        dc.DrawRoundedRectangle(isLock ? BadgeLockBg : BadgeBg, isLock ? new Pen(BorderBronze, 0.8) : null, new Rect(bx, by, bWidth, bHeight), 4, 4);
+        dc.DrawText(bFt, new Point(bx + (bWidth - bFt.Width) / 2, by + (isLock ? 0 : 1)));
     }
 
     private static Brush Freeze(Brush brush)

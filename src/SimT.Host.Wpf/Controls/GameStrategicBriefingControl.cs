@@ -87,6 +87,13 @@ public sealed class GameStrategicBriefingControl : Border
         // 1. Top Citadel Overview Hero Banner
         _rootContent.Children.Add(BuildCitadelHeroBanner(citadel, ecosystem, today));
 
+        // 1.5 RPG Starter Questline (Hành Trình Tân Thủ - 3 Bước Khởi Đầu)
+        var starterCard = BuildStarterQuestCard(kernel, today, playerState);
+        if (starterCard is not null)
+        {
+            _rootContent.Children.Add(starterCard);
+        }
+
         // 2. Main 2-Column Strategic Arena
         var arenaGrid = new Grid { Margin = new Thickness(0, 14, 0, 0) };
         arenaGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.15, GridUnitType.Star) });
@@ -804,5 +811,123 @@ public sealed class GameStrategicBriefingControl : Border
     {
         brush.Freeze();
         return brush;
+    }
+
+    // =========================================================================
+    // 1.5 RPG Starter Questline (3 Bước Khởi Nghiệp Loạn Thế)
+    // =========================================================================
+    private UIElement? BuildStarterQuestCard(SimKernel kernel, GameDate today, IPlayerState playerState)
+    {
+        var startDay = GameDate.Create(184, 1, 1).DayIndex;
+        var daysPassed = (long)Math.Max(0, today.DayIndex - startDay);
+        var balance = kernel.Ledger.Balance;
+
+        if (daysPassed > 30 && balance >= 6000)
+            return null;
+
+        var card = new GameSectionCard
+        {
+            Heading = "Hành Trình Tân Thủ — 3 Bước Khởi Nghiệp Loạn Thế",
+            Subtitle = "Lộ trình từng bước giúp lữ khách an thân lập mệnh, làm quen cuộc sống Tam Quốc và tránh bỡ ngỡ",
+            Icon = "⚔️",
+            Margin = new Thickness(0, 14, 0, 0)
+        };
+
+        var stack = new StackPanel();
+
+        // Step 1: Quen nước quen lửa
+        bool step1Done = daysPassed >= 1;
+        stack.Children.Add(BuildStarterStepRow(
+            stepNumber: 1,
+            title: "🏮 Quen Nước Quen Lửa (Dạo Phố & Quán Trọ)",
+            description: "Đến [Trong Thành] dạo chơi, tìm hiểu giá gạo, trà, muối và chuyện trò với danh sĩ địa phương để nắm bắt tình hình.",
+            actionLabel: "Ra Phố Dạo Chơi",
+            isDone: step1Done,
+            action: () => RequestOpenCityScene?.Invoke()));
+
+        // Step 2: Bát cơm manh áo
+        bool step2Done = daysPassed >= 3 || balance >= 2200;
+        stack.Children.Add(BuildStarterStepRow(
+            stepNumber: 2,
+            title: "🌾 Bát Cơm Manh Áo (Kiếm Tiền Sinh Nhai)",
+            description: "Vào [Nghề Nghiệp] làm công nhật (nông phu, tiều phu, rèn) hoặc buôn chuyến hàng nhỏ tại [Chợ Thành] để tích lũy quan tiền.",
+            actionLabel: "Xem Nghề Nghiệp",
+            isDone: step2Done,
+            action: () => RequestNavigate?.Invoke("professions.trades")));
+
+        // Step 3: Tích lũy lộ phí & Mở rộng cơ nghiệp
+        bool step3Done = balance >= 2500;
+        stack.Children.Add(BuildStarterStepRow(
+            stepNumber: 3,
+            title: $"🗺️ Tích Lũy Lộ Phí (Mục tiêu: 2.500 Quan · Hiện có: {balance:N0} Quan)",
+            description: "Tích lũy vốn để mở khóa [Kho Bãi] tránh hỏng hàng, sẵn sàng lộ phí để xuất hành quan đạo sang các châu khác trên [Thiên Hạ].",
+            actionLabel: "Xem Bản Đồ",
+            isDone: step3Done,
+            action: () => RequestNavigate?.Invoke("world.map")));
+
+        card.CardBody = stack;
+        return card;
+    }
+
+    private UIElement BuildStarterStepRow(int stepNumber, string title, string description, string actionLabel, bool isDone, Action action)
+    {
+        var border = new Border
+        {
+            Background = ItemRowBg,
+            BorderBrush = isDone ? BorderGold : ItemRowBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(12, 10, 12, 10),
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+
+        var dock = new DockPanel();
+
+        var btn = new GameButton
+        {
+            Content = isDone ? "✓ Hoàn thành" : actionLabel,
+            Variant = isDone ? GameButtonVariant.Secondary : GameButtonVariant.Primary,
+            MinHeight = 30,
+            Padding = new Thickness(10, 4, 10, 4),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        DockPanel.SetDock(btn, Dock.Right);
+        btn.Click += (_, _) => action();
+        dock.Children.Add(btn);
+
+        var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var titleRow = new StackPanel { Orientation = Orientation.Horizontal };
+
+        var badge = new GameBadge(isDone ? "ĐÃ XONG" : $"BƯỚC {stepNumber}", isDone ? BadgeVariant.Gain : BadgeVariant.Gold)
+        {
+            Size = BadgeSize.Small,
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        titleRow.Children.Add(badge);
+
+        var titleBlock = new TextBlock
+        {
+            Text = title,
+            FontWeight = FontWeights.Bold,
+            FontSize = 13,
+            Foreground = isDone ? TextPrimary : AccentGold,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        titleRow.Children.Add(titleBlock);
+        textStack.Children.Add(titleRow);
+
+        var descBlock = new TextBlock
+        {
+            Text = description,
+            Foreground = TextMuted,
+            FontSize = 11.5,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 3, 0, 0)
+        };
+        textStack.Children.Add(descBlock);
+
+        dock.Children.Add(textStack);
+        border.Child = dock;
+        return border;
     }
 }
