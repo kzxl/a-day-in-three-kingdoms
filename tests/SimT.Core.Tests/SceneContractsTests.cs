@@ -129,10 +129,10 @@ public sealed class SceneContractsTests
         Assert.Equal("art/anim/traveler.png", playerAnimPath);
         Assert.Equal("traveler", playerAnimKey);
 
-        // Thương nhân Trương Lão Bản không có dải anim riêng -> trả về (null, null), tuyệt đối không gán zhang_fei.png
+        // Thương nhân Trương Lão Bản nhận dải thương nhân chung, tuyệt đối không gán zhang_fei.png
         var (merchantAnimPath, merchantAnimKey) = SceneArtCatalog.ResolveNpcAnim("npc_9001", "merchant");
-        Assert.Null(merchantAnimPath);
-        Assert.Null(merchantAnimKey);
+        Assert.Equal("art/anim/merchant.png", merchantAnimPath);
+        Assert.Equal("merchant", merchantAnimKey);
 
         // Võ tướng chưa có dải riêng (ví dụ Hoa Hùng) nhận dải han_officer.png
         var (generalAnimPath, generalAnimKey) = SceneArtCatalog.ResolveNpcAnim("npc_0092", "general");

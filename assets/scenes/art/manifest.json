@@ -89,7 +89,16 @@
     "guan_yu": "anim/guan_yu.png",
     "zhang_fei": "anim/zhang_fei.png",
     "han_officer": "anim/han_officer.png",
-    "general": "anim/han_officer.png"
+    "general": "anim/han_officer.png",
+    "scholar": "anim/scholar.png",
+    "merchant": "anim/merchant.png",
+    "elder": "anim/elder.png",
+    "commoner": "anim/commoner.png",
+    "lady": "anim/lady.png",
+    "swordswoman": "anim/swordswoman.png",
+    "archer": "anim/archer.png",
+    "rebel": "anim/rebel.png",
+    "farmer_woman": "anim/farmer_woman.png"
   },
   "portraitFrames": {
     "guan_yu": {
