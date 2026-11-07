@@ -86,7 +86,9 @@ public sealed partial class GameLoadingScreen
         {
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 22, 64, 0),
+            // One row, kept high: the walker stands at the road's end right below it.
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 14, 64, 0),
             Visibility = Visibility.Collapsed
         };
         Panel.SetZIndex(_enterPanel, 10);
@@ -119,16 +121,16 @@ public sealed partial class GameLoadingScreen
             TriggerEnterCity();
         };
 
-        _enterPanel.Children.Add(_enterBtnBorder);
         _enterPanel.Children.Add(new TextBlock
         {
             Text = "hoặc nhấn Enter",
             FontFamily = SansFont,
             FontSize = 13,
             Foreground = StepDoneTextBrush,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 8, 0, 0)
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 16, 0)
         });
+        _enterPanel.Children.Add(_enterBtnBorder);
 
         bottomGrid.Children.Add(_enterPanel);
     }

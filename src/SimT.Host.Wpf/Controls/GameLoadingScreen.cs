@@ -182,12 +182,14 @@ public sealed partial class GameLoadingScreen : UserControl
         var roadWidth = ActualWidth > 200.0 ? ActualWidth - 128.0 : 1152.0;
         var target = Math.Clamp(completedCount / 6.0, 0.0, 1.0);
 
+        // Once everything has loaded the walker hurries to the end instead of making the player wait.
+        var maxSpeed = completedCount >= 6 ? 1.6 : 0.42;
         var remaining = dt;
         do
         {
             var slice = Math.Min(remaining, 0.025);
             _state.IdleTime += slice;
-            var step = Math.Min(0.42 * slice, Math.Max(0.0, (target - _state.Pos) * Math.Min(1.0, slice * 6.0)));
+            var step = Math.Min(maxSpeed * slice, Math.Max(0.0, (target - _state.Pos) * Math.Min(1.0, slice * 6.0)));
             if (slice > 0.0)
                 _state.IsMoving = step / slice > 0.024;
             _state.Dist += step * roadWidth;
@@ -315,7 +317,9 @@ public sealed partial class GameLoadingScreen : UserControl
         var statusIdx = activeIndex >= 0 ? activeIndex : Math.Min(5, completedCount);
         _statusText.Text = _state.Ready
             ? "Đã sẵn sàng · 6/6 bước"
-            : $"{LoadingProgressState.StepLabels[statusIdx]}…";
+            : completedCount >= 6
+                ? "Sắp xong…"
+                : $"{LoadingProgressState.StepLabels[statusIdx]}…";
         _percentText.Text = $"{Math.Round(_state.Pos * 100.0)}%";
     }
 }
