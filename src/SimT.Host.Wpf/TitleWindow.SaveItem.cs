@@ -126,6 +126,7 @@ public partial class TitleWindow
         var campaignIdShort = meta.CampaignId.Length >= 8 ? meta.CampaignId[..8] : meta.CampaignId;
 
         var cityName = "Lạc Dương";
+        var cityCode = "lac_duong";
         var regionName = "Trung Nguyên";
         long wallet = 0;
         var fame = 100;
@@ -149,7 +150,7 @@ public partial class TitleWindow
 
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "SELECT p.name, c.name_vi, c.region FROM pl_player p LEFT JOIN wd_citadel c ON p.city_id = c.id WHERE p.id = 1 LIMIT 1;";
+                    cmd.CommandText = "SELECT p.name, c.name_vi, c.region, c.code FROM pl_player p LEFT JOIN wd_citadel c ON p.city_id = c.id WHERE p.id = 1 LIMIT 1;";
                     using var r = cmd.ExecuteReader();
                     if (r.Read())
                     {
@@ -159,6 +160,8 @@ public partial class TitleWindow
                             cityName = r.GetString(1);
                         if (!r.IsDBNull(2))
                             regionName = FormatRegionName(r.GetString(2));
+                        if (!r.IsDBNull(3) && !string.IsNullOrWhiteSpace(r.GetString(3)))
+                            cityCode = r.GetString(3);
                     }
                 }
 
@@ -198,6 +201,7 @@ public partial class TitleWindow
             lastPlayedText,
             campaignIdShort,
             cityName,
+            cityCode,
             regionName,
             $"{wallet:N0} quan",
             wallet,
@@ -234,18 +238,8 @@ public partial class TitleWindow
         return utcString.Length > 16 ? utcString[..16].Replace('T', ' ') : utcString;
     }
 
-    private static string FormatRegionName(string region) => region switch
-    {
-        "trung_nguyen" => "Trung Nguyên",
-        "quan_trung" => "Quan Trung",
-        "ha_bac" => "Hà Bắc",
-        "giang_dong" => "Giang Đông",
-        "kinh_chau" => "Kinh Châu",
-        "ich_chau" => "Ích Châu",
-        "u_chau" => "U Châu",
-        "luong_chau" => "Lương Châu",
-        _ => region
-    };
+    private static string FormatRegionName(string region) =>
+        SimT.Contracts.Scenes.RoleTitleVi.FormatRegion(region);
 
     private static string GetFameTitle(int fame) => fame switch
     {
@@ -267,6 +261,7 @@ public partial class TitleWindow
             string lastPlayedText,
             string campaignIdShort,
             string cityName,
+            string cityCode,
             string regionName,
             string walletText,
             long walletAmount,
@@ -282,6 +277,7 @@ public partial class TitleWindow
             LastPlayedText = lastPlayedText;
             CampaignIdShort = campaignIdShort;
             CityName = cityName;
+            CityCode = cityCode;
             RegionName = regionName;
             WalletText = walletText;
             WalletAmount = walletAmount;
@@ -298,6 +294,7 @@ public partial class TitleWindow
         public string LastPlayedText { get; }
         public string CampaignIdShort { get; }
         public string CityName { get; }
+        public string CityCode { get; }
         public string RegionName { get; }
         public string WalletText { get; }
         public long WalletAmount { get; }

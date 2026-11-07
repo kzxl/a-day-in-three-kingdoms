@@ -66,7 +66,8 @@ public sealed class CityStrollTests : IDisposable
         var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
 
         var peacefulCount = 0;
-        var totalAttempts = 50;
+        var nonKarmaAttempts = 0;
+        var totalAttempts = 120;
 
         for (int i = 0; i < totalAttempts; i++)
         {
@@ -74,6 +75,11 @@ public sealed class CityStrollTests : IDisposable
             attrs.RecoverVitals(fatigueRelief: 50, stressRelief: 0);
 
             var res = stroll.Stroll(player.CurrentCityId);
+            if (res.EventType != StrollEventType.KarmaFruition)
+            {
+                nonKarmaAttempts++;
+            }
+
             if (res.EventType == StrollEventType.Peaceful)
             {
                 peacefulCount++;
@@ -85,8 +91,8 @@ public sealed class CityStrollTests : IDisposable
             }
         }
 
-        // Peaceful walk is 60% expected; across 50 attempts it should comfortably be >= 40%
-        Assert.True(peacefulCount >= 18, $"Peaceful walks count ({peacefulCount}/{totalAttempts}) was lower than expected");
+        // Peaceful walk is 60% of random strolls; across ~115 non-karma attempts P(peaceful < 45) < 1e-5
+        Assert.True(peacefulCount >= 45, $"Peaceful walks count ({peacefulCount}/{nonKarmaAttempts}) was lower than expected");
     }
 
     [Fact]

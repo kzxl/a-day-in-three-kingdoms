@@ -322,34 +322,8 @@
                                      ActionClick="AdvisorAction_Click" />
         </Border>
 
-        <!-- ===== Startup Transition Overlay ===== -->
-        <Grid x:Name="StartupOverlay" Grid.RowSpan="3" Panel.ZIndex="200"
-              Background="{StaticResource Bg}" Visibility="Collapsed">
-            <Image x:Name="StartupBgImage" Stretch="UniformToFill"
-                   HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.18" />
-            <Border>
-                <Border.Background>
-                    <RadialGradientBrush Center="0.5,0.45" RadiusX="0.85" RadiusY="0.85">
-                        <GradientStop Color="#4515110D" Offset="0.0" />
-                        <GradientStop Color="#C515110D" Offset="0.65" />
-                        <GradientStop Color="#F915110D" Offset="1.0" />
-                    </RadialGradientBrush>
-                </Border.Background>
-            </Border>
-            <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Accent}"
-                    BorderThickness="1.5" CornerRadius="8" Padding="28,20"
-                    HorizontalAlignment="Center" VerticalAlignment="Center">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="漢" FontSize="28" FontWeight="Bold" Foreground="{StaticResource Accent}"
-                               HorizontalAlignment="Center" Margin="0,0,0,8" />
-                    <TextBlock x:Name="StartupStatusText" Text="Đang vào Lạc Dương..."
-                               Style="{StaticResource H1}" FontSize="18" FontWeight="Bold"
-                               Foreground="{StaticResource Ink}" HorizontalAlignment="Center" />
-                    <TextBlock Text="Đang mở cảnh thành trì và sổ sách thương hội"
-                               Style="{StaticResource Caption}" Foreground="{StaticResource Muted}"
-                               HorizontalAlignment="Center" Margin="0,6,0,0" />
-                </StackPanel>
-            </Border>
-        </Grid>
+        <!-- ===== Full-screen Loading Screen Overlay ===== -->
+        <controls:GameLoadingScreen x:Name="LoadingScreen" Grid.RowSpan="3" Panel.ZIndex="200"
+                                    Visibility="Collapsed" />
     </Grid>
 </Window>

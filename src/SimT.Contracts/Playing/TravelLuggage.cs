@@ -2,7 +2,35 @@ namespace SimT.Contracts.Playing;
 
 /// <summary>Regional price factor in permille: 1000 = baseline, 1120 = 12% dearer.</summary>
 public sealed record CitadelDef(
-    long Id, string Code, string NameVi, string NameEn, string Region, int PriceFactorPermille);
+    long Id, string Code, string NameVi, string NameEn, string Region, int PriceFactorPermille)
+{
+    public string NameHan => ResolveHanzi(Code);
+
+    public static string ResolveHanzi(string? code) => (code ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "lac_duong" => "洛陽",
+        "truong_an" => "長安",
+        "nghiep_thanh" => "鄴城",
+        "trac_huyen" => "涿縣",
+        "quang_tong" => "廣宗",
+        "binh_nguyen" => "平原",
+        "hua_xuong" => "許昌",
+        "bac_binh" => "北平",
+        "ha_phi" => "下邳",
+        "tuong_duong" => "襄陽",
+        "xich_bich" => "赤壁",
+        "giang_lang" => "江陵",
+        "kien_nghiep" => "建業",
+        "han_trung" => "漢中",
+        "thanh_do" => "成都",
+        "uyen_thanh" => "宛城",
+        "tho_xuan" => "壽春",
+        "thuong_dang" => "上黨",
+        "tay_luong" => "西涼",
+        "giao_chi" => "交趾",
+        _ => string.Empty
+    };
+}
 
 /// <summary>Detailed ecological, climatic, and regional specialties of a citadel.</summary>
 public sealed record CitadelEcosystemDef(

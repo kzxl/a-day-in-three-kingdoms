@@ -69,7 +69,7 @@ public sealed class SaveManager
         return result.OrderBy(x => x, StringComparer.Ordinal).ToList();
     }
 
-    public CampaignMeta Create(string name)
+    public CampaignMeta Create(string name, Action<string>? logSink = null)
     {
         var id = Guid.NewGuid().ToString("N");
         var directory = Path.Combine(_root, id);
@@ -78,7 +78,7 @@ public sealed class SaveManager
         var product = Product();
         var meta = CampaignMeta.New(id, name, product);
 
-        using (var kernel = SimKernel.Open(Options(directory)))
+        using (var kernel = SimKernel.Open(Options(directory, logSink)))
         {
             kernel.Save();
         }
@@ -87,7 +87,31 @@ public sealed class SaveManager
         return meta;
     }
 
-    public SimKernel Open(CampaignMeta meta) => SimKernel.Open(Options(Path.Combine(_root, meta.CampaignId)));
+    public (CampaignMeta Meta, SimKernel Kernel) CreateAndOpen(string name, Action<string>? logSink = null)
+    {
+        var id = Guid.NewGuid().ToString("N");
+        var directory = Path.Combine(_root, id);
+        Directory.CreateDirectory(directory);
+
+        var product = Product();
+        var meta = CampaignMeta.New(id, name, product);
+
+        var kernel = SimKernel.Open(Options(directory, logSink));
+        try
+        {
+            kernel.Save();
+            Upsert(meta);
+            return (meta, kernel);
+        }
+        catch
+        {
+            kernel.Dispose();
+            throw;
+        }
+    }
+
+    public SimKernel Open(CampaignMeta meta, Action<string>? logSink = null) =>
+        SimKernel.Open(Options(Path.Combine(_root, meta.CampaignId), logSink));
 
     public void Touch(CampaignMeta meta, string gameDate)
     {
@@ -156,10 +180,11 @@ public sealed class SaveManager
             SimT.Contracts.Time.GameDateCodec.Parse(constants.FallbackDate));
     }
 
-    private static KernelOptions Options(string campaignDirectory) => new(
+    private static KernelOptions Options(string campaignDirectory, Action<string>? logSink = null) => new(
         DatabasePath: Path.Combine(campaignDirectory, "campaign.db"),
         ModulesDirectory: Path.Combine(AppContext.BaseDirectory, "Modules"),
         ProductPath: Path.Combine(AppContext.BaseDirectory, "assets", "products", "merchant-slice.json"),
         ConstantsPath: Path.Combine(AppContext.BaseDirectory, "assets", "config", "game-constants.json"),
-        BackupDirectory: Path.Combine(campaignDirectory, "backups"));
+        BackupDirectory: Path.Combine(campaignDirectory, "backups"),
+        LogSink: logSink);
 }

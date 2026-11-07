@@ -28,6 +28,8 @@ public sealed partial class SceneOverlayControl : Border, IDisposable
     private bool _isAvailable;
     private bool _isJsReady;
     private bool _concealedUntilPainted;
+    private bool _holdConcealmentAfterPaint;
+    private bool _hasPaintedOnce;
     private object? _activeScene;
     private string? _pendingEnvelopeJson;
 
@@ -47,18 +49,28 @@ public sealed partial class SceneOverlayControl : Border, IDisposable
         SnapsToDevicePixels = true;
     }
 
-    public void ConcealUntilPainted()
+    public void ConcealUntilPainted(bool holdAfterPaint = false)
     {
         _concealedUntilPainted = true;
+        _holdConcealmentAfterPaint = holdAfterPaint;
+        _hasPaintedOnce = false;
         ApplyConcealment();
     }
 
     public void RevealPaintedScene()
     {
+        _holdConcealmentAfterPaint = false;
         if (!_concealedUntilPainted)
             return;
         _concealedUntilPainted = false;
         ApplyConcealment();
+    }
+
+    public void AllowRevealOnPaint()
+    {
+        _holdConcealmentAfterPaint = false;
+        if (_hasPaintedOnce)
+            RevealPaintedScene();
     }
 
     private void ApplyConcealment()
@@ -235,7 +247,9 @@ public sealed partial class SceneOverlayControl : Border, IDisposable
 
         if (normalizedType == "painted")
         {
-            RevealPaintedScene();
+            _hasPaintedOnce = true;
+            if (!_holdConcealmentAfterPaint)
+                RevealPaintedScene();
             ScenePainted?.Invoke(_activeScene);
             return;
         }
