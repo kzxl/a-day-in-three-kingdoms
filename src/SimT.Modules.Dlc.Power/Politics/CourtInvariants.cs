@@ -75,6 +75,17 @@ internal static class CourtInvariants
         }
     }
 
+    public sealed class DemographicsPopulationPositive : IInvariant
+    {
+        public string Id => "politics.demographics.population_positive";
+
+        public string? Check(IInvariantContext context)
+        {
+            var invalid = context.Db.ScalarLong("SELECT COUNT(*) FROM po_city_demographics WHERE population <= 0");
+            return invalid == 0 ? null : $"found {invalid} citadels with non-positive population";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new OfficeExists();
@@ -82,5 +93,6 @@ internal static class CourtInvariants
         yield return new StateKeysPresent();
         yield return new FactionsValid();
         yield return new CityUnrestValid();
+        yield return new DemographicsPopulationPositive();
     }
 }

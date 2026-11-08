@@ -62,6 +62,7 @@ public sealed class PowerModule : ISimModule
         {
             foreach (var citadel in map.Citadels)
             {
+                courtService.SimulateMonthlyCityFoodAndFamine(citadel.Id, closed.Date);
                 militaryService.SimulateMonthlyArmoryAndProcurement(citadel.Id, closed.Date);
             }
         });

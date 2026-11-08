@@ -46,7 +46,8 @@
       "ml_supply_requisition",
       "po_faction_name",
       "ml_citadel_armory",
-      "po_faction_conflict"
+      "po_faction_conflict",
+      "po_city_demographics"
     ],
     "migrations": [
       "migrations"
