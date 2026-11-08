@@ -93,17 +93,28 @@ internal sealed class ProfessionScreen : IScreenContribution
             var eqSellVal = _service.CalculateEquipmentSellValue(eq);
             commands.Add(new ScreenCommand($"sell:eq:{eq.Id}", $"Bán ({eqSellVal} Quan)"));
 
+            var lotBadge = !string.IsNullOrWhiteSpace(eq.LotCode) ? $" [{eq.LotCode}]" : string.Empty;
             var creatorLabel = !string.IsNullOrWhiteSpace(eq.CreatorNameVi) ? $" · 👑 {eq.CreatorNameVi}" : string.Empty;
             var featLabel = eq.KillCount > 0 ? $" · ⚔️ Trảm {eq.KillCount} (Uy Danh {eq.FameScore})" : string.Empty;
 
             equipRows.Add(new ScreenRow(
                 [
-                    $"{eq.NameVi} [+{eq.TemperLevel}]" + (isEquipped ? " [Đang mặc]" : string.Empty) + creatorLabel + featLabel,
+                    $"{eq.NameVi} [+{eq.TemperLevel}]{lotBadge}" + (isEquipped ? " [Đang mặc]" : string.Empty) + creatorLabel + featLabel,
                     $"+{eq.BonusValue} {eq.BonusStat}",
                     $"{eq.Durability}/{eq.MaxDurability}",
                     ProfessionService.FormatQualityRankVi(eq.QualityRank)
                 ],
-                commands));
+                commands,
+                Title: $"{eq.NameVi} ({eq.LotCode ?? "LOT-STD"})",
+                Details:
+                [
+                    new ScreenDetail("Mã Lô Định Danh (ERP Lot)", eq.LotCode ?? $"LOT-18401-C{eq.CitadelId:D2}-{eq.Id:D4}"),
+                    new ScreenDetail("Nghệ Nhân Chế Tác", eq.CreatorNameVi ?? "Quan Xưởng Triều Đình"),
+                    new ScreenDetail("Thành Trì Xuất Xưởng", $"Thành #{eq.ForgedCitadelId ?? eq.CitadelId} (Ngày {eq.ForgedDayIndex ?? 1})"),
+                    new ScreenDetail("Kiểm Định Phẩm Chất (QC)", ProfessionService.FormatQualityRankVi(eq.QualityRank)),
+                    new ScreenDetail("Chiến Tích Sa Trường", eq.KillCount > 0 ? $"Trảm {eq.KillCount} địch · Uy danh +{eq.FameScore}" : "Chưa nhuốm máu sa trường"),
+                    new ScreenDetail("Biên Niên Sử Bảo Khí", eq.LegendNarrative ?? "Chưa có chiến tích lưu danh sử sách.")
+                ]));
         }
 
         // 3. Workshop in citadel

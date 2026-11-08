@@ -202,7 +202,8 @@ public sealed record EquipmentDef(
     long? ForgedDayIndex = null,
     int FameScore = 0,
     int KillCount = 0,
-    string? LegendNarrative = null);
+    string? LegendNarrative = null,
+    string? LotCode = null);
 
 public readonly record struct WorkResult(bool Ok, string Message, int Quantity, int Days)
 {

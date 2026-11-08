@@ -122,13 +122,14 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             row.IsDbNull(13) ? null : row.GetInt64(13),
             row.GetInt32(14),
             row.GetInt32(15),
-            row.IsDbNull(16) ? null : row.GetString(16));
+            row.IsDbNull(16) ? null : row.GetString(16),
+            row.IsDbNull(17) ? null : row.GetString(17));
 
     public IReadOnlyList<EquipmentDef> Equipments(long citadelId) =>
         _db.Query(
             """
             SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value, COALESCE(temper_level, 0),
-                   creator_id, creator_name_vi, forged_citadel_id, forged_day_index, COALESCE(fame_score, 0), COALESCE(kill_count, 0), legend_narrative
+                   creator_id, creator_name_vi, forged_citadel_id, forged_day_index, COALESCE(fame_score, 0), COALESCE(kill_count, 0), legend_narrative, lot_code
             FROM pf_equipment
             WHERE citadel_id = @citadel
             ORDER BY id ASC
@@ -140,7 +141,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _db.QueryOne(
             """
             SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value, COALESCE(temper_level, 0),
-                   creator_id, creator_name_vi, forged_citadel_id, forged_day_index, COALESCE(fame_score, 0), COALESCE(kill_count, 0), legend_narrative
+                   creator_id, creator_name_vi, forged_citadel_id, forged_day_index, COALESCE(fame_score, 0), COALESCE(kill_count, 0), legend_narrative, lot_code
             FROM pf_equipment
             WHERE id = @id
             """,
@@ -434,6 +435,12 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                     .Add("@forgedCit", cityId)
                     .Add("@forgedDay", forgedDay)
                     .Add("@fame", initialFame));
+
+            var insertedId = _db.ScalarLong("SELECT last_insert_rowid()");
+            var lotCode = $"LOT-{_clock.Today.Year}{_clock.Today.Month:D2}-C{cityId:D2}-{insertedId:D4}";
+            _db.Execute(
+                "UPDATE pf_equipment SET lot_code = @lot WHERE id = @id",
+                new DbArgs().Add("@lot", lotCode).Add("@id", insertedId));
         });
 
         return WorkResult.Success(
@@ -788,7 +795,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     public IReadOnlyList<EquippedSlotDef> Slots =>
         _db.Query(
             """
-            SELECT s.slot_code, s.equipment_id, e.name_vi, e.item_id, e.citadel_id, e.durability, e.max_durability, e.quality_rank, e.bonus_stat, e.bonus_value, COALESCE(e.temper_level, 0)
+            SELECT s.slot_code, s.equipment_id, e.name_vi, e.item_id, e.citadel_id, e.durability, e.max_durability, e.quality_rank, e.bonus_stat, e.bonus_value, COALESCE(e.temper_level, 0),
+                   e.creator_id, e.creator_name_vi, e.forged_citadel_id, e.forged_day_index, COALESCE(e.fame_score, 0), COALESCE(e.kill_count, 0), e.legend_narrative, e.lot_code
             FROM pf_equipped_slot s
             LEFT JOIN pf_equipment e ON e.id = s.equipment_id
             ORDER BY s.slot_code DESC
@@ -816,7 +824,15 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                         row.GetString(7),
                         row.GetString(8),
                         row.GetInt32(9),
-                        row.GetInt32(10));
+                        row.GetInt32(10),
+                        row.IsDbNull(11) ? null : row.GetInt64(11),
+                        row.IsDbNull(12) ? null : row.GetString(12),
+                        row.IsDbNull(13) ? null : row.GetInt64(13),
+                        row.IsDbNull(14) ? null : row.GetInt64(14),
+                        row.GetInt32(15),
+                        row.GetInt32(16),
+                        row.IsDbNull(17) ? null : row.GetString(17),
+                        row.IsDbNull(18) ? null : row.GetString(18));
                 }
 
                 return new EquippedSlotDef(slotCode, slotName, row.IsDbNull(1) ? null : row.GetInt64(1), equip);
@@ -1404,7 +1420,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             ? (double)equipment.Durability / equipment.MaxDurability
             : 1.0;
 
-        var value = (long)(basePrice * qualityMultiplier * temperBonus * duraRatio) + 15;
+        var famePremium = equipment.FameScore * 2;
+        var value = (long)(basePrice * qualityMultiplier * temperBonus * duraRatio) + famePremium + 15;
         return Math.Max(10, value);
     }
 

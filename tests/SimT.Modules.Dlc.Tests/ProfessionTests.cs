@@ -732,6 +732,16 @@ public sealed class ProfessionTests : IDisposable
         Assert.Equal(player.PlayerId, crafted.CreatorId);
         Assert.Equal(player.CurrentCityId, crafted.ForgedCitadelId);
         Assert.True(crafted.FameScore >= 0);
+        Assert.NotNull(crafted.LotCode);
+        Assert.StartsWith("LOT-", crafted.LotCode);
+        Assert.Contains($"-C{player.CurrentCityId:D2}-", crafted.LotCode);
+
+        var screen = kernel.Ui.Screens.First(s => s.ScreenId == "professions.trades");
+        var model = screen.Render();
+        var equipSection = model.Sections.First(s => s.Heading == "Khí Cụ Trong Thành");
+        var craftedRow = equipSection.Rows.FirstOrDefault(r => r.Cells[0].Contains(crafted.LotCode));
+        Assert.NotNull(craftedRow);
+        Assert.Contains(craftedRow.Details!, d => d.Label == "Mã Lô Định Danh (ERP Lot)" && d.Value == crafted.LotCode);
     }
 
     [Fact]
