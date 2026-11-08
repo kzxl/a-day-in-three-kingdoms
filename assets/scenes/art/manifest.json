@@ -117,6 +117,8 @@
     "npc_0225": "profiles/npc_0225.webp"
   },
   "map": {
-    "thien_ha": "map/thien_ha.webp"
+    "thien_ha": "map/thien_ha.webp",
+    "travellers": "map/travellers.png",
+    "travellers_army_flag": "map/travellers_army_flag.png"
   }
 }

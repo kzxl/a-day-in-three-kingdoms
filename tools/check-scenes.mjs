@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { inflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 globalThis.window = globalThis.window || {
@@ -352,19 +353,22 @@ console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/l
 
 
 // Travellers use connected roads, distinct SVG silhouettes, and stay around saved progress.
-const { travellerPath, travellerPosition, TRAVELLER_SHAPES, createTravellerMarker } = await import('../assets/scenes/map-travellers.js');
+const { travellerPath, travellerPosition, TRAVELLER_ROWS, createTravellerMarker, placeTravellers, travellerBox } = await import('../assets/scenes/map-travellers.js');
 const travellerCities = [{ id: 1, nameVi: 'A', x: 0, y: 0 }, { id: 2, nameVi: 'B', x: 100, y: 0 }, { id: 3, nameVi: 'C', x: 100, y: 100 }];
 const travellerRoutes = [{ fromId: 1, toId: 3, days: 1, blockedReasonVi: 'Phong tỏa' }, { fromId: 1, toId: 2, days: 2 }, { fromId: 2, toId: 3, days: 2 }];
 const traveller = { id: 'rival:1', kind: 'rival', fromId: 1, toId: 3, progress: .5, labelVi: 'Thương nhân' };
 assert.deepEqual(travellerPath(traveller, travellerCities, travellerRoutes).map(c => c.id), [1, 2, 3]);
 assert.deepEqual(travellerPath({ ...traveller, kind: 'army' }, travellerCities, travellerRoutes).map(c => c.id), [1, 3]);
-assert.deepEqual(travellerPosition(travellerCities, .75), { x: 100, y: 50 });
-assert.equal(new Set(Object.values(TRAVELLER_SHAPES)).size, 4);
+assert.deepEqual(travellerPosition(travellerCities, .75), { x: 100, y: 50, t: .5, seg: '2-3', dx: 0, dy: 1 });
+// Same kind on the same segment shares one marker with a count.
+const grouped = placeTravellers([{ path: travellerCities, progress: .75, kind: 'rival' }, { path: travellerCities, progress: .8, kind: 'rival' }, { path: travellerCities, progress: .75, kind: 'npc' }]);
+assert.equal(grouped[0].count, 2); assert.equal(grouped[1], null);
+assert.equal(new Set(Object.values(TRAVELLER_ROWS)).size, 4);
 const originalCreateNS = document.createElementNS;
 document.createElementNS = (_, tag) => ({ tag, attributes: {}, children: [], setAttribute(k, v) { this.attributes[k] = v; }, append(...nodes) { this.children.push(...nodes); }, addEventListener() {} });
 const marker = createTravellerMarker(traveller, 'A → B → C');
 assert.equal(marker.attributes['data-kind'], 'rival');
-assert.ok(marker.children.some(n => n.tag === 'path' && n.attributes.d === TRAVELLER_SHAPES.rival));
+assert.ok(marker.children.some(n => n.tag === 'svg' && n.children.some(c => c.tag === 'image' && c.attributes.href === 'art/map/travellers.png')));
 assert.ok(marker.children.some(n => n.tag === 'title' && n.textContent.includes('A → B → C')));
 document.createElementNS = originalCreateNS;
 for (const width of [1076, 1440]) {
@@ -373,4 +377,65 @@ for (const width of [1076, 1440]) {
   assert.ok(!rectsOverlap(boxes.factionLegendBox, boxes.goButtonBox));
   assert.ok(boxes.factionLegendBox.top >= boxes.viewportBox.top);
 }
-console.log('check-scenes: traveller SVGs, connected itineraries, blocked detours, positions and expanded legend OK.');
+// Decode the final RGBA PNGs, including PNG row filters, without an external dependency.
+function readTravellerPng(rel) {
+  const buf = fs.readFileSync(path.join(scenesDir, 'art', rel));
+  assert.equal(buf.subarray(1, 4).toString(), 'PNG');
+  assert.equal(buf.readUInt32BE(16), 192);
+  assert.equal(buf.readUInt32BE(20), 256);
+  assert.equal(buf[24], 8); assert.equal(buf[25], 6); assert.equal(buf[28], 0);
+  const chunks = [];
+  for (let p = 8; p < buf.length;) {
+    const len = buf.readUInt32BE(p);
+    if (buf.toString('ascii', p + 4, p + 8) === 'IDAT') chunks.push(buf.subarray(p + 8, p + 8 + len));
+    p += len + 12;
+  }
+  const raw = inflateSync(Buffer.concat(chunks)), out = Buffer.alloc(192 * 256 * 4), stride = 192 * 4;
+  for (let y = 0; y < 256; y++) {
+    const filter = raw[y * (stride + 1)];
+    for (let x = 0; x < stride; x++) {
+      const i = y * stride + x, a = x >= 4 ? out[i - 4] : 0, b = y ? out[i - stride] : 0;
+      const c = y && x >= 4 ? out[i - stride - 4] : 0;
+      const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+      const predictor = [0, a, b, Math.floor((a + b) / 2), pa <= pb && pa <= pc ? a : pb <= pc ? b : c][filter];
+      assert.ok(predictor !== undefined);
+      out[i] = (raw[y * (stride + 1) + x + 1] + predictor) & 255;
+    }
+  }
+  return out;
+}
+for (const key of ['travellers', 'travellers_army_flag']) {
+  assert.ok(manifest.map[key], `Missing map manifest ${key}`);
+  const pixels = readTravellerPng(manifest.map[key]);
+  for (let i = 0; i < pixels.length; i += 4) {
+    assert.ok(!pixels[i + 3] || !(pixels[i] - pixels[i + 1] > 40 && pixels[i + 2] - pixels[i + 1] > 40), 'Magenta fringe remains');
+  }
+  for (let row = key === 'travellers' ? 0 : 3; row < 4; row++) {
+    for (let col = 0; col < 2; col++) {
+      const occupied = [];
+      for (let y = row * 64; y < (row + 1) * 64; y++) for (let x = col * 96; x < (col + 1) * 96; x++) {
+        if (pixels[(y * 192 + x) * 4 + 3]) occupied.push({ x, y });
+      }
+      assert.ok(occupied.length > 10, 'Empty sprite or flag frame');
+      if (key === 'travellers') assert.equal(Math.max(...occupied.map(p => p.y)) % 64, 59, 'Frames must share ground baseline');
+    }
+  }
+}
+for (const progress of [0, .01, .49, .5, .51, .99, 1]) {
+  const p = travellerPosition(travellerCities, progress);
+  assert.ok(p.t >= .14 && p.t <= .86, 'Traveller entered city endpoint margin');
+}
+const road = [{ x: 100, y: 180 }, { x: 650, y: 180 }];
+const obstacles = [{ left: 350, right: 400, top: 145, bottom: 185 }];
+const placements = placeTravellers(Array.from({ length: 8 }, () => ({ path: road, progress: .5 })), obstacles);
+// A crowded road shows what fits and hides the rest; nothing may drift more than one lane off its road.
+assert.ok(placements.filter(Boolean).length >= 4, 'A crowded road should still show several travellers');
+placements.filter(Boolean).forEach(p => assert.ok(Math.abs(p.y - 180) <= 10.5, 'Traveller drifted off its road'));
+placements.filter(Boolean).forEach((p, i, shown) => {
+  assert.ok(!obstacles.some(b => rectsOverlap(travellerBox(p, 54), b)));
+  shown.slice(0, i).forEach(q => {
+    assert.ok(Math.hypot(p.x - q.x, p.y - q.y) >= 24);
+    assert.ok(!rectsOverlap(travellerBox(p, 54), travellerBox(q, 54)));
+  });
+});
+console.log('check-scenes: sprite dimensions, alpha/fringe, frames, connected roads, endpoint margins and collision separation OK.');
