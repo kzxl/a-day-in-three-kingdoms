@@ -339,3 +339,27 @@ const eventSentences = splitEventSentences('Thiên Công Tướng Quân Trương
 assert.equal(eventSentences.length, 3, 'Expected 3 chronicle sentences');
 
 console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, historical event scene, and manifest assets OK.`);
+
+// Travellers use connected roads, distinct SVG silhouettes, and stay around saved progress.
+const { travellerPath, travellerPosition, TRAVELLER_SHAPES, createTravellerMarker } = await import('../assets/scenes/map-travellers.js');
+const travellerCities = [{ id: 1, nameVi: 'A', x: 0, y: 0 }, { id: 2, nameVi: 'B', x: 100, y: 0 }, { id: 3, nameVi: 'C', x: 100, y: 100 }];
+const travellerRoutes = [{ fromId: 1, toId: 3, days: 1, blockedReasonVi: 'Phong tỏa' }, { fromId: 1, toId: 2, days: 2 }, { fromId: 2, toId: 3, days: 2 }];
+const traveller = { id: 'rival:1', kind: 'rival', fromId: 1, toId: 3, progress: .5, labelVi: 'Thương nhân' };
+assert.deepEqual(travellerPath(traveller, travellerCities, travellerRoutes).map(c => c.id), [1, 2, 3]);
+assert.deepEqual(travellerPath({ ...traveller, kind: 'army' }, travellerCities, travellerRoutes).map(c => c.id), [1, 3]);
+assert.deepEqual(travellerPosition(travellerCities, .75), { x: 100, y: 50 });
+assert.equal(new Set(Object.values(TRAVELLER_SHAPES)).size, 4);
+const originalCreateNS = document.createElementNS;
+document.createElementNS = (_, tag) => ({ tag, attributes: {}, children: [], setAttribute(k, v) { this.attributes[k] = v; }, append(...nodes) { this.children.push(...nodes); }, addEventListener() {} });
+const marker = createTravellerMarker(traveller, 'A → B → C');
+assert.equal(marker.attributes['data-kind'], 'rival');
+assert.ok(marker.children.some(n => n.tag === 'path' && n.attributes.d === TRAVELLER_SHAPES.rival));
+assert.ok(marker.children.some(n => n.tag === 'title' && n.textContent.includes('A → B → C')));
+document.createElementNS = originalCreateNS;
+for (const width of [1076, 1440]) {
+  const boxes = computeMapLayoutBoxes(width, 12);
+  assert.ok(!rectsOverlap(boxes.factionLegendBox, boxes.rightPanelBox));
+  assert.ok(!rectsOverlap(boxes.factionLegendBox, boxes.goButtonBox));
+  assert.ok(boxes.factionLegendBox.top >= boxes.viewportBox.top);
+}
+console.log('check-scenes: traveller SVGs, connected itineraries, blocked detours, positions and expanded legend OK.');
