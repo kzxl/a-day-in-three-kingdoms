@@ -80,7 +80,11 @@ public partial class MainWindow
                         npc.Code,
                         npc.NameVi,
                         RoleTitleVi.Format(npc.Role),
-                        fullArt));
+                        fullArt)
+                    {
+                        ExpressionPaths = SceneArtCatalog.ResolvePortraitExpressions(fullArt),
+                        LineExpressions = evt.PortraitExpressions.GetValueOrDefault(npc.Code) ?? Array.Empty<string>()
+                    });
                 }
             }
         }

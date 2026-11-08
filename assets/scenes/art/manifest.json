@@ -120,5 +120,82 @@
     "thien_ha": "map/thien_ha.webp",
     "travellers": "map/travellers.png",
     "travellers_army_flag": "map/travellers_army_flag.png"
+  },
+  "portraitExpressions": {
+    "cao_cao": {
+      "happy": "portraits/cao_cao/full_happy.webp",
+      "angry": "portraits/cao_cao/full_angry.webp",
+      "sad": "portraits/cao_cao/full_sad.webp"
+    },
+    "commoner": {
+      "happy": "portraits/commoner/full_happy.webp",
+      "angry": "portraits/commoner/full_angry.webp",
+      "sad": "portraits/commoner/full_sad.webp"
+    },
+    "elder": {
+      "happy": "portraits/elder/full_happy.webp",
+      "angry": "portraits/elder/full_angry.webp",
+      "sad": "portraits/elder/full_sad.webp"
+    },
+    "farmer_woman": {
+      "happy": "portraits/farmer_woman/full_happy.webp",
+      "angry": "portraits/farmer_woman/full_angry.webp",
+      "sad": "portraits/farmer_woman/full_sad.webp"
+    },
+    "general": {
+      "happy": "portraits/general/full_happy.webp",
+      "angry": "portraits/general/full_angry.webp",
+      "sad": "portraits/general/full_sad.webp"
+    },
+    "guan_yu": {
+      "happy": "portraits/guan_yu/full_happy.webp",
+      "angry": "portraits/guan_yu/full_angry.webp",
+      "sad": "portraits/guan_yu/full_sad.webp"
+    },
+    "lady": {
+      "happy": "portraits/lady/full_happy.webp",
+      "angry": "portraits/lady/full_angry.webp",
+      "sad": "portraits/lady/full_sad.webp"
+    },
+    "liu_bei": {
+      "happy": "portraits/liu_bei/full_happy.webp",
+      "angry": "portraits/liu_bei/full_angry.webp",
+      "sad": "portraits/liu_bei/full_sad.webp"
+    },
+    "lu_bu": {
+      "happy": "portraits/lu_bu/full_happy.webp",
+      "angry": "portraits/lu_bu/full_angry.webp",
+      "sad": "portraits/lu_bu/full_sad.webp"
+    },
+    "merchant": {
+      "happy": "portraits/merchant/full_happy.webp",
+      "angry": "portraits/merchant/full_angry.webp",
+      "sad": "portraits/merchant/full_sad.webp"
+    },
+    "player": {
+      "happy": "portraits/player/full_happy.webp",
+      "angry": "portraits/player/full_angry.webp",
+      "sad": "portraits/player/full_sad.webp"
+    },
+    "scholar": {
+      "happy": "portraits/scholar/full_happy.webp",
+      "angry": "portraits/scholar/full_angry.webp",
+      "sad": "portraits/scholar/full_sad.webp"
+    },
+    "swordswoman": {
+      "happy": "portraits/swordswoman/full_happy.webp",
+      "angry": "portraits/swordswoman/full_angry.webp",
+      "sad": "portraits/swordswoman/full_sad.webp"
+    },
+    "zhang_fei": {
+      "happy": "portraits/zhang_fei/full_happy.webp",
+      "angry": "portraits/zhang_fei/full_angry.webp",
+      "sad": "portraits/zhang_fei/full_sad.webp"
+    },
+    "zhuge_liang": {
+      "happy": "portraits/zhuge_liang/full_happy.webp",
+      "angry": "portraits/zhuge_liang/full_angry.webp",
+      "sad": "portraits/zhuge_liang/full_sad.webp"
+    }
   }
 }

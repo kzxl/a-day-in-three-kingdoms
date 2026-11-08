@@ -1,4 +1,5 @@
 import { SimTBridge } from './bridge.js';
+import { createPortraitSwapper, portraitForLine } from './portrait-expressions.js';
 
 // The historical event scene reuses the talk scene's stage, dock, paper and choice styles (scene.css)
 // so it reads as part of the same game; event-scene.css only adds the two-figure cast.
@@ -24,8 +25,11 @@ export function splitEventSentences(narrative) {
 }
 
 let keyHandler = null;
+let portraitSwappers = [];
 
 function unmountEventScene() {
+  portraitSwappers.forEach(s => s.dispose());
+  portraitSwappers = [];
   if (keyHandler) {
     window.removeEventListener('keydown', keyHandler);
     keyHandler = null;
@@ -126,7 +130,9 @@ function renderEventScene(container, scene, bridge) {
   const countEl = container.querySelector('#tk-event-count');
   const nextEl = container.querySelector('#tk-event-next');
 
+  portraitSwappers = [...container.querySelectorAll('.tk-event-figure .tk-char-img')].map(createPortraitSwapper);
   const showPage = () => {
+    portraits.forEach((p, i) => portraitSwappers[i]?.set(portraitForLine(p, page, p.portraitPath), p.portraitPath));
     const onEffects = page >= sentences.length;
     lineEl.classList.remove('is-in');
     if (onEffects) {

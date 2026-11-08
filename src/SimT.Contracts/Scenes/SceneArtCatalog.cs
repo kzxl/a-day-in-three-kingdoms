@@ -13,7 +13,7 @@ public sealed record RowNpcMetadata(
 /// <summary>
 /// Single canonical classifier and art path resolver shared by WebView2 scenes and WPF controls.
 /// </summary>
-public static class SceneArtCatalog
+public static partial class SceneArtCatalog
 {
     public const string PlayerPortraitFace = "art/portraits/player/face.webp";
     public const string PlayerPortraitFull = "art/portraits/player/full.webp";

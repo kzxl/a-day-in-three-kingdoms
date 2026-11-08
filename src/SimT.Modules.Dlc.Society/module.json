@@ -16,7 +16,8 @@
       "so_karma_seed",
       "so_karma_history",
       "so_rumor",
-      "so_historical_event"
+      "so_historical_event",
+      "so_event_portrait_expression"
     ],
     "migrations": ["migrations"]
   },

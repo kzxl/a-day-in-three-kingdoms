@@ -97,6 +97,13 @@ for (const [k, obj] of Object.entries(manifest.portraits || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.full)), `Missing portrait full ${k}: ${obj.full}`);
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.face)), `Missing portrait face ${k}: ${obj.face}`);
 }
+for (const [key, variants] of Object.entries(manifest.portraitExpressions || {})) {
+  for (const [expression, rel] of Object.entries(variants)) {
+    assert.ok(['happy', 'angry', 'sad'].includes(expression), `Unknown portrait expression ${expression}`);
+    assert.equal(rel, `portraits/${key}/full_${expression}.webp`);
+    assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing expression ${key}/${expression}: ${rel}`);
+  }
+}
 for (const [k, rel] of Object.entries(manifest.anim || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing anim strip ${k}: ${rel}`);
 }
@@ -486,3 +493,65 @@ placements.filter(Boolean).forEach((p, i, shown) => {
   });
 });
 console.log('check-scenes: sprite dimensions, alpha/fringe, frames, connected roads, endpoint margins and collision separation OK.');
+
+// Portrait expressions follow the current line and fall back for sparse/unknown values.
+const { expressionForLine, portraitForLine, createPortraitSwapper } = await import('../assets/scenes/portrait-expressions.js');
+const expressionScene = { lineExpressions: ['happy', '', 'angry', 'unknown'], expressionPaths: { happy: 'happy.webp' } };
+assert.equal(expressionForLine(expressionScene, 0), 'happy');
+assert.equal(expressionForLine(expressionScene, 1), 'normal');
+assert.equal(expressionForLine(expressionScene, 3), 'normal');
+assert.equal(portraitForLine(expressionScene, 0, 'full.webp'), 'happy.webp');
+assert.equal(portraitForLine(expressionScene, 2, 'full.webp'), 'full.webp');
+assert.equal(portraitForLine({}, 20, 'full.webp'), 'full.webp');
+const { createPortraitAnimator } = await import('../assets/scenes/sprite-anim.js');
+const base = { style: {} }, blink = { style: {} }, mouth = { style: {} }, line = {};
+const animator = createPortraitAnimator({ baseEl: base, blinkEl: blink, talkEl: mouth, lineEl: line });
+animator.setFramesEnabled(false);
+animator.setLine('Tin dữ từ Kinh Châu.');
+for (let i = 0; i < 120; i++) animator.step(.05);
+assert.equal(base.style.opacity, '1');
+assert.equal(blink.style.opacity, '0');
+assert.equal(mouth.style.opacity, '0');
+assert.equal(line.textContent, '“Tin dữ từ Kinh Châu.”');
+animator.setFramesEnabled(true);
+animator.setLine('Xin chào.');
+assert.equal(mouth.style.opacity, '1');
+
+// Late image loads must not overwrite a newer line or mutate an unmounted scene.
+const originalImage = globalThis.Image;
+const originalMatchMedia = window.matchMedia;
+let reducedMotion = false;
+window.matchMedia = () => ({ matches: reducedMotion });
+const pendingImages = [];
+globalThis.Image = class { constructor() { pendingImages.push(this); } };
+const overlays = [];
+const swapBase = {
+  src: 'normal.webp',
+  getAttribute() { return this.src; },
+  cloneNode() { return { style: {}, classList: { add() {} }, removeAttribute() {}, setAttribute() {}, remove() { this.removed = true; } }; },
+  parentElement: { appendChild(n) { overlays.push(n); } }
+};
+const swapper = createPortraitSwapper(swapBase);
+swapper.set('happy.webp', 'normal.webp');
+swapper.set('sad.webp', 'normal.webp');
+pendingImages[0].onload();
+assert.equal(swapBase.src, 'normal.webp');
+pendingImages[1].onload();
+assert.equal(swapBase.src, 'sad.webp');
+assert.equal(overlays.length, 1);
+swapper.set('angry.webp', 'normal.webp');
+assert.equal(overlays[0].removed, true);
+reducedMotion = true;
+pendingImages[2].onload();
+assert.equal(swapBase.src, 'angry.webp');
+assert.equal(overlays.length, 1, 'Reduced motion must swap without an animated overlay');
+swapper.set('missing.webp', 'normal.webp');
+pendingImages[3].onerror();
+assert.equal(swapBase.src, 'normal.webp');
+swapper.set('late.webp');
+swapper.dispose();
+pendingImages[4].onload();
+assert.equal(swapBase.src, 'normal.webp');
+globalThis.Image = originalImage;
+window.matchMedia = originalMatchMedia;
+console.log('check-scenes: expression fallback, normal-only mouth/blink, image-load races, unmount and reduced motion OK.');

@@ -13,7 +13,11 @@ public sealed record TalkScene(
     IReadOnlyList<SceneChoice> Choices, IReadOnlyList<SceneNpcThumb> NearbyNpcs,
     string? FeedbackVi = null, string? BlinkPath = null, string? TalkPath = null,
     string? ArchetypeCode = null, string? ArchetypeBadgeVi = null,
-    IReadOnlyList<NpcTraitView>? Traits = null);
+    IReadOnlyList<NpcTraitView>? Traits = null)
+{
+    public IReadOnlyList<string> LineExpressions { get; init; } = Array.Empty<string>();
+    public IReadOnlyDictionary<string, string> ExpressionPaths { get; init; } = new Dictionary<string, string>();
+}
 
 public sealed record DuelFighterView(
     string NameVi, string SubVi, string FacePath, string SpritePath, TroopBranch Branch,
@@ -40,7 +44,11 @@ public sealed record CityScene(
     CityEventCard? EventCard, IReadOnlyList<SceneChoice> Choices);
 
 public sealed record EventPortraitView(
-    long NpcId, string NpcCode, string NameVi, string RoleVi, string PortraitPath);
+    long NpcId, string NpcCode, string NameVi, string RoleVi, string PortraitPath)
+{
+    public IReadOnlyList<string> LineExpressions { get; init; } = Array.Empty<string>();
+    public IReadOnlyDictionary<string, string> ExpressionPaths { get; init; } = new Dictionary<string, string>();
+}
 
 public sealed record EventScene(
     string SceneId, string EventCode, string DateVi, string EraLabelVi,

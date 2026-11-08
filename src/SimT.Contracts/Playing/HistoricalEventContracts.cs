@@ -45,7 +45,11 @@ public sealed record HistoricalEventView(
     string Status, // "pending", "occurred", "viewed"
     GameDate? OccurredDate,
     string? ChoiceCode,
-    string EventKey);
+    string EventKey)
+{
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> PortraitExpressions { get; init; }
+        = new Dictionary<string, IReadOnlyList<string>>();
+}
 
 /// <summary>
 /// Outcome of resolving a player choice on a historical event scene.

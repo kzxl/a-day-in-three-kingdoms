@@ -86,7 +86,10 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
             BlinkPath: blinkPath, TalkPath: talkPath,
             ArchetypeCode: psyche?.Archetype.ToString().ToLowerInvariant(),
             ArchetypeBadgeVi: psyche?.BadgeVi,
-            Traits: socialService?.GetVisibleTraits(npc.Id));
+            Traits: socialService?.GetVisibleTraits(npc.Id))
+        {
+            ExpressionPaths = SceneArtCatalog.ResolvePortraitExpressions(portraitFull)
+        };
     }
 
     public TalkChoiceOutcome HandleChoice(long npcId, string choiceId)
@@ -121,6 +124,7 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
             case "chat":
             {
                 string msg;
+                var beforeAffinity = ResolveRelationship(npc.Id).Affinity;
                 if (_context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
                 {
                     try
@@ -138,7 +142,8 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
                     msg = $"{npc.NameVi} mỉm cười trò chuyện cùng bạn về phong tục bản địa.";
                 }
 
-                var updated = BuildTalkScene(npc.Id, msg);
+                var expression = ResolveRelationship(npc.Id).Affinity > beforeAffinity ? "happy" : "normal";
+                var updated = WithFeedbackExpression(BuildTalkScene(npc.Id, msg), expression);
                 return new TalkChoiceOutcome(true, msg, UpdatedScene: updated);
             }
 
@@ -192,18 +197,22 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
 
         string msg;
         var ok = true;
+        var expression = "normal";
+        var beforeAffinity = social.GetRelationship(npc.Id).Affinity;
         try
         {
             var raw = social.GiftNpc(npc.Id, itemId);
             msg = SummarizeFeedback(raw, $"{npc.NameVi} vui vẻ nhận lễ vật bạn trao tặng.");
+            expression = social.GetRelationship(npc.Id).Affinity >= beforeAffinity ? "happy" : "angry";
         }
         catch (SimException ex)
         {
             msg = ClampLine90(ex.Message);
             ok = false;
+            if (ex.Code == "social.gift_rejected") expression = "angry";
         }
 
-        return new TalkChoiceOutcome(ok, msg, UpdatedScene: BuildTalkScene(npc.Id, msg));
+        return new TalkChoiceOutcome(ok, msg, UpdatedScene: WithFeedbackExpression(BuildTalkScene(npc.Id, msg), expression));
     }
 
     private IReadOnlyList<SceneChoice> BuildGiftChoices(long currentCityId)
