@@ -22,7 +22,7 @@ Nguồn tham khảo: Tam Quốc Chí 8 Remake (2024), XIII, XIV. Chỉ lấy ý 
 | 8 | Người đi trên bản đồ | Codex | `prompts/20`, `prompts/25` (sprite xe) | Xong (merge "batch 8" và "pixel sprites") |
 | 9 | Biện luận | agy | `prompts/21` | Xong (merge "batch 9") |
 | 10 | Kịch bản khởi đầu | Codex | `prompts/22` | Xong (merge "batch 10") |
-| 11 | Chân dung nhiều biểu cảm | Codex | `prompts/23` | Đang làm |
+| 11 | Chân dung nhiều biểu cảm | Codex | `prompts/23` | Xong (merge "batch 11") |
 | 12 | Võ tướng lục | agy | `prompts/24` | Đang làm |
 
 Trạng thái: Chưa làm → Đang làm → Nghiệm thu → Xong (ghi commit gộp).
