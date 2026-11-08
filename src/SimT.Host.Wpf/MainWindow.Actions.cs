@@ -86,6 +86,7 @@ public partial class MainWindow
         UpdateHeader();
         RenderSelected();
         ShowReport(from, _kernel.Today);
+        CheckPendingHistoricalEventsAfterAdvance();
     }
 
     private async Task AdvanceAsync(int days, string? customStatus = null)
@@ -126,6 +127,7 @@ public partial class MainWindow
             }
 
             ShowNotification(customStatus ?? $"Đã sang {GameDateCodec.DescribeVi(_kernel.Today)} (+{days} ngày).");
+            CheckPendingHistoricalEventsAfterAdvance();
         }
         catch (Exception error)
         {
@@ -251,6 +253,10 @@ public partial class MainWindow
         InvalidateBadges();
         UpdateHeader();
         RenderSelected();
+        if (toDate != fromDate)
+        {
+            CheckPendingHistoricalEventsAfterAdvance();
+        }
     }
 
     private string ScreenForCommand() =>

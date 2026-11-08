@@ -28,6 +28,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
     private readonly IWorldMap _map;
     private readonly ILog _log;
     private readonly INpcRegistry? _npcs;
+    private readonly Shocks.MarketShockEngine? _shockEngine;
 
     public MarketService(
         IDbSession db,
@@ -38,7 +39,8 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         IItemCatalog items,
         IWorldMap map,
         ILog log,
-        INpcRegistry? npcs = null)
+        INpcRegistry? npcs = null,
+        Shocks.MarketShockEngine? shockEngine = null)
     {
         _db = db;
         _clock = clock;
@@ -49,6 +51,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         _map = map;
         _log = log;
         _npcs = npcs;
+        _shockEngine = shockEngine;
     }
 
     long IMarketWarehouse.DefaultCapacity => DefaultCapacity;
@@ -120,7 +123,12 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
 
             var baseQuote = MarketPricing.Quote(item, city, month, row.Stock, row.Baseline);
             var factor = rumorFactors != null && rumorFactors.TryGetValue((row.City, row.Item), out var f) ? f : 1000;
+            var shockFactor = _shockEngine?.GetShockMultiplierPermille(row.City, item.Code, (int)date.DayIndex) ?? 1000;
             var price = factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
+            if (shockFactor != 1000)
+            {
+                price = Math.Max(1, price * shockFactor / 1000);
+            }
             samples.Add((row.City, row.Item, price));
         }
 
@@ -188,7 +196,9 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
             StallBaseline(cityId, itemId));
 
         var factor = GetRumorPriceFactor(cityId, itemId);
-        return factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
+        var price = factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
+        var shockFactor = _shockEngine?.GetShockMultiplierPermille(cityId, item.Code, (int)_clock.Today.DayIndex) ?? 1000;
+        return shockFactor == 1000 ? price : Math.Max(1, price * shockFactor / 1000);
     }
 
     public long QuoteSell(long cityId, long itemId) => MarketPricing.SellQuote(QuoteBuy(cityId, itemId));

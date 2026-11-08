@@ -41,7 +41,7 @@ public sealed record ArbitrageOpportunity(
 /// Geopolitical Shocks & Arbitrage Intelligence Engine.
 /// Simulates siege shortages, drought famines, epidemics, and computes optimal trade corridors.
 /// </summary>
-public sealed partial class MarketShockEngine : IEventRumorSource
+public sealed partial class MarketShockEngine : IEventRumorSource, IMarketShockTrigger
 {
     private readonly IDbSession _db;
 
@@ -103,19 +103,19 @@ public sealed partial class MarketShockEngine : IEventRumorSource
             MarketShockTypes.Siege => itemCode switch
             {
                 "gao" or "lua_mi" or "ca_kho" => Math.Max(2500, activeShock.SeverityPermille * 2), // Lương thực tăng vọt
-                "sat" or "cuoc_nong" or "liem_gat" => 2000,                                         // Khí cụ, sắt tăng
+                "sat" or "cuoc_nong" or "liem_gat" => Math.Max(1800, activeShock.SeverityPermille), // Khí cụ, sắt tăng
                 _ when tier == EconomicValueTier.Tier4_Luxury_EndSink => 450,                      // Xa xỉ phẩm giảm mạnh
-                _ => 1200
+                _ => Math.Max(1200, activeShock.SeverityPermille)
             },
             MarketShockTypes.Drought => itemCode switch
             {
-                "gao" or "lua_mi" or "hat_giong_lua" => 2000,                                      // Hạn hán thiếu thóc
+                "gao" or "lua_mi" or "hat_giong_lua" => Math.Max(2000, activeShock.SeverityPermille), // Hạn hán thiếu thóc
                 "phan_bon" or "binh_tuoi" => 1800,
                 _ => 1000
             },
             MarketShockTypes.Epidemic => itemCode switch
             {
-                "thuoc" or "sam" or "hat_giong_duoc_thao" => 3000,                                 // Dược liệu tăng gấp 3
+                "thuoc" or "sam" or "hat_giong_duoc_thao" => Math.Max(2500, activeShock.SeverityPermille * 2), // Dược liệu tăng mạnh
                 _ => 1000
             },
             MarketShockTypes.Prosperity => itemCode switch
@@ -124,7 +124,7 @@ public sealed partial class MarketShockEngine : IEventRumorSource
                 _ when tier == EconomicValueTier.Tier4_Luxury_EndSink => 1400,                      // Dân giàu chuộng xa xỉ
                 _ => 1050
             },
-            _ => 1000
+            _ => Math.Max(500, activeShock.SeverityPermille)
         };
     }
 

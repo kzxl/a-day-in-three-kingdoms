@@ -43,6 +43,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         EnsureActivityInitialized();
         EnsureMerchantRivalsInitialized();
         EnsureKarmaInitialized();
+        EnsureHistoricalEventsInitialized();
     }
 
     private void EnsureActivityInitialized()
@@ -145,7 +146,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         {
             foreach (var act in activities)
             {
-                if (!npcsById.TryGetValue(act.NpcId, out var npc))
+                if (act.IsDeceased || !npcsById.TryGetValue(act.NpcId, out var npc) || npc.IsDeceasedFlag)
                 {
                     continue;
                 }
@@ -813,15 +814,22 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         return _db.QueryOne(
             "SELECT npc_id, current_citadel_id, current_wealth, focus_path, current_action, stamina, reputation, updated_date " +
             "FROM so_npc_activity WHERE npc_id = @id",
-            record => new NpcActivityDef(
-                record.GetInt64(0),
-                record.GetInt64(1),
-                record.GetInt64(2),
-                record.GetString(3),
-                record.GetString(4),
-                record.GetInt32(5),
-                record.GetInt32(6),
-                GameDateCodec.Parse(record.GetString(7))),
+            record =>
+            {
+                var id = record.GetInt64(0);
+                var action = record.GetString(4);
+                return new NpcActivityDef(
+                    id,
+                    record.GetInt64(1),
+                    record.GetInt64(2),
+                    record.GetString(3),
+                    action,
+                    record.GetInt32(5),
+                    record.GetInt32(6),
+                    GameDateCodec.Parse(record.GetString(7)),
+                    IsNpcDeceased(id, action),
+                    GetNpcAllegiance(id));
+            },
             DbArgs.One("@id", npcId));
     }
 
@@ -830,15 +838,22 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         return _db.Query(
             "SELECT npc_id, current_citadel_id, current_wealth, focus_path, current_action, stamina, reputation, updated_date " +
             "FROM so_npc_activity",
-            record => new NpcActivityDef(
-                record.GetInt64(0),
-                record.GetInt64(1),
-                record.GetInt64(2),
-                record.GetString(3),
-                record.GetString(4),
-                record.GetInt32(5),
-                record.GetInt32(6),
-                GameDateCodec.Parse(record.GetString(7))));
+            record =>
+            {
+                var id = record.GetInt64(0);
+                var action = record.GetString(4);
+                return new NpcActivityDef(
+                    id,
+                    record.GetInt64(1),
+                    record.GetInt64(2),
+                    record.GetString(3),
+                    action,
+                    record.GetInt32(5),
+                    record.GetInt32(6),
+                    GameDateCodec.Parse(record.GetString(7)),
+                    IsNpcDeceased(id, action),
+                    GetNpcAllegiance(id));
+            });
     }
 
     public NpcStatDelta GetStatDeltas(long npcId)

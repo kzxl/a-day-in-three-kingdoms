@@ -28,18 +28,23 @@ internal sealed partial class SocietyService
             facts.AddRange(prices.Take(12));
         }
 
+        foreach (var source in EventSources())
+            foreach (var hint in source.Upcoming(day, 30)
+                         .OrderByDescending(h => h.CityId == heardCity)
+                         .ThenBy(h => h.Day)
+                         .ThenBy(h => h.Key))
+                if (_map.Find(hint.CityId) is { } city)
+                    facts.Add(Fact("event", hint.TitleVi, $"{hint.NarrativeVi} tại {city.NameVi}.",
+                        city.Id, key: hint.Key, eventDay: hint.Day));
         foreach (var seed in GetActiveSeeds().Where(s => s.TriggerAfterDay >= day
                      && s.TriggerAfterDay <= day + 30).OrderBy(s => s.TriggerAfterDay).ThenBy(s => s.Id))
             facts.Add(Fact("event", "Chuyện sắp tới", $"{seed.TitleVi} tại {seed.CitadelNameVi}, " +
                 $"còn khoảng {seed.TriggerAfterDay - day} ngày.", seed.CitadelId,
                 seed: seed.Id, eventDay: seed.TriggerAfterDay));
-        foreach (var source in EventSources())
-            foreach (var hint in source.Upcoming(day, 30).OrderBy(h => h.Day).ThenBy(h => h.Key))
-                if (_map.Find(hint.CityId) is { } city)
-                    facts.Add(Fact("event", hint.TitleVi, $"{hint.NarrativeVi} tại {city.NameVi}.",
-                        city.Id, key: hint.Key, eventDay: hint.Day));
 
-        foreach (var npc in _registry.All.OrderByDescending(n => Math.Max(n.Attributes.War, n.Attributes.Int))
+        foreach (var npc in _registry.All
+                     .Where(n => !n.IsDeceased((ISocietyChronicle)this))
+                     .OrderByDescending(n => Math.Max(n.Attributes.War, n.Attributes.Int))
                      .ThenBy(n => n.Id).Take(12))
         {
             var location = npc.CurrentCitadelId((ISocietyChronicle)this);

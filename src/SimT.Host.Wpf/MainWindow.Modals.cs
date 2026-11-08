@@ -164,6 +164,15 @@ public partial class MainWindow
                 TryOpenFarmsteadDetailModal(plotId);
             }
         });
+
+        _kernel.Ui.RegisterModalPresenter("history:view:", commandId =>
+        {
+            var code = commandId["history:view:".Length..].Trim();
+            if (!string.IsNullOrEmpty(code))
+            {
+                TryOpenHistoricalEventScene(code, isReplay: true);
+            }
+        });
     }
 
 

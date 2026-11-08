@@ -179,7 +179,8 @@ public sealed record NpcDef(
     CharacterAttributes Attributes,
     string? Personality,
     string? BioVi,
-    IReadOnlyList<NpcSkillDef>? Skills = null)
+    IReadOnlyList<NpcSkillDef>? Skills = null,
+    bool IsDeceasedFlag = false)
 {
     public IReadOnlyList<NpcSkillDef> Skills { get; init; } = Skills ?? Array.Empty<NpcSkillDef>();
 }
@@ -235,6 +236,9 @@ public interface INpcRegistry
 
     /// <summary>Updates an NPC's current citadel location in registry and storage.</summary>
     void UpdateCitadel(long npcId, long newCitadelId);
+
+    /// <summary>Marks an NPC as deceased in registry and biography without deleting the database record.</summary>
+    void MarkDeceased(long npcId, string? noteVi = null) { }
 
     /// <summary>Registers a dynamically generated or procedural NPC into the registry and persistent storage.</summary>
     NpcDef RegisterDynamicNpc(

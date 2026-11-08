@@ -28,6 +28,8 @@ public interface IPoliticalCourt
     CourtResult LeaveFaction();
 
     CourtResult EnactPolicy(string policyCode, long citadelId);
+
+    void SetCityOwner(long citadelId, long factionId, long? governorNpcId = null) { }
 }
 
 public sealed record OfficeView(

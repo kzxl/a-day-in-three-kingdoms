@@ -93,7 +93,8 @@ public sealed class NpcModule : ISimModule
                         row.GetInt32(18)),
                     row.GetStringOrNull(19),
                     row.GetStringOrNull(20),
-                    skillsByNpc.TryGetValue(row.GetInt64(0), out var sList) ? sList : Array.Empty<NpcSkillDef>()))
+                    skillsByNpc.TryGetValue(row.GetInt64(0), out var sList) ? sList : Array.Empty<NpcSkillDef>(),
+                    row.GetStringOrNull(20)?.Contains("Đã mất", StringComparison.OrdinalIgnoreCase) == true))
                 .ToList();
 
             _byId = new Dictionary<long, NpcDef>(_all.Count);
@@ -195,6 +196,54 @@ public sealed class NpcModule : ISimModule
                     _byCitadel[newCitadelId] = newList;
                 }
                 newList.Add(updated);
+            }
+        }
+
+        public void MarkDeceased(long npcId, string? noteVi = null)
+        {
+            lock (_gate)
+            {
+                if (!_byId.TryGetValue(npcId, out var existing))
+                {
+                    return;
+                }
+
+                var suffix = string.IsNullOrWhiteSpace(noteVi)
+                    ? " (Đã mất)"
+                    : $" (Đã mất — {noteVi})";
+                var currentBio = existing.BioVi ?? string.Empty;
+                var updatedBio = currentBio.Contains("Đã mất", StringComparison.OrdinalIgnoreCase)
+                    ? currentBio
+                    : string.Concat(currentBio.TrimEnd(), suffix).Trim();
+
+                var updated = existing with { BioVi = updatedBio, IsDeceasedFlag = true };
+                _byId[npcId] = updated;
+                _byCode[updated.Code] = updated;
+
+                for (var i = 0; i < _all.Count; i++)
+                {
+                    if (_all[i].Id == npcId)
+                    {
+                        _all[i] = updated;
+                        break;
+                    }
+                }
+
+                if (_byCitadel.TryGetValue(existing.CitadelId, out var citList))
+                {
+                    for (var i = 0; i < citList.Count; i++)
+                    {
+                        if (citList[i].Id == npcId)
+                        {
+                            citList[i] = updated;
+                            break;
+                        }
+                    }
+                }
+
+                _db.Execute(
+                    "UPDATE np_attribute SET bio_vi = @bio WHERE npc_id = @id",
+                    new DbArgs().Add("@bio", updatedBio).Add("@id", npcId));
             }
         }
 

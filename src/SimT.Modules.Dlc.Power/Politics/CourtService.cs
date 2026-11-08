@@ -96,6 +96,30 @@ internal sealed class CourtService : IPoliticalCourt
                 row.GetInt32(4),
                 row.GetInt32(5)));
 
+    public void SetCityOwner(long citadelId, long factionId, long? governorNpcId = null)
+    {
+        if (governorNpcId.HasValue && governorNpcId.Value > 0)
+        {
+            _db.Execute(
+                """
+                INSERT INTO po_city_governance(citadel_id, faction_id, governor_npc_id, unrest_level, defense_strength, tax_rate_percent)
+                VALUES(@citId, @facId, @govId, 20, 100, 10)
+                ON CONFLICT(citadel_id) DO UPDATE SET faction_id = excluded.faction_id, governor_npc_id = excluded.governor_npc_id
+                """,
+                new DbArgs().Add("@citId", citadelId).Add("@facId", factionId).Add("@govId", governorNpcId.Value));
+        }
+        else
+        {
+            _db.Execute(
+                """
+                INSERT INTO po_city_governance(citadel_id, faction_id, governor_npc_id, unrest_level, defense_strength, tax_rate_percent)
+                VALUES(@citId, @facId, 0, 20, 100, 10)
+                ON CONFLICT(citadel_id) DO UPDATE SET faction_id = excluded.faction_id
+                """,
+                new DbArgs().Add("@citId", citadelId).Add("@facId", factionId));
+        }
+    }
+
     public IReadOnlyList<DecreeLogView> RecentDecrees(int limit = 10) =>
         _db.Query(
             """

@@ -28,7 +28,9 @@ public sealed record NpcActivityDef(
     string CurrentAction,
     int Stamina,
     int Reputation,
-    GameDate UpdatedDate);
+    GameDate UpdatedDate,
+    bool IsDeceased = false,
+    long AllegianceFactionId = 0);
 
 /// <summary>
 /// Accumulated attribute growth for an NPC earned through autonomous practice and feats.
@@ -84,6 +86,21 @@ public interface ISocietyChronicle
 
     /// <summary>Direct access to branching karma & causality event engine.</summary>
     IKarmaEngine Karma { get; }
+
+    /// <summary>Lists all canonical historical events (184–220) and their current states.</summary>
+    IReadOnlyList<HistoricalEventView> GetHistoricalEvents(bool occurredOnly = false) => Array.Empty<HistoricalEventView>();
+
+    /// <summary>Finds a historical event by code.</summary>
+    HistoricalEventView? FindHistoricalEvent(string code) => null;
+
+    /// <summary>Dequeues the next historical event that occurred at the player's current city.</summary>
+    HistoricalEventView? DequeuePendingHistoricalEvent(long playerCitadelId) => null;
+
+    /// <summary>Dequeues the next status-bar notice for a historical event that occurred at a distant city.</summary>
+    string? ConsumeLastHistoricalStatus() => null;
+
+    /// <summary>Resolves a player choice on a historical event.</summary>
+    HistoricalChoiceOutcome ResolveHistoricalEventChoice(string eventCode, string choiceKey) => new(false, string.Empty, 0, 0, 0);
 }
 
 /// <summary>
@@ -91,6 +108,12 @@ public interface ISocietyChronicle
 /// </summary>
 public static class NpcLocation
 {
+    public static bool IsDeceased(this NpcDef npc, ISocietyChronicle? society = null) =>
+        npc.IsDeceasedFlag
+        || (npc.BioVi?.Contains("Đã mất", StringComparison.OrdinalIgnoreCase) ?? false)
+        || (society?.GetNpcActivity(npc.Id)?.IsDeceased ?? false)
+        || (society?.GetNpcActivity(npc.Id)?.CurrentAction?.StartsWith("Đã mất", StringComparison.OrdinalIgnoreCase) ?? false);
+
     public static long CurrentCitadelId(this NpcDef npc, ISocietyChronicle? society) =>
         society?.GetNpcActivity(npc.Id)?.CurrentCitadelId ?? npc.CitadelId;
 
@@ -106,7 +129,7 @@ public static class NpcLocation
             return Array.Empty<SimT.Contracts.Scenes.CityNpcSprite>();
 
         var list = reg.All
-            .Where(npc => npc.CurrentCitadelId(society) == cityId)
+            .Where(npc => !npc.IsDeceased(society) && npc.CurrentCitadelId(society) == cityId)
             .OrderBy(npc =>
             {
                 var (animPath, _) = SimT.Contracts.Scenes.SceneArtCatalog.ResolveNpcAnim(npc);

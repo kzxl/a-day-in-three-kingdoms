@@ -44,6 +44,7 @@ public sealed partial class GameChronicleView : Border
         public IReadOnlyList<KarmaPromptOption>? Options { get; init; }
         public bool IsResolved { get; init; }
         public string? OutcomeVi { get; init; }
+        public string? HistoricalEventCode { get; init; }
     }
 
     private SimKernel? _kernel;
@@ -58,6 +59,7 @@ public sealed partial class GameChronicleView : Border
     private readonly ScrollViewer _listScroller;
 
     public event Action? EventInteracted;
+    public event Action<string>? HistoricalEventReplayRequested;
 
     public GameChronicleView()
     {
@@ -172,6 +174,7 @@ public sealed partial class GameChronicleView : Border
         var filters = new (string Key, string Label)[]
         {
             ("all", "📜 Toàn Bộ"),
+            ("history", "🐉 Sử biến"),
             ("rumors", "Tin đồn"),
             ("actionable", "⚡ Chờ Quyết Sách"),
             ("turmoil", "🔥 Loạn Lạc"),
@@ -289,9 +292,12 @@ public sealed partial class GameChronicleView : Border
                     Narrative = l.DetailVi,
                     StatImpact = l.StatImpact,
                     CanIntervene = false,
-                    IsResolved = true
+                    IsResolved = true,
+                    HistoricalEventCode = ExtractHistoricalCode(l.StatImpact)
                 });
             }
+
+            LoadHistoricalEvents(society);
         }
 
         LoadRumorEvents();
@@ -513,6 +519,11 @@ public sealed partial class GameChronicleView : Border
 
         root.Children.Add(headerPanel);
 
+        if (!string.IsNullOrWhiteSpace(ev.HistoricalEventCode))
+        {
+            root.Children.Add(BuildHistoricalReplayPad(ev.HistoricalEventCode));
+        }
+
         // 3. Historical Chronicle Narrative Box
         var narrativeBox = new Border
         {
@@ -606,7 +617,7 @@ public sealed partial class GameChronicleView : Border
     {
         var frame = new Border
         {
-            Height = 180,
+            Height = 105,
             CornerRadius = new CornerRadius(6),
             BorderBrush = BorderGold,
             BorderThickness = new Thickness(1.5),
@@ -618,6 +629,7 @@ public sealed partial class GameChronicleView : Border
         // 1. Painterly Gradient Backdrop depending on event mood
         var (gradTop, gradBottom, sealChar, subTitle) = categoryKey switch
         {
+            "history" => (Color.FromRgb(0x4A, 0x16, 0x10), Color.FromRgb(0x18, 0x0A, 0x06), "史變", "Đại Cuộc Sử Biến"),
             "turmoil" => (Color.FromRgb(0x42, 0x14, 0x0E), Color.FromRgb(0x1B, 0x0B, 0x07), "烽火", "Khói Lửa Binh Biến"),
             "bankruptcy" => (Color.FromRgb(0x28, 0x1A, 0x12), Color.FromRgb(0x12, 0x0C, 0x08), "虧損", "Thương Trường Sa Cơ"),
             "store" => (Color.FromRgb(0x36, 0x24, 0x12), Color.FromRgb(0x16, 0x10, 0x0A), "開市", "Khai Trương Đại Cát"),
@@ -861,7 +873,9 @@ public sealed partial class GameChronicleView : Border
 
     private static string DetectCategoryFromHeadline(string headline, string eventKind)
     {
+        if (string.Equals(eventKind, "history", StringComparison.OrdinalIgnoreCase)) return "history";
         var lower = headline.ToLowerInvariant();
+        if (lower.Contains("[sử biến]")) return "history";
         if (lower.Contains("kết hôn") || lower.Contains("thành hôn") || lower.Contains("hôn sự")) return "marriage";
         if (lower.Contains("phá sản") || lower.Contains("vỡ nợ") || lower.Contains("sa cơ")) return "bankruptcy";
         if (lower.Contains("khai trương") || lower.Contains("chi điếm") || lower.Contains("cửa hiệu")) return "store";
@@ -872,6 +886,7 @@ public sealed partial class GameChronicleView : Border
 
         return eventKind switch
         {
+            "history" => "history",
             "martial" => "turmoil",
             "commerce" => "store",
             "governance" => "appointment",
@@ -882,6 +897,7 @@ public sealed partial class GameChronicleView : Border
 
     private static string FormatCategoryName(string catKey) => catKey switch
     {
+        "history" => "Sử biến",
         "turmoil" => "Loạn Lạc",
         "bankruptcy" => "Phá Sản",
         "store" => "Cửa Hiệu",
@@ -894,6 +910,7 @@ public sealed partial class GameChronicleView : Border
 
     private static BadgeVariant GetBadgeVariantForCategory(string catKey) => catKey switch
     {
+        "history" => BadgeVariant.Gold,
         "turmoil" => BadgeVariant.Loss,
         "bankruptcy" => BadgeVariant.Warning,
         "store" => BadgeVariant.Gain,
