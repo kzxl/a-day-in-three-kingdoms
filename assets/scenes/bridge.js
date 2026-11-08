@@ -28,11 +28,19 @@ export const SimTBridge = {
     }
   },
 
+  playSfx(key) {
+    if (typeof key === 'string' && key.length > 0 && key.length <= 128) {
+      postToHost({ type: 'sfx', id: key });
+    }
+  },
+
   sendChoice(sceneId, id) {
+    this.playSfx('ui.click');
     postToHost({ type: 'choice', sceneId: sceneId || activeSceneId, id: String(id) });
   },
 
   sendNavigate(sceneId, id) {
+    this.playSfx('ui.click');
     postToHost({ type: 'navigate', sceneId: sceneId || activeSceneId, id: String(id) });
   },
 

@@ -20,6 +20,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        Audio.GameAudio.Initialize(e.Args.Contains("--smoke") || e.Args.Contains("--demo"));
 
         DispatcherUnhandledException += (_, args) =>
         {
@@ -130,6 +131,7 @@ public partial class App : Application
             var kernel = saves.Open(meta);
             var window = new MainWindow(kernel, saves, meta, isSmoke: true);
             window.Show();
+            ValidateAudioSettingsSmoke(kernel);
             var screens = window.RenderAllScreens();
             File.WriteAllText(log, $"ok screens={screens} date={kernel.Today} balance={kernel.Ledger.Balance}");
             window.Close();
