@@ -1,5 +1,5 @@
 import { SimTBridge } from './bridge.js';
-import { travellerPath, travellerPosition, createTravellerMarker, TRAVELLER_LABELS } from './map-travellers.js';
+import { travellerPath, placeTravellers, setTravellerFrame, createTravellerMarker, TRAVELLER_LABELS } from './map-travellers.js';
 
 let animHandle = 0;
 let seasonAnimHandle = 0;
@@ -518,13 +518,34 @@ export function renderMapScene(container, scene, bridge) {
     travellersSvg.appendChild(marker);
     return { t, path, marker };
   }).filter(Boolean);
-  function positionTravellers() {
-    for (const { t, path, marker } of travellerNodes) {
-      const p = travellerPosition(path, Math.max(0.03, Math.min(0.97, t.progress + Math.sin(elapsed / 18) * 0.025)));
+  let travellerWidth = 54;
+  let travellerPlacements = [];
+  let lastTravellerFrame = -1;
+  function positionTravellers(force = false) {
+    const frame = Math.floor(elapsed * 1000 / 260) % 2;
+    if (!force && frame === lastTravellerFrame) return;
+    lastTravellerFrame = frame;
+    travellerNodes.forEach(({ marker }, i) => {
+      const p = travellerPlacements[i];
+      marker.style.display = p ? '' : 'none';
+      if (!p) return;
       marker.setAttribute('transform', `translate(${p.x} ${p.y})`);
-    }
+      setTravellerFrame(marker, frame, p.dx < 0, travellerWidth);
+    });
   }
-  positionTravellers();
+  function layoutTravellers() {
+    const scale = getFitScale() * state.zoom;
+    const desiredWidth = 36 + 8 * Math.max(0, Math.min(1, (window.innerWidth - 1076) / 364));
+    travellerWidth = desiredWidth / getFitScale();
+    const origin = canvas.getBoundingClientRect();
+    const obstacles = [...citiesLayer.querySelectorAll('.tk-map-dot, .tk-map-nm')].map(node => {
+      const b = node.getBoundingClientRect();
+      return { left: (b.left - origin.left) / scale - 3, right: (b.right - origin.left) / scale + 3,
+        top: (b.top - origin.top) / scale - 3, bottom: (b.bottom - origin.top) / scale + 3 };
+    });
+    travellerPlacements = placeTravellers(travellerNodes.map(({ t, path }) => ({ path, progress: t.progress })), obstacles, travellerWidth, scale);
+    positionTravellers(true);
+  }
   canvas.append(bgLayer, factionCanvas, svg, tagsLayer, citiesLayer, tokenImg, travellersSvg);
 
   const seasonCanvas = el('canvas', 'tk-map-season-canvas');
@@ -599,7 +620,7 @@ export function renderMapScene(container, scene, bridge) {
       for (const [kind, label] of Object.entries(TRAVELLER_LABELS)) {
         const item = el('span', 'tk-map-faction-item');
         const icon = document.createElementNS(svgNS, 'svg');
-        icon.setAttribute('viewBox', '-15 -15 30 30');
+        icon.setAttribute('viewBox', '-28 -38 56 42');
         const marker = createTravellerMarker({kind, labelVi: label, color: '#c4a062'}, label);
         marker.removeAttribute('tabindex'); icon.appendChild(marker);
         item.append(icon, document.createTextNode(label)); legend.appendChild(item);
@@ -673,6 +694,7 @@ export function renderMapScene(container, scene, bridge) {
   function applyTransform() {
     const effScale = getFitScale() * state.zoom;
     canvas.style.transform = `translate(${state.panX.toFixed(1)}px, ${state.panY.toFixed(1)}px) scale(${effScale.toFixed(4)})`;
+    layoutTravellers();
   }
 
   if (typeof ResizeObserver !== 'undefined') {

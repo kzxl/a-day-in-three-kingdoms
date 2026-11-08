@@ -1,11 +1,8 @@
 const NS = 'http://www.w3.org/2000/svg';
 export const TRAVELLER_LABELS = { rival: 'Thương nhân', caravan: 'Thương đoàn', npc: 'Danh sĩ', army: 'Quân binh' };
-export const TRAVELLER_SHAPES = {
-  rival: 'M-9 2h14v-7H-7z M-5-5v-4h7v4 M5 2l5-5 M-5 3a2 2 0 1 0 0 .1 M4 3a2 2 0 1 0 0 .1',
-  caravan: 'M-10 1H8v-8H-10z M-7-7v-3H4v3 M8 1l4-4 M-6 3a2 2 0 1 0 0 .1 M5 3a2 2 0 1 0 0 .1',
-  npc: 'M-8 0l3-5h6l3-5 4 1v6H4L2 1v6 M-5 0l-2 7 M-1-5v-5 M-8-1l-3-3',
-  army: 'M-5 9V-11 M-4-10H9L5-5 9 0H-4 M-9 9h9'
-};
+export const TRAVELLER_ROWS = { rival: 0, caravan: 1, npc: 2, army: 3 };
+export const TRAVELLER_SHEET = 'art/map/travellers.png';
+let flagId = 0;
 
 // Shortest connected itinerary keeps remote NPCs and freight on the road network.
 export function travellerPath(traveller, cities, routes) {
@@ -36,33 +33,87 @@ export function travellerPosition(path, progress) {
   let distance = Math.max(0, Math.min(1, progress)) * lengths.reduce((a, b) => a + b, 0);
   for (let i = 0; i < lengths.length; i++) {
     if (distance <= lengths[i] || i === lengths.length - 1) {
-      const t = lengths[i] ? distance / lengths[i] : 0;
+      const t = Math.max(0.14, Math.min(0.86, lengths[i] ? distance / lengths[i] : 0));
       return { x: path[i].x + (path[i + 1].x - path[i].x) * t,
-        y: path[i].y + (path[i + 1].y - path[i].y) * t };
+        y: path[i].y + (path[i + 1].y - path[i].y) * t,
+        t, dx: (path[i + 1].x - path[i].x) / (lengths[i] || 1),
+        dy: (path[i + 1].y - path[i].y) / (lengths[i] || 1) };
     }
     distance -= lengths[i];
   }
 }
 
+const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+export function travellerBox(p, width) {
+  return { left: p.x - width / 2, right: p.x + width / 2, top: p.y - width * 2 / 3, bottom: p.y + 2 };
+}
+
+// All distances supplied by the caller are in map coordinates, including screen-pixel clearances.
+export function placeTravellers(entries, obstacles = [], width = 54, scale = 1) {
+  const placed = [];
+  return entries.map(({ path, progress }, index) => {
+    const base = travellerPosition(path, progress);
+    if (!base) return null;
+    const sign = index % 2 ? -1 : 1;
+    let result = null;
+    for (let attempt = 0; attempt < 161; attempt++) {
+      const lane = attempt === 0 ? 0 : Math.ceil(attempt / 2) * (attempt % 2 ? sign : -sign);
+      const offset = lane * 10 / scale;
+      const p = { ...base, x: base.x - base.dy * offset, y: base.y + base.dx * offset };
+      const box = travellerBox(p, width);
+      if (box.left < 0 || box.right > 800 || box.top < 0 || box.bottom > 640) continue;
+      if (obstacles.some(b => overlaps(box, b))) continue;
+      if (placed.some(q => Math.hypot(q.x - p.x, q.y - p.y) * scale < 24 || overlaps(box, travellerBox(q, width)))) continue;
+      result = p; break;
+    }
+    // Omit a marker only if the entire perpendicular corridor is occupied; never obscure a city.
+    if (result) placed.push(result);
+    return result;
+  });
+}
+
+function svgNode(tag, attrs = {}) {
+  const node = document.createElementNS(NS, tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+  return node;
+}
+
+export function setTravellerFrame(marker, frame = 0, left = false, width = 54) {
+  const row = TRAVELLER_ROWS[marker.getAttribute('data-kind')] ?? 2;
+  const sprite = marker.querySelector('.tk-map-traveller-sprite');
+  sprite.setAttribute('viewBox', `${frame * 96} ${row * 64} 96 64`);
+  sprite.setAttribute('x', String(-width / 2));
+  sprite.setAttribute('y', String(-width * 2 / 3 - frame));
+  sprite.setAttribute('width', String(width));
+  sprite.setAttribute('height', String(width * 2 / 3));
+  sprite.setAttribute('transform', `scale(${left ? -1 : 1} 1)`);
+  const hit = marker.querySelector('.tk-map-traveller-hit');
+  hit.setAttribute('x', String(-width / 2));
+  hit.setAttribute('y', String(-width * 2 / 3 - 1));
+  hit.setAttribute('width', String(width));
+  hit.setAttribute('height', String(width * 2 / 3 + 3));
+}
+
 export function createTravellerMarker(traveller, routeLabel) {
-  const g = document.createElementNS(NS, 'g');
-  g.setAttribute('class', 'tk-map-traveller');
-  g.setAttribute('tabindex', '0');
-  g.setAttribute('role', 'img');
-  g.setAttribute('data-kind', traveller.kind);
+  const g = svgNode('g', { class: 'tk-map-traveller', tabindex: 0, role: 'img', 'data-kind': traveller.kind });
   const label = `${traveller.labelVi} · ${routeLabel}`;
   g.setAttribute('aria-label', label);
-  const title = document.createElementNS(NS, 'title'); title.textContent = label;
-  const hit = document.createElementNS(NS, 'circle');
-  hit.setAttribute('r', '13'); hit.setAttribute('fill', 'transparent'); hit.setAttribute('stroke', 'none');
-  const shape = document.createElementNS(NS, 'path');
-  shape.setAttribute('d', TRAVELLER_SHAPES[traveller.kind] || TRAVELLER_SHAPES.npc);
-  shape.setAttribute('fill', '#eadfc6'); shape.setAttribute('stroke', traveller.color || '#6a4f2e');
-  shape.setAttribute('stroke-width', '2'); shape.setAttribute('stroke-linejoin', 'round');
-  g.append(title, hit, shape);
+  const title = svgNode('title'); title.textContent = label;
+  const shadow = svgNode('ellipse', { cx: 0, cy: 0, rx: 21, ry: 3, fill: '#241a13', opacity: 0.22 });
+  const hit = svgNode('rect', { class: 'tk-map-traveller-hit', x: -27, y: -36, width: 54, height: 40, fill: 'transparent' });
+  const sprite = svgNode('svg', { class: 'tk-map-traveller-sprite', x: -27, y: -36, width: 54, height: 36,
+    viewBox: `0 ${(TRAVELLER_ROWS[traveller.kind] ?? 2) * 64} 96 64` });
+  sprite.append(svgNode('image', { href: TRAVELLER_SHEET, width: 192, height: 256 }));
+  if (traveller.kind === 'army') {
+    const id = `traveller-flag-${++flagId}`;
+    const mask = svgNode('mask', { id, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: 192, height: 256 });
+    mask.append(svgNode('image', { href: 'art/map/travellers_army_flag.png', width: 192, height: 256 }));
+    const defs = svgNode('defs'); defs.append(mask);
+    sprite.append(defs, svgNode('rect', { width: 192, height: 256, fill: traveller.color || '#e8dec4', mask: `url(#${id})` }));
+  }
+  g.append(title, shadow, hit, sprite);
   g.addEventListener('click', () => { g.classList.toggle('is-open'); });
-  const tooltip = document.createElementNS(NS, 'text');
-  tooltip.setAttribute('y', '-18'); tooltip.setAttribute('text-anchor', 'middle'); tooltip.textContent = label;
+  const tooltip = svgNode('text', { y: -42, 'text-anchor': 'middle' }); tooltip.textContent = label;
   g.append(tooltip);
   return g;
 }

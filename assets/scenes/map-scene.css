@@ -661,5 +661,8 @@
 .tk-map-traveller text { display: none; fill: #f3e6cc; stroke: #241a13; stroke-width: 4px; paint-order: stroke; font-size: 13px; }
 .tk-map-traveller:hover text, .tk-map-traveller:focus text, .tk-map-traveller.is-open text { display: block; }
 .tk-map-traveller-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; font-size: 10.5px; color: #eadfc6; }
-.tk-map-traveller-legend svg { width: 22px; height: 22px; flex: none; }
+.tk-map-traveller-legend > span > svg { width: 30px; height: 24px; flex: none; }
 .tk-map-traveller-legend text { display: none !important; }
+
+.tk-map-traveller-sprite image { image-rendering: pixelated; }
+.tk-map-traveller-sprite { overflow: hidden; pointer-events: none; }
