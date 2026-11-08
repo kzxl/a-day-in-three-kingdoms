@@ -96,6 +96,7 @@ internal sealed class CourtScreen : IScreenContribution
                 if (_service.OfficeId > 0)
                 {
                     actionCmds.Add(new ScreenCommand($"policy:tax:{gov.CitadelId}", "Trưng Thuế (+120q)"));
+                    actionCmds.Add(new ScreenCommand($"policy:land_reclaim:{gov.CitadelId}", "Đồn Điền (100q)", CommandKind.Primary));
                 }
 
                 if (gov.UnrestLevel >= 35)
@@ -130,6 +131,7 @@ internal sealed class CourtScreen : IScreenContribution
                         "relief" => "An Dân Tế Bần",
                         "tax" => "Trưng Thu Thuế",
                         "levy" => "Chiêu Mộ Nghĩa Binh",
+                        "land_reclaim" => "Đồn Điền Khai Hoang",
                         "pacify" => "Tiễu Phạt Dẹp Loạn",
                         _ => log.PolicyCode
                     },

@@ -310,4 +310,29 @@ public sealed class PoliticsTests : IDisposable
 
     private static IPoliticalCourt Court(SimKernel kernel) =>
         kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+
+    [Fact]
+    public void Enacting_land_reclaim_decree_boosts_defense_and_lowers_unrest()
+    {
+        using var kernel = _host.Boot();
+        var court = Court(kernel);
+
+        // Appoint to an office first
+        Command(kernel, "serve");
+        Command(kernel, "apply:1");
+
+        var govBefore = court.Governances.First(g => g.CitadelId == 1);
+        var defenseBefore = govBefore.DefenseStrength;
+        var unrestBefore = govBefore.UnrestLevel;
+        var repBefore = court.Reputation;
+
+        var msg = Command(kernel, "policy:land_reclaim:1");
+        Assert.Contains("Đồn điền hoàn tất", msg);
+
+        var govAfter = court.Governances.First(g => g.CitadelId == 1);
+        Assert.Equal(defenseBefore + 15, govAfter.DefenseStrength);
+        Assert.True(govAfter.UnrestLevel <= unrestBefore);
+        Assert.Equal(repBefore + 5, court.Reputation);
+    }
+
 }

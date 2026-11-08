@@ -226,4 +226,22 @@ public sealed class MilitaryTests : IDisposable
             Assert.NotEmpty(result.ItemRewardName);
         }
     }
+
+    [Fact]
+    public void Citadel_security_reflects_bandit_density_and_assault_clearance()
+    {
+        using var kernel = _host.Boot();
+        var military = kernel.Capabilities.Get<IMilitaryCommand>(CapabilityIds.MilitaryCommand);
+        var initialSecurity = military.GetCitadelSecurity(1);
+
+        Assert.InRange(initialSecurity, 10, 100);
+
+        var target = military.StrongholdsAt(1).First();
+        var assaultResult = military.AssaultStronghold(target.Id);
+        Assert.NotNull(assaultResult);
+
+        var securityAfter = military.GetCitadelSecurity(1);
+        Assert.True(securityAfter >= initialSecurity);
+    }
+
 }

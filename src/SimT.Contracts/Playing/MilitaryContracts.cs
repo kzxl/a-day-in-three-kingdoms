@@ -238,6 +238,9 @@ public interface IMilitaryCommand
 
     IReadOnlyList<SupplyRequisitionDef> ActiveRequisitions(long citadelId);
 
+    /// <summary>Calculates the route and peace security index (0 to 100%) for a citadel.</summary>
+    int GetCitadelSecurity(long citadelId);
+
     /// <summary>Challenges an NPC warrior to a duel in the local arena with default branch.</summary>
     DuelResult ChallengeArena(long npcId);
 

@@ -348,6 +348,36 @@ internal sealed class CourtService : IPoliticalCourt
                 return CourtResult.Success($"Chiêu binh thành công: Phòng thủ +10, bất ổn -5%, uy tín +2, tiêu {cost} Quan.");
             }
 
+            case "land_reclaim": // Đồn điền khai hoang
+            {
+                const long cost = 100;
+                if (_wallet.Liquid < cost)
+                {
+                    return CourtResult.Failure($"Cần {cost} Quan mở đồn điền khuyến nông, ngân lượng không đủ.");
+                }
+
+                var newDefense = gov.DefenseStrength + 15;
+                var newUnrest = Math.Max(0, gov.UnrestLevel - 10);
+
+                _db.Transaction(() =>
+                {
+                    _wallet.Charge(cost, JournalCodes.CourtService, "Đồn điền khai hoang khuyến khích canh nông");
+                    _db.Execute(
+                        "UPDATE po_city_governance SET defense_strength = @def, unrest_level = @unrest WHERE citadel_id = @citId",
+                        new DbArgs().Add("@def", newDefense).Add("@unrest", newUnrest).Add("@citId", citadelId));
+                    SetState("reputation", Reputation + 5);
+                    _attributes?.GainFame(30, "Lập đồn điền khẩn hoang, khuyến khích canh nông yên dân.", virtueDelta: 5);
+                    _db.Execute(
+                        """
+                        INSERT INTO po_decree_log (day_index, citadel_id, policy_code, cost_copper, reputation_gain, unrest_delta, narrative_vi)
+                        VALUES (@day, @citId, 'land_reclaim', @cost, 5, -10, 'Thi hành quốc sách đồn điền, khẩn hoang lập ấp, bá tánh no ấm.')
+                        """,
+                        new DbArgs().Add("@day", _clock.Today.DayIndex).Add("@citId", citadelId).Add("@cost", cost));
+                });
+
+                return CourtResult.Success($"Đồn điền hoàn tất: Phòng thủ +15, bất ổn -10%, uy tín +5, đức độ +5, tiêu {cost} Quan.");
+            }
+
             case "pacify": // Dẹp loạn dân biến
             {
                 if (gov.UnrestLevel < 35)

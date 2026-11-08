@@ -46,6 +46,36 @@ internal sealed class MilitaryService : IMilitaryCommand
         _equipment = equipment;
     }
 
+    public int GetCitadelSecurity(long citadelId)
+    {
+        var strongholds = StrongholdsAt(citadelId);
+        if (strongholds.Count == 0)
+        {
+            return 85;
+        }
+
+        var baseSecurity = 50;
+        var today = _clock.Today.DayIndex;
+
+        foreach (var sh in strongholds)
+        {
+            if (sh.LastClearedDate.HasValue)
+            {
+                var daysSince = today - sh.LastClearedDate.Value.DayIndex;
+                if (daysSince <= 90)
+                {
+                    baseSecurity += 15;
+                }
+            }
+            else if (sh.DangerLevel >= 3)
+            {
+                baseSecurity -= 10;
+            }
+        }
+
+        return Math.Clamp(baseSecurity, 10, 100);
+    }
+
     public IReadOnlyList<StrongholdDef> StrongholdsAt(long citadelId)
     {
         return _db.Query(
