@@ -34,6 +34,8 @@ Hai đợt cùng hàng (1–2, 3–4, …) chạy song song vì đụng ít file
 - Bảng mới mang tiền tố của module sở hữu, migration chạy lại được nhiều lần. Save cũ mở được, thiếu dữ liệu mới thì tự sinh khi mở.
 - Tắt DLC sở hữu tính năng thì game vẫn chạy, phần đó ẩn đi, không lỗi.
 - Mọi số ngẫu nhiên dùng `IRng` của kernel để golden replay vẫn xác định. Nếu hash golden đổi thì không tự cập nhật, ghi lý do trong báo cáo.
+- Không sửa kernel (`SimT.Core`, `SimT.Contracts/Time`) trừ khi đề bài cho phép rõ. Thời gian chỉ tính theo ngày nguyên.
+- Ảnh và file QA để ở `D:\Hung DATA\Tool\_tq_shots\NN\`, không commit vào repo.
 - Chữ trong game là tiếng Việt, tên người và thành dùng đúng dữ liệu hiện có.
 - Cảnh WebView2 không cuộn ngang ở cửa sổ 1076, hiệu ứng tắt khi `prefers-reduced-motion`.
 - Nghiệm thu mỗi đợt: build Release sạch, `dotnet test SimT.sln -c Release` qua hết, `node tools/check-scenes.mjs`, `--smoke`, ảnh chụp các màn mới, báo cáo ngắn.
@@ -52,7 +54,7 @@ Hai đợt cùng hàng (1–2, 3–4, …) chạy song song vì đụng ít file
 
 **Mục tiêu:** có lý do ghé tửu quán; tin đồn giúp đi buôn và dẫn tới biến cố.
 
-- Cảnh Trong thành có điểm "Tửu quán". Vào đó mua một bình rượu (tốn ít tiền, nửa buổi) thì nghe 3 tin đồn. Mỗi thành làm mới tin sau 10 ngày.
+- Cảnh Trong thành có điểm "Tửu quán". Vào đó mua một bình rượu (20 quan, không tốn ngày) thì nghe 3 tin đồn. Mỗi thành làm mới tin sau 10 ngày.
 - Loại tin, lấy từ dữ liệu thật:
   - giá: mặt hàng nào đang khan hoặc ế ở thành nào;
   - biến cố sắp tới: từ karma, cú sốc chợ, và sử biến khi đợt 3 có;
