@@ -24,6 +24,7 @@ internal sealed class StallScreen : IScreenContribution
     private readonly IWallet _wallet;
     private readonly IActionTime _actionTime;
     private readonly INpcRegistry? _npcRegistry;
+    private readonly IValueChainService? _valueChain;
 
     public StallScreen(
         IMarketTrade trade,
@@ -35,7 +36,8 @@ internal sealed class StallScreen : IScreenContribution
         IGameClock clock,
         IWallet wallet,
         IActionTime actionTime,
-        INpcRegistry? npcRegistry = null)
+        INpcRegistry? npcRegistry = null,
+        IValueChainService? valueChain = null)
     {
         _trade = trade;
         _npcMarket = npcMarket;
@@ -47,6 +49,7 @@ internal sealed class StallScreen : IScreenContribution
         _wallet = wallet;
         _actionTime = actionTime;
         _npcRegistry = npcRegistry;
+        _valueChain = valueChain;
     }
 
     public string ScreenId => "market.stall";
@@ -115,7 +118,9 @@ internal sealed class StallScreen : IScreenContribution
                     new ScreenDetail("Chuỗi Giá Trị", ItemValueChain.FormatBadge(item.Code)),
                     new ScreenDetail("Phân Loại Kinh Tế", ItemValueChain.GetProfile(item.Code).TierNameVi),
                     new ScreenDetail("Thị Trường Tiêu Thụ", ItemValueChain.GetProfile(item.Code).PrimaryConsumerVi),
-                    new ScreenDetail("Vai Trò Kinh Tế", ItemValueChain.GetProfile(item.Code).EconomicRoleVi),
+                    new ScreenDetail("Nhu Cầu Thành Trấn", _valueChain?.GetDemandStatus(city.Id, item.Id).VelocityLevelVi ?? "Ổn định"),
+                    new ScreenDetail("Dự Báo Tồn Kho", _valueChain is { } vc ? (vc.GetDemandStatus(city.Id, item.Id).DaysUntilDepletion < 30 ? $"⚠️ Cạn sau ~{vc.GetDemandStatus(city.Id, item.Id).DaysUntilDepletion} ngày" : $"Đủ dùng ({vc.GetDemandStatus(city.Id, item.Id).MonthlyDemandEstimate} đv/tháng)") : "Dồi dào"),
+                    new ScreenDetail("Sản Phẩm Tinh Chế", string.Join(", ", ItemValueChain.GetProfile(item.Code).Outputs.DefaultIfEmpty("Tiêu dùng cuối"))),
                     new ScreenDetail("Giá gốc", Fmt(item.BasePrice) + " quan"),
                     new ScreenDetail("Giá mua tại đây", Fmt(buy) + " quan"),
                     new ScreenDetail("Giá bán lại", Fmt(sell) + " quan"),

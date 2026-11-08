@@ -3,21 +3,6 @@ using SimT.Contracts.Playing;
 namespace SimT.Modules.Dlc.Economy.ValueChain;
 
 /// <summary>
-/// Economic value tier classification representing the closed macro-economic supply chain:
-/// Tier 1: Raw Materials (Nông nghiệp, Tiều tiều mỏ, Thảo mộc dã ngoại)
-/// Tier 2: Intermediate Goods (Sơ chế, Phôi luyện kim, Vải gai, Phân bón)
-/// Tier 3: Manufactured & Equipment (Thành phẩm chế tác, Lương thảo, Nông cụ, Y dược, Binh trang)
-/// Tier 4: Luxury & End-Sink (Xa xỉ phẩm, Quan lại biếu xén, Dưỡng thần, Xuất khẩu ngoại bang)
-/// </summary>
-public enum EconomicValueTier
-{
-    Tier1_Raw = 1,
-    Tier2_Processed = 2,
-    Tier3_Manufactured = 3,
-    Tier4_Luxury_EndSink = 4
-}
-
-/// <summary>
 /// Detailed value chain profile of a commodity item in the Three Kingdoms economic ecosystem.
 /// </summary>
 public sealed record ValueChainProfile(

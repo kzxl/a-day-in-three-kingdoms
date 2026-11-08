@@ -123,3 +123,45 @@ public interface INpcMarket
 
     TradeResult BuyFromNpcOffer(long cityId, long offerId, int quantity);
 }
+/// <summary>Economic value tier classification representing the closed macro-economic supply chain.</summary>
+public enum EconomicValueTier
+{
+    Tier1_Raw = 1,
+    Tier2_Processed = 2,
+    Tier3_Manufactured = 3,
+    Tier4_Luxury_EndSink = 4
+}
+
+/// <summary>Detailed value chain profile of a commodity item in the Three Kingdoms economic ecosystem.</summary>
+public sealed record ValueChainProfileDef(
+    string ItemCode,
+    EconomicValueTier Tier,
+    string TierNameVi,
+    string BadgeVi,
+    string CategoryVi,
+    string PrimaryConsumerVi,
+    string EconomicRoleVi,
+    IReadOnlyList<string> Inputs,
+    IReadOnlyList<string> Outputs);
+
+/// <summary>Real-time market demand velocity and stock depletion estimates for a citadel commodity.</summary>
+public sealed record MarketDemandStatus(
+    long CitadelId,
+    long ItemId,
+    string ItemCode,
+    string ItemNameVi,
+    int Stock,
+    int Baseline,
+    int MonthlyDemandEstimate,
+    string VelocityLevelVi,
+    int DaysUntilDepletion);
+
+/// <summary>Macro-economic value chain and civic consumption engine provided by <c>dlc.economy</c>.</summary>
+public interface IValueChainService
+{
+    ValueChainProfileDef GetProfile(string itemCode);
+    MarketDemandStatus GetDemandStatus(long citadelId, long itemId);
+    MarketDemandStatus EstimateDemand(long citadelId, long itemId, string itemCode, string itemNameVi, string category, int stock, int baseline, int npcCount);
+    IReadOnlyList<MarketDemandStatus> GetCitadelDemands(long citadelId);
+    void SimulateMonthlyCivicConsumption(SimT.Contracts.Time.GameDate date);
+}

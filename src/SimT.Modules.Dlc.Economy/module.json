@@ -15,7 +15,8 @@
     "caravan.guild",
     "cultivation.estate",
     "professions.guild",
-    "player.equipment"
+    "player.equipment",
+    "economy.value_chain"
   ],
   "consumes": [
     "content.items",

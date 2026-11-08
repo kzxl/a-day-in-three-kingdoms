@@ -38,6 +38,10 @@ public sealed class EconomyModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.PlayerStall, marketService);
         context.Capabilities.Provide(CapabilityIds.NpcMarket, marketService);
 
+        // 1b. Value Chain & Civic Consumption Service
+        var valueChainService = new SimT.Modules.Dlc.Economy.ValueChain.ValueChainService(context.Db, items, map, npcs, marketService, context.Log);
+        context.Capabilities.Provide(CapabilityIds.ValueChain, valueChainService);
+
         // 2. Caravan Service
         var freightPerUnit = context.Config.GetLong("freightPerUnit", CaravanService.DefaultFreightPerUnit);
         var caravanService = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, player, context.Ids, context.Log, context.ActionTime, freightPerUnit, npcs);
@@ -66,7 +70,7 @@ public sealed class EconomyModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.PlayerEquipment, professionService);
 
         // UI Screens & Command Handlers
-        context.Ui.AddScreen(new StallScreen(marketService, marketService, items, map, bag, player, context.Clock, wallet, context.ActionTime, npcs));
+        context.Ui.AddScreen(new StallScreen(marketService, marketService, items, map, bag, player, context.Clock, wallet, context.ActionTime, npcs, valueChainService));
         context.Ui.AddScreen(new PlayerStallScreen(marketService, marketService, items, map, bag, player, context.Clock, wallet, context.ActionTime));
         context.Ui.AddScreen(new WarehouseScreen(marketService, items, map, bag, player, context.ActionTime));
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.stall", marketService, player));
@@ -92,6 +96,7 @@ public sealed class EconomyModule : ISimModule
         context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyStallRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => marketService.RestockMonthly(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed => valueChainService.SimulateMonthlyCivicConsumption(closed.Date));
         context.Events.Subscribe<DayAdvanced>(day => marketService.SpoilOneDay(day.Date));
         context.Events.Subscribe<DayAdvanced>(day => marketService.DailyRetailSales(day.Date));
         context.Events.Subscribe<DayAdvanced>(day => marketService.RecordDailyPrices(day.Date));

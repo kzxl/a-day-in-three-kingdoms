@@ -227,7 +227,19 @@ internal sealed class ProfessionScreen : IScreenContribution
                     $"{r.CraftDays} ngày",
                     $"{r.OutputQuantity}x {output}"
                 ],
-                commands));
+                commands,
+                Title: r.NameVi,
+                Details:
+                [
+                    new ScreenDetail("Bản Vẽ Chế Tác", r.NameVi),
+                    new ScreenDetail("Bậc Tay Nghề", $"Bậc {r.RequiredTier} (Cấp của bạn: Bậc {currentTier})"),
+                    new ScreenDetail("Trạng Thái", canCraft ? "✅ Đủ điều kiện rèn đúc" : "❌ Chưa đủ bậc tay nghề"),
+                    new ScreenDetail("Nguyên Liệu Chính", $"{r.MaterialQuantity}x {mat}"),
+                    new ScreenDetail("Nguyên Liệu Phụ", r.SecondaryItemId.HasValue ? $"{r.SecondaryQuantity}x {_items.Find(r.SecondaryItemId.Value)?.NameVi}" : "Không yêu cầu"),
+                    new ScreenDetail("Phí Thuê Lò", $"{r.CraftFee} Quan"),
+                    new ScreenDetail("Thời Gian Chế Tác", $"{r.CraftDays} ngày"),
+                    new ScreenDetail("Thành Phẩm", $"{r.OutputQuantity}x {output}")
+                ]));
         }
 
         // 6. Mastery Perks
