@@ -283,4 +283,60 @@ public sealed class WorldExpansionTests : IDisposable
         Assert.Equal(14, bag.Quantity(7, 1)); // 14 Gạo left in Hứa Xương
         Assert.Contains("Để lại tại Hứa Xương", backMsg);
     }
+
+    [Fact]
+    public void MapScene_Build_PopulatesFactionsColorsGovernorsAndSeason_AndEmptiesWhenNoCourtCapability()
+    {
+        using var kernel = _host.Boot();
+
+        // 1. Politics DLC enabled: all 20 cities have faction, color, and governor; 12 factions in legend
+        var springScene = SimT.Contracts.Scenes.MapScene.Build(kernel.Capabilities, new SimT.Contracts.Time.GameDate(184, 2, 10), 1500);
+        Assert.NotNull(springScene);
+        Assert.Equal("spring", springScene.Season);
+        Assert.Equal(12, springScene.Factions.Count);
+        Assert.Equal(20, springScene.Factions.Sum(f => f.CityCount));
+        Assert.All(springScene.Factions, f =>
+        {
+            Assert.True(f.Id > 0);
+            Assert.False(string.IsNullOrWhiteSpace(f.NameVi));
+            Assert.StartsWith("#", f.Color);
+            Assert.True(f.CityCount > 0);
+        });
+
+        Assert.Equal(20, springScene.Cities.Count);
+        Assert.All(springScene.Cities, c =>
+        {
+            Assert.True(c.FactionId > 0);
+            Assert.False(string.IsNullOrWhiteSpace(c.FactionNameVi));
+            Assert.StartsWith("#", c.FactionColor);
+            Assert.False(string.IsNullOrWhiteSpace(c.GovernorNameVi));
+        });
+
+        var luoyang = springScene.Cities.First(c => c.Id == 1);
+        Assert.Equal("Tào Ngụy", luoyang.FactionNameVi);
+        Assert.Equal("#ef4444", luoyang.FactionColor);
+        Assert.Equal("Tào Tháo", luoyang.GovernorNameVi);
+
+        // 2. Season varies accurately by month
+        Assert.Equal("summer", SimT.Contracts.Scenes.MapScene.Build(kernel.Capabilities, new SimT.Contracts.Time.GameDate(184, 5, 1), 1500)!.Season);
+        Assert.Equal("autumn", SimT.Contracts.Scenes.MapScene.Build(kernel.Capabilities, new SimT.Contracts.Time.GameDate(184, 8, 1), 1500)!.Season);
+        Assert.Equal("winter", SimT.Contracts.Scenes.MapScene.Build(kernel.Capabilities, new SimT.Contracts.Time.GameDate(184, 11, 1), 1500)!.Season);
+
+        // 3. Without CourtOffice capability: faction and governor fields are empty
+        var strippedBroker = new SimT.Core.Modules.CapabilityBroker();
+        strippedBroker.Provide(CapabilityIds.WorldMap, kernel.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap));
+        strippedBroker.Provide(CapabilityIds.PlayerState, kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState));
+
+        var noPolScene = SimT.Contracts.Scenes.MapScene.Build(strippedBroker, new SimT.Contracts.Time.GameDate(184, 11, 1), 1500);
+        Assert.NotNull(noPolScene);
+        Assert.Equal("winter", noPolScene.Season);
+        Assert.Empty(noPolScene.Factions);
+        Assert.All(noPolScene.Cities, c =>
+        {
+            Assert.Equal(0, c.FactionId);
+            Assert.Equal(string.Empty, c.FactionNameVi);
+            Assert.Equal(string.Empty, c.FactionColor);
+            Assert.Equal(string.Empty, c.GovernorNameVi);
+        });
+    }
 }

@@ -20,7 +20,15 @@ const scenesDir = path.join(rootDir, 'assets', 'scenes');
 const { createFrame, clearFrame, createFx, composite } = await import('../assets/scenes/vendor/pixelfx/src/core/index.js');
 const { buildEffectOptions, safeCreateFx, splitNarrativeSentences } = await import('../assets/scenes/duel-scene.js');
 const { STEP_DUEL, STEP_CITY, SCALE_DUEL, SCALE_CITY, computeWalkFrame, createDuelFighterState, stepDuelState, stepCityWalkers } = await import('../assets/scenes/sprite-anim.js');
-const { LABEL_POS, computeDefaultMapLuggage } = await import('../assets/scenes/map-scene.js');
+const {
+  LABEL_POS,
+  SEASON_MAX_PARTICLES,
+  computeDefaultMapLuggage,
+  computeFactionGrid,
+  paintFactionCanvas,
+  computeMapLayoutBoxes,
+  createSeasonParticles
+} = await import('../assets/scenes/map-scene.js');
 const { MIN_NODE_RADIUS_PCT, ringRadiusPct, computeSocialNodePos } = await import('../assets/scenes/social-scene.js');
 const { shortDossierName } = await import('../assets/scenes/dossier-scene.js');
 
@@ -263,9 +271,67 @@ const horseLug = computeDefaultMapLuggage(bagSample, 2, 20);
 assert.equal(horseLug.selected.get(3), 20, 'Horse default (cap 20) should take 20 Lụa');
 assert.equal(horseLug.selected.get(1), 0, 'Horse default (cap 20) should take 0 Gạo');
 
-console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label layout (1076 & 1440), social layout, luggage defaults, and manifest assets OK.`);
+// Verify faction territory canvas painting on sample payload & 1076px legend non-overlap
+const sampleFactionCities = MAP_CITIES.map((c, idx) => ({
+  ...c,
+  factionId: (idx % 3) + 1,
+  factionNameVi: ['Tào Ngụy', 'Thục Hán', 'Đông Ngô'][idx % 3],
+  factionColor: ['#ef4444', '#22c55e', '#3b82f6'][idx % 3],
+  governorNameVi: 'Thái thú'
+}));
+
+let canvasPutCount = 0;
+const mockFactionCanvas = {
+  width: 800,
+  height: 640,
+  dataset: {},
+  getContext() {
+    return {
+      imageSmoothingEnabled: false,
+      imageSmoothingQuality: 'low',
+      clearRect() {},
+      putImageData(img) {
+        if (img && img.data && img.data.some((v) => v > 0)) canvasPutCount += 1;
+      },
+      drawImage() {
+        canvasPutCount += 1;
+      }
+    };
+  }
+};
+
+const paintedGrid = paintFactionCanvas(mockFactionCanvas, sampleFactionCities, true);
+assert.ok(paintedGrid.paintedCount > 500, 'Expected sample faction payload to paint territory cells');
+assert.ok(paintedGrid.borderCount > 20, 'Expected adjacent faction territories to draw border cells');
+assert.ok(canvasPutCount >= 1, 'Expected faction canvas 2D context to be drawn');
+assert.equal(mockFactionCanvas.dataset.visible, '1');
+assert.ok(
+  paintedGrid.paintedCount < paintedGrid.gridW * paintedGrid.gridH * 0.75,
+  'Expected distant sea and wilderness outside radius limit to remain unpainted'
+);
+
+const emptyGrid = computeFactionGrid(MAP_CITIES.map((c) => ({ ...c, factionId: 0, factionColor: '' })));
+assert.equal(emptyGrid.paintedCount, 0, 'Expected cities without faction to leave territory canvas unpainted');
+
+const layout1076 = computeMapLayoutBoxes(1076, 12);
+assert.ok(
+  !rectsOverlap(layout1076.factionLegendBox, layout1076.rightPanelBox),
+  'Faction legend must not overlap city panel at 1076px'
+);
+assert.ok(
+  !rectsOverlap(layout1076.factionLegendBox, layout1076.goButtonBox),
+  'Faction legend must not overlap Go (Lên đường) button at 1076px'
+);
+
+for (const sKey of ['spring', 'autumn', 'winter']) {
+  const pts = createSeasonParticles(sKey);
+  assert.ok(pts.length > 0 && pts.length <= SEASON_MAX_PARTICLES, `Expected 1..60 particles for ${sKey}`);
+}
+assert.equal(createSeasonParticles('summer').length, 0, 'Expected 0 particles in summer');
 
 // Event cards must show all three tavern rumors, escaping player-facing source text.
 const { formatCityNarrative } = await import('../assets/scenes/city-scene.js');
 assert.equal(formatCityNarrative('One\n\nTwo\nThree'), 'One<br><br>Two<br><br>Three');
 assert.equal(formatCityNarrative('<script>'), '&lt;script&gt;');
+
+console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, and manifest assets OK.`);

@@ -102,11 +102,44 @@
   height: 640px;
   margin-left: -400px;
   margin-top: -320px;
+  transform-origin: 50% 50%;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+}
+
+.tk-map-bg {
+  position: absolute;
+  inset: 0;
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
-  transform-origin: 50% 50%;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tk-map-bg.season-spring {
+  filter: hue-rotate(18deg) saturate(1.18) brightness(1.04);
+}
+
+.tk-map-bg.season-summer {
+  filter: sepia(0.18) saturate(1.25) brightness(1.05) contrast(1.03);
+}
+
+.tk-map-bg.season-autumn {
+  filter: sepia(0.38) hue-rotate(-14deg) saturate(1.32) contrast(1.04);
+}
+
+.tk-map-bg.season-winter {
+  filter: hue-rotate(155deg) saturate(0.48) brightness(1.06) contrast(0.95);
+}
+
+.tk-map-faction-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 800px;
+  height: 640px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .tk-map-svg {
@@ -116,6 +149,102 @@
   width: 800px;
   height: 640px;
   pointer-events: none;
+  z-index: 2;
+}
+
+.tk-map-season-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.tk-map-faction-box {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 208px;
+  max-height: 158px;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  background: rgba(24, 18, 13, 0.90);
+  border: 1px solid #5a4428;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tk-map-faction-box[hidden] {
+  display: none;
+}
+
+.tk-map-faction-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.tk-map-faction-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #c4a062;
+  white-space: nowrap;
+}
+
+.tk-map-faction-toggle {
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid #6a4f2e;
+  background: #241a13;
+  color: #b9aa8c;
+  font: 600 10.5px "Be Vietnam Pro", "Segoe UI", sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tk-map-faction-toggle.is-active {
+  background: #a8321f;
+  border-color: #c4a062;
+  color: #f3e6cc;
+}
+
+.tk-map-faction-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 6px;
+}
+
+.tk-map-faction-list.is-muted {
+  opacity: 0.45;
+}
+
+.tk-map-faction-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  line-height: 14px;
+}
+
+.tk-map-faction-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.tk-map-faction-name {
+  font-size: 10.5px;
+  color: #eadfc6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tk-map-day-tag {
@@ -161,7 +290,7 @@
   margin: 0;
   border-radius: 50%;
   box-sizing: border-box;
-  border: 2px solid #2a1f16;
+  border: 2.5px solid #2a1f16;
   box-shadow: 0 1px 4px rgba(42, 31, 22, 0.65);
   transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
@@ -308,6 +437,15 @@
   font-size: 13px;
   color: #c4a062;
   margin-top: 2px;
+}
+
+.tk-map-sel-gov {
+  margin-top: 5px;
+  padding: 3px 7px;
+  background: #241a13;
+  border-left: 3px solid #c4a062;
+  font-size: 12.5px;
+  color: #f3e6cc;
 }
 
 .tk-map-chips {

@@ -15,62 +15,6 @@ public partial class MainWindow
         _ => false
     };
 
-    public bool TryOpenMapScene(string? recommendation = null)
-    {
-        if (!SceneOverlay.IsAvailable ||
-            !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) || map is null ||
-            !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
-            return false;
-
-        var currentCityId = playerState.CurrentCityId;
-        var currentCityName = map.Find(currentCityId)?.NameVi ?? "Lạc Dương";
-        var fatigue = _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null ? attrs.Vitals.Fatigue : 0;
-        _kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var bag);
-        _kernel.Capabilities.TryGet<IItemCatalog>(CapabilityIds.ItemCatalog, out var items);
-
-        var cities = new List<MapCityView>(map.Citadels.Count);
-        foreach (var c in map.Citadels)
-        {
-            var eco = map.GetEcosystem(c.Id);
-            var quotes = new List<MapTravelQuoteView>();
-            if (c.Id != currentCityId)
-            {
-                var qWalk = map.QuoteTravel(currentCityId, c.Id, TravelMode.Walk);
-                var qHorse = map.QuoteTravel(currentCityId, c.Id, TravelMode.Horse);
-                var qCaravan = map.QuoteTravel(currentCityId, c.Id, TravelMode.Caravan);
-                quotes.Add(new MapTravelQuoteView("walk", "Bộ hành", $"Không tốn tiền · Mang {qWalk.CarryCapacity} đv", qWalk.BaseDays, qWalk.ActualDays, qWalk.TravelFee, qWalk.RationsNeeded, qWalk.FatigueExpected, qWalk.PathNodeIds, qWalk.CarryCapacity));
-                quotes.Add(new MapTravelQuoteView("horse", "Dịch mã", $"Nhanh nhất · Mang {qHorse.CarryCapacity} đv", qHorse.BaseDays, qHorse.ActualDays, qHorse.TravelFee, qHorse.RationsNeeded, qHorse.FatigueExpected, qHorse.PathNodeIds, qHorse.CarryCapacity));
-                quotes.Add(new MapTravelQuoteView("caravan", "Tiêu cục", $"Không gặp cướp · Mang {qCaravan.CarryCapacity} đv", qCaravan.BaseDays, qCaravan.ActualDays, qCaravan.TravelFee, qCaravan.RationsNeeded, qCaravan.FatigueExpected, qCaravan.PathNodeIds, qCaravan.CarryCapacity));
-            }
-            var storedVi = bag is not null
-                ? TravelLuggage.FormatItemQuantities(bag.Rows(c.Id).Select(r => (r.ItemId, r.Quantity)), items)
-                : string.Empty;
-            cities.Add(new MapCityView(
-                c.Id, c.Code, c.NameVi, RoleTitleVi.FormatRegion(c.Region),
-                eco.MapX, eco.MapY, c.PriceFactorPermille, eco.DangerLevel,
-                eco.BiomeNameVi, eco.ClimateVi, eco.TopographyVi,
-                eco.PrimarySpecialtyVi, eco.SecondarySpecialtyVi, quotes, storedVi));
-        }
-
-        var currentBag = bag is not null
-            ? bag.Rows(currentCityId)
-                .Where(r => r.Quantity > 0)
-                .Select(r =>
-                {
-                    var def = items?.Find(r.ItemId);
-                    return new MapBagItemView(r.ItemId, def?.NameVi ?? $"#{r.ItemId}", r.Quantity, def?.BasePrice ?? 1);
-                })
-                .OrderByDescending(x => x.BasePrice).ThenBy(x => x.ItemId).ToList()
-            : new List<MapBagItemView>();
-
-        var routes = map.Routes.Select(r => new MapRouteView(r.FromCitadelId, r.ToCitadelId, r.Days)).ToList();
-        var recText = recommendation ?? $"Từ {currentCityName}, bấm một thành trên bản đồ để xem lộ trình ngắn nhất, chi phí, hành lý và sản vật trước khi lên đường.";
-        return SceneOverlay.ShowMapScene(new MapScene(
-            currentCityId, currentCityName, GameDateCodec.ShortVi(_kernel.Today),
-            _kernel.Ledger.Liquid, fatigue, "art/map/thien_ha.webp",
-            SceneArtCatalog.PlayerPortraitFace, recText, cities, routes, currentBag));
-    }
-
     public bool TryOpenSocialScene(string? recommendation = null, long selectedNpcId = 0)
     {
         if (!SceneOverlay.IsAvailable ||

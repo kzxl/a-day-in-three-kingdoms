@@ -80,6 +80,14 @@ public static class GameDateCodec
         _ => "Đông"
     };
 
+    public static string SeasonKey(int month) => month switch
+    {
+        <= 3 => "spring",
+        <= 6 => "summer",
+        <= 9 => "autumn",
+        _ => "winter"
+    };
+
     /// <summary>"Xuân · Tháng Hai · năm 184" — the header line of the shell.</summary>
     public static string DescribeSeason(GameDate date) =>
         $"{SeasonVi(date.Month)} · Tháng {MonthNameVi(date.Month)} · năm {date.Year}";

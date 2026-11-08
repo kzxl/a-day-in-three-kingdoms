@@ -12,9 +12,9 @@ Nguồn tham khảo: Tam Quốc Chí 8 Remake (2024), XIII, XIV. Chỉ lấy ý 
 
 | Đợt | Nội dung | Người làm | Đề bài | Trạng thái |
 | --- | --- | --- | --- | --- |
-| 1 | Bản đồ thế lực và mùa | agy | `prompts/13` | Đang làm |
+| 1 | Bản đồ thế lực và mùa | agy | `prompts/13` | Xong (merge "batch 1") |
 | 2 | Tin đồn tửu quán | Codex | `prompts/14` | Xong (`231b25b`) |
-| 3 | Sử biến theo lịch | agy | `prompts/15` | Chưa làm |
+| 3 | Sử biến theo lịch | agy | `prompts/15` | Đang làm |
 | 4 | Lưới quan hệ thiên hạ | Codex | `prompts/16` | Đang làm |
 | 5 | Đặc tính nhân vật | agy | `prompts/17` | Chưa làm |
 | 6 | Ước nguyện NPC | Codex | `prompts/18` | Chưa làm |
