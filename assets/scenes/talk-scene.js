@@ -9,6 +9,7 @@ let keyHandler = null;
 let moveHandler = null;
 let rafId = null;
 let portraitAnim = null;
+const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -30,6 +31,7 @@ function advanceLine(container) {
   const countEl = container.querySelector('#tk-talk-count');
   if (portraitAnim) {
     portraitAnim.setLine(currentScene.lines[currentLineIdx]);
+    if (prefersReducedMotion()) portraitAnim.completeLine();
   }
   if (countEl) {
     countEl.textContent = `${currentLineIdx + 1} / ${currentScene.lines.length}`;
@@ -175,20 +177,24 @@ function renderTalkScene(container, scene, bridge) {
     lineEl
   });
   portraitAnim.setLine(lines[0]);
+  if (prefersReducedMotion()) portraitAnim.completeLine();
 
   let prev = performance.now();
   const tick = (now) => {
     if (currentScene !== scene) return;
     const dt = Math.min(0.05, (now - prev) / 1000);
     prev = now;
-    if (portraitAnim) portraitAnim.step(dt);
+    if (portraitAnim) {
+      if (prefersReducedMotion()) portraitAnim.completeLine();
+      else portraitAnim.step(dt);
+    }
     rafId = requestAnimationFrame(tick);
   };
   rafId = requestAnimationFrame(tick);
 
   const stageEl = container.querySelector('#tk-talk-stage');
   moveHandler = (e) => {
-    if (!stageEl) return;
+    if (!stageEl || prefersReducedMotion()) return;
     const rect = stageEl.getBoundingClientRect();
     const mx = ((e.clientX - rect.left) / Math.max(1, rect.width)) - 0.5;
     const my = ((e.clientY - rect.top) / Math.max(1, rect.height)) - 0.5;

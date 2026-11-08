@@ -95,6 +95,7 @@ public sealed partial class GameStrategicBriefingControl : Border
         }
 
         AddWishJournal(kernel);
+        AddLordTaskJournal(kernel);
 
         // 2. Main 2-Column Strategic Arena
         var arenaGrid = new Grid { Margin = new Thickness(0, 14, 0, 0) };

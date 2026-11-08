@@ -212,8 +212,8 @@ html, body {
   color: var(--paper-ink); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65); cursor: pointer;
   display: flex; flex-direction: column; justify-content: space-between; min-width: 0;
 }
-.tk-speaker-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.tk-speaker-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tk-speaker-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.tk-speaker-left { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
 .tk-speaker-name { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--paper-ink); }
 .tk-speaker-sub { font-size: 11.5px; color: var(--paper-sub); }
 .tk-mood-pill {

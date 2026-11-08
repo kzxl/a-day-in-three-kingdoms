@@ -4,7 +4,7 @@
   "apiVersion": "1",
   "kind": "dlc",
   "requires": ["base.world", "base.player", "base.npc", "base.content"],
-  "provides": ["politics.court", "military.command"],
+  "provides": ["politics.court", "military.command", "politics.lord-tasks"],
   "consumes": [
     "world.map",
     "player.wallet",
@@ -21,6 +21,8 @@
       "po_faction",
       "po_city_governance",
       "po_decree_log",
+      "po_lord_task",
+      "po_lord_trust",
       "ml_stronghold",
       "ml_duel_log",
       "ml_supply_requisition"

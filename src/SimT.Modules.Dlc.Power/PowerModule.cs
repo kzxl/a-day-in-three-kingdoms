@@ -50,6 +50,13 @@ public sealed class PowerModule : ISimModule
         context.Ui.AddScreen(new MilitaryScreen(militaryService, registry, map, player, attributes!, bag, items, context.Clock));
         context.Ui.AddCommandHandler(new MilitaryCommandHandler(militaryService));
 
+        var lordTasks = new LordTaskService(context, courtService);
+        courtService.LordTasks = lordTasks;
+        context.Capabilities.Provide(ILordTasks.CapabilityId, lordTasks);
+        context.Events.Subscribe<MonthClosed>(closed => lordTasks.AssignMonth(closed.Date));
+        context.Events.Subscribe<DayAdvanced>(_ => lordTasks.Tick());
+        lordTasks.Tick();
+
         // Invariants
         foreach (var invariant in PowerInvariants.All())
         {

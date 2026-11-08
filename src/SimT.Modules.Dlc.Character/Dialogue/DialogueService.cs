@@ -27,7 +27,7 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
     }
 
     public TalkScene BuildTalkScene(long npcId, string? feedbackVi = null) =>
-        BuildTalkSceneCore(npcId, feedbackVi, customChoices: null);
+        DecorateLordScene(BuildTalkSceneCore(npcId, feedbackVi, customChoices: null), feedbackVi);
 
     private TalkScene BuildTalkSceneCore(long npcId, string? feedbackVi, IReadOnlyList<SceneChoice>? customChoices)
     {
@@ -92,6 +92,8 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
         var npc = npcs.Find(npcId);
         if (npc is null)
             return new TalkChoiceOutcome(false, "Không tìm thấy nhân vật.", CloseScene: true);
+
+        if (choiceId.StartsWith("lord:", StringComparison.Ordinal)) return HandleLordChoice(npc, choiceId);
 
         if (choiceId.StartsWith("wish:", StringComparison.Ordinal)) return HandleWishChoice(npc, choiceId);
 

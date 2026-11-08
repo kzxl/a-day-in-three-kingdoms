@@ -12,7 +12,7 @@ namespace SimT.Modules.Dlc.Power;
 /// reputation unlocks 9-rank officialdom, and an office pays monthly stipend.
 /// Players can align with warlords and enact regional civil policies.
 /// </summary>
-internal sealed class CourtService : IPoliticalCourt
+internal sealed partial class CourtService : IPoliticalCourt
 {
     public const int ServiceDays = 4;
     public const int ServiceReputation = 3;
@@ -248,6 +248,7 @@ internal sealed class CourtService : IPoliticalCourt
 
         _db.Transaction(() =>
         {
+            CancelLordTask();
             SetState("allegiance_faction_id", factionId);
             _wallet.Pay(100, JournalCodes.CourtStipend, $"Bổng lộc kết nạp quân kỳ {faction.NameVi}");
         });
@@ -266,6 +267,7 @@ internal sealed class CourtService : IPoliticalCourt
         var prevName = AllegianceFactionName ?? "chư hầu";
         _db.Transaction(() =>
         {
+            CancelLordTask();
             SetState("allegiance_faction_id", 0);
             var rep = Math.Max(0, Reputation - 5);
             SetState("reputation", rep);
