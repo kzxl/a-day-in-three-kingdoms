@@ -223,6 +223,58 @@ internal sealed class ProfessionScreen : IScreenContribution
                 commands));
         }
 
+        // 4b. Player-Issued Bounties & Retainer Gathering Dispatches
+        var bountyRows = new List<ScreenRow>();
+        foreach (var b in _service.PlayerBounties(cityId))
+        {
+            var bItem = _items.Find(b.TargetItemId);
+            var bCommands = b.Status == "AVAILABLE"
+                ? new List<ScreenCommand> { new ScreenCommand($"bounty:cancel:{b.Id}", "Thu hồi cáo thị") }
+                : new List<ScreenCommand>();
+
+            var bTypeVi = b.ClientType == "RETAINER_TASK" ? "⚔️ Sai Phái Môn Khách" : "📜 Cáo Thị Treo Thưởng";
+            var bAssignee = !string.IsNullOrWhiteSpace(b.AssigneeNameVi) ? b.AssigneeNameVi : "(Đang chờ thợ nhận)";
+            var bStatusVi = b.Status switch
+            {
+                "AVAILABLE" => "Đang niêm yết",
+                "ACCEPTED" => b.CompletionDay.HasValue ? $"Đang thu thập (Xong ngày {b.CompletionDay.Value})" : "Đang thu thập",
+                "COMPLETED" => "✅ Đã giao vào hành trang",
+                "CANCELLED" => "Đã thu hồi",
+                _ => "Hết hạn"
+            };
+
+            bountyRows.Add(new ScreenRow(
+                [
+                    bTypeVi,
+                    bItem?.NameVi ?? $"Vật phẩm #{b.TargetItemId}",
+                    Fmt(b.QuantityNeeded),
+                    b.ClientType == "RETAINER_TASK" ? "Lương tháng" : $"{b.RewardCopper} Quan",
+                    bAssignee,
+                    bStatusVi
+                ],
+                bCommands));
+        }
+
+        // Standard quick-post bounty templates for key raw materials & herbs
+        long[] bountyItemIds = [5, 15, 16, 7, 13, 25];
+        foreach (var itemId in bountyItemIds)
+        {
+            var itemDef = _items.Find(itemId);
+            if (itemDef is null) continue;
+            var qty = itemId is 13 or 25 ? 2 : 4;
+            var suggestedReward = (int)(itemDef.BasePrice * qty * 1.15);
+            bountyRows.Add(new ScreenRow(
+                [
+                    "📌 Phát Hành Cáo Thị Mới",
+                    itemDef.NameVi,
+                    Fmt(qty),
+                    $"{suggestedReward} Quan (Ký quỹ)",
+                    "Thợ mỏ / Dược sư trong thành",
+                    "Sẵn sàng đăng bảng"
+                ],
+                [new ScreenCommand($"bounty:post:{itemId}:{qty}:{suggestedReward}", $"Treo thưởng {qty} {itemDef.NameVi} ({suggestedReward} Quan)")]));
+        }
+
         // 5. Crafting recipes & workbench visual flow
         var recipeRows = new List<ScreenRow>();
         var wsFurnaceLvl = workshop != null && workshop.IsActive ? workshop.FurnaceLevel : 0;
@@ -439,6 +491,7 @@ internal sealed class ProfessionScreen : IScreenContribution
                 new ScreenSection("Trang Bị Cá Nhân & Chỉ Số Cộng", SlotColumns, slotRows),
                 new ScreenSection("Xưởng Chế Tác Tại Thành", ["Tên Xưởng", "Chuyên Môn", "Lò Luyện", "Thợ Phụ", "Tiền Thuê", "Trạng Thái"], workshopRows),
                 new ScreenSection("Ủy Thác & Đơn Đặt Hàng Phường Hội", OrderColumns, orderRows),
+                new ScreenSection("Bảng Cáo Thị Ủy Thác Khai Thác & Sai Phái", ["Hình Thức", "Vật Phẩm Cần", "Số Lượng", "Thù Lao / Chi Phí", "Người Nhận", "Tiến Độ"], bountyRows),
                 new ScreenSection("Bếp Nấu Ẩm Thực (Mỹ Vị Tam Quốc)", ["Món Ăn", "Nguyên Liệu", "Chi Phí", "Hiệu Quả Sinh Mệnh", "Có Sẵn"], dishRows),
                 new ScreenSection("Dã Ngoại Sinh Hoạt (Câu Cá, Hái Thuốc & Săn Bắn)", ["Hoạt Động", "Địa Điểm", "Tiêu Hao", "Thu Hoạch Dự Kiến", "Lợi Ích Thần Trí"], wildRows),
                 new ScreenSection("Bí Kỹ Nghề Nghiệp & Giác Ngộ", PerkColumns, perkRows),
@@ -549,6 +602,31 @@ internal sealed class ProfessionCommandHandler : IScreenCommandHandler
                             return _service.AcceptOrder(ordId).Message;
                         if (orderVerb == "fulfill")
                             return _service.FulfillOrder(cityId, ordId).Message;
+                    }
+                }
+                break;
+
+            case "bounty":
+                if (parts.Length >= 3)
+                {
+                    var bountyVerb = parts[1];
+                    if (bountyVerb == "post" && parts.Length >= 5 &&
+                        long.TryParse(parts[2], out var bItemId) &&
+                        int.TryParse(parts[3], out var bQty) &&
+                        int.TryParse(parts[4], out var bReward))
+                    {
+                        return _service.PostBounty(cityId, bItemId, bQty, bReward).Message;
+                    }
+                    if (bountyVerb == "dispatch" && parts.Length >= 5 &&
+                        long.TryParse(parts[2], out var retNpcId) &&
+                        long.TryParse(parts[3], out var retItemId) &&
+                        int.TryParse(parts[4], out var retQty))
+                    {
+                        return _service.DispatchRetainerBounty(cityId, retNpcId, retItemId, retQty).Message;
+                    }
+                    if (bountyVerb == "cancel" && long.TryParse(parts[2], out var cancelOrdId))
+                    {
+                        return _service.CancelBounty(cancelOrdId).Message;
                     }
                 }
                 break;

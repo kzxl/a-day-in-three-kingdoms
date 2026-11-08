@@ -96,7 +96,14 @@ public sealed class EconomyModule : ISimModule
         context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyStallRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => marketService.RestockMonthly(closed.Date));
-        context.Events.Subscribe<MonthClosed>(closed => valueChainService.SimulateMonthlyCivicConsumption(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed =>
+        {
+            foreach (var c in map.Citadels)
+            {
+                valueChainService.SimulateRegionalExtraction(c.Id);
+            }
+            valueChainService.SimulateMonthlyCivicConsumption(closed.Date);
+        });
         context.Events.Subscribe<DayAdvanced>(day => marketService.SpoilOneDay(day.Date));
         context.Events.Subscribe<DayAdvanced>(day => marketService.DailyRetailSales(day.Date));
         context.Events.Subscribe<DayAdvanced>(day => marketService.RecordDailyPrices(day.Date));
@@ -107,6 +114,7 @@ public sealed class EconomyModule : ISimModule
         context.Events.Subscribe<MonthClosed>(closed => farmService.ChargeMonthlyRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => farmService.RecoverSoil(closed.Date));
 
+        context.Events.Subscribe<DayAdvanced>(day => professionService.OnDay(day.Date));
         context.Events.Subscribe<MonthClosed>(closed => professionService.OnMonth(closed.Date));
         context.Events.Subscribe<MonthClosed>(_ => bankingService.ProcessMonthlyInterest());
         context.Events.Subscribe<MonthClosed>(closed => playerBankService.SimulateMonthlyTurn(closed.Date));

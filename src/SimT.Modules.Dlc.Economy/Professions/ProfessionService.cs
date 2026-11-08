@@ -723,63 +723,83 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     }
 
     // =========================================================================
-    // GUILD COMMISSIONS & CRAFTING ORDERS
+    // GUILD COMMISSIONS & TWO-WAY BOUNTY BOARD
     // =========================================================================
+
+    private static CraftOrderDef MapOrder(DbRecord row) =>
+        new(
+            row.GetInt64(0),
+            row.GetString(1),
+            row.GetString(2),
+            row.GetInt64(3),
+            row.GetInt64(4),
+            row.GetInt32(5),
+            row.GetInt32(6),
+            row.GetInt32(7),
+            row.GetInt32(8),
+            row.GetString(9),
+            row.IsDbNull(10) ? null : row.GetInt32(10),
+            row.IsDbNull(11) ? "INBOUND" : row.GetString(11),
+            row.IsDbNull(12) ? null : row.GetInt64(12),
+            row.IsDbNull(13) ? null : row.GetString(13),
+            row.IsDbNull(14) ? null : row.GetInt32(14));
 
     public IReadOnlyList<CraftOrderDef> AvailableOrders(long citadelId) =>
         _db.Query(
             """
-            SELECT id, client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, accepted_day
+            SELECT id, client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, accepted_day,
+                   COALESCE(direction, 'INBOUND'), assignee_npc_id, assignee_name_vi, completion_day
             FROM pf_order
-            WHERE citadel_id = @citadel AND status = 'AVAILABLE' AND deadline_day >= @today
+            WHERE citadel_id = @citadel AND COALESCE(direction, 'INBOUND') = 'INBOUND' AND status = 'AVAILABLE' AND deadline_day >= @today
             ORDER BY id ASC
             """,
-            row => new CraftOrderDef(
-                row.GetInt64(0),
-                row.GetString(1),
-                row.GetString(2),
-                row.GetInt64(3),
-                row.GetInt64(4),
-                row.GetInt32(5),
-                row.GetInt32(6),
-                row.GetInt32(7),
-                row.GetInt32(8),
-                row.GetString(9),
-                row.IsDbNull(10) ? null : row.GetInt32(10)),
+            MapOrder,
             new DbArgs().Add("@citadel", citadelId).Add("@today", _clock.Today.DayIndex));
 
     public IReadOnlyList<CraftOrderDef> ActiveOrders() =>
         _db.Query(
             """
-            SELECT id, client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, accepted_day
+            SELECT id, client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, accepted_day,
+                   COALESCE(direction, 'INBOUND'), assignee_npc_id, assignee_name_vi, completion_day
             FROM pf_order
-            WHERE status = 'ACCEPTED' AND deadline_day >= @today
+            WHERE COALESCE(direction, 'INBOUND') = 'INBOUND' AND status = 'ACCEPTED' AND deadline_day >= @today
             ORDER BY deadline_day ASC
             """,
-            row => new CraftOrderDef(
-                row.GetInt64(0),
-                row.GetString(1),
-                row.GetString(2),
-                row.GetInt64(3),
-                row.GetInt64(4),
-                row.GetInt32(5),
-                row.GetInt32(6),
-                row.GetInt32(7),
-                row.GetInt32(8),
-                row.GetString(9),
-                row.IsDbNull(10) ? null : row.GetInt32(10)),
+            MapOrder,
             DbArgs.One("@today", _clock.Today.DayIndex));
 
-    private sealed record OrderAcceptInfo(long Id, string Status, string Name);
+    public IReadOnlyList<CraftOrderDef> PlayerBounties(long? citadelId = null) =>
+        citadelId.HasValue
+            ? _db.Query(
+                """
+                SELECT id, client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, accepted_day,
+                       COALESCE(direction, 'INBOUND'), assignee_npc_id, assignee_name_vi, completion_day
+                FROM pf_order
+                WHERE COALESCE(direction, 'INBOUND') = 'OUTBOUND' AND citadel_id = @citadel
+                ORDER BY id DESC
+                """,
+                MapOrder,
+                DbArgs.One("@citadel", citadelId.Value))
+            : _db.Query(
+                """
+                SELECT id, client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, accepted_day,
+                       COALESCE(direction, 'INBOUND'), assignee_npc_id, assignee_name_vi, completion_day
+                FROM pf_order
+                WHERE COALESCE(direction, 'INBOUND') = 'OUTBOUND'
+                ORDER BY id DESC
+                """,
+                MapOrder);
+
+    private sealed record OrderAcceptInfo(long Id, string Status, string Name, string Direction);
 
     public WorkResult AcceptOrder(long orderId)
     {
         var order = _db.QueryOne(
-            "SELECT id, status, client_name_vi FROM pf_order WHERE id = @id",
-            row => new OrderAcceptInfo(row.GetInt64(0), row.GetString(1), row.GetString(2)),
+            "SELECT id, status, client_name_vi, COALESCE(direction, 'INBOUND') FROM pf_order WHERE id = @id",
+            row => new OrderAcceptInfo(row.GetInt64(0), row.GetString(1), row.GetString(2), row.GetString(3)),
             DbArgs.One("@id", orderId));
 
-        if (order is null)
+        if (order is null || order.Direction != "INBOUND")
         {
             return WorkResult.Failure("Không tìm thấy đơn đặt hàng.");
         }
@@ -803,7 +823,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     {
         var order = _db.QueryOne(
             """
-            SELECT id, client_name_vi, target_item_id, quantity_needed, reward_copper, fame_reward, status, citadel_id
+            SELECT id, client_name_vi, target_item_id, quantity_needed, reward_copper, fame_reward, status, citadel_id, COALESCE(direction, 'INBOUND')
             FROM pf_order
             WHERE id = @id
             """,
@@ -816,11 +836,12 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 RewardCopper = row.GetInt32(4),
                 FameReward = row.GetInt32(5),
                 Status = row.GetString(6),
-                CitadelId = row.GetInt64(7)
+                CitadelId = row.GetInt64(7),
+                Direction = row.GetString(8)
             },
             DbArgs.One("@id", orderId));
 
-        if (order is null)
+        if (order is null || order.Direction != "INBOUND")
         {
             return WorkResult.Failure("Không tìm thấy đơn hàng.");
         }
@@ -864,6 +885,313 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             order.QuantityNeeded,
             0);
     }
+
+    public WorkResult PostBounty(long citadelId, long targetItemId, int quantity, int rewardCopper)
+    {
+        if (quantity <= 0)
+            return WorkResult.Failure("Số lượng vật phẩm ủy thác phải lớn hơn 0.");
+
+        var item = _items.Find(targetItemId);
+        if (item is null)
+            return WorkResult.Failure("Vật phẩm ủy thác không tồn tại trong danh mục.");
+
+        var minReward = Math.Max(10, (int)(item.BasePrice * quantity * 0.8));
+        if (rewardCopper < minReward)
+            return WorkResult.Failure($"Tiền thưởng cáo thị quá thấp (tối thiểu {minReward} Quan cho {quantity} {item.NameVi}) sẽ không có thợ hay danh sĩ nào nhận việc.");
+
+        if (_wallet.Liquid < rewardCopper)
+            return WorkResult.Failure($"Cần ký quỹ {rewardCopper} Quan tiền thưởng cáo thị, hiện chỉ có {_wallet.Liquid} Quan.");
+
+        var playerName = _player?.Name ?? "Chủ Nhân";
+        var deadline = _clock.Today.DayIndex + 30;
+        var fameVal = Math.Max(5, quantity * 2);
+
+        _db.Transaction(() =>
+        {
+            _wallet.Charge(rewardCopper, "PF.BOUNTY_ESCROW", $"Ký quỹ cáo thị thu thập {quantity} {item.NameVi}");
+            _db.Execute(
+                """
+                INSERT INTO pf_order (client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, direction)
+                VALUES (@client, 'PLAYER_BOUNTY', @citadel, @item, @qty, @reward, @fame, @deadline, 'AVAILABLE', 'OUTBOUND')
+                """,
+                new DbArgs()
+                    .Add("@client", playerName)
+                    .Add("@citadel", citadelId)
+                    .Add("@item", targetItemId)
+                    .Add("@qty", quantity)
+                    .Add("@reward", rewardCopper)
+                    .Add("@fame", fameVal)
+                    .Add("@deadline", deadline));
+        });
+
+        _log.Info($"dlc.professions: posted player bounty at citadel {citadelId}: {quantity}x {item.Code} for {rewardCopper} copper");
+        return WorkResult.Success($"Đã niêm yết Cáo thị ủy thác thu thập {quantity} {item.NameVi} (ký quỹ {rewardCopper} Quan). Các thợ mỏ, dược sư và hào kiệt trong thành sẽ sớm tiếp nhận!", quantity, 0);
+    }
+
+    public WorkResult DispatchRetainerBounty(long citadelId, long retainerNpcId, long targetItemId, int quantity)
+    {
+        if (quantity <= 0)
+            return WorkResult.Failure("Số lượng giao phó phải lớn hơn 0.");
+
+        var item = _items.Find(targetItemId);
+        if (item is null)
+            return WorkResult.Failure("Vật phẩm không hợp lệ.");
+
+        var social = GetSocial();
+        var retainer = social?.GetRetainer(retainerNpcId);
+        if (retainer is null)
+            return WorkResult.Failure("Nhân vật này chưa phải là Môn khách dưới trướng của bạn.");
+
+        var npcDef = _npcs?.Find(retainerNpcId);
+        var retainerName = npcDef?.NameVi ?? $"Môn khách #{retainerNpcId}";
+
+        var busy = _db.ScalarLong(
+            "SELECT COUNT(*) FROM pf_order WHERE COALESCE(direction, 'INBOUND') = 'OUTBOUND' AND assignee_npc_id = @npc AND status = 'ACCEPTED'",
+            DbArgs.One("@npc", retainerNpcId));
+        if (busy > 0)
+            return WorkResult.Failure($"Môn khách {retainerName} đang bận thực hiện một nhiệm vụ ủy thác khác.");
+
+        var duration = CalculateNpcExtractionDays(citadelId, targetItemId, quantity, npcDef);
+        var today = _clock.Today.DayIndex;
+        var completionDay = today + duration;
+        var deadline = completionDay + 15;
+        var playerName = _player?.Name ?? "Chủ Nhân";
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                """
+                INSERT INTO pf_order (client_name_vi, client_type, citadel_id, target_item_id, quantity_needed, reward_copper, fame_reward, deadline_day, status, accepted_day, direction, assignee_npc_id, assignee_name_vi, completion_day)
+                VALUES (@client, 'RETAINER_TASK', @citadel, @item, @qty, 1, 5, @deadline, 'ACCEPTED', @today, 'OUTBOUND', @npcId, @npcName, @compDay)
+                """,
+                new DbArgs()
+                    .Add("@client", playerName)
+                    .Add("@citadel", citadelId)
+                    .Add("@item", targetItemId)
+                    .Add("@qty", quantity)
+                    .Add("@deadline", deadline)
+                    .Add("@today", today)
+                    .Add("@npcId", retainerNpcId)
+                    .Add("@npcName", retainerName)
+                    .Add("@compDay", completionDay));
+        });
+
+        _log.Info($"dlc.professions: dispatched retainer {retainerName} (#{retainerNpcId}) for {quantity}x {item.Code} (ETA {duration} days)");
+        return WorkResult.Success($"Đã sai phái Môn khách {retainerName} đi thu thập {quantity} {item.NameVi} (Dự kiến hoàn thành sau {duration} ngày).", quantity, 0);
+    }
+
+    public WorkResult CancelBounty(long orderId)
+    {
+        var order = _db.QueryOne(
+            """
+            SELECT id, target_item_id, quantity_needed, reward_copper, status, client_type, COALESCE(direction, 'INBOUND')
+            FROM pf_order
+            WHERE id = @id
+            """,
+            row => new
+            {
+                Id = row.GetInt64(0),
+                TargetItemId = row.GetInt64(1),
+                Quantity = row.GetInt32(2),
+                RewardCopper = row.GetInt32(3),
+                Status = row.GetString(4),
+                ClientType = row.GetString(5),
+                Direction = row.GetString(6)
+            },
+            DbArgs.One("@id", orderId));
+
+        if (order is null || order.Direction != "OUTBOUND")
+            return WorkResult.Failure("Không tìm thấy cáo thị ủy thác.");
+
+        if (order.Status != "AVAILABLE")
+            return WorkResult.Failure("Cáo thị này đã có người nhận hoặc đã kết thúc, không thể thu hồi.");
+
+        var itemName = _items.Find(order.TargetItemId)?.NameVi ?? "vật phẩm";
+        var refund = order.ClientType == "RETAINER_TASK" ? 0 : order.RewardCopper;
+
+        _db.Transaction(() =>
+        {
+            _db.Execute("UPDATE pf_order SET status = 'CANCELLED' WHERE id = @id", DbArgs.One("@id", orderId));
+            if (refund > 0)
+            {
+                _wallet.Pay(refund, "PF.BOUNTY_REFUND", $"Thu hồi cáo thị {order.Quantity} {itemName}, hoàn trả tiền cọc");
+            }
+        });
+
+        return WorkResult.Success($"Đã gỡ bỏ cáo thị thu thập {itemName} và hoàn trả {refund} Quan tiền ký quỹ.", 0, 0);
+    }
+
+    public void OnDay(GameDate date)
+    {
+        var today = date.DayIndex;
+
+        // 1. Match AVAILABLE player bounties with eligible local NPCs
+        var openBounties = _db.Query(
+            """
+            SELECT id, citadel_id, target_item_id, quantity_needed, reward_copper, deadline_day
+            FROM pf_order
+            WHERE COALESCE(direction, 'INBOUND') = 'OUTBOUND' AND status = 'AVAILABLE' AND deadline_day >= @today
+            ORDER BY id ASC
+            """,
+            row => (
+                Id: row.GetInt64(0),
+                CitadelId: row.GetInt64(1),
+                TargetItemId: row.GetInt64(2),
+                Quantity: row.GetInt32(3),
+                Reward: row.GetInt32(4),
+                Deadline: row.GetInt32(5)),
+            DbArgs.One("@today", today));
+
+        foreach (var b in openBounties)
+        {
+            var candidates = _npcs?.FindByCitadel(b.CitadelId);
+            if (candidates is null || candidates.Count == 0)
+            {
+                candidates = _npcs?.All;
+            }
+            if (candidates is null || candidates.Count == 0) continue;
+
+            // Pick best suited NPC not currently busy with anotherACCEPTED outbound task
+            var chosen = SelectBestNpcForBounty(candidates, b.CitadelId, b.TargetItemId, b.Id, today);
+            if (chosen is null) continue;
+
+            var duration = CalculateNpcExtractionDays(b.CitadelId, b.TargetItemId, b.Quantity, chosen);
+            var compDay = today + duration;
+
+            _db.Transaction(() =>
+            {
+                _db.Execute(
+                    """
+                    UPDATE pf_order
+                    SET status = 'ACCEPTED',
+                        accepted_day = @today,
+                        assignee_npc_id = @npcId,
+                        assignee_name_vi = @npcName,
+                        completion_day = @compDay
+                    WHERE id = @id AND status = 'AVAILABLE'
+                    """,
+                    new DbArgs()
+                        .Add("@today", today)
+                        .Add("@npcId", chosen.Id)
+                        .Add("@npcName", chosen.NameVi)
+                        .Add("@compDay", compDay)
+                        .Add("@id", b.Id));
+            });
+
+            _log.Info($"dlc.professions: NPC {chosen.NameVi} (#{chosen.Id}) accepted player bounty #{b.Id} at citadel {b.CitadelId}, ETA day {compDay}");
+        }
+
+        // 2. Complete ACCEPTED player bounties that reached completion_day
+        var readyBounties = _db.Query(
+            """
+            SELECT id, citadel_id, target_item_id, quantity_needed, reward_copper, client_type, assignee_npc_id, assignee_name_vi
+            FROM pf_order
+            WHERE COALESCE(direction, 'INBOUND') = 'OUTBOUND' AND status = 'ACCEPTED' AND completion_day IS NOT NULL AND completion_day <= @today
+            ORDER BY id ASC
+            """,
+            row => (
+                Id: row.GetInt64(0),
+                CitadelId: row.GetInt64(1),
+                TargetItemId: row.GetInt64(2),
+                Quantity: row.GetInt32(3),
+                Reward: row.GetInt32(4),
+                ClientType: row.GetString(5),
+                NpcId: row.IsDbNull(6) ? (long?)null : row.GetInt64(6),
+                NpcName: row.IsDbNull(7) ? "Thợ Bản Địa" : row.GetString(7)),
+            DbArgs.One("@today", today));
+
+        var social = GetSocial();
+        foreach (var done in readyBounties)
+        {
+            var itemName = _items.Find(done.TargetItemId)?.NameVi ?? $"Vật phẩm #{done.TargetItemId}";
+            _db.Transaction(() =>
+            {
+                _bag.Add(done.CitadelId, done.TargetItemId, done.Quantity);
+                _db.Execute("UPDATE pf_order SET status = 'COMPLETED' WHERE id = @id", DbArgs.One("@id", done.Id));
+
+                if (done.NpcId.HasValue && social is not null)
+                {
+                    social.RecordCooperation(
+                        done.NpcId.Value,
+                        affinityDelta: 4,
+                        trustDelta: 3,
+                        summaryVi: $"Hoàn thành xuất sắc ủy thác thu thập {done.Quantity} {itemName}, nhận thù lao sòng phẳng.");
+                }
+            });
+
+            _log.Info($"dlc.professions: NPC {done.NpcName} completed bounty #{done.Id} -> delivered +{done.Quantity} item #{done.TargetItemId} at citadel {done.CitadelId}");
+        }
+    }
+
+    private ISocialNetwork? GetSocial()
+    {
+        if (_social != null) return _social;
+        if (_broker != null && _broker.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var s)) return s;
+        return null;
+    }
+
+    private NpcDef? SelectBestNpcForBounty(IReadOnlyList<NpcDef> pool, long citadelId, long itemId, long orderId, long today)
+    {
+        var busyNpcIds = _db.Query(
+            "SELECT assignee_npc_id FROM pf_order WHERE COALESCE(direction, 'INBOUND') = 'OUTBOUND' AND status = 'ACCEPTED' AND assignee_npc_id IS NOT NULL",
+            row => row.GetInt64(0)).ToHashSet();
+
+        var requiredSkill = ResolveGatherSkillForItem(itemId);
+        NpcDef? best = null;
+        int bestScore = int.MinValue;
+
+        foreach (var npc in pool)
+        {
+            if (busyNpcIds.Contains(npc.Id)) continue;
+            if (npc.Role.Contains("Chủ") || npc.Role.Contains("Đế") || npc.Role.Contains("Vương")) continue;
+
+            var hasMatchingSkill = npc.Skills.Any(s => s.Code == requiredSkill || s.Code is "vein_divining" or "exotic_husbandry");
+            var attrScore = requiredSkill switch
+            {
+                "khai_khoang" => npc.Attributes.Con + npc.Attributes.Cra,
+                "tam_duoc" => npc.Attributes.Prc + npc.Attributes.Int,
+                "thu_liep" => npc.Attributes.War + npc.Attributes.Prc,
+                _ => npc.Attributes.Cra + npc.Attributes.Com
+            };
+
+            var tieBreaker = (int)((uint)(npc.Id * 31 + orderId * 17 + today) % 25);
+            var score = (hasMatchingSkill ? 100 : 0) + attrScore + (npc.CitadelId == citadelId ? 40 : 0) + tieBreaker;
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = npc;
+            }
+        }
+
+        return best ?? pool[0];
+    }
+
+    private int CalculateNpcExtractionDays(long citadelId, long itemId, int quantity, NpcDef? npc)
+    {
+        var hasLocalNode = false;
+        if (_broker != null && _broker.TryGet<IValueChainService>(CapabilityIds.ValueChain, out var vc) && vc != null)
+        {
+            hasLocalNode = vc.GetResourceNodes(citadelId).Any(n => n.PrimaryItemId == itemId || n.SecondaryItemId == itemId);
+        }
+
+        var skillCode = ResolveGatherSkillForItem(itemId);
+        var hasSkill = npc?.Skills.Any(s => s.Code == skillCode || s.Code is "vein_divining" or "exotic_husbandry") ?? false;
+
+        var baseDays = Math.Max(2, (quantity + 1) / 2);
+        if (!hasLocalNode && itemId >= 25) baseDays += 2; // Exotic from afar takes extra days
+        if (hasLocalNode) baseDays = Math.Max(1, baseDays - 1);
+        if (hasSkill) baseDays = Math.Max(1, baseDays - 1);
+
+        return Math.Clamp(baseDays, 1, 6);
+    }
+
+    private static string ResolveGatherSkillForItem(long itemId) => itemId switch
+    {
+        5 or 15 or 16 or 25 or 29 or 31 => "khai_khoang",
+        7 or 13 or 14 or 28 or 30 => "tam_duoc",
+        8 or 27 or 32 => "thu_liep",
+        _ => "che_tac"
+    };
 
     // =========================================================================
     // PLAYER EQUIPMENT & COMBAT SLOTS
@@ -1275,8 +1603,23 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             0);
     }
 
+    private bool IsPlayerExhausted(out string reasonVi)
+    {
+        if (_attributes is not null && _attributes.Vitals.Fatigue >= 90)
+        {
+            reasonVi = $"Cơ thể đã kiệt sức (Mệt mỏi {_attributes.Vitals.Fatigue}/100). Hãy dùng bữa ẩm thực hoặc nghỉ ngơi dưỡng sức trước khi tiếp tục lao lực!";
+            return true;
+        }
+
+        reasonVi = string.Empty;
+        return false;
+    }
+
     public WorkResult Fish(long citadelId)
     {
+        if (IsPlayerExhausted(out var exhaustedMsg))
+            return WorkResult.Failure(exhaustedMsg);
+
         _clock.Advance(1);
         _attributes?.ApplyFatigue(10);
 
@@ -1301,12 +1644,13 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _attributes?.AddExp("PRC", 10);
 
         var extraMsg = string.Empty;
-        if (isWaterRegion && (skillLevel >= 3 || lck >= 60))
+        var roll = (int)((uint)(_clock.Today.DayIndex * 37 + citadelId * 13 + skillLevel * 7) % 100);
+        if (isWaterRegion && (skillLevel >= 3 || lck >= 60) && roll < 35)
         {
             _wallet.Pay(50, "PF.SALVAGE", "Bắt được Ba Ba Vàng / Trai ngọc Trường Giang");
             extraMsg = " Vớt được Ba Ba Vàng quý hiếm bán được 50 Quan!";
         }
-        else if (skillLevel >= 4 || lck >= 65)
+        else if ((skillLevel >= 4 || lck >= 65) && roll < 25)
         {
             _wallet.Pay(80, "PF.SALVAGE", "Vớt được rương cổ tích dưới lòng sông");
             extraMsg = " Cơ duyên vớt được Rương Cổ Tích dưới đáy sông (+80 Quan)!";
@@ -1320,6 +1664,9 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
 
     public WorkResult Forage(long citadelId)
     {
+        if (IsPlayerExhausted(out var exhaustedMsg))
+            return WorkResult.Failure(exhaustedMsg);
+
         _clock.Advance(1);
         _attributes?.ApplyFatigue(15);
 
@@ -1333,21 +1680,44 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         var exoticLvl = _attributes?.GetEquippedSkillLevel("exotic_husbandry") ?? 0;
 
         var region = _map?.Find(citadelId)?.Region ?? "trung_tho";
-        var herbCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0) + (exoticLvl > 0 ? 1 : 0);
-        if (prc >= 60) herbCount += 1;
-        _bag.Add(citadelId, 7, herbCount); // 7: thuoc
-
-        if (exoticLvl > 0 || HasPerk("earth_vein_sight"))
+        RegionalResourceNodeDef? node = null;
+        if (_broker != null && _broker.TryGet<IValueChainService>(CapabilityIds.ValueChain, out var vc) && vc != null)
         {
-            var bonusExoticId = citadelId is 15 or 9 ? 28L : (citadelId is 20 or 13 ? 30L : 31L); // celestial_silk, south_sea_pearl, or cinnabar_ore
-            _bag.Add(citadelId, bonusExoticId, 1);
+            node = vc.GetResourceNodes(citadelId).FirstOrDefault();
         }
 
-        _attributes?.AddExp("PRC", 20);
-        _attributes?.AddExp("INT", 10);
+        var isHerbRichTerrain = node?.NodeType is "HERB_VALLEY" or "FOREST" || region is "u_chau" or "ich_chau" or "giao_chau";
+        var nodeName = node is not null && node.NodeType is "HERB_VALLEY" or "FOREST"
+            ? node.NodeNameVi
+            : "Rừng Núi Ngoại Thành";
+
+        // Base herb yield: constrained to realistic 1~3 units in herb valleys, 1~2 in urban plains
+        var herbCount = 1 + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 7 ? 1 : 0) + (isHerbRichTerrain && prc >= 60 ? 1 : 0);
+        _bag.Add(citadelId, 7, herbCount); // 7: thuoc
 
         var extraMsg = string.Empty;
-        if (region == "u_chau" && (skillLevel >= 2 || prc >= 60))
+
+        // Synchronize with RegionalResourceNodeDef for HERB_VALLEY / FOREST specialties
+        if (node is not null && node.NodeType is "HERB_VALLEY" or "FOREST")
+        {
+            if (node.PrimaryItemId != 7 && node.PrimaryItemId is 13 or 14)
+            {
+                _bag.Add(citadelId, node.PrimaryItemId, 1);
+                var pName = _items.Find(node.PrimaryItemId)?.NameVi ?? "Dược liệu quý";
+                extraMsg = node.PrimaryItemId == 13
+                    ? $" Vùng lạnh phương Bắc tại {node.NodeNameVi} đào được 1 củ Nhân Sâm Liêu Đông quý giá!"
+                    : $" Giữa {node.NodeNameVi} phát hiện 1 khúc Trầm Hương thượng hạng!";
+            }
+
+            if (node.SecondaryItemId.HasValue && (exoticLvl > 0 || HasPerk("earth_vein_sight") || skillLevel >= 3))
+            {
+                var secId = node.SecondaryItemId.Value;
+                _bag.Add(citadelId, secId, 1);
+                var secName = _items.Find(secId)?.NameVi ?? "Kỳ trân";
+                extraMsg += $" Thu thập thêm +1 {secName} đặc sản vùng!";
+            }
+        }
+        else if (region == "u_chau" && (skillLevel >= 2 || prc >= 60))
         {
             _bag.Add(citadelId, 13, 1); // 13: sam (Nhân sâm Liêu Đông)
             extraMsg = " Vùng lạnh phương Bắc đào được 1 củ Nhân Sâm Liêu Đông quý giá!";
@@ -1355,23 +1725,29 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         else if ((region == "ich_chau" || region == "giao_chau" || citadelId == 20) && (skillLevel >= 1 || prc >= 55))
         {
             _bag.Add(citadelId, 14, 1); // 14: tram_huong (Trầm hương Lĩnh Nam / Thục sơn)
-            extraMsg = citadelId == 20
-                ? " Giữa Rừng Trầm Hương Lĩnh Nam phát hiện 1 khúc Kỳ Nam Trầm Hương thượng hạng!"
-                : " Trong thung lũng sương mù Ba Thục tìm thấy 1 khúc Trầm Hương lâu năm!";
+            extraMsg = " Trong thung lũng sương mù phát hiện 1 khúc Trầm Hương lâu năm!";
         }
-        else if (prc >= 65 || @int >= 65)
+        else if ((exoticLvl > 0 || HasPerk("earth_vein_sight")) && node?.SecondaryItemId is >= 25)
         {
-            _bag.Add(citadelId, 13, 1);
-            extraMsg = " Tinh mắt phát hiện thêm 1 củ Nhân Sâm quý hiếm!";
+            var secId = node.SecondaryItemId.Value;
+            _bag.Add(citadelId, secId, 1);
+            var secName = _items.Find(secId)?.NameVi ?? "Kỳ trân";
+            extraMsg = $" Nhờ linh nhãn phát hiện thêm +1 {secName}!";
         }
 
+        _attributes?.AddExp("PRC", 20);
+        _attributes?.AddExp("INT", 10);
+
         var milestoneMsg = FormatSkillProgressMessage("Tầm Dược", practice);
-        _log.Info($"dlc.professions: foraged at citadel {citadelId} ({region}): +{herbCount} herbs");
-        return WorkResult.Success($"1 ngày vượt suối trèo non tầm dược: Thu hái được {herbCount} Thảo dược quý.{extraMsg}{milestoneMsg}", herbCount, 1);
+        _log.Info($"dlc.professions: foraged at citadel {citadelId} ({nodeName}): +{herbCount} herbs");
+        return WorkResult.Success($"1 ngày vượt suối trèo non tầm dược tại {nodeName}: Thu hái được {herbCount} Thảo dược quý.{extraMsg}{milestoneMsg}", herbCount, 1);
     }
 
     public WorkResult Hunt(long citadelId)
     {
+        if (IsPlayerExhausted(out var exhaustedMsg))
+            return WorkResult.Failure(exhaustedMsg);
+
         _clock.Advance(1);
 
         var practice = _attributes?.PracticeSkill("thu_liep", 25) ?? (false, false, 0);
@@ -1454,8 +1830,14 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
 
     public WorkResult Mine(long citadelId)
     {
+        if (IsPlayerExhausted(out var exhaustedMsg))
+            return WorkResult.Failure(exhaustedMsg);
+
+        var activeTool = GetSlot("TOOL")?.Equipment;
+        var hasWorkingTool = activeTool is not null && activeTool.Durability > 0;
+
         _clock.Advance(1);
-        _attributes?.ApplyFatigue(20);
+        _attributes?.ApplyFatigue(hasWorkingTool ? 20 : 25);
 
         var practice = _attributes?.PracticeSkill("khai_khoang", 25) ?? (false, false, 0);
         var skillLevel = practice.Level;
@@ -1463,9 +1845,10 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         var cra = attrs?.Cra ?? 50;
         var con = attrs?.Con ?? 50;
 
-        long primaryItemId = 5; // 5: sat
-        long secondaryItemId = 15; // 15: than_da
-        var nodeName = "Mạch Khoáng Sơn Địa Phương";
+        long primaryItemId = 15; // Default non-mine citadels yield Surface Coal (#15: than_da) instead of refined Iron
+        long secondaryItemId = 5; // 5: sat
+        var nodeName = "Vỉa Đá Lộ Thiên Ngoại Thành";
+        var isRichMineOrForest = false;
 
         if (_broker != null && _broker.TryGet<IValueChainService>(CapabilityIds.ValueChain, out var vc) && vc != null)
         {
@@ -1475,40 +1858,54 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 nodeName = node.NodeNameVi;
                 if (node.NodeType is "MINE" or "FOREST")
                 {
+                    isRichMineOrForest = true;
                     primaryItemId = node.PrimaryItemId;
                     secondaryItemId = node.SecondaryItemId ?? 15;
                 }
-                else if (citadelId is 14 or 19)
+                else if (node.SecondaryItemId is 5 or 15 or 16 or 25 or 26 or 29 or 31)
                 {
-                    primaryItemId = 16; // dong
-                    secondaryItemId = 6; // go
+                    // Citadels like Uyển Thành (#16: HERB_VALLEY with Bronze #16) or Giang Lăng (#12: Iron #5)
+                    isRichMineOrForest = true;
+                    primaryItemId = node.SecondaryItemId.Value;
+                    secondaryItemId = 15; // than_da
                 }
             }
         }
         else if (citadelId is 14 or 16 or 19)
         {
+            isRichMineOrForest = true;
             primaryItemId = 16; // dong
-            secondaryItemId = 5; // sat
+            secondaryItemId = 15; // than_da
         }
 
         _attributes?.PracticeSkill("vein_divining", 20);
         var veinLvl = _attributes?.GetEquippedSkillLevel("vein_divining") ?? 0;
 
-        var activeTool = GetSlot("TOOL")?.Equipment;
-        var toolBonus = activeTool is not null && activeTool.Durability > 0 ? 1 : 0;
-        DegradeEquipped("TOOL", 2);
+        var toolBonus = hasWorkingTool ? 1 : 0;
+        if (hasWorkingTool)
+        {
+            DegradeEquipped("TOOL", 2);
+        }
 
-        var yieldCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (cra >= 60 ? 1 : 0) + toolBonus + (veinLvl > 0 ? (veinLvl + 1) / 2 : 0);
+        var yieldCount = (isRichMineOrForest ? 2 : 1)
+                         + (skillLevel >= 3 ? 1 : 0)
+                         + (skillLevel >= 7 ? 1 : 0)
+                         + toolBonus
+                         + (veinLvl > 0 ? (veinLvl + 1) / 2 : 0);
         _bag.Add(citadelId, primaryItemId, yieldCount);
 
-        var primaryName = _items.Find(primaryItemId)?.NameVi ?? "Quặng sắt";
+        var primaryName = _items.Find(primaryItemId)?.NameVi ?? "Khoáng thạch";
         var extraMsg = string.Empty;
-        if (skillLevel >= 2 || con >= 60 || cra >= 60 || veinLvl > 0 || HasPerk("earth_vein_sight"))
+        if (isRichMineOrForest && (skillLevel >= 2 || con >= 60 || cra >= 60 || veinLvl > 0 || HasPerk("earth_vein_sight")))
         {
             var secQty = 1 + (veinLvl >= 3 ? 1 : 0) + (HasPerk("earth_vein_sight") ? 1 : 0);
             _bag.Add(citadelId, secondaryItemId, secQty);
             var secName = _items.Find(secondaryItemId)?.NameVi ?? "Khoáng thạch";
             extraMsg = $" Đào trúng mạch phụ thu thêm +{secQty} {secName}!";
+        }
+        else if (!hasWorkingTool)
+        {
+            extraMsg = " (Tay không thiếu cuốc chim nên tốn thêm thể lực và sản lượng hạn chế).";
         }
 
         _attributes?.AddExp("CRA", 20);
@@ -1722,7 +2119,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     private void EnsureNpcOrders(GameDate date)
     {
         var activeCount = _db.Query(
-            "SELECT COUNT(*) FROM pf_order WHERE status IN ('AVAILABLE', 'ACCEPTED')",
+            "SELECT COUNT(*) FROM pf_order WHERE COALESCE(direction, 'INBOUND') = 'INBOUND' AND status IN ('AVAILABLE', 'ACCEPTED')",
             row => row.GetInt32(0)).FirstOrDefault();
 
         if (activeCount >= 6) return;
