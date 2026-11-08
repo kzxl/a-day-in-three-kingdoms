@@ -1046,6 +1046,75 @@ public sealed class ProfessionTests : IDisposable
         Assert.Equal(3, bag.Quantity(1, 15));
         Assert.Equal(ironBefore + 6, bag.Quantity(1, 5));
     }
+
+    [Fact]
+    public void Profession_screen_supports_workspace_tabs_workshop_switching_batch_work_and_alerts()
+    {
+        using var kernel = _host.Boot();
+        var screen = kernel.Ui.Screens.First(s => s.ScreenId == "professions.trades");
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var bag = Bag(kernel);
+
+        // 1. Default filter:all renders top filter commands and all core sections
+        var modelAll = screen.Render();
+        Assert.Contains(modelAll.Commands, c => c.Id == "filter:forge");
+        Assert.Contains(modelAll.Commands, c => c.Id == "filter:workshop");
+        Assert.Contains(modelAll.Commands, c => c.Id == "filter:orders");
+        Assert.Contains(modelAll.Commands, c => c.Id == "filter:life");
+        Assert.Equal(10, modelAll.Sections.Count);
+
+        // 2. Switch to filter:forge -> only shows Equipment Slots, Citadel Equipment, and Recipes (3 sections)
+        Command(kernel, "filter:forge");
+        var modelForge = screen.Render();
+        Assert.Equal(3, modelForge.Sections.Count);
+        Assert.Contains(modelForge.Sections, s => s.Heading == "Trang Bị Cá Nhân & Chỉ Số Cộng");
+        Assert.Contains(modelForge.Sections, s => s.Heading == "Khí Cụ Trong Thành");
+        Assert.Contains(modelForge.Sections, s => s.Heading == "Bản Vẽ Chế Tác Khí Cụ");
+
+        // Recipe with missing material offers a 1-click bounty command right on the recipe row
+        var recipeRow = modelForge.Sections.First(s => s.Heading == "Bản Vẽ Chế Tác Khí Cụ").Rows[0];
+        Assert.Contains(recipeRow.Commands, c => c.Id.StartsWith("bounty:post:"));
+
+        // 3. Switch to filter:orders -> only shows Guild Orders and Player Bounties (2 sections)
+        Command(kernel, "filter:orders");
+        var modelOrders = screen.Render();
+        Assert.Equal(2, modelOrders.Sections.Count);
+
+        // 4. Switch to filter:life -> only shows Kitchen, Wilderness, and Perks (3 sections)
+        Command(kernel, "filter:life");
+        var modelLife = screen.Render();
+        Assert.Equal(3, modelLife.Sections.Count);
+
+        // 5. Switch to filter:workshop -> shows Workshop and 16 Trades (2 sections)
+        Command(kernel, "filter:workshop");
+        var modelWs = screen.Render();
+        Assert.Equal(2, modelWs.Sections.Count);
+
+        // 6. Open workshop, hire artisan without coal -> triggers starving workshop alert & allows closing/switching workshop
+        var coalHeld = bag.Quantity(1, 15);
+        if (coalHeld > 0) bag.Remove(1, 15, coalHeld);
+        Command(kernel, "workshop:open:4");
+        Command(kernel, "workshop:hire:0");
+
+        var modelStarving = screen.Render();
+        Assert.NotNull(modelStarving.Alerts);
+        Assert.Contains(modelStarving.Alerts!, a => a.Message.Contains("Thiếu nguyên liệu"));
+
+        var closeMsg = Command(kernel, "workshop:close:0");
+        Assert.Contains("sang nhượng", closeMsg);
+        var reopenMsg = Command(kernel, "workshop:open:6"); // Reopen as Carpenter (#6 Thợ mộc)
+        Assert.Contains("Mở thành công", reopenMsg);
+
+        // 7. Batch work executes 3 consecutive batches in 1 command
+        var practiceBefore = Guild(kernel).PracticeCount(1);
+        var batchMsg = Command(kernel, "work:batch:1:3");
+        Assert.Contains("3 lượt", batchMsg);
+        Assert.Equal(practiceBefore + 3, Guild(kernel).PracticeCount(1));
+
+        // Restore filter:all
+        Command(kernel, "filter:all");
+        Assert.Equal(10, screen.Render().Sections.Count);
+    }
 }
 
 internal static class ProfessionServiceConstants
