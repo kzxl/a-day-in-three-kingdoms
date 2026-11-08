@@ -48,6 +48,13 @@ public sealed record MemoryEntry(
     int AffinityDelta,
     string SummaryVi);
 
+public sealed record NpcDispositionDef(
+    long NpcId,
+    bool IsGrudged,
+    bool IsFavored,
+    int PriceFactorPermille,
+    string SummaryVi);
+
 /// <summary>
 /// A recruited retainer/officer serving the player's personal faction or enterprise.
 /// </summary>
@@ -133,6 +140,9 @@ public sealed record RosterMilestoneRecord(
 public interface ISocialNetwork
 {
     RelationshipDef GetRelationship(long npcId);
+
+    /// <summary>Evaluates memory and relationship-driven behavioral disposition (grudge markup, favor discount, trade sanctions).</summary>
+    NpcDispositionDef GetDisposition(long npcId) => new(npcId, false, false, 1000, "Bình thường");
 
     /// <summary>Gets the first-meeting record for an NPC if the player has met them.</summary>
     MetNpcRecord? GetMetNpc(long npcId) => null;

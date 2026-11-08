@@ -379,6 +379,24 @@ internal sealed class CaravanService : ICaravanGuild
         var totalDiscountPermille = Math.Min(500, fleetDiscountPermille + acctDiscountPermille);
         var fee = Math.Max(1, baseFee * (1000 - totalDiscountPermille) / 1000);
 
+        var routeDiplomacyNotice = string.Empty;
+        if (_capabilities != null && _capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social != null)
+        {
+            var destNpcs = _npcRegistry?.FindByCitadel(toCity) ?? Array.Empty<NpcDef>();
+            var grudgedNotables = destNpcs.Where(n => social.GetDisposition(n.Id).IsGrudged).ToList();
+            if (grudgedNotables.Count > 0 && (!effectiveEscort.HasValue || crew.EscortWar < 55))
+            {
+                var tollMarkup = Math.Min(400, grudgedNotables.Count * 120);
+                fee = fee * (1000 + tollMarkup) / 1000;
+                routeDiplomacyNotice = " (quan ải thù địch phụ thu cước)";
+            }
+            else if (destNpcs.Any(n => social.GetDisposition(n.Id).IsFavored))
+            {
+                fee = Math.Max(1, fee * 850 / 1000);
+                routeDiplomacyNotice = " (tri kỷ địa phương miễn giảm thuế lộ)";
+            }
+        }
+
         if (_wallet.Liquid < fee)
         {
             return CaravanResult.Failure($"Cần {fee} Quan cước, chỉ có {_wallet.Liquid}.");
@@ -426,7 +444,7 @@ internal sealed class CaravanService : ICaravanGuild
         var escortText = effectiveEscort.HasValue ? " (có tiêu đầu hộ vệ)" : string.Empty;
         var navText = (days < baseDays) ? " (Dẫn Đường rút ngắn 1 ngày)" : string.Empty;
         return CaravanResult.Success(
-            $"Đoàn {units} đơn vị lên đường{escortText}{navText}, tới sau {days} ngày (ngày {GameDate.FromDayIndex(arriveDay)}), cước {fee} Quan.");
+            $"Đoàn {units} đơn vị lên đường{escortText}{navText}{routeDiplomacyNotice}, tới sau {days} ngày (ngày {GameDate.FromDayIndex(arriveDay)}), cước {fee} Quan.");
     }
 
     public CaravanResult SendWithEscortFee(long fromCity, long toCity, int escortFee)

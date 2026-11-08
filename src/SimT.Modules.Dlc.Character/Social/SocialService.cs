@@ -65,6 +65,41 @@ internal sealed partial class SocialService : ISocialNetwork
         return rel ?? InitialBondRelationship(npcId);
     }
 
+    public NpcDispositionDef GetDisposition(long npcId)
+    {
+        var rel = GetRelationship(npcId);
+        var recentMemories = _db.Query(
+            "SELECT topic, sentiment, affinity_delta FROM kz_memory WHERE npc_id = @id ORDER BY id DESC LIMIT 10",
+            r => (Topic: r.GetString(0), Sentiment: r.GetString(1), Delta: r.GetInt32(2)),
+            DbArgs.One("@id", npcId));
+
+        var hasBetrayal = recentMemories.Any(m => m.Topic == "betrayal" || (m.Sentiment == "negative" && m.Delta <= -20));
+        var hasRivalry = recentMemories.Any(m => m.Topic == "rival" || m.Topic == "feud");
+        var hasFavor = recentMemories.Any(m => m.Topic == "wish" || m.Topic == "bond_gratitude" || m.Topic == "cooperation");
+
+        if (rel.Affinity <= -20 || hasBetrayal || hasRivalry)
+        {
+            var isSevere = rel.Affinity <= -40 || hasBetrayal;
+            var markup = isSevere ? 1350 : 1200;
+            var summary = isSevere
+                ? "Thù địch sâu sắc: Ghi nhớ phản phúc/oán hận, cự tuyệt quân giới, tăng giá cắt cổ."
+                : "Hiềm khích: Nhớ rõ bất hòa, lãnh đạm khinh rẻ, tăng giá 20%.";
+            return new NpcDispositionDef(npcId, true, false, markup, summary);
+        }
+
+        if (rel.Affinity >= 40 || (hasFavor && rel.Affinity >= 20))
+        {
+            var isSoulmate = rel.Affinity >= 70;
+            var discount = isSoulmate ? 880 : 930;
+            var summary = isSoulmate
+                ? "Tri kỷ tâm phúc: Hết lòng ưu ái, giảm giá 12%, ưu tiên hàng hiếm."
+                : "Hảo cảm: Trân trọng ân tình, giảm giá 7% và niềm nở tiếp đãi.";
+            return new NpcDispositionDef(npcId, false, true, discount, summary);
+        }
+
+        return new NpcDispositionDef(npcId, false, false, 1000, "Bình thường");
+    }
+
     public IReadOnlyList<RelationshipDef> AllRelationships()
     {
         return _db.Query(
