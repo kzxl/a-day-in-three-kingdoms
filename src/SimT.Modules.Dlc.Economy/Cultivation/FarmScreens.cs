@@ -56,14 +56,30 @@ internal sealed class FarmScreen : IScreenContribution
                 }
                 else if (plot.CropStatus is null)
                 {
-                    commands.Add(new ScreenCommand($"plant:{plot.Id}:gao", "Gieo lúa"));
-                    commands.Add(new ScreenCommand($"plant:{plot.Id}:tra", "Gieo trà"));
-                    commands.Add(new ScreenCommand($"plant:{plot.Id}:dau_tam", "Gieo dâu"));
-                    commands.Add(new ScreenCommand($"plant:{plot.Id}:duoc_thao", "Gieo dược"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:gao", "Gieo Lúa Nước"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:lua_mi", "Gieo Lúa Mì"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:day_gai", "Gieo Đay Gai"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:duoc_thao", "Gieo Dược Thảo"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:tra", "Trồng Đồi Trà (Lưu gốc 4 vụ)"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:dau_tam", "Trồng Vườn Dâu (Lưu gốc 4 vụ)"));
+                    commands.Add(new ScreenCommand($"plant:{plot.Id}:truc_lam", "Trồng Rừng Trúc (Lưu gốc 5 vụ)"));
+                    if (plot.Soil >= 70)
+                    {
+                        commands.Add(new ScreenCommand($"plant:{plot.Id}:nhan_sam", "Trồng Nhân Sâm (Tích niên)"));
+                        commands.Add(new ScreenCommand($"plant:{plot.Id}:tram_huong", "Trồng Trầm Hương (Tích niên)"));
+                    }
                 }
                 else if (plot.CropStatus == "READY")
                 {
-                    commands.Add(new ScreenCommand($"harvest:{plot.Id}", "Gặt"));
+                    commands.Add(new ScreenCommand($"harvest:{plot.Id}", "Gặt / Hái"));
+                    if (plot.RemainingHarvests > 1)
+                    {
+                        commands.Add(new ScreenCommand($"uproot:{plot.Id}", "Đốn Gốc"));
+                    }
+                }
+                else if (plot.CropStatus == "GROWING" && plot.RemainingHarvests > 1)
+                {
+                    commands.Add(new ScreenCommand($"uproot:{plot.Id}", "Đốn Gốc"));
                 }
 
                 if (plot.Rented && plot.Soil < CropCalendar.SoilCeiling)
@@ -285,13 +301,18 @@ internal sealed class FarmScreen : IScreenContribution
             return "chưa thuê";
         }
 
+        var cropSpec = !string.IsNullOrWhiteSpace(plot.CropCode) ? CropSpec.Find(plot.CropCode) : null;
+        var cropTag = cropSpec is not null
+            ? (cropSpec.IsPerennial ? $"{cropSpec.Code} [Vụ {plot.HarvestStage}/{cropSpec.MaxHarvests}]" : cropSpec.Code)
+            : "";
+
         return plot.CropStatus switch
         {
             null => "đất trống",
-            "READY" => "chín, chờ gặt",
+            "READY" => string.IsNullOrEmpty(cropTag) ? "chín, chờ gặt" : $"{cropTag}: chín, chờ gặt",
             _ => plot.ReadyDayIndex is null
                 ? "đang lớn"
-                : $"đang lớn (còn {Math.Max(0, plot.ReadyDayIndex.Value - _clock.Today.DayIndex)} ngày)"
+                : $"{(string.IsNullOrEmpty(cropTag) ? "đang lớn" : $"{cropTag} đang lớn")} (còn {Math.Max(0, plot.ReadyDayIndex.Value - _clock.Today.DayIndex)} ngày)"
         };
     }
 }
@@ -381,6 +402,7 @@ internal sealed class FarmCommandHandler : IScreenCommandHandler
             "fertilise" => _service.Fertilise(plotId, city).Message,
             "irrigate" => _service.Irrigate(plotId, city).Message,
             "tenant" => _service.SetTenantCrop(plotId, city, parts.Length > 2 ? parts[2] : "gao").Message,
+            "uproot" => _service.Uproot(plotId, city).Message,
             var verb => $"Động từ '{verb}' không thuộc DLC cultivation."
         };
     }

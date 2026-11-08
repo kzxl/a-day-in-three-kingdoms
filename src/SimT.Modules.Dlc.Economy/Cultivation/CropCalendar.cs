@@ -2,7 +2,7 @@ using SimT.Contracts.Playing;
 
 namespace SimT.Modules.Dlc.Economy;
 
-/// <summary>A crop a plot can grow: what it yields, how long it takes, how much land it needs, and the required seed item.</summary>
+/// <summary>A crop a plot can grow: what it yields, how long it takes, how much land it needs, and its perennial lifecycle.</summary>
 internal sealed record CropSpec(
     string Code,
     long OutputItemId,
@@ -10,23 +10,78 @@ internal sealed record CropSpec(
     int YieldPerMu,
     string SeedItemCode,
     long SeedItemId,
-    string SeedNameVi)
+    string SeedNameVi,
+    string Lifecycle = "ANNUAL",
+    int MaxHarvests = 1,
+    int RegrowthDays = 0,
+    int MinSoil = 0,
+    string CropTitleVi = "")
 {
-    public static readonly CropSpec Rice = new("gao", 1, 0, 8, "hat_giong_lua", 17, "Hạt giống lúa");
-    public static readonly CropSpec Tea = new("tra", 3, 24, 2, "hat_giong_tra", 18, "Hạt giống trà");
-    public static readonly CropSpec Mulberry = new("dau_tam", 4, 30, 2, "hat_giong_dau_tam", 19, "Cây giống dâu tằm");
-    public static readonly CropSpec Herb = new("duoc_thao", 7, 20, 2, "hat_giong_duoc_thao", 20, "Hạt giống dược thảo");
+    // === 1. ANNUAL FIELD CROPS (Hoa màu ngắn ngày — 1 vụ đứt gốc) ===
+    public static readonly CropSpec Rice = new(
+        "gao", 1, 0, 8, "hat_giong_lua", 17, "Hạt giống lúa",
+        Lifecycle: "ANNUAL", MaxHarvests: 1, RegrowthDays: 0, MinSoil: 0, CropTitleVi: "Lúa Nước (Ngắn ngày)");
 
-    public static readonly CropSpec[] All = [Rice, Tea, Mulberry, Herb];
+    public static readonly CropSpec Wheat = new(
+        "lua_mi", 9, 22, 7, "hat_giong_lua", 17, "Hạt giống mạch (Lúa mì)",
+        Lifecycle: "ANNUAL", MaxHarvests: 1, RegrowthDays: 0, MinSoil: 0, CropTitleVi: "Lúa Mì Chịu Hàn (Ngắn ngày)");
+
+    public static readonly CropSpec Hemp = new(
+        "day_gai", 11, 20, 4, "hat_giong_dau_tam", 19, "Giống đay gai dệt vải",
+        Lifecycle: "ANNUAL", MaxHarvests: 1, RegrowthDays: 0, MinSoil: 0, CropTitleVi: "Đay Gai Dệt Vải (Ngắn ngày)");
+
+    public static readonly CropSpec Herb = new(
+        "duoc_thao", 7, 20, 2, "hat_giong_duoc_thao", 20, "Hạt giống dược thảo",
+        Lifecycle: "ANNUAL", MaxHarvests: 1, RegrowthDays: 0, MinSoil: 0, CropTitleVi: "Dược Thảo Thường (Ngắn ngày)");
+
+    // === 2. PERENNIAL RATOON CROPS (Cây công nghiệp & lâm mộc lưu gốc — thu hoạch 4-5 vụ liên tiếp) ===
+    public static readonly CropSpec Tea = new(
+        "tra", 3, 24, 2, "hat_giong_tra", 18, "Hạt giống trà",
+        Lifecycle: "PERENNIAL", MaxHarvests: 4, RegrowthDays: 14, MinSoil: 0, CropTitleVi: "Đồi Trà Cổ Thụ (Lưu gốc 4 vụ)");
+
+    public static readonly CropSpec Mulberry = new(
+        "dau_tam", 4, 30, 2, "hat_giong_dau_tam", 19, "Cây giống dâu tằm",
+        Lifecycle: "PERENNIAL", MaxHarvests: 4, RegrowthDays: 15, MinSoil: 0, CropTitleVi: "Vườn Dâu Nuôi Tằm (Lưu gốc 4 vụ)");
+
+    public static readonly CropSpec BambooTimber = new(
+        "truc_lam", 6, 28, 5, "hat_giong_tra", 18, "Mầm giống trúc & tùng bách",
+        Lifecycle: "PERENNIAL", MaxHarvests: 5, RegrowthDays: 16, MinSoil: 0, CropTitleVi: "Rừng Trúc Tùng Bách (Lưu gốc 5 vụ)");
+
+    // === 3. AGED PERENNIAL CROPS (Linh dược & Linh mộc tích niên đại — đòi hỏi đất >= 70) ===
+    public static readonly CropSpec Ginseng = new(
+        "nhan_sam", 13, 45, 1, "hat_giong_duoc_thao", 20, "Mầm giống Nhân sâm núi",
+        Lifecycle: "AGED_PERENNIAL", MaxHarvests: 2, RegrowthDays: 30, MinSoil: 70, CropTitleVi: "Nhân Sâm Linh Điền (Tích niên 2 vụ)");
+
+    public static readonly CropSpec Agarwood = new(
+        "tram_huong", 14, 50, 1, "hat_giong_dau_tam", 19, "Cây giống Dó bầu tụ trầm",
+        Lifecycle: "AGED_PERENNIAL", MaxHarvests: 3, RegrowthDays: 25, MinSoil: 70, CropTitleVi: "Trầm Hương Kỳ Mộc (Tích niên 3 vụ)");
+
+    public static readonly CropSpec[] All =
+    [
+        Rice, Wheat, Hemp, Herb,
+        Tea, Mulberry, BambooTimber,
+        Ginseng, Agarwood
+    ];
+
+    public bool IsPerennial => MaxHarvests > 1;
 
     public static CropSpec? Find(string? code) =>
         code is null ? Rice : All.FirstOrDefault(spec =>
             spec.Code.Equals(code, StringComparison.OrdinalIgnoreCase)
-            || spec.SeedItemCode.Equals(code, StringComparison.OrdinalIgnoreCase)
+            || (code.Equals("hat_giong_lua", StringComparison.OrdinalIgnoreCase) && spec == Rice)
+            || (code.Equals("hat_giong_tra", StringComparison.OrdinalIgnoreCase) && spec == Tea)
+            || (code.Equals("hat_giong_dau_tam", StringComparison.OrdinalIgnoreCase) && spec == Mulberry)
+            || (code.Equals("hat_giong_duoc_thao", StringComparison.OrdinalIgnoreCase) && spec == Herb)
             || (code.Equals("rice", StringComparison.OrdinalIgnoreCase) && spec == Rice)
+            || (code.Equals("wheat", StringComparison.OrdinalIgnoreCase) && spec == Wheat)
+            || (code.Equals("hemp", StringComparison.OrdinalIgnoreCase) && spec == Hemp)
             || (code.Equals("tea", StringComparison.OrdinalIgnoreCase) && spec == Tea)
             || (code.Equals("mulberry", StringComparison.OrdinalIgnoreCase) && spec == Mulberry)
-            || (code.Equals("herb", StringComparison.OrdinalIgnoreCase) && spec == Herb));
+            || (code.Equals("bamboo", StringComparison.OrdinalIgnoreCase) && spec == BambooTimber)
+            || (code.Equals("herb", StringComparison.OrdinalIgnoreCase) && spec == Herb)
+            || (code.Equals("ginseng", StringComparison.OrdinalIgnoreCase) && spec == Ginseng)
+            || (code.Equals("sam", StringComparison.OrdinalIgnoreCase) && spec == Ginseng)
+            || (code.Equals("agarwood", StringComparison.OrdinalIgnoreCase) && spec == Agarwood));
 
     public static CropSpec? FindBySeedCode(string seedCode) =>
         All.FirstOrDefault(spec => spec.SeedItemCode.Equals(seedCode, StringComparison.OrdinalIgnoreCase));
@@ -151,7 +206,10 @@ internal static class CropCalendar
 
     public static int RegionalYield(int areaMu, CropSpec crop, int month, int soil, string? region, int irrigationTier = 0)
     {
-        var permille = (long)SeasonPermille(month) * SoilPermille(soil);
+        var seasonMult = crop.Code.Equals("lua_mi", StringComparison.OrdinalIgnoreCase) && (month is >= 10 or <= 2)
+            ? 1150 // Lúa mì ưa khí hậu lạnh Thu-Đông
+            : SeasonPermille(month);
+        var permille = (long)seasonMult * SoilPermille(soil);
         var raw = (long)areaMu * crop.YieldPerMu * permille;
         var yieldBonusPermille = irrigationTier switch
         {
@@ -163,6 +221,25 @@ internal static class CropCalendar
         raw = (raw * yieldBonusPermille) / 1000L;
         var regionMult = RegionPermille(region, crop.Code, month);
         raw = (raw * regionMult) / 1000L;
-        return (int)((raw + 500_000L) / 1_000_000L);
+        return Math.Max(1, (int)((raw + 500_000L) / 1_000_000L));
+    }
+
+    public static int RegrowthDays(CropSpec crop, int month, int irrigationTier = 0)
+    {
+        var baseRegrowth = crop.RegrowthDays > 0 ? crop.RegrowthDays : Math.Max(10, GrowthDays(crop, month, 0) / 2);
+        // Winter dormancy slows perennial budding
+        if (month is >= 11 or 1)
+        {
+            baseRegrowth += 6;
+        }
+        var reduction = irrigationTier switch
+        {
+            >= 5 => 5,
+            >= 4 => 4,
+            >= 3 => 3,
+            >= 2 => 2,
+            _ => 0
+        };
+        return Math.Max(5, baseRegrowth - reduction);
     }
 }

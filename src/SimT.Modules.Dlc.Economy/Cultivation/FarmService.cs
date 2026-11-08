@@ -51,7 +51,8 @@ internal sealed class FarmService : ICultivationEstate
         _db.Query(
             """
             SELECT p.id, p.citadel_id, p.area_mu, p.monthly_rent, p.rented, p.soil,
-                   c.status, c.ready_day, c.yield_qty, p.irrigation_level, p.tenant_crop_code
+                   c.status, c.ready_day, c.yield_qty, p.irrigation_level, p.tenant_crop_code,
+                   c.crop_code, COALESCE(c.remaining_harvests, 0), COALESCE(c.harvest_stage, 0), COALESCE(c.item_id, 0)
             FROM fm_plot p
             LEFT JOIN fm_crop c ON c.plot_id = p.id AND c.status IN ('GROWING', 'READY')
             ORDER BY p.citadel_id, p.id
@@ -60,6 +61,13 @@ internal sealed class FarmService : ICultivationEstate
             {
                 var live = row.GetStringOrEmpty(6) is { Length: > 0 };
                 var tenantCrop = row.GetStringOrEmpty(10);
+                var rawCropCode = row.GetStringOrEmpty(11);
+                var itemId = row.GetInt64(14);
+                var resolvedCropCode = live
+                    ? (!string.IsNullOrWhiteSpace(rawCropCode)
+                        ? rawCropCode
+                        : CropSpec.All.FirstOrDefault(s => s.OutputItemId == itemId)?.Code)
+                    : null;
                 return new PlotView(
                     row.GetInt64(0),
                     row.GetInt64(1),
@@ -71,7 +79,10 @@ internal sealed class FarmService : ICultivationEstate
                     live ? row.GetInt32(7) : null,
                     live ? row.GetInt32(8) : null,
                     row.GetInt32(9),
-                    string.IsNullOrWhiteSpace(tenantCrop) ? null : tenantCrop);
+                    string.IsNullOrWhiteSpace(tenantCrop) ? null : tenantCrop,
+                    resolvedCropCode,
+                    live ? row.GetInt32(12) : 0,
+                    live ? row.GetInt32(13) : 0);
             });
 
     public IBag Bag => _bag;
@@ -319,6 +330,12 @@ internal sealed class FarmService : ICultivationEstate
             return FarmResult.Failure($"Không có giống '{cropCode}'.");
         }
 
+        if (crop.MinSoil > 0 && plot.Soil < crop.MinSoil)
+        {
+            return FarmResult.Failure(
+                $"Đất chưa đủ độ màu mỡ: [{crop.CropTitleVi}] đòi hỏi độ phì đất tối thiểu {crop.MinSoil}/100 (hiện tại {plot.Soil}/100). Hãy bón phân hoặc nâng thủy lợi trước!");
+        }
+
         // 1. Tool check: Hoe required to till and sow
         if (_bag.Quantity(cityId, FarmingSupplies.HoeItemId) <= 0)
         {
@@ -350,8 +367,8 @@ internal sealed class FarmService : ICultivationEstate
             _bag.Remove(cityId, crop.SeedItemId, requiredSeeds);
             _db.Execute(
                 """
-                INSERT INTO fm_crop(id, plot_id, item_id, planted_day, ready_day, yield_qty, status)
-                VALUES(@id, @plot, @item, @planted, @ready, @yield, 'GROWING')
+                INSERT INTO fm_crop(id, plot_id, item_id, planted_day, ready_day, yield_qty, status, crop_code, remaining_harvests, harvest_stage)
+                VALUES(@id, @plot, @item, @planted, @ready, @yield, 'GROWING', @code, @rem, 1)
                 """,
                 new DbArgs()
                     .Add("@id", _ids.Next("cultivation.crop"))
@@ -359,11 +376,17 @@ internal sealed class FarmService : ICultivationEstate
                     .Add("@item", crop.OutputItemId)
                     .Add("@planted", plantedDay)
                     .Add("@ready", plantedDay + growth)
-                    .Add("@yield", yieldQuantity));
+                    .Add("@yield", yieldQuantity)
+                    .Add("@code", crop.Code)
+                    .Add("@rem", crop.MaxHarvests));
         });
 
+        var lifecycleNote = crop.IsPerennial
+            ? $" (Cây lưu gốc lâu năm: thu hoạch liên tiếp {crop.MaxHarvests} vụ không tốn lại giống)"
+            : string.Empty;
+
         return FarmResult.Success(
-            $"Gieo {crop.SeedNameVi} trên {plot.AreaMu} mẫu (tiêu hao {requiredSeeds} bao giống): {growth} ngày nữa chín, dự thu {yieldQuantity} {name}.");
+            $"Gieo {crop.SeedNameVi} trên {plot.AreaMu} mẫu (tiêu hao {requiredSeeds} bao giống): {growth} ngày nữa chín, dự thu {yieldQuantity} {name}{lifecycleNote}.");
     }
 
     public FarmResult Harvest(long plotId, long cityId)
@@ -391,10 +414,11 @@ internal sealed class FarmService : ICultivationEstate
         }
 
         var yieldQuantity = plot.YieldQuantity ?? 0;
-        var cropSpec = CropSpec.All.FirstOrDefault(spec =>
-            _db.ScalarLong(
-                "SELECT COUNT(*) FROM fm_crop WHERE plot_id=@plot AND status='READY' AND item_id=@item",
-                new DbArgs().Add("@plot", plotId).Add("@item", spec.OutputItemId)) > 0);
+        var cropSpec = (!string.IsNullOrWhiteSpace(plot.CropCode) ? CropSpec.Find(plot.CropCode) : null)
+            ?? CropSpec.All.FirstOrDefault(spec =>
+                _db.ScalarLong(
+                    "SELECT COUNT(*) FROM fm_crop WHERE plot_id=@plot AND status='READY' AND item_id=@item",
+                    new DbArgs().Add("@plot", plotId).Add("@item", spec.OutputItemId)) > 0);
 
         if (cropSpec is null)
         {
@@ -405,14 +429,52 @@ internal sealed class FarmService : ICultivationEstate
             "SELECT id FROM fm_crop WHERE plot_id=@plot AND status = 'READY' ORDER BY id LIMIT 1",
             DbArgs.One("@plot", plotId));
 
-        var soilAfter = Math.Max(0, plot.Soil - CropCalendar.SoilCostPerHarvest);
+        var remainingHarvests = plot.RemainingHarvests > 0 ? plot.RemainingHarvests : 1;
+        var harvestStage = plot.HarvestStage > 0 ? plot.HarvestStage : 1;
+        var isPerennialRegrowth = cropSpec.IsPerennial && remainingHarvests > 1;
+        var soilCost = isPerennialRegrowth ? (CropCalendar.SoilCostPerHarvest / 2) : CropCalendar.SoilCostPerHarvest;
+        var soilAfter = Math.Max(0, plot.Soil - soilCost);
+        var irrigationTier = GetFacilityTier(plot.CitadelId, FacilitySpecs.Irrigation);
+        var regrowthDays = isPerennialRegrowth ? CropCalendar.RegrowthDays(cropSpec, _clock.Today.Month, irrigationTier) : 0;
 
         _db.Transaction(() =>
         {
             _actionTime.Charge(ActionCodes.FarmHarvest);
-            var updated = _db.Execute(
-                "UPDATE fm_crop SET status = 'HARVESTED' WHERE id=@id AND status = 'READY'",
-                DbArgs.One("@id", cropId));
+            var today = _clock.Today;
+            int updated;
+
+            if (isPerennialRegrowth)
+            {
+                var nextStage = harvestStage + 1;
+                var nextRem = remainingHarvests - 1;
+                var baseNextYield = CropCalendar.Yield(plot.AreaMu, cropSpec, today.Month, soilAfter, irrigationTier);
+                var matureRootYield = Math.Max(1, (baseNextYield * 115) / 100); // +15% yield on mature root stages
+
+                updated = _db.Execute(
+                    """
+                    UPDATE fm_crop
+                    SET status = 'GROWING',
+                        planted_day = @planted,
+                        ready_day = @ready,
+                        yield_qty = @yield,
+                        remaining_harvests = @rem,
+                        harvest_stage = @stage
+                    WHERE id = @id AND status = 'READY'
+                    """,
+                    new DbArgs()
+                        .Add("@planted", today.DayIndex)
+                        .Add("@ready", today.DayIndex + regrowthDays)
+                        .Add("@yield", matureRootYield)
+                        .Add("@rem", nextRem)
+                        .Add("@stage", nextStage)
+                        .Add("@id", cropId));
+            }
+            else
+            {
+                updated = _db.Execute(
+                    "UPDATE fm_crop SET status = 'HARVESTED', remaining_harvests = 0 WHERE id=@id AND status = 'READY'",
+                    DbArgs.One("@id", cropId));
+            }
 
             if (updated == 0)
             {
@@ -439,7 +501,40 @@ internal sealed class FarmService : ICultivationEstate
         });
 
         _log.Info($"harvested plot {plotId}: +{yieldQuantity}, soil {plot.Soil} -> {soilAfter}");
+        if (isPerennialRegrowth)
+        {
+            return FarmResult.Success(
+                $"Gặt được {yieldQuantity} {cropSpec.Code} (Vụ {harvestStage}/{cropSpec.MaxHarvests}), gốc cây lưu niên đang tái sinh lứa mới ({regrowthDays} ngày nữa thu hoạch tiếp, còn {remainingHarvests - 1} vụ), đất còn {soilAfter}/100.");
+        }
+
         return FarmResult.Success($"Gặt được {yieldQuantity} {cropSpec.Code}, đất còn {soilAfter}/100.");
+    }
+
+    public FarmResult Uproot(long plotId, long cityId)
+    {
+        var plot = FindPlot(plotId);
+        if (plot is null) return FarmResult.Failure("Không có khu ruộng này.");
+        if (plot.CitadelId != cityId) return FarmResult.Failure("Phải ở đúng thành mới đốn bỏ cây trồng được.");
+        if (plot.CropStatus is null) return FarmResult.Failure("Khu ruộng đang trống, không có cây để đốn bỏ.");
+
+        var cropSpec = !string.IsNullOrWhiteSpace(plot.CropCode) ? CropSpec.Find(plot.CropCode) : null;
+        var woodSalvage = cropSpec is not null && cropSpec.IsPerennial ? plot.AreaMu : 0;
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "UPDATE fm_crop SET status = 'HARVESTED', remaining_harvests = 0 WHERE plot_id = @plot AND status IN ('GROWING', 'READY')",
+                DbArgs.One("@plot", plotId));
+
+            if (woodSalvage > 0)
+            {
+                _bag.Add(cityId, 6, woodSalvage); // Salvage Timber (#6 Gỗ) from uprooted perennial trees
+            }
+        });
+
+        return woodSalvage > 0
+            ? FarmResult.Success($"Đốn bỏ vườn cây lâu năm tại khu {plotId}, thu hồi được {woodSalvage} Gỗ củi và giải phóng mặt bằng ruộng.")
+            : FarmResult.Success($"Đã dọn sạch cây trồng trên khu ruộng {plotId}, sẵn sàng gieo vụ mới.");
     }
 
 
@@ -748,8 +843,8 @@ internal sealed class FarmService : ICultivationEstate
 
         _db.Execute(
             """
-            INSERT INTO fm_crop(id, plot_id, item_id, planted_day, ready_day, yield_qty, status)
-            VALUES(@id, @plot, @item, @planted, @ready, @yield, 'GROWING')
+            INSERT INTO fm_crop(id, plot_id, item_id, planted_day, ready_day, yield_qty, status, crop_code, remaining_harvests, harvest_stage)
+            VALUES(@id, @plot, @item, @planted, @ready, @yield, 'GROWING', @code, @rem, 1)
             """,
             new DbArgs()
                 .Add("@id", _ids.Next("cultivation.crop"))
@@ -757,7 +852,9 @@ internal sealed class FarmService : ICultivationEstate
                 .Add("@item", crop.OutputItemId)
                 .Add("@planted", today.DayIndex)
                 .Add("@ready", today.DayIndex + growth)
-                .Add("@yield", yieldQuantity));
+                .Add("@yield", yieldQuantity)
+                .Add("@code", crop.Code)
+                .Add("@rem", crop.MaxHarvests));
     }
 
     /// <summary>Daily flip: a crop becomes harvestable on its ready day, and tenant farmers auto-harvest/replant.</summary>
@@ -782,7 +879,11 @@ internal sealed class FarmService : ICultivationEstate
                 {
                     var fullYield = plot.YieldQuantity ?? 0;
                     var landownerShare = Math.Max(1, (fullYield * 70) / 100);
-                    var soilAfter = Math.Max(0, plot.Soil - CropCalendar.SoilCostPerHarvest);
+                    var remainingHarvests = plot.RemainingHarvests > 0 ? plot.RemainingHarvests : 1;
+                    var harvestStage = plot.HarvestStage > 0 ? plot.HarvestStage : 1;
+                    var isPerennialRegrowth = cropSpec.IsPerennial && remainingHarvests > 1;
+                    var soilCost = isPerennialRegrowth ? (CropCalendar.SoilCostPerHarvest / 2) : CropCalendar.SoilCostPerHarvest;
+                    var soilAfter = Math.Max(0, plot.Soil - soilCost);
 
                     // Auto-fertilize if soil drops below 40 and fertilizer is available in bag
                     if (soilAfter < 40 && _bag.Quantity(plot.CitadelId, FarmingSupplies.FertilizerItemId) >= 1)
@@ -791,7 +892,37 @@ internal sealed class FarmService : ICultivationEstate
                         soilAfter = Math.Min(CropCalendar.SoilCeiling, soilAfter + CropCalendar.FertiliseGain);
                     }
 
-                    _db.Execute("UPDATE fm_crop SET status = 'HARVESTED' WHERE id = @id", DbArgs.One("@id", cropId));
+                    if (isPerennialRegrowth)
+                    {
+                        var irrigationTier = GetFacilityTier(plot.CitadelId, FacilitySpecs.Irrigation);
+                        var regrowthDays = CropCalendar.RegrowthDays(cropSpec, date.Month, irrigationTier);
+                        var baseNextYield = CropCalendar.Yield(plot.AreaMu, cropSpec, date.Month, soilAfter, irrigationTier);
+                        var matureRootYield = Math.Max(1, (baseNextYield * 115) / 100);
+
+                        _db.Execute(
+                            """
+                            UPDATE fm_crop
+                            SET status = 'GROWING',
+                                planted_day = @planted,
+                                ready_day = @ready,
+                                yield_qty = @yield,
+                                remaining_harvests = @rem,
+                                harvest_stage = @stage
+                            WHERE id = @id
+                            """,
+                            new DbArgs()
+                                .Add("@planted", date.DayIndex)
+                                .Add("@ready", date.DayIndex + regrowthDays)
+                                .Add("@yield", matureRootYield)
+                                .Add("@rem", remainingHarvests - 1)
+                                .Add("@stage", harvestStage + 1)
+                                .Add("@id", cropId));
+                    }
+                    else
+                    {
+                        _db.Execute("UPDATE fm_crop SET status = 'HARVESTED', remaining_harvests = 0 WHERE id = @id", DbArgs.One("@id", cropId));
+                    }
+
                     _db.Execute("UPDATE fm_plot SET soil = @soil WHERE id = @id", new DbArgs().Add("@soil", soilAfter).Add("@id", plot.Id));
                     _bag.Add(plot.CitadelId, cropSpec.OutputItemId, landownerShare);
 

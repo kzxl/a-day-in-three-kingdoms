@@ -485,4 +485,59 @@ public sealed class CultivationTests : IDisposable
         var southSpringYield = CropCalendar.RegionalYield(2, CropSpec.Rice, 4, 100, "giang_dong");
         Assert.True(southSpringYield > northWinterYield * 2);
     }
+
+    [Fact]
+    public void Perennial_crops_regrow_across_multiple_harvests_without_replanting_and_aged_crops_enforce_soil_gate()
+    {
+        using var kernel = _host.Boot();
+        var cityId = Player(kernel).CurrentCityId;
+        var bag = Bag(kernel);
+        var plot = HomePlot(kernel);
+
+        Command(kernel, $"rent:{plot.Id}");
+        var teaSeedsBefore = bag.Quantity(cityId, 18); // Tea seed #18
+
+        // 1. Plant Tea (tra) -> Perennial crop with 4 harvest cycles
+        var plantTeaMsg = Command(kernel, $"plant:{plot.Id}:tra");
+        Assert.Contains("lưu gốc", plantTeaMsg, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(teaSeedsBefore - plot.AreaMu, bag.Quantity(cityId, 18));
+
+        var planted = Find(kernel, plot.Id);
+        Assert.Equal("tra", planted.CropCode);
+        Assert.Equal(4, planted.RemainingHarvests);
+        Assert.Equal(1, planted.HarvestStage);
+
+        // 2. Advance 24 days to 1st harvest -> harvest yields Tea (#3), tree stays alive in GROWING stage 2 with 3 harvests left (0 extra seeds spent!)
+        kernel.AdvanceDays(24);
+        Assert.Equal("READY", Find(kernel, plot.Id).CropStatus);
+        var harvest1Msg = Command(kernel, $"harvest:{plot.Id}");
+        Assert.Contains("Vụ 1/4", harvest1Msg);
+        Assert.True(bag.Quantity(cityId, 3) > 0);
+        Assert.Equal(teaSeedsBefore - plot.AreaMu, bag.Quantity(cityId, 18)); // No extra seeds consumed!
+
+        var regrowing = Find(kernel, plot.Id);
+        Assert.Equal("GROWING", regrowing.CropStatus);
+        Assert.Equal(3, regrowing.RemainingHarvests);
+        Assert.Equal(2, regrowing.HarvestStage);
+
+        // 3. Regrowth is faster (14 days instead of 24) and mature root stage 2 yields >= stage 1
+        kernel.AdvanceDays(15);
+        Assert.Equal("READY", Find(kernel, plot.Id).CropStatus);
+        var harvest2Msg = Command(kernel, $"harvest:{plot.Id}");
+        Assert.Contains("Vụ 2/4", harvest2Msg);
+
+        // 4. Uproot perennial tree to clear plot and salvage firewood (#6 Gỗ)
+        var woodBefore = bag.Quantity(cityId, 6);
+        var uprootMsg = Command(kernel, $"uproot:{plot.Id}");
+        Assert.Contains("Đốn bỏ", uprootMsg);
+        Assert.Null(Find(kernel, plot.Id).CropStatus);
+        Assert.True(bag.Quantity(cityId, 6) > woodBefore);
+
+        // 5. Aged crop (nhan_sam -> Ginseng #13) requires Soil >= 70; if soil is worn out, it refuses until fertilized
+        Command(kernel, $"fertilise:{plot.Id}");
+        var samPlantMsg = Command(kernel, $"plant:{plot.Id}:nhan_sam");
+        Assert.Contains("Nhân sâm", samPlantMsg, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("nhan_sam", Find(kernel, plot.Id).CropCode);
+        Assert.Empty(kernel.RunInvariants());
+    }
 }
