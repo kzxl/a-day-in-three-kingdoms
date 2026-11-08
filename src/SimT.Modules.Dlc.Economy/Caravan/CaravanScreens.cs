@@ -1,6 +1,7 @@
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
+using SimT.Modules.Dlc.Economy.Caravan;
 
 namespace SimT.Modules.Dlc.Economy;
 
@@ -12,6 +13,8 @@ internal sealed class CaravanScreen : IScreenContribution
     private static readonly string[] RouteColumns = ["Đích", "Ngày đi", "Cước/đơn vị", "Trong túi"];
     private static readonly string[] ContractColumns = ["Hội Quán", "Nơi Nhận", "Nơi Giao", "Hàng Hóa", "Thù Lao", "Hạn Chót", "Trạng Thái"];
     private static readonly string[] RunColumns = ["Mã", "Đến", "Khởi hành", "Tới nơi", "Hàng", "Hao", "Hộ Vệ", "Trạng thái"];
+    private static readonly string[] CartelColumns = ["Đại Thương Bang", "Chưởng Sự", "Lĩnh Vực Độc Quyền", "Hào Cảm", "Quan Hệ Minh Ước"];
+    private static readonly string[] AutoRouteColumns = ["Tuyến Tự Động", "Hàng Hóa", "Trần Mua / Sàn Bán", "Lô Hàng", "Trạng Thái"];
 
     private readonly CaravanService _service;
     private readonly IWorldMap _map;
@@ -20,6 +23,7 @@ internal sealed class CaravanScreen : IScreenContribution
     private readonly IGameClock _clock;
     private readonly IItemCatalog _items;
     private readonly INpcRegistry? _npcs;
+    private readonly AutomatedLogisticsService? _logistics;
 
     public CaravanScreen(
         CaravanService service,
@@ -28,7 +32,8 @@ internal sealed class CaravanScreen : IScreenContribution
         IPlayerState player,
         IGameClock clock,
         IItemCatalog items,
-        INpcRegistry? npcs = null)
+        INpcRegistry? npcs = null,
+        AutomatedLogisticsService? logistics = null)
     {
         _service = service;
         _map = map;
@@ -37,6 +42,7 @@ internal sealed class CaravanScreen : IScreenContribution
         _clock = clock;
         _items = items;
         _npcs = npcs;
+        _logistics = logistics;
     }
 
     private static string Fmt(long value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -296,12 +302,85 @@ internal sealed class CaravanScreen : IScreenContribution
             topCommands.Add(new ScreenCommand("upgrade_fleet", $"Nâng Cấp Đội Xe ({nextCost} Quan)", CommandKind.Primary));
         }
 
+        if (neighbours.Count > 0)
+        {
+            var firstDest = _map.Find(neighbours[0]);
+            topCommands.Add(new ScreenCommand($"auto_route:create:{neighbours[0]}:1", $"Lập Tuyến Tự Động ➔ {firstDest?.NameVi ?? "Lân Thành"}"));
+        }
+
+        var cartelRows = new List<ScreenRow>();
+        var autoRouteRows = new List<ScreenRow>();
+        if (_logistics is not null)
+        {
+            foreach (var cartel in _logistics.GetCartels())
+            {
+                var cCmds = new List<ScreenCommand>
+                {
+                    new($"cartel:gift:{cartel.CartelCode}", "Lễ Vật (300 Quan)")
+                };
+                if (cartel.TreatyStatus != "ALLIED" && cartel.Standing >= 35)
+                {
+                    cCmds.Add(new($"cartel:ally:{cartel.CartelCode}", "Ký Minh Ước (500 Quan)", CommandKind.Primary));
+                }
+
+                var treatyVi = cartel.TreatyStatus switch
+                {
+                    "ALLIED" => "📜 Đồng Minh Độc Quyền (+15% Lãi)",
+                    "FRIENDLY" => "🤝 Thân Hảo (+5% Lãi)",
+                    _ => "Trung Lập"
+                };
+
+                cartelRows.Add(new ScreenRow(
+                    [
+                        cartel.CartelNameVi,
+                        cartel.LeaderVi,
+                        cartel.DomainVi,
+                        $"{cartel.Standing}/100",
+                        treatyVi
+                    ],
+                    cCmds,
+                    Title: cartel.CartelNameVi,
+                    Details:
+                    [
+                        new ScreenDetail("Thương Bang", cartel.CartelNameVi),
+                        new ScreenDetail("Chưởng Sự", cartel.LeaderVi),
+                        new ScreenDetail("Độc Quyền", cartel.DomainVi),
+                        new ScreenDetail("Hào Cảm", $"{cartel.Standing}/100"),
+                        new ScreenDetail("Minh Ước", treatyVi)
+                    ]));
+            }
+
+            foreach (var ar in _logistics.GetRoutes())
+            {
+                var fromName = _map.Find(ar.FromCityId)?.NameVi ?? $"#{ar.FromCityId}";
+                var toName = _map.Find(ar.ToCityId)?.NameVi ?? $"#{ar.ToCityId}";
+                var itemName = _items.Find(ar.BuyItemId)?.NameVi ?? $"Hàng #{ar.BuyItemId}";
+                var arCmds = new List<ScreenCommand>
+                {
+                    new($"auto_route:toggle:{ar.Id}", ar.Active ? "Tạm Dừng" : "Kích Hoạt"),
+                    new($"auto_route:delete:{ar.Id}", "Xóa Tuyến")
+                };
+
+                autoRouteRows.Add(new ScreenRow(
+                    [
+                        $"{ar.Name} ({fromName} ➔ {toName})",
+                        itemName,
+                        $"Mua <={ar.MaxBuyPrice}q · Bán >={ar.SellMinPrice}q",
+                        $"{ar.BatchSize} đv / 4 ngày",
+                        ar.Active ? "🟢 Đang vận hành" : "⏸️ Đang tạm dừng"
+                    ],
+                    arCmds));
+            }
+        }
+
         return new ScreenModel(
             ScreenId,
             $"{Title} — {city.NameVi}",
             $"Đội xe: {fleet.NameVi} (Bậc {fleet.Tier}/3) · Đang chở {_service.UnitsInTransit} đv · Hợp đồng: {activeContracts} · Túi: {held} đv",
             [
                 new ScreenSection("Thương Cơ Thị Trường & Tin Tức Thời Thế", RumorColumns, rumorRows),
+                new ScreenSection("Tứ Đại Thương Bang & Minh Ước Độc Quyền", CartelColumns, cartelRows),
+                new ScreenSection("Tuyến Thương Mại Tự Động (Thương Đoàn Thường Trực)", AutoRouteColumns, autoRouteRows),
                 new ScreenSection("Biên Chế Nhân Sự Thương Đội", CrewColumns, crewRows),
                 new ScreenSection("Hợp Đồng Áp Tiêu (Đại Thương Bang)", ContractColumns, contractRows),
                 new ScreenSection("Tuyến Đường & Lộ Trình", RouteColumns, routeRows),
@@ -325,11 +404,25 @@ internal sealed class CaravanCommandHandler : IScreenCommandHandler
 {
     private readonly CaravanService _service;
     private readonly IPlayerState _player;
+    private readonly AutomatedLogisticsService? _logistics;
+    private readonly IWallet? _wallet;
+    private readonly IWorldMap? _map;
+    private readonly IItemCatalog? _items;
 
-    public CaravanCommandHandler(CaravanService service, IPlayerState player)
+    public CaravanCommandHandler(
+        CaravanService service,
+        IPlayerState player,
+        AutomatedLogisticsService? logistics = null,
+        IWallet? wallet = null,
+        IWorldMap? map = null,
+        IItemCatalog? items = null)
     {
         _service = service;
         _player = player;
+        _logistics = logistics;
+        _wallet = wallet;
+        _map = map;
+        _items = items;
     }
 
     public string ScreenId => "caravan.routes";
@@ -339,6 +432,54 @@ internal sealed class CaravanCommandHandler : IScreenCommandHandler
         if (string.Equals(commandId, "upgrade_fleet", StringComparison.Ordinal))
         {
             return _service.UpgradeFleet().Message;
+        }
+
+        if (commandId.StartsWith("cartel:", StringComparison.Ordinal) && _logistics is not null && _wallet is not null)
+        {
+            var cparts = commandId.Split(':');
+            if (cparts.Length >= 3)
+            {
+                return cparts[1] switch
+                {
+                    "gift" => _logistics.GiftCartel(cparts[2], _wallet),
+                    "ally" => _logistics.SignCartelTreaty(cparts[2], _wallet),
+                    _ => "Lệnh thương bang không hợp lệ."
+                };
+            }
+            return "Lệnh thương bang không hợp lệ.";
+        }
+
+        if (commandId.StartsWith("auto_route:", StringComparison.Ordinal) && _logistics is not null)
+        {
+            var rparts = commandId.Split(':');
+            if (rparts.Length >= 3)
+            {
+                if (rparts[1] == "create" && long.TryParse(rparts[2], out var toCity))
+                {
+                    var itemId = rparts.Length >= 4 && long.TryParse(rparts[3], out var iid) ? iid : 1L;
+                    var fromCity = _player.CurrentCityId;
+                    var fromName = _map?.Find(fromCity)?.NameVi ?? $"Thành #{fromCity}";
+                    var toName = _map?.Find(toCity)?.NameVi ?? $"Thành #{toCity}";
+                    var itemDef = _items?.Find(itemId);
+                    var basePrice = itemDef?.BasePrice ?? 15;
+                    var routeName = $"Tuyến {itemDef?.NameVi ?? "Hàng"} {fromName} - {toName}";
+                    _logistics.CreateRoute(routeName, fromCity, toCity, itemId, basePrice * 2, Math.Max(1, basePrice / 2), 25);
+                    return $"Đã thiết lập tuyến buôn tự động: {routeName}!";
+                }
+                if (rparts[1] == "toggle" && long.TryParse(rparts[2], out var toggleId))
+                {
+                    var existing = _logistics.GetRoutes().FirstOrDefault(r => r.Id == toggleId);
+                    if (existing is null) return "Không tìm thấy tuyến buôn tự động.";
+                    _logistics.ToggleRoute(toggleId, !existing.Active);
+                    return existing.Active ? $"Đã tạm dừng tuyến '{existing.Name}'." : $"Đã kích hoạt lại tuyến '{existing.Name}'.";
+                }
+                if (rparts[1] == "delete" && long.TryParse(rparts[2], out var delId))
+                {
+                    _logistics.DeleteRoute(delId);
+                    return "Đã xóa tuyến buôn tự động.";
+                }
+            }
+            return "Lệnh tuyến tự động không hợp lệ.";
         }
 
         if (commandId.StartsWith("unassign_crew:", StringComparison.Ordinal))

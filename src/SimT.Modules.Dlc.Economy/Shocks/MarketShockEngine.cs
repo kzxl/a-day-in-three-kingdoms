@@ -50,7 +50,7 @@ public sealed class MarketShockEngine
         _db = db;
     }
 
-    public CityShockDef? GetActiveShock(long citadelId, int currentDayIndex)
+    public CityShockDef? GetActiveShock(long citadelId, long currentDayIndex)
     {
         return _db.Query(
             """
@@ -70,7 +70,7 @@ public sealed class MarketShockEngine
             new DbArgs().Add("@city", citadelId).Add("@day", currentDayIndex)).FirstOrDefault();
     }
 
-    public void TriggerShock(long citadelId, string shockType, int startDay, int durationDays, int severityPermille, string noteVi)
+    public void TriggerShock(long citadelId, string shockType, long startDay, int durationDays, int severityPermille, string noteVi)
     {
         _db.Execute(
             """
@@ -89,7 +89,7 @@ public sealed class MarketShockEngine
     /// <summary>
     /// Computes shock multiplier in permille (1000 = normal baseline).
     /// </summary>
-    public int GetShockMultiplierPermille(long citadelId, string itemCode, int currentDayIndex)
+    public int GetShockMultiplierPermille(long citadelId, string itemCode, long currentDayIndex)
     {
         var activeShock = GetActiveShock(citadelId, currentDayIndex);
         if (activeShock is null)
@@ -97,35 +97,100 @@ public sealed class MarketShockEngine
             return 1000;
         }
 
+        return EvaluateShockMultiplier(activeShock.ShockType, activeShock.SeverityPermille, itemCode);
+    }
+
+    public static int EvaluateShockMultiplier(string shockType, int severityPermille, string itemCode)
+    {
         var tier = ItemValueChain.GetTier(itemCode);
-        return activeShock.ShockType switch
+        return shockType switch
         {
             MarketShockTypes.Siege => itemCode switch
             {
-                "gao" or "lua_mi" or "ca_kho" => Math.Max(2500, activeShock.SeverityPermille * 2), // Lương thực tăng vọt
-                "sat" or "cuoc_nong" or "liem_gat" => 2000,                                         // Khí cụ, sắt tăng
-                _ when tier == EconomicValueTier.Tier4_Luxury_EndSink => 450,                      // Xa xỉ phẩm giảm mạnh
+                "gao" or "lua_mi" or "ca_kho" => Math.Max(2500, severityPermille * 2), // Lương thực tăng vọt
+                "sat" or "cuoc_nong" or "liem_gat" => 2000,                            // Khí cụ, sắt tăng
+                _ when tier == EconomicValueTier.Tier4_Luxury_EndSink => 450,          // Xa xỉ phẩm giảm mạnh
                 _ => 1200
             },
             MarketShockTypes.Drought => itemCode switch
             {
-                "gao" or "lua_mi" or "hat_giong_lua" => 2000,                                      // Hạn hán thiếu thóc
+                "gao" or "lua_mi" or "hat_giong_lua" => 2000,                          // Hạn hán thiếu thóc
                 "phan_bon" or "binh_tuoi" => 1800,
                 _ => 1000
             },
             MarketShockTypes.Epidemic => itemCode switch
             {
-                "thuoc" or "sam" or "hat_giong_duoc_thao" => 3000,                                 // Dược liệu tăng gấp 3
+                "thuoc" or "sam" or "hat_giong_duoc_thao" => 3000,                     // Dược liệu tăng gấp 3
                 _ => 1000
             },
             MarketShockTypes.Prosperity => itemCode switch
             {
-                "gao" or "lua_mi" => 800,                                                          // Được mùa thóc rẻ
-                _ when tier == EconomicValueTier.Tier4_Luxury_EndSink => 1400,                      // Dân giàu chuộng xa xỉ
+                "gao" or "lua_mi" => 800,                                              // Được mùa thóc rẻ
+                _ when tier == EconomicValueTier.Tier4_Luxury_EndSink => 1400,          // Dân giàu chuộng xa xỉ
                 _ => 1050
             },
             _ => 1000
         };
+    }
+
+    public Dictionary<long, (string ShockType, int SeverityPermille)> GetActiveShocksMap(long currentDayIndex)
+    {
+        var rows = _db.Query(
+            """
+            SELECT citadel_id, shock_type, severity_permille
+            FROM mk_city_shock
+            WHERE @day BETWEEN start_day AND end_day
+            ORDER BY id ASC
+            """,
+            r => (City: r.GetInt64(0), Type: r.GetString(1), Sev: r.GetInt32(2)),
+            DbArgs.One("@day", currentDayIndex));
+
+        var map = new Dictionary<long, (string ShockType, int SeverityPermille)>();
+        foreach (var r in rows)
+        {
+            map[r.City] = (r.Type, r.Sev);
+        }
+        return map;
+    }
+
+    public void SimulateMonthlyShocks(GameDate date, IWorldMap map, IMilitaryCommand? military = null)
+    {
+        _db.Execute("DELETE FROM mk_city_shock WHERE end_day < @day", DbArgs.One("@day", date.DayIndex));
+
+        var citadels = map.Citadels;
+        if (citadels.Count == 0) return;
+
+        // 1. Military / Bandit threat triggers SIEGE shock if citadel security is critically low
+        if (military is not null)
+        {
+            foreach (var c in citadels)
+            {
+                if (GetActiveShock(c.Id, date.DayIndex) is not null) continue;
+                var sec = military.GetCitadelSecurity(c.Id);
+                if (sec < 35)
+                {
+                    TriggerShock(c.Id, MarketShockTypes.Siege, date.DayIndex, 20, 1400, $"Đạo tặc & binh biến uy hiếp {c.NameVi}, lương thảo khan hiếm");
+                    break;
+                }
+            }
+        }
+
+        // 2. Seasonal macro-shock on rotating regional citadel
+        var targetCity = citadels[(date.Year * 12 + date.Month) % citadels.Count];
+        if (GetActiveShock(targetCity.Id, date.DayIndex) is null)
+        {
+            var (shockType, sev, note) = date.Month switch
+            {
+                3 or 4 => (MarketShockTypes.Epidemic, 1500, $"Chướng khí mùa xuân bùng phát tại {targetCity.NameVi}, y quán ráo riết thu mua dược thảo"),
+                6 or 7 => (MarketShockTypes.Drought, 1400, $"Nắng hạn gay gắt mùa hạ tại {targetCity.NameVi}, giá lúa gạo tăng vọt"),
+                8 or 9 => (MarketShockTypes.Prosperity, 1200, $"Mùa thu hoạch đại phong đăng tại {targetCity.NameVi}, phú thương đua nhau sắm gấm vóc"),
+                _ => (MarketShockTypes.Normal, 1000, "")
+            };
+            if (shockType != MarketShockTypes.Normal)
+            {
+                TriggerShock(targetCity.Id, shockType, date.DayIndex, 25, sev, note);
+            }
+        }
     }
 
     private bool _hasRumorTable;
@@ -249,10 +314,12 @@ public sealed class MarketShockEngine
             }
         }
 
+        var activeShocks = GetActiveShocksMap(today.DayIndex);
         var month = today.Month;
         for (var c = 0; c < citadels.Count; c++)
         {
             var citadel = citadels[c];
+            var hasShock = activeShocks.TryGetValue(citadel.Id, out var cityShock);
             for (var i = 0; i < goods.Count; i++)
             {
                 var item = goods[i];
@@ -260,6 +327,14 @@ public sealed class MarketShockEngine
                 var baseQuote = MarketPricing.Quote(item, citadel, month, stock, baseline);
                 var factor = rumors is not null && rumors.TryGetValue((citadel.Id, item.Id), out var f) ? f : 1000;
                 var buy = factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
+                if (hasShock)
+                {
+                    var shockMult = EvaluateShockMultiplier(cityShock.ShockType, cityShock.SeverityPermille, item.Code);
+                    if (shockMult != 1000)
+                    {
+                        buy = Math.Max(1, buy * shockMult / 1000);
+                    }
+                }
                 buyPrices[c, i] = buy;
                 sellPrices[c, i] = MarketPricing.SellQuote(buy);
             }

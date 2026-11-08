@@ -75,10 +75,12 @@ public sealed class PlayerBankScreen : IScreenContribution
 
         var branches = _service.GetBranches(bank.Id);
         var convoys = _service.GetConvoys(bank.Id);
+        var factionLoans = _service.GetFactionLoans(bank.Id);
 
         var totalVaultCash = branches.Sum(b => b.VaultCash);
         var totalNpcDeposits = branches.Sum(b => b.NpcDeposits);
         var totalNpcLoans = branches.Sum(b => b.NpcLoans);
+        var totalWarLoans = factionLoans.Where(l => l.Status == "ACTIVE").Sum(l => l.PrincipalAmount);
 
         var metrics = new List<ScreenMetric>
         {
@@ -86,7 +88,7 @@ public sealed class PlayerBankScreen : IScreenContribution
             new("Tổng Kim Khố", $"{totalVaultCash:N0}", "bạc thỏi toàn mạng lưới", MetricTone.Positive),
             new("Tiền gửi NPC", $"{totalNpcDeposits:N0}", "huy động dân chúng", MetricTone.Neutral),
             new("Cho NPC vay", $"{totalNpcLoans:N0}", "dư nợ thương nhân/lãnh chúa", MetricTone.Neutral),
-            new("Chi nhánh", $"{branches.Count}", "thành trì", MetricTone.Neutral)
+            new("Tín Dụng Quân Phí", $"{totalWarLoans:N0}", "tài trợ thế lực chư hầu", MetricTone.Positive)
         };
 
         var sections = new List<ScreenSection>();
@@ -179,6 +181,31 @@ public sealed class PlayerBankScreen : IScreenContribution
             commands.Add(new($"dispatch:{currentBranch.Id}:{otherBranch.Id}:1000", $"Áp Tải 1.000 Quan Sang {otherCit}"));
         }
 
+        // 3. Sovereign War Loans & Faction Privileges section
+        var warLoanColumns = new[] { "Thế Lực Chư Hầu", "Quân Phí Giải Ngân", "Lãi Suất/Tháng", "Đặc Quyền Chính Trị & Kinh Tế", "Trạng Thái" };
+        var warLoanRows = new List<ScreenRow>();
+        foreach (var wl in factionLoans)
+        {
+            var wlCmds = wl.Status == "ACTIVE"
+                ? new List<ScreenCommand> { new($"recall_loan:{wl.Id}", "Thu Hồi Vốn Gốc") }
+                : new List<ScreenCommand>();
+            warLoanRows.Add(new ScreenRow(
+                [
+                    wl.FactionNameVi,
+                    $"{wl.PrincipalAmount:N0} quan",
+                    $"{wl.MonthlyRatePct}% (+{(long)(wl.PrincipalAmount * wl.MonthlyRatePct / 100):N0}q/tháng)",
+                    wl.PrivilegeDescVi,
+                    wl.Status == "ACTIVE" ? "🟢 Đang hưởng đặc quyền" : "Đã tất toán"
+                ],
+                wlCmds));
+        }
+
+        sections.Add(new ScreenSection("⚔️ Khế Ước Tín Dụng Quân Phí & Đặc Quyền Chư Hầu", warLoanColumns, warLoanRows));
+
+        commands.Add(new("faction_loan:1:2000", "Tài Trợ Quân Phí Tào Ngụy (2.000q)"));
+        commands.Add(new("faction_loan:2:2000", "Tài Trợ Quân Phí Thục Hán (2.000q)"));
+        commands.Add(new("faction_loan:3:2000", "Tài Trợ Quân Phí Đông Ngô (2.000q)"));
+
         return new ScreenModel(
             ScreenId,
             $"{Title} — {bank.BankName}",
@@ -249,6 +276,24 @@ public sealed class PlayerBankCommandHandler : IScreenCommandHandler
                     return _service.DispatchConvoy(origId, destId, amt).MessageVi;
                 }
                 return "Lệnh điều động tiêu cục không đúng định dạng.";
+            }
+
+            case "faction_loan":
+            {
+                if (parts.Length > 2 && long.TryParse(parts[1], out var facId) && long.TryParse(parts[2], out var amt))
+                {
+                    return _service.IssueFactionWarLoan(facId, amt).MessageVi;
+                }
+                return "Lệnh tài trợ tín dụng quân phí không đúng định dạng.";
+            }
+
+            case "recall_loan":
+            {
+                if (parts.Length > 1 && long.TryParse(parts[1], out var loanId))
+                {
+                    return _service.RecallFactionWarLoan(loanId).MessageVi;
+                }
+                return "Lệnh thu hồi vốn gốc quân phí không đúng định dạng.";
             }
 
             default:

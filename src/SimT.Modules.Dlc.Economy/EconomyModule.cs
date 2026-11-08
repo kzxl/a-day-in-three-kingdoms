@@ -29,8 +29,9 @@ public sealed class EconomyModule : ISimModule
         var social = context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var sn) ? sn : null;
         var chronicle = context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var sc) ? sc : null;
 
-        // 1. Market Service
-        var marketService = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log, npcs);
+        // 1. Shocks & Arbitrage Engine + Market Service
+        var shockEngine = new MarketShockEngine(context.Db);
+        var marketService = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log, npcs, shockEngine);
         marketService.EnsureListings(items, map);
         context.Capabilities.Provide(CapabilityIds.MarketTrade, marketService);
         context.Capabilities.Provide(CapabilityIds.MarketPortfolio, marketService);
@@ -53,9 +54,6 @@ public sealed class EconomyModule : ISimModule
         farmService.EnsurePlots(map);
         context.Capabilities.Provide(CapabilityIds.CultivationEstate, farmService);
 
-        // 2b. Shocks & Arbitrage Engine
-        var shockEngine = new MarketShockEngine(context.Db);
-
         // 2c. Banking Service
         var bankingService = new BankingService(context.Db, context.Clock, wallet, context.Log);
         var playerBankService = new PlayerBankService(context.Db, context.Clock, wallet, context.Log);
@@ -77,8 +75,8 @@ public sealed class EconomyModule : ISimModule
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.player_stall", marketService, player));
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.warehouse", marketService, player));
 
-        context.Ui.AddScreen(new CaravanScreen(caravanService, map, bag, player, context.Clock, items, npcs));
-        context.Ui.AddCommandHandler(new CaravanCommandHandler(caravanService, player));
+        context.Ui.AddScreen(new CaravanScreen(caravanService, map, bag, player, context.Clock, items, npcs, logisticsService));
+        context.Ui.AddCommandHandler(new CaravanCommandHandler(caravanService, player, logisticsService, wallet, map, items));
 
         context.Ui.AddScreen(new FarmScreen(farmService, map, player, context.Clock));
         context.Ui.AddCommandHandler(new FarmCommandHandler(farmService, player, marketService));
@@ -89,14 +87,24 @@ public sealed class EconomyModule : ISimModule
         context.Ui.AddScreen(new PlayerBankScreen(playerBankService, map, player, wallet, context.Clock));
         context.Ui.AddCommandHandler(new PlayerBankCommandHandler(playerBankService, player));
 
-        context.Ui.AddScreen(new ProfessionScreen(professionService, items, player, bag));
-        context.Ui.AddCommandHandler(new ProfessionCommandHandler(professionService, player));
+        var professionScreen = new ProfessionScreen(professionService, items, player, bag);
+        context.Ui.AddScreen(professionScreen);
+        context.Ui.AddCommandHandler(new ProfessionCommandHandler(professionService, player, professionScreen));
 
         // Event Subscriptions
         context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyStallRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => marketService.RestockMonthly(closed.Date));
-        context.Events.Subscribe<MonthClosed>(closed => valueChainService.SimulateMonthlyCivicConsumption(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed =>
+        {
+            var military = context.Capabilities.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var mc) ? mc : null;
+            shockEngine.SimulateMonthlyShocks(closed.Date, map, military);
+            foreach (var c in map.Citadels)
+            {
+                valueChainService.SimulateRegionalExtraction(c.Id);
+            }
+            valueChainService.SimulateMonthlyCivicConsumption(closed.Date);
+        });
         context.Events.Subscribe<DayAdvanced>(day => marketService.SpoilOneDay(day.Date));
         context.Events.Subscribe<DayAdvanced>(day => marketService.DailyRetailSales(day.Date));
         context.Events.Subscribe<DayAdvanced>(day => marketService.RecordDailyPrices(day.Date));
@@ -107,11 +115,12 @@ public sealed class EconomyModule : ISimModule
         context.Events.Subscribe<MonthClosed>(closed => farmService.ChargeMonthlyRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => farmService.RecoverSoil(closed.Date));
 
+        context.Events.Subscribe<DayAdvanced>(day => professionService.OnDay(day.Date));
         context.Events.Subscribe<MonthClosed>(closed => professionService.OnMonth(closed.Date));
         context.Events.Subscribe<MonthClosed>(_ => bankingService.ProcessMonthlyInterest());
         context.Events.Subscribe<MonthClosed>(closed => playerBankService.SimulateMonthlyTurn(closed.Date));
-        context.Events.Subscribe<DayAdvanced>(day => playerBankService.SimulateMonthlyTurn(day.Date));
-        context.Events.Subscribe<DayAdvanced>(day => logisticsService.StepAutomatedRoutes(day.Date, marketService, wallet, map, items));
+        context.Events.Subscribe<DayAdvanced>(day => playerBankService.StepDailyConvoys(day.Date));
+        context.Events.Subscribe<DayAdvanced>(day => logisticsService.StepAutomatedRoutes(day.Date, marketService, wallet, map, items, caravanService));
 
         // Invariants
         foreach (var invariant in EconomyInvariants.All())

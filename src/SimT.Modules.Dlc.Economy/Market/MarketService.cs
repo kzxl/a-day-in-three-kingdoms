@@ -28,6 +28,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
     private readonly IWorldMap _map;
     private readonly ILog _log;
     private readonly INpcRegistry? _npcs;
+    private readonly SimT.Modules.Dlc.Economy.Shocks.MarketShockEngine? _shocks;
 
     public MarketService(
         IDbSession db,
@@ -38,7 +39,8 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         IItemCatalog items,
         IWorldMap map,
         ILog log,
-        INpcRegistry? npcs = null)
+        INpcRegistry? npcs = null,
+        SimT.Modules.Dlc.Economy.Shocks.MarketShockEngine? shocks = null)
     {
         _db = db;
         _clock = clock;
@@ -49,6 +51,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         _map = map;
         _log = log;
         _npcs = npcs;
+        _shocks = shocks;
     }
 
     long IMarketWarehouse.DefaultCapacity => DefaultCapacity;
@@ -107,6 +110,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
                 .ToDictionary(x => (x.City, x.Item), x => x.Mult);
         }
 
+        var activeShocks = _shocks?.GetActiveShocksMap(date.DayIndex);
         var month = date.Month;
         var samples = new List<(long City, long Item, long Price)>(rows.Count);
         foreach (var row in rows)
@@ -121,6 +125,14 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
             var baseQuote = MarketPricing.Quote(item, city, month, row.Stock, row.Baseline);
             var factor = rumorFactors != null && rumorFactors.TryGetValue((row.City, row.Item), out var f) ? f : 1000;
             var price = factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
+            if (activeShocks != null && activeShocks.TryGetValue(row.City, out var cityShock))
+            {
+                var shockMult = SimT.Modules.Dlc.Economy.Shocks.MarketShockEngine.EvaluateShockMultiplier(cityShock.ShockType, cityShock.SeverityPermille, item.Code);
+                if (shockMult != 1000)
+                {
+                    price = Math.Max(1, price * shockMult / 1000);
+                }
+            }
             samples.Add((row.City, row.Item, price));
         }
 
@@ -188,7 +200,16 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
             StallBaseline(cityId, itemId));
 
         var factor = GetRumorPriceFactor(cityId, itemId);
-        return factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
+        var price = factor == 1000 ? baseQuote : Math.Max(1, baseQuote * factor / 1000);
+        if (_shocks is not null)
+        {
+            var shockMult = _shocks.GetShockMultiplierPermille(cityId, item.Code, _clock.Today.DayIndex);
+            if (shockMult != 1000)
+            {
+                price = Math.Max(1, price * shockMult / 1000);
+            }
+        }
+        return price;
     }
 
     public long QuoteSell(long cityId, long itemId) => MarketPricing.SellQuote(QuoteBuy(cityId, itemId));

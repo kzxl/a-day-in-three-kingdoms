@@ -12,7 +12,7 @@ public sealed record WorkshopDef(
     bool IsActive,
     int CreatedDayIndex);
 
-/// <summary>Crafting commission or order from factions, garrisons, or merchants.</summary>
+/// <summary>Crafting or resource-gathering commission (INBOUND from NPCs/guilds, or OUTBOUND bounty posted by the player).</summary>
 public sealed record CraftOrderDef(
     long Id,
     string ClientNameVi,
@@ -24,7 +24,11 @@ public sealed record CraftOrderDef(
     int FameReward,
     int DeadlineDay,
     string Status,
-    int? AcceptedDay = null);
+    int? AcceptedDay = null,
+    string Direction = "INBOUND",
+    long? AssigneeNpcId = null,
+    string? AssigneeNameVi = null,
+    int? CompletionDay = null);
 
 /// <summary>Equipment slot on the protagonist (Weapon, Armor, Tool).</summary>
 public sealed record EquippedSlotDef(
@@ -89,14 +93,22 @@ public interface IProfessionGuild
 
     WorkResult UpgradeFurnace(long citadelId);
 
-    // Crafting orders
+    // Crafting orders & Player Bounties
     IReadOnlyList<CraftOrderDef> AvailableOrders(long citadelId);
 
     IReadOnlyList<CraftOrderDef> ActiveOrders();
 
+    IReadOnlyList<CraftOrderDef> PlayerBounties(long? citadelId = null);
+
     WorkResult AcceptOrder(long orderId);
 
     WorkResult FulfillOrder(long citadelId, long orderId);
+
+    WorkResult PostBounty(long citadelId, long targetItemId, int quantity, int rewardCopper);
+
+    WorkResult DispatchRetainerBounty(long citadelId, long retainerNpcId, long targetItemId, int quantity);
+
+    WorkResult CancelBounty(long orderId);
 
     // Equipment features
     IReadOnlyList<EquippedSlotDef> EquippedSlots { get; }

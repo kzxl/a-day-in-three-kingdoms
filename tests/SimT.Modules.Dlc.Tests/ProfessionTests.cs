@@ -879,6 +879,242 @@ public sealed class ProfessionTests : IDisposable
         Assert.True(guild.CalculateRepairCost(1, eq2) < baseRepairCost);
     }
 
+    [Fact]
+    public void Wilderness_extraction_respects_fatigue_gate_and_regional_herb_valley_nodes()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+
+        // 1. Move to Tương Dương (10) — Lộc Môn Sơn Đạo Quán (HERB_VALLEY: Thuốc #7 + Chu Sa Đan Thạch #31)
+        player.MoveTo(10, kernel.Today);
+        attrs.LearnSkill("exotic_husbandry");
+        attrs.TrainSkill("exotic_husbandry", 500);
+
+        var cinnabarBefore = bag.Quantity(10, 31);
+        var msgForage = Command(kernel, "wild:forage");
+        Assert.Contains("Lộc Môn Sơn", msgForage);
+        Assert.True(bag.Quantity(10, 31) > cinnabarBefore);
+
+        // 2. Move to Uyển Thành (16) — Nam Dương Thảo Dược & Mỏ Đồng (HERB_VALLEY with secondary Bronze #16)
+        attrs.Rest(3);
+        player.MoveTo(16, kernel.Today);
+        var bronzeBefore = bag.Quantity(16, 16);
+        var msgMine = Command(kernel, "wild:mine");
+        Assert.Contains("Nam Dương", msgMine);
+        Assert.True(bag.Quantity(16, 16) > bronzeBefore);
+
+        // 3. Exhaustion gate: when Fatigue >= 90, Mine and Forage are blocked until resting/eating
+        attrs.ApplyFatigue(100);
+        Assert.True(attrs.Vitals.Fatigue >= 90);
+
+        var dayBeforeExhausted = kernel.Today;
+        var blockedMine = Command(kernel, "wild:mine");
+        Assert.Contains("kiệt sức", blockedMine, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(dayBeforeExhausted, kernel.Today);
+
+        var blockedForage = Command(kernel, "wild:forage");
+        Assert.Contains("kiệt sức", blockedForage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(dayBeforeExhausted, kernel.Today);
+    }
+
+    [Fact]
+    public void Player_can_post_bounty_commission_and_local_npc_accepts_and_delivers_resources()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var bag = Bag(kernel);
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+
+        var balanceBefore = wallet.Liquid;
+        var ironBefore = bag.Quantity(1, 5); // Item 5: Sắt (base price 60)
+
+        // 1. Post bounty at citadel 1 for 3 Iron (#5) with 220 copper reward (escrowed immediately)
+        var postRes = guild.PostBounty(1, 5, 3, 220);
+        Assert.True(postRes.Ok);
+        Assert.Equal(balanceBefore - 220, wallet.Liquid);
+
+        var activeBounties = guild.PlayerBounties(1);
+        var posted = Assert.Single(activeBounties);
+        Assert.Equal("OUTBOUND", posted.Direction);
+        Assert.Equal("AVAILABLE", posted.Status);
+        Assert.Equal(5, posted.TargetItemId);
+        Assert.Equal(3, posted.QuantityNeeded);
+        Assert.Equal(220, posted.RewardCopper);
+
+        // 2. Advance days: a local NPC accepts the bounty and completes delivery
+        for (var d = 0; d < 8; d++)
+        {
+            kernel.Clock.Advance(1);
+        }
+
+        var updated = guild.PlayerBounties(1).First(b => b.Id == posted.Id);
+        Assert.Equal("COMPLETED", updated.Status);
+        Assert.NotNull(updated.AssigneeNpcId);
+        Assert.NotNull(updated.AssigneeNameVi);
+        Assert.Equal(ironBefore + 3, bag.Quantity(1, 5));
+
+        // 3. Verify NPC affinity increased from commercial cooperation
+        var rel = social.GetRelationship(updated.AssigneeNpcId!.Value);
+        Assert.True(rel.Affinity > 0);
+    }
+
+    [Fact]
+    public void Player_can_cancel_unassigned_bounty_for_full_escrow_refund_or_dispatch_retainer_for_free()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var bag = Bag(kernel);
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        // 1. Post and immediately cancel a bounty -> full refund
+        var balBefore = wallet.Liquid;
+        var postRes = Command(kernel, "bounty:post:7:2:260"); // 2 Thuốc (#7) for 260 Quan
+        Assert.Contains("Cáo thị", postRes);
+        Assert.Equal(balBefore - 260, wallet.Liquid);
+
+        var bounty = guild.PlayerBounties(1).Last();
+        var cancelRes = Command(kernel, $"bounty:cancel:{bounty.Id}");
+        Assert.Contains("hoàn trả", cancelRes);
+        Assert.Equal(balBefore, wallet.Liquid);
+
+        // 2. Recruit a local NPC as Retainer and dispatch them for free gathering
+        var localNpc = registry.FindByCitadel(1).First(n => !SocialService_IsWarlord(n));
+        bag.Add(1, 3, 20); // Tea for gifting
+        for (int i = 0; i < 15; i++) social.GiftNpc(localNpc.Id, 3);
+        var recruitMsg = social.RecruitRetainer(localNpc.Id, "artisan", 30);
+        Assert.Contains("Đã chiêu mộ thành công", recruitMsg);
+
+        var balBeforeDispatch = wallet.Liquid;
+        var herbBefore = bag.Quantity(1, 7);
+        var dispatchRes = guild.DispatchRetainerBounty(1, localNpc.Id, 7, 2);
+        Assert.True(dispatchRes.Ok);
+        Assert.Equal(balBeforeDispatch, wallet.Liquid); // 0 escrow cost for own retainer
+
+        for (var d = 0; d < 6; d++)
+        {
+            kernel.Clock.Advance(1);
+        }
+
+        Assert.Equal(herbBefore + 2, bag.Quantity(1, 7));
+        Assert.Empty(kernel.RunInvariants());
+    }
+
+    private static bool SocialService_IsWarlord(NpcDef npc) =>
+        npc.Role.Contains("Chủ") || npc.Role.Contains("Đế") || npc.Role.Contains("Thái") || npc.Role.Contains("Vương");
+
+    [Fact]
+    public void Processing_workshop_requires_raw_materials_and_consumes_them_on_month_close()
+    {
+        using var kernel = _host.Boot();
+        var bag = Bag(kernel);
+
+        // Open smelting workshop at city 1 (trade 4: luyen_kim -> outputs Iron #5, requires Coal #15)
+        var openMsg = Command(kernel, "workshop:open:4");
+        Assert.Contains("Mở thành công", openMsg);
+
+        // Hire 2 artisans
+        Command(kernel, "workshop:hire:0");
+        Command(kernel, "workshop:hire:0");
+
+        // Ensure 0 Coal (#15) in bag initially
+        var coalInitial = bag.Quantity(1, 15);
+        if (coalInitial > 0) bag.Remove(1, 15, coalInitial);
+        var ironBefore = bag.Quantity(1, 5);
+
+        // 1. Advance 30 days WITHOUT coal -> smelting workshop stalls and produces 0 iron!
+        for (var day = 0; day < 30; day++)
+        {
+            kernel.Clock.Advance(1);
+        }
+        Assert.Equal(ironBefore, bag.Quantity(1, 5));
+
+        // 2. Supply 5 Coal (#15) into bag and upgrade furnace to level 2 (+1 yield per artisan)
+        bag.Add(1, 15, 5);
+        Command(kernel, "workshop:upgrade:0");
+
+        for (var day = 0; day < 31; day++)
+        {
+            kernel.Clock.Advance(1);
+        }
+
+        // 2 artisans consume 2 Coal (#15) and produce 2 * (base 2 + furnace bonus 1) = 6 Iron (#5)
+        Assert.Equal(3, bag.Quantity(1, 15));
+        Assert.Equal(ironBefore + 6, bag.Quantity(1, 5));
+    }
+
+    [Fact]
+    public void Profession_screen_supports_workspace_tabs_workshop_switching_batch_work_and_alerts()
+    {
+        using var kernel = _host.Boot();
+        var screen = kernel.Ui.Screens.First(s => s.ScreenId == "professions.trades");
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        var bag = Bag(kernel);
+
+        // 1. Default filter:all renders top filter commands and all core sections
+        var modelAll = screen.Render();
+        Assert.Contains(modelAll.Commands, c => c.Id == "filter:forge");
+        Assert.Contains(modelAll.Commands, c => c.Id == "filter:workshop");
+        Assert.Contains(modelAll.Commands, c => c.Id == "filter:orders");
+        Assert.Contains(modelAll.Commands, c => c.Id == "filter:life");
+        Assert.Equal(10, modelAll.Sections.Count);
+
+        // 2. Switch to filter:forge -> only shows Equipment Slots, Citadel Equipment, and Recipes (3 sections)
+        Command(kernel, "filter:forge");
+        var modelForge = screen.Render();
+        Assert.Equal(3, modelForge.Sections.Count);
+        Assert.Contains(modelForge.Sections, s => s.Heading == "Trang Bị Cá Nhân & Chỉ Số Cộng");
+        Assert.Contains(modelForge.Sections, s => s.Heading == "Khí Cụ Trong Thành");
+        Assert.Contains(modelForge.Sections, s => s.Heading == "Bản Vẽ Chế Tác Khí Cụ");
+
+        // Recipe with missing material offers a 1-click bounty command right on the recipe row
+        var recipeRow = modelForge.Sections.First(s => s.Heading == "Bản Vẽ Chế Tác Khí Cụ").Rows[0];
+        Assert.Contains(recipeRow.Commands, c => c.Id.StartsWith("bounty:post:"));
+
+        // 3. Switch to filter:orders -> only shows Guild Orders and Player Bounties (2 sections)
+        Command(kernel, "filter:orders");
+        var modelOrders = screen.Render();
+        Assert.Equal(2, modelOrders.Sections.Count);
+
+        // 4. Switch to filter:life -> only shows Kitchen, Wilderness, and Perks (3 sections)
+        Command(kernel, "filter:life");
+        var modelLife = screen.Render();
+        Assert.Equal(3, modelLife.Sections.Count);
+
+        // 5. Switch to filter:workshop -> shows Workshop and 16 Trades (2 sections)
+        Command(kernel, "filter:workshop");
+        var modelWs = screen.Render();
+        Assert.Equal(2, modelWs.Sections.Count);
+
+        // 6. Open workshop, hire artisan without coal -> triggers starving workshop alert & allows closing/switching workshop
+        var coalHeld = bag.Quantity(1, 15);
+        if (coalHeld > 0) bag.Remove(1, 15, coalHeld);
+        Command(kernel, "workshop:open:4");
+        Command(kernel, "workshop:hire:0");
+
+        var modelStarving = screen.Render();
+        Assert.NotNull(modelStarving.Alerts);
+        Assert.Contains(modelStarving.Alerts!, a => a.Message.Contains("Thiếu nguyên liệu"));
+
+        var closeMsg = Command(kernel, "workshop:close:0");
+        Assert.Contains("sang nhượng", closeMsg);
+        var reopenMsg = Command(kernel, "workshop:open:6"); // Reopen as Carpenter (#6 Thợ mộc)
+        Assert.Contains("Mở thành công", reopenMsg);
+
+        // 7. Batch work executes 3 consecutive batches in 1 command
+        var practiceBefore = Guild(kernel).PracticeCount(1);
+        var batchMsg = Command(kernel, "work:batch:1:3");
+        Assert.Contains("3 lượt", batchMsg);
+        Assert.Equal(practiceBefore + 3, Guild(kernel).PracticeCount(1));
+
+        // Restore filter:all
+        Command(kernel, "filter:all");
+        Assert.Equal(10, screen.Render().Sections.Count);
+    }
 }
 
 internal static class ProfessionServiceConstants
