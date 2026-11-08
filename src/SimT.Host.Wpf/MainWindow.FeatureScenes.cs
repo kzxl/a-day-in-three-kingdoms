@@ -204,70 +204,21 @@ public partial class MainWindow
     public static string ItemHanziFor(string category, string nameVi) =>
         RoleTitleVi.FormatItemHanzi(category, nameVi);
 
-    private static readonly string[] FeaturedProfileCodes =
-        ["npc_0223", "npc_0205", "npc_0206", "npc_0207", "npc_0221", "npc_0222", "npc_0224", "npc_0225"];
+    private string? _nextDossierInitialMode;
 
-    public bool TryOpenDossierScene(string? recommendation = null, long selectedNpcId = 0)
+    public bool TryOpenDossierScene(string? recommendation = null, long selectedNpcId = 0, string? initialMode = null)
     {
-        if (!SceneOverlay.IsAvailable ||
-            !_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) || reg is null ||
-            !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) || map is null ||
-            !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
+        if (!SceneOverlay.IsAvailable)
             return false;
 
-        var cityId = playerState.CurrentCityId;
-        var cityName = map.Find(cityId)?.NameVi ?? "Lạc Dương";
-        _kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social);
-        _kernel.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
-        _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs);
+        var mode = initialMode ?? _nextDossierInitialMode;
+        _nextDossierInitialMode = null;
 
-        var relMap = social?.AllRelationships().ToDictionary(r => r.NpcId) ?? new Dictionary<long, RelationshipDef>();
-        var ordered = new List<NpcDef>();
-        var seen = new HashSet<long>();
+        var scene = DossierSceneBuilder.Build(_kernel.Capabilities, recommendation, selectedNpcId, mode);
+        if (scene is null)
+            return false;
 
-        foreach (var code in FeaturedProfileCodes)
-            if (reg.FindByCode(code) is { } pNpc && seen.Add(pNpc.Id)) ordered.Add(pNpc);
-        foreach (var lNpc in reg.All.Where(n => n.CurrentCitadelId(society) == cityId))
-            if (seen.Add(lNpc.Id)) ordered.Add(lNpc);
-        foreach (var aNpc in reg.All)
-            if (seen.Add(aNpc.Id)) ordered.Add(aNpc);
-
-        var views = ordered.Select(npc =>
-        {
-            relMap.TryGetValue(npc.Id, out var rel);
-            var aff = rel?.Affinity ?? 0;
-            var (_, face, _) = SceneArtCatalog.ResolveNpcArt(npc);
-            var profile = SceneArtCatalog.ResolveProfileArt(npc);
-            var sk = npc.Skills.FirstOrDefault();
-            var a = npc.Attributes;
-            var isDeceased = npc.IsDeceased(society);
-            var tier = isDeceased
-                ? "Đã mất"
-                : aff >= 80 ? "Tri kỷ" : aff >= 60 ? "Thân thiết" : aff >= 35 ? "Quen biết" : rel is not null ? "Đã gặp" : "Chưa gặp";
-            var npcCityId = npc.CurrentCitadelId(society);
-            var isRetainer = social?.GetRetainer(npc.Id) is not null;
-            var isLocal = !isDeceased && (npcCityId == cityId || isRetainer);
-            var bioText = string.IsNullOrWhiteSpace(npc.BioVi)
-                ? "Nhân sĩ danh tiếng thời Tam Quốc, hành trạng được dân gian ca tụng."
-                : npc.BioVi;
-            if (isDeceased && !bioText.Contains("Đã mất", StringComparison.OrdinalIgnoreCase))
-                bioText = $"[Đã mất] {bioText}";
-            return new DossierNpcView(
-                npc.Id, npc.Code, npc.NameVi, npc.NameHan ?? string.Empty, npc.StyleNameVi ?? "—",
-                RoleTitleVi.FormatPersonality(npc.Personality), "Quần Hùng", RoleTitleVi.Format(npc.Role),
-                isDeceased ? $"{map.Find(npcCityId)?.NameVi ?? cityName} (Đã mất)" : map.Find(npcCityId)?.NameVi ?? cityName,
-                isLocal, rel is not null,
-                aff, tier, face, profile, sk?.NameVi ?? "Nội Chính Tinh Thông", "A",
-                sk?.EffectSummary ?? "Gia tăng hiệu suất công việc và uy vọng tại thành trì.",
-                bioText,
-                a.War, a.Ldr, a.Int, a.Pol, a.Dip, a.Com, a.Log, a.Cra,
-                social?.GetVisibleTraits(npc.Id));
-        }).ToList();
-
-        var prc = attrs?.EffectivePrc ?? 50;
-        var rec = recommendation ?? $"Đang tại {cityName}: chọn danh sĩ để xem ảnh chân dung riêng, biểu đồ bát diện năng lực, bái phỏng hoặc so tài.";
-        return SceneOverlay.ShowDossierScene(new DossierScene(
-            cityName, relMap.Count, reg.All.Count, $"{prc} điểm", rec, selectedNpcId, views));
+        return SceneOverlay.ShowDossierScene(scene);
     }
 
     private async void HandleMapSceneMessage(string type, string id, MapScene _)
@@ -335,6 +286,14 @@ public partial class MainWindow
             return;
         }
         if (type != "choice") return;
+        if (id.StartsWith("replay:", StringComparison.OrdinalIgnoreCase))
+        {
+            var evtCode = id["replay:".Length..].Trim();
+            _nextDossierInitialMode = "history";
+            if (!TryOpenHistoricalEventScene(evtCode, isReplay: true))
+                _nextDossierInitialMode = null;
+            return;
+        }
         if (id.StartsWith("visit:", StringComparison.Ordinal) && long.TryParse(id["visit:".Length..], out var visitId))
         {
             if (TryBlockRemoteDossierNpc(visitId)) return;

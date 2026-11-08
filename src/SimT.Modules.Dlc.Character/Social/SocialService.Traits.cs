@@ -185,6 +185,7 @@ internal sealed partial class SocialService : INpcTraits
                     .Add("@summary", $"Thắng tỉ thí võ nghệ khiến người [Mê võ] như {npc.NameVi} tâm phục khẩu phục (+{bonus} Hảo cảm)."));
         });
 
+        RecordMetNpc(npcId, _clock.Today, npc.CurrentCitadelId(_capabilities));
         return bonus;
     }
 }

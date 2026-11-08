@@ -16,7 +16,8 @@
     "market.trade",
     "market.npc_stalls",
     "politics.court",
-    "military.command"
+    "military.command",
+    "society.chronicle"
   ],
   "owns": {
     "tables": [
@@ -37,7 +38,9 @@
       "kz_npc_bond",
       "kz_bond_state",
       "kz_npc_wish",
-      "kz_wish_state"
+      "kz_wish_state",
+      "kz_met_npc",
+      "kz_roster_milestone"
     ],
     "migrations": ["migrations"]
   },

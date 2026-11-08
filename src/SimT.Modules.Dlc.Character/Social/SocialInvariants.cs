@@ -81,6 +81,19 @@ internal static class SocialInvariants
         }
     }
 
+    public sealed class RosterMilestonesValid : IInvariant
+    {
+        public string Id => "social.roster.milestones_valid";
+
+        public string? Check(IInvariantContext context)
+        {
+            var badMet = context.Db.ScalarLong("SELECT COUNT(*) FROM kz_met_npc WHERE npc_id <= 0 OR met_citadel_id <= 0 OR LENGTH(TRIM(first_met_date)) = 0");
+            if (badMet > 0) return $"{badMet} met NPC record(s) have invalid npc_id, citadel_id, or date";
+            var badMilestones = context.Db.ScalarLong("SELECT COUNT(*) FROM kz_roster_milestone WHERE fame_awarded <= 0 OR LENGTH(TRIM(claimed_date)) = 0");
+            return badMilestones == 0 ? null : $"{badMilestones} roster milestone record(s) have invalid fame_awarded or claimed_date";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new AffinityBounded();
@@ -90,5 +103,6 @@ internal static class SocialInvariants
         yield return new MemorySummariesPresent();
         yield return new SwornBrotherMaxTwo();
         yield return new LetterGiftsNonNegative();
+        yield return new RosterMilestonesValid();
     }
 }
