@@ -14,9 +14,9 @@ Nguồn tham khảo: Tam Quốc Chí 8 Remake (2024), XIII, XIV. Chỉ lấy ý 
 | --- | --- | --- | --- | --- |
 | 1 | Bản đồ thế lực và mùa | agy | `prompts/13` | Xong (merge "batch 1") |
 | 2 | Tin đồn tửu quán | Codex | `prompts/14` | Xong (`231b25b`) |
-| 3 | Sử biến theo lịch | agy | `prompts/15` | Đang làm |
+| 3 | Sử biến theo lịch | agy | `prompts/15` | Xong (merge "batch 3") |
 | 4 | Lưới quan hệ thiên hạ | Codex | `prompts/16` | Xong (merge "batch 4") |
-| 5 | Đặc tính nhân vật | agy | `prompts/17` | Chưa làm |
+| 5 | Đặc tính nhân vật | agy | `prompts/17` | Đang làm |
 | 6 | Ước nguyện NPC | Codex | `prompts/18` | Xong (merge "batch 6") |
 | 7 | Đầu quân chúa công | Codex (agy bận đợt 3) | `prompts/19` | Đang làm |
 | 8 | Người đi trên bản đồ | Codex | `prompts/20` | Chưa làm |
@@ -52,6 +52,8 @@ Thứ tự chạy:
 - Tắt DLC sở hữu tính năng thì game vẫn chạy, phần đó ẩn đi, không lỗi.
 - Mọi số ngẫu nhiên dùng `IRng` của kernel để golden replay vẫn xác định. Nếu hash golden đổi thì không tự cập nhật, ghi lý do trong báo cáo.
 - Không sửa kernel (`SimT.Core`, `SimT.Contracts/Time`) trừ khi đề bài cho phép rõ. Thời gian chỉ tính theo ngày nguyên.
+- Không sửa migration đã có; luôn thêm file mới với số chưa dùng.
+- Biên niên `so_journey_log` đã nhận các `event_kind`: `martial`, `commerce`, `governance`, `scholarly`, `travel`, `relationship`, `history`. Dùng các loại này, không dựng lại bảng.
 - Ảnh và file QA để ở `D:\Hung DATA\Tool\_tq_shots\NN\`, không commit vào repo.
 - Chữ trong game là tiếng Việt, tên người và thành dùng đúng dữ liệu hiện có.
 - Cảnh WebView2 không cuộn ngang ở cửa sổ 1076, hiệu ứng tắt khi `prefers-reduced-motion`.
