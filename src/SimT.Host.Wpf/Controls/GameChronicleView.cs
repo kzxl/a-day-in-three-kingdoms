@@ -875,7 +875,7 @@ public sealed partial class GameChronicleView : Border
             "martial" => "turmoil",
             "commerce" => "store",
             "governance" => "appointment",
-            "scholarly" => "bond",
+            "scholarly" or "relationship" => "bond",
             _ => "general"
         };
     }

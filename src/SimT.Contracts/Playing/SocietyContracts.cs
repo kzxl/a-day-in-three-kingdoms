@@ -56,6 +56,8 @@ public sealed record NpcStatDelta(
 /// </summary>
 public interface ISocietyChronicle
 {
+    void RecordRelationshipEvent(GameDate date, long npcId, string headlineVi) { }
+
     /// <summary>Chronicle feed of recent events across the realm or at a specific citadel.</summary>
     IReadOnlyList<SocietyLogEntry> RecentEvents(int limit = 50, string? category = null, long? citadelId = null);
 

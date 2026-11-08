@@ -284,6 +284,9 @@ public static class SceneTrustGuard
 
     private static bool IsValidSocialChoice(string id, SocialScene social)
     {
+        if (social.World is not null && id.StartsWith("search:", StringComparison.Ordinal) && id.Length <= 87) return true;
+        if (social.World is not null && id.StartsWith("world:", StringComparison.Ordinal) && long.TryParse(id[6..],out var center))
+            return social.World.Nodes.Concat(social.World.SearchResults).Any(n => n.NpcId == center);
         if (id == "host_banquet")
             return true;
         var parts = id.Split(':');

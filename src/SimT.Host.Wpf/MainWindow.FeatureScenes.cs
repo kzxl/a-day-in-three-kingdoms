@@ -15,7 +15,7 @@ public partial class MainWindow
         _ => false
     };
 
-    public bool TryOpenSocialScene(string? recommendation = null, long selectedNpcId = 0)
+    public bool TryOpenSocialScene(string? recommendation = null, long selectedNpcId = 0, long worldNpcId = 0, string worldSearch = "")
     {
         if (!SceneOverlay.IsAvailable ||
             !_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) || social is null ||
@@ -131,7 +131,9 @@ public partial class MainWindow
             currentCityName, GameDateCodec.ShortVi(_kernel.Today),
             _kernel.Ledger.Liquid, rep?.Standing.Fame ?? 0, attrs?.Vitals.Fatigue ?? 0,
             SceneArtCatalog.PlayerPortraitFace, recText, selectedNpcId,
-            nodeViews, skillViews, letterViews, retainerViews, giftItems));
+            nodeViews, skillViews, letterViews, retainerViews, giftItems,
+            _kernel.Capabilities.TryGet<INpcBonds>(INpcBonds.CapabilityId, out var bonds) && bonds is not null
+                ? NpcBondScene.Build(bonds, reg, worldNpcId > 0 ? worldNpcId : selectedNpcId > 0 ? selectedNpcId : candidateNpcs[0].Id, worldSearch) : null));
     }
 
     public bool TryOpenMarketScene(string? recommendation = null, long selectedItemId = 0)
@@ -273,6 +275,10 @@ public partial class MainWindow
             return;
         }
         if (type != "choice") return;
+        if (id.StartsWith("world:", StringComparison.Ordinal) && long.TryParse(id[6..], out var center))
+        { TryOpenSocialScene(worldNpcId: center); return; }
+        if (id.StartsWith("search:", StringComparison.Ordinal))
+        { TryOpenSocialScene(worldNpcId: _.World?.CenterId ?? 0, worldSearch: id[7..]); return; }
         await ExecuteScreenCommandAsync(id, "social.network");
         TryOpenSocialScene();
     }

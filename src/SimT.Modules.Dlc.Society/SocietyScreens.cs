@@ -66,6 +66,7 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
             "migration" => allEvents.Where(e => e.StatImpact != null && e.StatImpact.Contains("Di cư") || e.StatImpact != null && e.StatImpact.Contains("tị nạn") || e.StatImpact != null && e.StatImpact.Contains("Tránh giặc")).ToList(),
             "martial" => allEvents.Where(e => e.EventKind == "martial").ToList(),
             "commerce" => allEvents.Where(e => e.EventKind == "commerce").ToList(),
+            "relationship" => allEvents.Where(e => e.EventKind == "relationship").ToList(),
             "scholarly" => allEvents.Where(e => e.EventKind == "scholarly").ToList(),
             "governance" => allEvents.Where(e => e.EventKind == "governance").ToList(),
             "travel" => allEvents.Where(e => e.EventKind == "travel").ToList(),
@@ -97,6 +98,7 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
             "migration" => "Dòng di cư lánh loạn & tìm miền đất hứa",
             "martial" => "Phong vân võ nghiệp quần hùng",
             "commerce" => "Thương trường & đại lộ phú thương",
+            "relationship" => "Nhân duyên trong thiên hạ",
             "scholarly" => "Mưu thần & sĩ phu luận đàm",
             "governance" => "Chính sự châu quận & an dân",
             "travel" => "Hành trình vân du thiên hạ",
@@ -125,6 +127,7 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
+            new("filter:relationship", "Quan hệ", CommandKind.Secondary),
             new("filter:rumors", "Tin đồn", CommandKind.Secondary),
             new("filter:all", "Tất Cả", _filterKind == "all" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", _filterKind == "rivals" ? CommandKind.Primary : CommandKind.Secondary),
@@ -228,6 +231,7 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
+            new("filter:relationship", "Quan hệ", CommandKind.Secondary),
             new("filter:rumors", "Tin đồn", CommandKind.Secondary),
             new("filter:all", "Tất Cả", CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", CommandKind.Primary),
@@ -376,6 +380,7 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
+            new("filter:relationship", "Quan hệ", CommandKind.Secondary),
             new("filter:rumors", "Tin đồn", CommandKind.Secondary),
             new("filter:all", "Tất Cả", CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", CommandKind.Secondary),
@@ -406,6 +411,7 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
         {
             "martial" => "⚔️ Võ nghiệp",
             "commerce" => "💰 Thương mại",
+            "relationship" => "Nhân duyên",
             "scholarly" => "📜 Mưu thần",
             "governance" => "🏛️ Chính sự",
             "travel" => "🗺️ Du hành",
@@ -445,6 +451,7 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
         "local" => "Đồng thành",
         "martial" => "Võ nghiệp",
         "commerce" => "Thương lộ",
+        "relationship" => "Quan hệ",
         "scholarly" => "Mưu lược",
         "governance" => "Chính sự",
         "travel" => "Du hành",
