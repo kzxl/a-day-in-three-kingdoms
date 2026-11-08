@@ -319,11 +319,15 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
 
             _attributes?.AddExp("CRA", 25);
 
+            _attributes?.PracticeSkill("master_forging", 20);
+            var masterForgingLvl = _attributes?.GetEquippedSkillLevel("master_forging") ?? 0;
+
             var playerTier = Tier(recipe.TradeId);
             var seed = (int)(recipe.Id * 37 + playerTier * 19 + _clock.Today.DayIndex);
             var rng = new Random(seed);
             var perkAlchDiscount = HasPerk("dan_dao_thong_than") ? 0.10 : 0.0;
-            var roll = Math.Max(0.0, rng.NextDouble() - furnaceBonus - perkAlchDiscount);
+            var skillQualityBoost = masterForgingLvl * 0.025;
+            var roll = Math.Max(0.0, rng.NextDouble() - furnaceBonus - perkAlchDiscount - skillQualityBoost);
 
             string qualityRank;
             int bonusValue;
@@ -403,6 +407,10 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             {
                 maxDura += 25;
             }
+            if (masterForgingLvl > 0)
+            {
+                maxDura += masterForgingLvl * 3;
+            }
 
             var bonusStat = recipe.TradeId switch
             {
@@ -418,7 +426,11 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             var creatorId = _player?.PlayerId ?? 0;
             var creatorName = !string.IsNullOrWhiteSpace(_player?.Name) ? _player.Name : "Đại Sư Lữ Khách";
             var forgedDay = _clock.Today.DayIndex;
-            var initialFame = qualityRank == "MASTER" ? 25 : (qualityRank == "FINE" ? 10 : 0);
+            var initialFame = qualityRank == "LEGENDARY" ? 40 : (qualityRank == "MASTER" ? 25 : (qualityRank == "FINE" ? 10 : 0));
+            if (HasPerk("grandmaster_seal"))
+            {
+                initialFame += 30;
+            }
 
             _db.Execute(
                 """
@@ -470,6 +482,18 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         if (ws is not null && ws.IsActive)
         {
             rawCost = Math.Max(6, (rawCost * 60) / 100);
+        }
+
+        if (HasPerk("eternal_edge"))
+        {
+            rawCost = Math.Max(6, (rawCost * 75) / 100);
+        }
+
+        var maintLvl = _attributes?.GetEquippedSkillLevel("weapon_maintenance") ?? 0;
+        if (maintLvl > 0)
+        {
+            var discountPct = Math.Min(50, maintLvl * 5);
+            rawCost = Math.Max(5, (rawCost * (100 - discountPct)) / 100);
         }
 
         return rawCost;
@@ -529,6 +553,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             _db.Execute(
                 "UPDATE pf_equipment SET durability = @maxDura, max_durability = @maxDura WHERE id = @id",
                 new DbArgs().Add("@maxDura", newMaxDura).Add("@id", equipmentId));
+
+            _attributes?.PracticeSkill("weapon_maintenance", 25);
         });
 
         return WorkResult.Success(
@@ -990,9 +1016,21 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         var slot = GetSlot(slotCode);
         if (slot is not null && slot.EquipmentId.HasValue)
         {
+            var reduction = 0;
+            if (HasPerk("eternal_edge"))
+            {
+                reduction += 1;
+            }
+            var maintLvl = _attributes?.GetEquippedSkillLevel("weapon_maintenance") ?? 0;
+            if (maintLvl > 0)
+            {
+                reduction += (maintLvl + 1) / 2;
+            }
+
+            var effectiveLoss = loss > 1 ? Math.Max(1, loss - reduction) : loss;
             _db.Execute(
                 "UPDATE pf_equipment SET durability = MAX(0, durability - @loss) WHERE id = @id",
-                new DbArgs().Add("@loss", loss).Add("@id", slot.EquipmentId.Value));
+                new DbArgs().Add("@loss", effectiveLoss).Add("@id", slot.EquipmentId.Value));
         }
     }
 
@@ -1291,10 +1329,19 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         var prc = attrs?.Prc ?? 50;
         var @int = attrs?.Int ?? 50;
 
+        _attributes?.PracticeSkill("exotic_husbandry", 15);
+        var exoticLvl = _attributes?.GetEquippedSkillLevel("exotic_husbandry") ?? 0;
+
         var region = _map?.Find(citadelId)?.Region ?? "trung_tho";
-        var herbCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0);
+        var herbCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0) + (exoticLvl > 0 ? 1 : 0);
         if (prc >= 60) herbCount += 1;
         _bag.Add(citadelId, 7, herbCount); // 7: thuoc
+
+        if (exoticLvl > 0 || HasPerk("earth_vein_sight"))
+        {
+            var bonusExoticId = citadelId is 15 or 9 ? 28L : (citadelId is 20 or 13 ? 30L : 31L); // celestial_silk, south_sea_pearl, or cinnabar_ore
+            _bag.Add(citadelId, bonusExoticId, 1);
+        }
 
         _attributes?.AddExp("PRC", 20);
         _attributes?.AddExp("INT", 10);
@@ -1347,8 +1394,17 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _attributes?.ApplyFatigue(20);
         DegradeEquipped("WEAPON", 2);
 
-        var meatCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0) + (war >= 60 ? 1 : 0);
+        _attributes?.PracticeSkill("exotic_husbandry", 15);
+        var exoticHuntLvl = _attributes?.GetEquippedSkillLevel("exotic_husbandry") ?? 0;
+
+        var meatCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (skillLevel >= 9 ? 1 : 0) + (war >= 60 ? 1 : 0) + (exoticHuntLvl > 0 ? 1 : 0);
         _bag.Add(citadelId, 8, meatCount); // 8: ca_kho (lương thực thịt cá)
+
+        if (exoticHuntLvl > 0)
+        {
+            var trophyId = citadelId is 8 or 19 ? 27L : 32L; // warhorse_hide or tiger_tendon
+            _bag.Add(citadelId, trophyId, 1);
+        }
 
         var extraMsg = string.Empty;
         if (region == "u_chau")
@@ -1435,20 +1491,24 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             secondaryItemId = 5; // sat
         }
 
+        _attributes?.PracticeSkill("vein_divining", 20);
+        var veinLvl = _attributes?.GetEquippedSkillLevel("vein_divining") ?? 0;
+
         var activeTool = GetSlot("TOOL")?.Equipment;
         var toolBonus = activeTool is not null && activeTool.Durability > 0 ? 1 : 0;
         DegradeEquipped("TOOL", 2);
 
-        var yieldCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (cra >= 60 ? 1 : 0) + toolBonus;
+        var yieldCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (cra >= 60 ? 1 : 0) + toolBonus + (veinLvl > 0 ? (veinLvl + 1) / 2 : 0);
         _bag.Add(citadelId, primaryItemId, yieldCount);
 
         var primaryName = _items.Find(primaryItemId)?.NameVi ?? "Quặng sắt";
         var extraMsg = string.Empty;
-        if (skillLevel >= 2 || con >= 60 || cra >= 60)
+        if (skillLevel >= 2 || con >= 60 || cra >= 60 || veinLvl > 0 || HasPerk("earth_vein_sight"))
         {
-            _bag.Add(citadelId, secondaryItemId, 1);
+            var secQty = 1 + (veinLvl >= 3 ? 1 : 0) + (HasPerk("earth_vein_sight") ? 1 : 0);
+            _bag.Add(citadelId, secondaryItemId, secQty);
             var secName = _items.Find(secondaryItemId)?.NameVi ?? "Khoáng thạch";
-            extraMsg = $" Đào trúng mạch phụ thu thêm +1 {secName}!";
+            extraMsg = $" Đào trúng mạch phụ thu thêm +{secQty} {secName}!";
         }
 
         _attributes?.AddExp("CRA", 20);
@@ -1471,13 +1531,14 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         if (eq.TemperLevel >= 5)
             return WorkResult.Failure("Khí cụ đã tôi luyện đạt mức tối đa (+5).");
 
+        var furnaceLvl = _attributes?.GetEquippedSkillLevel("furnace_mastery") ?? 0;
         var nextLevel = eq.TemperLevel + 1;
         var reqSat = nextLevel * 2;
         var reqThan = nextLevel * 1;
-        var fee = nextLevel * 25;
+        var fee = furnaceLvl > 0 ? (nextLevel * 20) : (nextLevel * 25);
 
-        var reqCra = 20 + nextLevel * 10;
-        var reqWar = 20 + nextLevel * 10;
+        var reqCra = Math.Max(15, 20 + nextLevel * 10 - furnaceLvl * 2);
+        var reqWar = Math.Max(15, 20 + nextLevel * 10 - furnaceLvl * 2);
 
         var attrs = _attributes?.Attributes;
         if (attrs is not null)
@@ -1505,7 +1566,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _wallet.Charge(fee, JournalCodes.ToolFee, $"Tôi luyện khí cụ {eq.NameVi} lên +{nextLevel}");
 
         var newBonus = eq.BonusValue + 1;
-        var newMaxDur = eq.MaxDurability + 15;
+        var newMaxDur = eq.MaxDurability + 15 + (furnaceLvl > 0 ? 5 : 0);
 
         _db.Execute(
             """
@@ -1526,6 +1587,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         if (_attributes is not null)
         {
             practice = _attributes.PracticeSkill("che_tac", 25);
+            _attributes.PracticeSkill("furnace_mastery", 25);
             _attributes.ApplyFatigue(15);
             _attributes.AddExp("CRA", 25);
             _attributes.AddExp("WAR", 15);
@@ -1564,8 +1626,17 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             : 1.0;
 
         var famePremium = equipment.FameScore * 2;
-        var value = (long)(basePrice * qualityMultiplier * temperBonus * duraRatio) + famePremium + 15;
-        return Math.Max(10, value);
+        var rawValue = (basePrice * qualityMultiplier * temperBonus * duraRatio) + famePremium + 15;
+        if (HasPerk("grandmaster_seal"))
+        {
+            rawValue *= 1.25;
+        }
+        var appraisalLvl = _attributes?.GetEquippedSkillLevel("jade_appraisal") ?? 0;
+        if (appraisalLvl > 0)
+        {
+            rawValue *= (1.0 + appraisalLvl * 0.05);
+        }
+        return Math.Max(10, (long)rawValue);
     }
 
     public WorkResult SellEquipment(long citadelId, long equipmentId)
@@ -1593,6 +1664,7 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 DbArgs.One("@id", equipmentId));
 
             _wallet.Pay(price, JournalCodes.MarketSell, $"Bán khí cụ {eq.NameVi}");
+            _attributes?.PracticeSkill("jade_appraisal", 20);
         });
 
         _log.Info($"dlc.professions: sold equipment {eq.NameVi} (#{equipmentId}) at citadel {citadelId} for {price} copper");

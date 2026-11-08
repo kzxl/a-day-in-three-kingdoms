@@ -840,6 +840,45 @@ public sealed class ProfessionTests : IDisposable
         Assert.Equal(3, eqService.GetTotalBonus("WAR"));
     }
 
+    [Fact]
+    public void Support_skills_and_new_mastery_perks_boost_forging_repair_mining_and_appraisal()
+    {
+        using var kernel = _host.Boot();
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+        var guild = Guild(kernel);
+        var bag = Bag(kernel);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        // 1. Verify all 6 new support skills exist in NPC skill registry
+        var allNpcSkillCodes = registry.All.SelectMany(n => n.Skills).Select(s => s.Code).ToHashSet();
+        Assert.Contains("master_forging", allNpcSkillCodes);
+        Assert.Contains("weapon_maintenance", allNpcSkillCodes);
+        Assert.Contains("vein_divining", allNpcSkillCodes);
+        Assert.Contains("furnace_mastery", allNpcSkillCodes);
+        Assert.Contains("jade_appraisal", allNpcSkillCodes);
+        Assert.Contains("exotic_husbandry", allNpcSkillCodes);
+
+        // 2. Verify all 8 Guild Mastery Perks exist
+        Assert.Equal(8, guild.Perks.Count);
+        Assert.Contains(guild.Perks, p => p.Code == "eternal_edge");
+        Assert.Contains(guild.Perks, p => p.Code == "earth_vein_sight");
+        Assert.Contains(guild.Perks, p => p.Code == "grandmaster_seal");
+
+        // 3. Equip jade_appraisal and weapon_maintenance and verify effects
+        var basePrc = attrs.EffectivePrc;
+        var eq2 = guild.Equipments(1).First(e => e.Id == 2); // Cuốc Sắt Khai Điền (80/100 dura)
+        var baseSellVal = guild.CalculateEquipmentSellValue(eq2);
+        var baseRepairCost = guild.CalculateRepairCost(1, eq2);
+
+        attrs.LearnSkill("jade_appraisal");
+        attrs.LearnSkill("weapon_maintenance");
+        attrs.TrainSkill("weapon_maintenance", 500); // Raise level to Lv.3+
+
+        Assert.True(attrs.EffectivePrc > basePrc);
+        Assert.True(guild.CalculateEquipmentSellValue(eq2) > baseSellVal);
+        Assert.True(guild.CalculateRepairCost(1, eq2) < baseRepairCost);
+    }
+
 }
 
 internal static class ProfessionServiceConstants
