@@ -123,6 +123,8 @@ public interface IProfessionGuild
 
     WorkResult Hunt(long citadelId);
 
+    WorkResult Mine(long citadelId);
+
     WorkResult Temper(long citadelId, long equipmentId);
 
     // Economic circulation & commerce for crafted goods

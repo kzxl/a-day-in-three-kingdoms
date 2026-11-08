@@ -1228,10 +1228,12 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             _bag.Add(citadelId, 13, 1); // 13: sam (Nhân sâm Liêu Đông)
             extraMsg = " Vùng lạnh phương Bắc đào được 1 củ Nhân Sâm Liêu Đông quý giá!";
         }
-        else if (region == "ich_chau" && (skillLevel >= 2 || prc >= 60))
+        else if ((region == "ich_chau" || region == "giao_chau" || citadelId == 20) && (skillLevel >= 1 || prc >= 55))
         {
-            _bag.Add(citadelId, 14, 1); // 14: tram_huong (Trầm hương Thục sơn)
-            extraMsg = " Trong thung lũng sương mù Ba Thục tìm thấy 1 khúc Trầm Hương lâu năm!";
+            _bag.Add(citadelId, 14, 1); // 14: tram_huong (Trầm hương Lĩnh Nam / Thục sơn)
+            extraMsg = citadelId == 20
+                ? " Giữa Rừng Trầm Hương Lĩnh Nam phát hiện 1 khúc Kỳ Nam Trầm Hương thượng hạng!"
+                : " Trong thung lũng sương mù Ba Thục tìm thấy 1 khúc Trầm Hương lâu năm!";
         }
         else if (prc >= 65 || @int >= 65)
         {
@@ -1314,6 +1316,65 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         var milestoneMsg = FormatSkillProgressMessage("Thú Liệp", practice);
         _log.Info($"dlc.professions: hunted at citadel {citadelId} ({region}): +{meatCount} meat");
         return WorkResult.Success($"1 ngày giương cung săn bắn tại vùng {region}: Thu hoạch {meatCount} phần thịt thú săn.{extraMsg}{milestoneMsg}", meatCount, 1);
+    }
+
+    public WorkResult Mine(long citadelId)
+    {
+        _clock.Advance(1);
+        _attributes?.ApplyFatigue(20);
+
+        var practice = _attributes?.PracticeSkill("khai_khoang", 25) ?? (false, false, 0);
+        var skillLevel = practice.Level;
+        var attrs = _attributes?.Attributes;
+        var cra = attrs?.Cra ?? 50;
+        var con = attrs?.Con ?? 50;
+
+        long primaryItemId = 5; // 5: sat
+        long secondaryItemId = 15; // 15: than_da
+        var nodeName = "Mạch Khoáng Sơn Địa Phương";
+
+        if (_broker != null && _broker.TryGet<IValueChainService>(CapabilityIds.ValueChain, out var vc) && vc != null)
+        {
+            var node = vc.GetResourceNodes(citadelId).FirstOrDefault();
+            if (node != null)
+            {
+                nodeName = node.NodeNameVi;
+                if (node.NodeType is "MINE" or "FOREST")
+                {
+                    primaryItemId = node.PrimaryItemId;
+                    secondaryItemId = node.SecondaryItemId ?? 15;
+                }
+                else if (citadelId is 14 or 19)
+                {
+                    primaryItemId = 16; // dong
+                    secondaryItemId = 6; // go
+                }
+            }
+        }
+        else if (citadelId is 14 or 16 or 19)
+        {
+            primaryItemId = 16; // dong
+            secondaryItemId = 5; // sat
+        }
+
+        var yieldCount = (practice.Level > 0 ? 2 : 1) + (skillLevel >= 3 ? 1 : 0) + (skillLevel >= 6 ? 1 : 0) + (cra >= 60 ? 1 : 0);
+        _bag.Add(citadelId, primaryItemId, yieldCount);
+
+        var primaryName = _items.Find(primaryItemId)?.NameVi ?? "Quặng sắt";
+        var extraMsg = string.Empty;
+        if (skillLevel >= 2 || con >= 60 || cra >= 60)
+        {
+            _bag.Add(citadelId, secondaryItemId, 1);
+            var secName = _items.Find(secondaryItemId)?.NameVi ?? "Khoáng thạch";
+            extraMsg = $" Đào trúng mạch phụ thu thêm +1 {secName}!";
+        }
+
+        _attributes?.AddExp("CRA", 20);
+        _attributes?.AddExp("CON", 15);
+
+        var milestoneMsg = FormatSkillProgressMessage("Khai Khoáng", practice);
+        _log.Info($"dlc.professions: mined at citadel {citadelId} ({nodeName}): +{yieldCount} item #{primaryItemId}");
+        return WorkResult.Success($"1 ngày vung cuốc khai mỏ tại {nodeName}: Khai thác được {yieldCount} {primaryName}.{extraMsg}{milestoneMsg}", yieldCount, 1);
     }
 
     public WorkResult Temper(long citadelId, long equipmentId)

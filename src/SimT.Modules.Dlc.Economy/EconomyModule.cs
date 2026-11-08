@@ -39,7 +39,7 @@ public sealed class EconomyModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.NpcMarket, marketService);
 
         // 1b. Value Chain & Civic Consumption Service
-        var valueChainService = new SimT.Modules.Dlc.Economy.ValueChain.ValueChainService(context.Db, items, map, npcs, marketService, context.Log);
+        var valueChainService = new SimT.Modules.Dlc.Economy.ValueChain.ValueChainService(context.Db, items, map, npcs, marketService, context.Log, context.Capabilities);
         context.Capabilities.Provide(CapabilityIds.ValueChain, valueChainService);
 
         // 2. Caravan Service

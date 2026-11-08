@@ -774,6 +774,38 @@ public sealed class ProfessionTests : IDisposable
         Assert.Contains(martialEvents, e => e.HeadlineVi.Contains("lập đại công"));
     }
 
+    [Fact]
+    public void Wilderness_mining_extracts_regional_specialty_ores_and_trains_khai_khoang()
+    {
+        using var kernel = _host.Boot();
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+
+        // Move to Thượng Đảng (18) — Thượng Đảng Mỏ Sắt (Iron #5 + Coal #15)
+        player.MoveTo(18, kernel.Today);
+        var ironBefore = bag.Quantity(18, 5);
+        var coalBefore = bag.Quantity(18, 15);
+
+        var msg = Command(kernel, "wild:mine");
+        Assert.Contains("Thượng Đảng Mỏ Sắt", msg);
+        Assert.True(bag.Quantity(18, 5) > ironBefore);
+        Assert.True(bag.Quantity(18, 15) > coalBefore);
+
+        // Move to Tây Lương (19) — Mỏ Đồng Kỳ Liên (Bronze #16)
+        player.MoveTo(19, kernel.Today);
+        var bronzeBefore = bag.Quantity(19, 16);
+        var msgBronze = Command(kernel, "wild:mine");
+        Assert.Contains("Mỏ Đồng Kỳ Liên", msgBronze);
+        Assert.True(bag.Quantity(19, 16) > bronzeBefore);
+
+        // Move to Giao Chỉ (20) — Rừng Trầm Hương Lĩnh Nam (Agarwood #14)
+        player.MoveTo(20, kernel.Today);
+        var agarBefore = bag.Quantity(20, 14);
+        var msgForage = Command(kernel, "wild:forage");
+        Assert.Contains("Trầm Hương", msgForage);
+        Assert.True(bag.Quantity(20, 14) > agarBefore);
+    }
+
 }
 
 internal static class ProfessionServiceConstants

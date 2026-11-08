@@ -414,7 +414,16 @@ internal sealed class ProfessionScreen : IScreenContribution
                     "2~3 Thịt thú (Cơ duyên da lông/Mật gấu)",
                     "Tăng cường thể phách, +WAR/PRC/CON"
                 ],
-                [new ScreenCommand("wild:hunt", "Giương cung săn bắn")])
+                [new ScreenCommand("wild:hunt", "Giương cung săn bắn")]),
+            new(
+                [
+                    "Khai Mỏ & Lâm Trường",
+                    "Mỏ khoáng / Rừng đại ngàn",
+                    "1 ngày · 20 Mệt mỏi",
+                    "2~4 Sắt / Đồng / Gỗ / Than đá theo mạch mỏ vùng",
+                    "Rèn luyện gân cốt & công xảo, +CRA/CON"
+                ],
+                [new ScreenCommand("wild:mine", "Vung cuốc khai khoáng")])
         };
 
         var totalPractice = _service.Trades.Sum(trade => _service.PracticeCount(trade.Id));
@@ -551,6 +560,8 @@ internal sealed class ProfessionCommandHandler : IScreenCommandHandler
                         return _service.Forage(cityId).Message;
                     if (parts[1] == "hunt")
                         return _service.Hunt(cityId).Message;
+                    if (parts[1] == "mine")
+                        return _service.Mine(cityId).Message;
                 }
                 break;
 
