@@ -28,6 +28,8 @@ export function formatTurnCounter(turn, maxTurns) {
 let currentScene = null;
 let keyHandler = null;
 let moveHandler = null;
+let lastDebateSceneId = null;
+let lastDebatePersuasion = 50;
 
 function unmountDebateScene() {
   if (keyHandler) {
@@ -48,6 +50,7 @@ export function renderDebateScene(container, scene, bridge) {
 
   const persuasion = clampPersuasion(scene.persuasion);
   const oppShare = 100 - persuasion;
+  const turnNum = Math.max(1, Number(scene.turn) || 1);
   const turnText = formatTurnCounter(scene.turn, scene.maxTurns);
   const sealChar = scene.npcNameHan ? String(scene.npcNameHan).trim().charAt(0) : '辯';
   const hasDistinctStyle = scene.styleNameVi && scene.styleNameVi.trim() !== String(scene.npcNameVi || '').trim();
@@ -56,6 +59,23 @@ export function renderDebateScene(container, scene, bridge) {
   const isFinished = Boolean(scene.isFinished);
   const outcomeCode = String(scene.outcomeCode || 'ongoing').toLowerCase();
   const isLossOutcome = outcomeCode.includes('loss');
+
+  const prevPersuasion = (scene.sceneId === lastDebateSceneId && turnNum > 1) ? lastDebatePersuasion : 50;
+  lastDebateSceneId = scene.sceneId || null;
+  lastDebatePersuasion = persuasion;
+
+  if (persuasion > prevPersuasion) {
+    SimTBridge.playSfx?.('debate.push');
+  } else if (persuasion < prevPersuasion) {
+    SimTBridge.playSfx?.('debate.counter');
+  } else if (turnNum > 1 && !isFinished) {
+    SimTBridge.playSfx?.('debate.push');
+  }
+
+  if (isFinished) {
+    const isWinOutcome = outcomeCode.includes('win') || (!isLossOutcome && !outcomeCode.includes('conced') && persuasion >= 50);
+    SimTBridge.playSfx?.(isWinOutcome ? 'debate.win' : 'debate.lose');
+  }
 
   const traits = Array.isArray(scene.traits) ? scene.traits : [];
   const traitsHtml = traits.length > 0 ? `

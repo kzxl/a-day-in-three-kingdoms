@@ -29,6 +29,22 @@ let liveFx = [];
 let speedMult = 1;
 let stopReplayFlag = false;
 let duelAnim = null;
+let resultSfxPlayed = false;
+
+export const FX_SFX_KEYS = new Map([
+  [swordSlash, 'fx.sword_slash'],
+  [thrustFx, 'fx.thrust'],
+  [spearSweep, 'fx.spear_sweep'],
+  [arrowFx, 'fx.arrow'],
+  [hitFlash, 'fx.hit_flash'],
+  [damageNumber, 'fx.hit_flash'],
+  [criticalHit, 'fx.critical_hit'],
+  [critNumber, 'fx.crit_number']
+]);
+
+export function sfxKeyForFx(mod) {
+  return FX_SFX_KEYS.get(mod) || null;
+}
 
 function stripEmoji(str) {
   return String(str ?? '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s+/g, ' ').trim();
@@ -99,9 +115,14 @@ export function safeCreateFx(mod, overrides = {}) {
   try { return createFx(mod, buildEffectOptions(mod, overrides)); }
   catch (err) { console.warn('[DuelScene] Bỏ qua hiệu ứng lỗi:', mod?.meta?.name || 'unknown', err); return null; }
 }
-function pushFx(mod, overrides) {
+export function pushFx(mod, overrides = {}) {
   const fx = safeCreateFx(mod, overrides);
-  if (fx) liveFx.push(fx);
+  if (fx) {
+    liveFx.push(fx);
+    const sfxKey = sfxKeyForFx(mod);
+    if (sfxKey && !overrides.silentSfx) SimTBridge.playSfx?.(sfxKey);
+  }
+  return fx;
 }
 function spawnWeaponFx(mod, x, y, flip, isGold, seed) {
   const pal7 = isGold ? PAL_GOLD_7 : PAL_CRIMSON_7;
@@ -117,7 +138,7 @@ function spawnWeaponFx(mod, x, y, flip, isGold, seed) {
   else if (mod === spearSweep) pushFx(spearSweep, { x, y, flip, palette: pal7, sparks: SPARKS_GOLD, stone: '#4a3f69', seed });
   else pushFx(swordSlash, { x, y, flip, palette: pal7, sparks: SPARKS_GOLD, radius: 42, seed });
 }
-function spawnHitVfx(targetIsRight, branch, action, dmg, isCrit, isParried, rn) {
+export function spawnHitVfx(targetIsRight, branch, action, dmg, isCrit, isParried, rn) {
   const x = targetIsRight ? 336 : 144;
   const pal7 = targetIsRight ? PAL_GOLD_7 : PAL_CRIMSON_7;
   const pal8 = targetIsRight ? PAL_GOLD_8 : PAL_CRIMSON_8;
@@ -125,7 +146,7 @@ function spawnHitVfx(targetIsRight, branch, action, dmg, isCrit, isParried, rn) 
   if (isCrit || String(action || '').toLowerCase() === 'specialstrike') {
     pushFx(criticalHit, { x, y: 176, palette: pal8, height: 26, aim: targetIsRight ? 0.12 : -0.12, seed: rn * 11 });
     if (dmg > 0) pushFx(critNumber, { x, y: 145, palette: pal8, text: `-${dmg}!`, label: 'BAO', seed: rn });
-  } else if (dmg > 0) pushFx(damageNumber, { x, y: 150, palette: pal8, text: `-${dmg}`, seed: rn });
+  } else if (dmg > 0) pushFx(damageNumber, { x, y: 150, palette: pal8, text: `-${dmg}`, seed: rn, silentSfx: Boolean(isParried) });
   if (isParried) pushFx(hitFlash, { x, y: 178, palette: pal7, lines: 7, side: targetIsRight ? -1 : 1, actor: DEFAULT_HIT_ACTOR, seed: rn });
 }
 function spawnDomPop(stageBox, x, dmg) {
@@ -160,6 +181,10 @@ const waitMs = (ms) => new Promise((r) => setTimeout(r, Math.max(16, ms / speedM
 
 function revealDuelResult(container, scene) {
   if (!scene?.result) return;
+  if (!resultSfxPlayed) {
+    resultSfxPlayed = true;
+    SimTBridge.playSfx?.(scene.result.won ? 'duel.win' : 'duel.lose');
+  }
   const rounds = scene.result.roundLogs;
   const roundPill = container.querySelector('#tk-round-pill');
   if (!Array.isArray(rounds) || rounds.length === 0) {
@@ -246,17 +271,19 @@ function renderFighterInnerHtml(f) {
   return `<div class="tk-fighter-shadow"></div><img class="tk-fighter-sprite" data-fighter-sp src="${escapeHtml(f.spritePath)}" alt="${escapeHtml(f.nameVi)}" />`;
 }
 
-function renderDuelScene(container, scene, bridge) {
+export function renderDuelScene(container, scene, bridge) {
   unmountDuelScene();
   activeScene = scene;
   liveFx = [];
   speedMult = 1;
   stopReplayFlag = false;
+  resultSfxPlayed = false;
 
   const p = scene.player;
   const o = scene.opponent;
   const hasResult = !!scene.result;
   const hasReplay = hasResult && Array.isArray(scene.result.roundLogs) && scene.result.roundLogs.length > 0;
+  SimTBridge.playSfx?.('duel.start');
   const choices = Array.isArray(scene.choices) ? scene.choices : [];
   const cleanMatchup = escapeHtml(scene.matchupSummaryVi);
   const stampText = !hasResult ? '' : !hasReplay ? 'CHƯA THỂ GIAO ĐẤU' : scene.result.won ? 'ĐẠI THẮNG LÔI ĐÀI' : 'THẤT BẠI ĐÁNG TIẾC';
@@ -394,7 +421,7 @@ function renderDuelScene(container, scene, bridge) {
 function unmountDuelScene() {
   stopReplayFlag = true;
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-  if (resizeHandler) { window.removeEventListener('resize', resizeHandler); resizeHandler = null; }
+  if (resizeHandler) { window.removeEventListener?.('resize', resizeHandler); resizeHandler = null; }
   liveFx = [];
   duelAnim = null;
   activeScene = null;
