@@ -47,6 +47,8 @@ public interface IPlayerEquipment
     WorkResult Unequip(string slotCode);
 
     void DegradeEquipped(string slotCode, int loss);
+
+    EquipmentDef? RecordCombatFeat(long equipmentId, string wielderNameVi, string featDescriptionVi, int killDelta = 1, int fameDelta = 10);
 }
 
 /// <summary>Read surface of <c>dlc.professions</c>, provided as the <c>professions.guild</c> capability.</summary>
@@ -121,6 +123,8 @@ public interface IProfessionGuild
 
     WorkResult Hunt(long citadelId);
 
+    WorkResult Mine(long citadelId);
+
     WorkResult Temper(long citadelId, long equipmentId);
 
     // Economic circulation & commerce for crafted goods
@@ -131,6 +135,8 @@ public interface IProfessionGuild
     long CalculateDishSellValue(DishRecipeDef dish);
 
     WorkResult SellDish(long citadelId, long dishId, int quantity = 1);
+
+    EquipmentDef? RecordCombatFeat(long equipmentId, string wielderNameVi, string featDescriptionVi, int killDelta = 1, int fameDelta = 10);
 }
 
 public sealed record DishRecipeDef(
@@ -191,7 +197,15 @@ public sealed record EquipmentDef(
     string QualityRank,
     string BonusStat,
     int BonusValue,
-    int TemperLevel = 0);
+    int TemperLevel = 0,
+    long? CreatorId = null,
+    string? CreatorNameVi = null,
+    long? ForgedCitadelId = null,
+    long? ForgedDayIndex = null,
+    int FameScore = 0,
+    int KillCount = 0,
+    string? LegendNarrative = null,
+    string? LotCode = null);
 
 public readonly record struct WorkResult(bool Ok, string Message, int Quantity, int Days)
 {

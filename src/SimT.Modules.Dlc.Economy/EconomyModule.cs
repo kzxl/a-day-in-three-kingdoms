@@ -39,7 +39,7 @@ public sealed class EconomyModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.NpcMarket, marketService);
 
         // 1b. Value Chain & Civic Consumption Service
-        var valueChainService = new SimT.Modules.Dlc.Economy.ValueChain.ValueChainService(context.Db, items, map, npcs, marketService, context.Log);
+        var valueChainService = new SimT.Modules.Dlc.Economy.ValueChain.ValueChainService(context.Db, items, map, npcs, marketService, context.Log, context.Capabilities);
         context.Capabilities.Provide(CapabilityIds.ValueChain, valueChainService);
 
         // 2. Caravan Service
@@ -64,7 +64,7 @@ public sealed class EconomyModule : ISimModule
         var logisticsService = new AutomatedLogisticsService(context.Db, context.Log);
 
         // 4. Profession Service
-        var professionService = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes, map, npcs, social, chronicle);
+        var professionService = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes, map, npcs, social, chronicle, player, context.Capabilities);
         professionService.ValidateCatalog();
         context.Capabilities.Provide(CapabilityIds.ProfessionGuild, professionService);
         context.Capabilities.Provide(CapabilityIds.PlayerEquipment, professionService);

@@ -225,6 +225,50 @@ internal sealed class StallScreen : IScreenContribution
             sections.Insert(0, new ScreenSection("🎪 Sạp Chuyên Doanh & Hàng NPC Giảm Giá", npcColumns, npcRows));
         }
 
+        if (_valueChain is not null)
+        {
+            var resourceNodes = _valueChain.GetResourceNodes(city.Id);
+            if (resourceNodes.Count > 0)
+            {
+                var nodeColumns = new[] { "Điểm Mỏ / Vùng Khai Thác", "Loại Hình", "Đặc Sản Chính", "Đặc Sản Phụ", "Sản Lượng Nền" };
+                var nodeRows = new List<ScreenRow>();
+                foreach (var node in resourceNodes)
+                {
+                    var pItem = _items.Find(node.PrimaryItemId)?.NameVi ?? node.PrimaryItemCode;
+                    var sItem = node.SecondaryItemId.HasValue ? (_items.Find(node.SecondaryItemId.Value)?.NameVi ?? node.SecondaryItemCode ?? "—") : "—";
+                    var typeVi = node.NodeType switch
+                    {
+                        "MINE" => "⛏️ Khoáng Sơn (Mỏ)",
+                        "FOREST" => "🌲 Lâm Trường",
+                        "HERB_VALLEY" => "🌿 Dược Cốc",
+                        "FISHERY" => "🐟 Ngư Trường",
+                        "TEXTILE_HUB" => "🧵 Phường Dệt",
+                        _ => "🌾 Điền Trang"
+                    };
+                    nodeRows.Add(new ScreenRow(
+                        [
+                            node.NodeNameVi,
+                            typeVi,
+                            pItem,
+                            sItem,
+                            $"{node.BaseMonthlyYield} đv/tháng"
+                        ],
+                        [],
+                        Title: node.NodeNameVi,
+                        Details:
+                        [
+                            new ScreenDetail("Địa Danh Khai Thác", node.NodeNameVi),
+                            new ScreenDetail("Phân Loại Nguồn Cung", typeVi),
+                            new ScreenDetail("Nguyên Liệu Chủ Lực", pItem),
+                            new ScreenDetail("Nguyên Liệu Đi Kèm", sItem),
+                            new ScreenDetail("Sản Lượng Cơ Bản", $"{node.BaseMonthlyYield} đơn vị/tháng (biến thiên theo An Ninh Quan Lộ & Nhân Lực)"),
+                            new ScreenDetail("Địa Lý Chí", node.DescriptionVi)
+                        ]));
+                }
+                sections.Add(new ScreenSection("⛰️ Mỏ Khoáng & Nguồn Cung Đặc Sản Bản Địa", nodeColumns, nodeRows));
+            }
+        }
+
         var recommendation = $"Tại chợ {city.NameVi}, ưu tiên mua mặt hàng đang rẻ hơn giá gốc rồi chở sang thành có hệ số giá cao hơn để hưởng chênh lệch.";
 
         return new ScreenModel(

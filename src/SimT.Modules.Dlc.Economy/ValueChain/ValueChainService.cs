@@ -1,6 +1,7 @@
 using SimT.Contracts;
 using SimT.Contracts.Data;
 using SimT.Contracts.Logging;
+using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 
@@ -17,6 +18,31 @@ public sealed class ValueChainService : IValueChainService
     private readonly INpcRegistry? _npcs;
     private readonly IMarketTrade _trade;
     private readonly ILog? _log;
+    private readonly ICapabilityBroker? _broker;
+
+    private static readonly IReadOnlyList<RegionalResourceNodeDef> BuiltInResourceNodes =
+    [
+        new(1, "node_lac_duong", "Bắc Mang Sơn Cổ Đạo", "FOREST", 6, "go", 7, "thuoc", 8, "Rừng cổ Bắc Mang cung cấp gỗ lim dựng cung thất và thảo dược quý."),
+        new(2, "node_truong_an", "Đồng Quan Khoáng Mạch", "MINE", 5, "sat", 4, "lua", 9, "Mạch quặng sắt chân núi Đồng Quan và trạm trung chuyển tơ lụa Tây Thị."),
+        new(3, "node_nghiep_thanh", "Hà Bắc Đại Bình Nguyên", "FARMLAND", 9, "lua_mi", 10, "ruou", 12, "Vựa lúa mì trù phú nhất Hà Bắc, cung cấp nguyên liệu cho các tửu phường."),
+        new(4, "node_trac_huyen", "Rừng Sâm U Châu", "HERB_VALLEY", 13, "sam", 11, "vai", 6, "Rừng sâu phương Bắc sản sinh Nhân Sâm Liêu Đông và vải gai dệt thủ công."),
+        new(5, "node_quang_tong", "Cự Lộc Khoáng Tuyến", "MINE", 5, "sat", 15, "than_da", 10, "Mỏ sắt và vỉa than đá lộ thiên vùng Cự Lộc phục vụ rèn đúc quân giới."),
+        new(6, "node_binh_nguyen", "Bến Đò Hoàng Hà", "FISHERY", 9, "lua_mi", 8, "ca_kho", 10, "Châu thổ sông Hoàng Hà bồi đắp phù sa trồng lúa mì và đánh bắt cá sông."),
+        new(7, "node_hua_xuong", "Đồn Điền Dĩnh Xuyên", "FARMLAND", 1, "gao", 17, "hat_giong_lua", 14, "Hệ thống đồn điền kiểu mẫu cung cấp thóc gạo và hạt giống lúa năng suất cao."),
+        new(8, "node_bac_binh", "Liêu Đông Cổ Lộ & Kỵ Trại", "HERB_VALLEY", 13, "sam", 5, "sat", 8, "Núi tuyết biên thùy giàu Nhân Sâm đại bổ và quặng sắt đúc vũ khí kỵ binh."),
+        new(9, "node_ha_phi", "Từ Châu Tơ Lụa Phố & Nghi Thủy", "TEXTILE_HUB", 4, "lua", 2, "muoi", 10, "Làng nghề nuôi tằm dệt lụa Từ Châu kết hợp ruộng muối ven biển Hoài Hải."),
+        new(10, "node_tuong_duong", "Lộc Môn Sơn Đạo Quán", "HERB_VALLEY", 7, "thuoc", 3, "tra", 9, "Đồi trà và vườn dược thảo ẩn sĩ trên núi Lộc Môn bên dòng Hán Thủy."),
+        new(11, "node_xich_bich", "Ô Lâm Thủy Trại", "FISHERY", 8, "ca_kho", 6, "go", 11, "Ngư trường Trường Giang và rừng gỗ Ô Lâm phục vụ đóng chiến thuyền."),
+        new(12, "node_giang_lang", "Bến Cảng Trường Giang", "FISHERY", 8, "ca_kho", 5, "sat", 10, "Thương cảng sầm uất đánh bắt thủy sản và xưởng rèn Giang Lăng Thiết Khố."),
+        new(13, "node_kien_nghiep", "Thái Hồ Thủy Trại & Đồi Trà", "FISHERY", 3, "tra", 2, "muoi", 12, "Đồi trà xanh Giang Nam và nghề nấu muối, đánh cá vùng Thái Hồ."),
+        new(14, "node_han_trung", "Định Quân Sơn Lâm Trường", "FOREST", 6, "go", 16, "dong", 11, "Rừng đại ngàn Tần Lĩnh - Kiếm Các cung cấp gỗ tốt và mỏ đồng thau."),
+        new(15, "node_thanh_do", "Cẩm Quan Thành Thục Cẩm Phố", "TEXTILE_HUB", 12, "gam", 4, "lua", 9, "Trung tâm dệt Gấm Thục ngũ sắc nổi danh thiên hạ nhờ thủy lợi Đô Giang Yển."),
+        new(16, "node_uyen_thanh", "Nam Dương Thảo Dược & Mỏ Đồng", "HERB_VALLEY", 7, "thuoc", 16, "dong", 9, "Vùng đất sản sinh dược thảo Nam Dương và quặng đồng thau đúc khí cụ."),
+        new(17, "node_tho_xuan", "Bến Sông Hoài Thủy", "FARMLAND", 1, "gao", 8, "ca_kho", 12, "Đồng bằng Hoài Nam hai mùa lúa chín kết hợp ngư trường sông Hoài."),
+        new(18, "node_thuong_dang", "Thượng Đảng Mỏ Sắt & Thái Hành", "MINE", 5, "sat", 15, "than_da", 14, "Đại mỏ sắt và than đá lớn nhất Tịnh Châu nằm sâu trong dãy Thái Hành Sơn."),
+        new(19, "node_tay_luong", "Mỏ Đồng Kỳ Liên & Vũ Uy", "MINE", 16, "dong", 5, "sat", 10, "Mạch khoáng sản kim loại màu dưới chân núi Kỳ Liên vùng Tây Lương."),
+        new(20, "node_giao_chi", "Rừng Trầm Hương Lĩnh Nam", "FOREST", 14, "tram_huong", 7, "thuoc", 8, "Rừng nhiệt đới Lĩnh Nam sản sinh Trầm Hương cống phẩm và kỳ hoa dị thảo.")
+    ];
 
     public ValueChainService(
         IDbSession db,
@@ -24,7 +50,8 @@ public sealed class ValueChainService : IValueChainService
         IWorldMap map,
         INpcRegistry? npcs,
         IMarketTrade trade,
-        ILog? log)
+        ILog? log,
+        ICapabilityBroker? broker = null)
     {
         _db = db;
         _items = items;
@@ -32,6 +59,45 @@ public sealed class ValueChainService : IValueChainService
         _npcs = npcs;
         _trade = trade;
         _log = log;
+        _broker = broker;
+    }
+
+    public IReadOnlyList<RegionalResourceNodeDef> AllResourceNodes => BuiltInResourceNodes;
+
+    public IReadOnlyList<RegionalResourceNodeDef> GetResourceNodes(long citadelId) =>
+        BuiltInResourceNodes.Where(n => n.CitadelId == citadelId).ToList();
+
+    public int SimulateRegionalExtraction(long citadelId)
+    {
+        var nodes = GetResourceNodes(citadelId);
+        if (nodes.Count == 0) return 0;
+
+        var securityScore = 75;
+        if (_broker != null && _broker.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var military) && military != null)
+        {
+            securityScore = military.GetCitadelSecurity(citadelId);
+        }
+
+        var localNpcCount = _npcs?.FindByCitadel(citadelId).Count ?? 0;
+        var laborBonus = localNpcCount / 5;
+        var totalExtracted = 0;
+
+        foreach (var node in nodes)
+        {
+            var primaryYield = Math.Max(1, (node.BaseMonthlyYield * Math.Clamp(securityScore, 20, 100)) / 80) + laborBonus;
+            _trade.AdjustStock(citadelId, node.PrimaryItemId, primaryYield);
+            totalExtracted += primaryYield;
+
+            if (node.SecondaryItemId.HasValue)
+            {
+                var secondaryYield = Math.Max(1, primaryYield / 2);
+                _trade.AdjustStock(citadelId, node.SecondaryItemId.Value, secondaryYield);
+                totalExtracted += secondaryYield;
+            }
+        }
+
+        _log?.Info($"[dlc.economy] regional extraction at citadel {citadelId} (security={securityScore}): +{totalExtracted} raw units");
+        return totalExtracted;
     }
 
     public ValueChainProfileDef GetProfile(string itemCode)
