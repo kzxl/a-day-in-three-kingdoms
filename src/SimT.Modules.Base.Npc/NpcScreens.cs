@@ -341,7 +341,7 @@ internal sealed class NpcCommandHandler : IScreenCommandHandler
             if (long.TryParse(commandId["npc:modal:".Length..], out var id))
             {
                 var npc = _registry.Find(id);
-                if (npc is not null)
+                if (npc is not null && _registry.IsPresent(id))
                 {
                     return $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role)})";
                 }

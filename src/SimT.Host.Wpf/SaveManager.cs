@@ -69,13 +69,13 @@ public sealed class SaveManager
         return result.OrderBy(x => x, StringComparer.Ordinal).ToList();
     }
 
-    public CampaignMeta Create(string name, Action<string>? logSink = null)
+    public CampaignMeta Create(string name, Action<string>? logSink = null, StartingScenario? scenario = null)
     {
         var id = Guid.NewGuid().ToString("N");
         var directory = Path.Combine(_root, id);
         Directory.CreateDirectory(directory);
 
-        var product = Product();
+        var product = PrepareScenario(directory, scenario ?? StartingScenarios.All[0]);
         var meta = CampaignMeta.New(id, name, product);
 
         using (var kernel = SimKernel.Open(Options(directory, logSink)))
@@ -87,13 +87,13 @@ public sealed class SaveManager
         return meta;
     }
 
-    public (CampaignMeta Meta, SimKernel Kernel) CreateAndOpen(string name, Action<string>? logSink = null)
+    public (CampaignMeta Meta, SimKernel Kernel) CreateAndOpen(string name, Action<string>? logSink = null, StartingScenario? scenario = null)
     {
         var id = Guid.NewGuid().ToString("N");
         var directory = Path.Combine(_root, id);
         Directory.CreateDirectory(directory);
 
-        var product = Product();
+        var product = PrepareScenario(directory, scenario ?? StartingScenarios.All[0]);
         var meta = CampaignMeta.New(id, name, product);
 
         var kernel = SimKernel.Open(Options(directory, logSink));
@@ -170,6 +170,16 @@ public sealed class SaveManager
         File.WriteAllText(Path.Combine(_root, "index.json"), JsonSerializer.Serialize(items, Json));
     }
 
+    private static ProductManifest PrepareScenario(string directory, StartingScenario scenario)
+    {
+        var product = Product() with { StartDate = scenario.StartDate, StartLocationCode = scenario.SuggestedCityCode };
+        var payload = new { id = product.Id, name = product.Name, modules = product.Modules,
+            seed = product.Seed, startLocation = product.StartLocationCode, startingCash = product.StartingCash,
+            startDate = SimT.Contracts.Time.GameDateCodec.Format(product.StartDate), scenario = scenario.Code };
+        File.WriteAllText(Path.Combine(directory, "product.json"), JsonSerializer.Serialize(payload, Json));
+        return product;
+    }
+
     private static ProductManifest Product()
     {
         var constants = SimT.Core.Config.GameConstantsLoader.Load(
@@ -183,7 +193,9 @@ public sealed class SaveManager
     private static KernelOptions Options(string campaignDirectory, Action<string>? logSink = null) => new(
         DatabasePath: Path.Combine(campaignDirectory, "campaign.db"),
         ModulesDirectory: Path.Combine(AppContext.BaseDirectory, "Modules"),
-        ProductPath: Path.Combine(AppContext.BaseDirectory, "assets", "products", "merchant-slice.json"),
+        ProductPath: File.Exists(Path.Combine(campaignDirectory, "product.json"))
+            ? Path.Combine(campaignDirectory, "product.json")
+            : Path.Combine(AppContext.BaseDirectory, "assets", "products", "merchant-slice.json"),
         ConstantsPath: Path.Combine(AppContext.BaseDirectory, "assets", "config", "game-constants.json"),
         BackupDirectory: Path.Combine(campaignDirectory, "backups"),
         LogSink: logSink);

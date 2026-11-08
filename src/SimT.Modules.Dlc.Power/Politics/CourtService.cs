@@ -48,7 +48,7 @@ internal sealed partial class CourtService : IPoliticalCourt
     public long AllegianceFactionId => State("allegiance_faction_id");
 
     public string? AllegianceFactionName =>
-        _db.ScalarString("SELECT name_vi FROM po_faction WHERE id=@id", DbArgs.One("@id", AllegianceFactionId));
+        Factions.FirstOrDefault(f => f.Id == AllegianceFactionId)?.NameVi;
 
     public IReadOnlyList<OfficeView> Offices =>
         _db.Query(
@@ -65,22 +65,7 @@ internal sealed partial class CourtService : IPoliticalCourt
                 row.GetInt64(5),
                 row.GetInt32(6)));
 
-    public IReadOnlyList<FactionView> Factions =>
-        _db.Query(
-            """
-            SELECT id, code, name_vi, leader_npc_id, capital_city_id, ideal_vi, troop_count, treasury_copper, color_hex
-            FROM po_faction ORDER BY id ASC
-            """,
-            row => new FactionView(
-                row.GetInt64(0),
-                row.GetString(1),
-                row.GetString(2),
-                row.GetInt64(3),
-                row.GetInt64(4),
-                row.GetString(5),
-                row.GetInt32(6),
-                row.GetInt32(7),
-                row.GetString(8)));
+    public IReadOnlyList<FactionView> Factions => ReadFactionsForYear();
 
     public IReadOnlyList<CityGovernanceView> Governances =>
         _db.Query(

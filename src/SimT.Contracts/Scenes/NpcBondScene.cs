@@ -19,14 +19,14 @@ public sealed record NpcBondScene(
 {
     public static NpcBondScene Build(INpcBonds bonds, INpcRegistry registry, long centerId, string search = "")
     {
-        var center = registry.Find(centerId) ?? registry.All.First();
+        var center = registry.IsPresent(centerId) ? registry.Find(centerId)! : registry.All.First();
         var depths = new Dictionary<long,int> { [center.Id] = 0 };
         for (int depth = 0; depth < 2; depth++)
         {
             var candidates = depths.Where(p => p.Value == depth).SelectMany(p => bonds.ForNpc(p.Key).Select(b => (Bond:b, Id:b.Other(p.Key))))
                 .OrderByDescending(p => p.Bond.Strength).ThenBy(p => p.Id).ToArray();
             foreach (var entry in candidates)
-                if (depths.Count < 24 && registry.Find(entry.Id) is not null) depths.TryAdd(entry.Id,depth+1);
+                if (depths.Count < 24 && registry.IsPresent(entry.Id)) depths.TryAdd(entry.Id,depth+1);
         }
         var edges = depths.Keys.SelectMany(bonds.ForNpc).Where(b => depths.ContainsKey(b.NpcA) && depths.ContainsKey(b.NpcB))
             .Distinct().Select(b => new BondEdgeView(b.NpcA,b.NpcB,b.Kind,b.Strength)).ToArray();

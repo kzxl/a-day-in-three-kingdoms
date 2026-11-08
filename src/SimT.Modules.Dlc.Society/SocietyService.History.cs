@@ -71,6 +71,7 @@ internal sealed partial class SocietyService : IEventRumorSource
 
     public void OnDayAdvanced(GameDate date)
     {
+        if (date.Day == 1 && date.Month == 1) RefreshNpcLifetimes();
         if (date.DayIndex < _nextPendingHistoricalDayIndex)
         {
             return;

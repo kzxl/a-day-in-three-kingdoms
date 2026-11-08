@@ -240,6 +240,8 @@ internal sealed partial class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
+        RequirePresentNpc(npcId);
+
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
         {
@@ -486,6 +488,8 @@ internal sealed partial class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
+        RequirePresentNpc(npcId);
+
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
         {
@@ -638,6 +642,8 @@ internal sealed partial class SocialService : ISocialNetwork
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        RequirePresentNpc(npcId);
 
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId)
@@ -809,6 +815,8 @@ internal sealed partial class SocialService : ISocialNetwork
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
 
+        RequirePresentNpc(npcId);
+
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
         {
@@ -916,6 +924,8 @@ internal sealed partial class SocialService : ISocialNetwork
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        RequirePresentNpc(npcId);
 
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
