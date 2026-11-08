@@ -7,7 +7,7 @@ using SimT.Contracts.Time;
 
 namespace SimT.Modules.Dlc.Character;
 
-internal sealed class DialogueService(ModuleContext context) : IDialogueModule
+internal sealed partial class DialogueService(ModuleContext context) : IDialogueModule
 {
     private readonly ModuleContext _context = context;
 
@@ -92,6 +92,8 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
         var npc = npcs.Find(npcId);
         if (npc is null)
             return new TalkChoiceOutcome(false, "Không tìm thấy nhân vật.", CloseScene: true);
+
+        if (choiceId.StartsWith("wish:", StringComparison.Ordinal)) return HandleWishChoice(npc, choiceId);
 
         RecordVisit(npc.Id);
         var normalized = choiceId.Trim().ToLowerInvariant();
@@ -250,6 +252,7 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
             list.Add(new SceneChoice("duel", "Đấu tay đôi", $"Võ lực {npc.Attributes.War}"));
         }
 
+        AddWishChoices(npc, list);
         list.Add(new SceneChoice("bye", "Tạm biệt", "Rời cuộc trò chuyện"));
         return list;
     }

@@ -198,6 +198,7 @@ internal sealed partial class SocialService : ISocialNetwork
         var playerFame = _attributes.Social.Fame;
         var hasEnoughAffinity = rel.Affinity >= reqAffinity;
         var hasEnoughFame = playerFame >= reqFame;
+        if (HasCompletedWish(npcId)) signingFee = 0;
         var hasEnoughCash = _wallet.Liquid >= signingFee;
 
         var canRecruit = !isWarlord && hasEnoughAffinity && hasEnoughFame && hasEnoughCash && GetRetainer(npcId) is null;
@@ -663,6 +664,7 @@ internal sealed partial class SocialService : ISocialNetwork
             reqAffinity = Math.Max(20, reqAffinity - 15);
             reqFame = (int)(reqFame * 0.85);
         }
+        if (HasCompletedWish(npcId)) recruitmentFee = 0;
         var rel = GetRelationship(npcId);
 
         if (rel.Affinity < reqAffinity)
@@ -735,7 +737,7 @@ internal sealed partial class SocialService : ISocialNetwork
 
         _db.Transaction(() =>
         {
-            _wallet.Charge(recruitmentFee, "social.recruit", $"Sính lễ chiêu mộ gia thần phẩm {rank}: {npc.NameVi}", $"recruit:{npcId}:{formattedDate}");
+            if (recruitmentFee > 0) _wallet.Charge(recruitmentFee, "social.recruit", $"Sính lễ chiêu mộ gia thần phẩm {rank}: {npc.NameVi}", $"recruit:{npcId}:{formattedDate}");
 
             _db.Execute(
                 "INSERT INTO kz_retainer (npc_id, role_assigned, monthly_stipend, loyalty, recruited_date) " +

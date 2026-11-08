@@ -59,6 +59,13 @@ public sealed class CharacterModule : ISimModule
         context.Ui.AddCommandHandler(new FamilyCommandHandler(lineageService));
         context.Events.Subscribe<MonthClosed>(closed => lineageService.ChargeMonthly(closed.Date));
 
+        var wishes = new NpcWishService(context);
+        wishes.Initialize();
+        context.Capabilities.Provide(INpcWishes.CapabilityId, wishes);
+        context.Events.Subscribe<MonthClosed>(month => wishes.OnMonthClosed(month.Date));
+        context.Events.Subscribe<DayAdvanced>(day => wishes.Refresh(day.Date));
+        context.Events.Subscribe<SimT.Contracts.Events.DuelCompletedEvent>(duel => wishes.OnDuel(duel.NpcId, duel.PlayerWon, duel.Date));
+
         // Invariants
         foreach (var invariant in CharacterInvariants.All())
         {
