@@ -85,6 +85,17 @@ function renderTalkScene(container, scene, bridge) {
     <img class="tk-char-img tk-char-frame" id="tk-char-talk" src="${escapeHtml(scene.talkPath)}" alt="" />
   ` : '';
 
+  const traits = Array.isArray(scene.traits) ? scene.traits : [];
+  const traitsHtml = traits.length > 0 ? `
+    <div class="tk-trait-row" aria-label="Đặc tính nhân vật">
+      ${traits.map((t) => `
+        <span class="tk-mood-pill ${t.hidden ? 'is-hidden' : ''}"
+              title="${escapeHtml(t.descriptionVi || '')}"
+              data-trait-code="${escapeHtml(t.code || '')}">${escapeHtml(t.nameVi || '???')}</span>
+      `).join('')}
+    </div>
+  ` : '';
+
   container.innerHTML = `
     <div class="tk-talk-stage" id="tk-talk-stage">
       <div class="tk-layer tk-talk-bg" style="background-image:url('${escapeHtml(scene.backgroundPath)}')"></div>
@@ -153,6 +164,7 @@ function renderTalkScene(container, scene, bridge) {
               <span class="tk-affinity-tier">· ${escapeHtml(scene.relationTierVi)}</span>
             </div>
           </div>
+          ${traitsHtml}
 
           <p class="tk-dialog-line" id="tk-talk-line">“${escapeHtml(lines[0])}”</p>
 

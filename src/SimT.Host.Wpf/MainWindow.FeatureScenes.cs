@@ -260,7 +260,8 @@ public partial class MainWindow
                 aff, tier, face, profile, sk?.NameVi ?? "Nội Chính Tinh Thông", "A",
                 sk?.EffectSummary ?? "Gia tăng hiệu suất công việc và uy vọng tại thành trì.",
                 bioText,
-                a.War, a.Ldr, a.Int, a.Pol, a.Dip, a.Com, a.Log, a.Cra);
+                a.War, a.Ldr, a.Int, a.Pol, a.Dip, a.Com, a.Log, a.Cra,
+                social?.GetVisibleTraits(npc.Id));
         }).ToList();
 
         var prc = attrs?.EffectivePrc ?? 50;

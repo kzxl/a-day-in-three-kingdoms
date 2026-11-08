@@ -11,7 +11,7 @@ namespace SimT.Modules.Dlc.Economy;
 /// Trade + warehouse rules for <c>dlc.market</c>. Everything it touches is reached through a
 /// capability, never through another module's assembly.
 /// </summary>
-internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPortfolio, IPlayerStall, INpcMarket
+internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IMarketPortfolio, IPlayerStall, INpcMarket
 {
     public const int DefaultCapacity = 200;
     public const long DefaultMonthlyRent = 150;
@@ -29,6 +29,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
     private readonly ILog _log;
     private readonly INpcRegistry? _npcs;
     private readonly Shocks.MarketShockEngine? _shockEngine;
+    private readonly SimT.Contracts.Modules.ICapabilityBroker? _capabilities;
 
     public MarketService(
         IDbSession db,
@@ -40,7 +41,8 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         IWorldMap map,
         ILog log,
         INpcRegistry? npcs = null,
-        Shocks.MarketShockEngine? shockEngine = null)
+        Shocks.MarketShockEngine? shockEngine = null,
+        SimT.Contracts.Modules.ICapabilityBroker? capabilities = null)
     {
         _db = db;
         _clock = clock;
@@ -52,6 +54,7 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
         _log = log;
         _npcs = npcs;
         _shockEngine = shockEngine;
+        _capabilities = capabilities;
     }
 
     long IMarketWarehouse.DefaultCapacity => DefaultCapacity;
@@ -938,33 +941,46 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
               JOIN mk_stall s ON s.id = o.stall_id
               WHERE s.citadel_id = @city AND o.quantity > 0
               ORDER BY o.id",
-            row => new NpcMarketOffer(
-                row.GetInt64(0),
-                row.GetInt64(1),
-                row.GetInt64(2),
-                row.GetInt64(3),
-                row.GetInt32(4),
-                row.GetInt32(5),
-                row.GetInt64(6),
-                row.GetInt32(7)),
+            row =>
+            {
+                var npcId = row.GetInt64(2);
+                var itemId = row.GetInt64(3);
+                return new NpcMarketOffer(
+                    row.GetInt64(0),
+                    row.GetInt64(1),
+                    npcId,
+                    itemId,
+                    AdjustNpcOfferStock(npcId, row.GetInt32(4)),
+                    AdjustNpcOfferStock(npcId, row.GetInt32(5)),
+                    AdjustNpcOfferBasePrice(cityId, npcId, itemId, row.GetInt64(6)),
+                    row.GetInt32(7));
+            },
             DbArgs.One("@city", cityId));
     }
 
     public IReadOnlyList<NpcMarketOffer> OffersByStall(long stallId)
     {
         return _db.Query(
-            @"SELECT id, stall_id, npc_id, item_id, quantity, max_quantity, unit_price, discount_permille
-              FROM mk_npc_offer WHERE stall_id = @stall AND quantity > 0
-              ORDER BY id",
-            row => new NpcMarketOffer(
-                row.GetInt64(0),
-                row.GetInt64(1),
-                row.GetInt64(2),
-                row.GetInt64(3),
-                row.GetInt32(4),
-                row.GetInt32(5),
-                row.GetInt64(6),
-                row.GetInt32(7)),
+            @"SELECT o.id, o.stall_id, o.npc_id, o.item_id, o.quantity, o.max_quantity, o.unit_price, o.discount_permille, s.citadel_id
+              FROM mk_npc_offer o
+              JOIN mk_stall s ON s.id = o.stall_id
+              WHERE o.stall_id = @stall AND o.quantity > 0
+              ORDER BY o.id",
+            row =>
+            {
+                var npcId = row.GetInt64(2);
+                var itemId = row.GetInt64(3);
+                var cityId = row.GetInt64(8);
+                return new NpcMarketOffer(
+                    row.GetInt64(0),
+                    row.GetInt64(1),
+                    npcId,
+                    itemId,
+                    AdjustNpcOfferStock(npcId, row.GetInt32(4)),
+                    AdjustNpcOfferStock(npcId, row.GetInt32(5)),
+                    AdjustNpcOfferBasePrice(cityId, npcId, itemId, row.GetInt64(6)),
+                    row.GetInt32(7));
+            },
             DbArgs.One("@stall", stallId));
     }
 
@@ -1015,9 +1031,10 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
             return TradeResult.Fail("Sạp hàng này không ở thành trì hiện tại.");
         }
 
-        if (offer.Quantity < quantity)
+        var availableQty = AdjustNpcOfferStock(offer.NpcId, offer.Quantity);
+        if (availableQty < quantity)
         {
-            return TradeResult.Fail($"Sạp chỉ còn {offer.Quantity} đơn vị hàng.");
+            return TradeResult.Fail($"Sạp chỉ còn {availableQty} đơn vị hàng.");
         }
 
         var item = _items.Find(offer.ItemId);
@@ -1026,7 +1043,8 @@ internal sealed class MarketService : IMarketTrade, IMarketWarehouse, IMarketPor
             return TradeResult.Fail($"Hàng hóa mã {offer.ItemId} không tồn tại trong danh mục.");
         }
 
-        var effectiveUnit = offer.UnitPrice * (1000 - offer.Discount) / 1000;
+        var adjustedUnitPrice = AdjustNpcOfferBasePrice(cityId, offer.NpcId, offer.ItemId, offer.UnitPrice);
+        var effectiveUnit = adjustedUnitPrice * (1000 - offer.Discount) / 1000;
         if (effectiveUnit < 1) effectiveUnit = 1;
         var total = effectiveUnit * quantity;
 

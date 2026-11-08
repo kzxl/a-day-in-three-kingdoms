@@ -309,6 +309,10 @@
   white-space: nowrap;
 }
 
+/* Traits are dossier chips in gold; the native title shows the description. */
+.dossier-traits { display: flex; flex-wrap: wrap; gap: 6px; }
+.dossier-chip.is-trait { color: #c4a062; border-color: rgba(196, 160, 98, 0.45); cursor: help; }
+.dossier-chip.is-trait.is-hidden { color: #8c7b65; border-style: dashed; border-color: #5a4834; }
 .dossier-radar-row {
   display: flex;
   gap: clamp(10px, 1.2vw, 18px);

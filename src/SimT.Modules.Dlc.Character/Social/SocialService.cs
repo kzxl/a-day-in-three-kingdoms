@@ -557,6 +557,8 @@ internal sealed partial class SocialService : ISocialNetwork
             preferenceMultiplier = 1.3;
         }
 
+        ApplyTraitGiftAdjustments(npcId, item, ref preferenceMultiplier, ref isFavorite, out var flatTraitBonus, out var traitFlavorVi);
+
         // Base price value factor
         var currentRel = GetRelationship(npcId);
         int gain;
@@ -594,14 +596,14 @@ internal sealed partial class SocialService : ISocialNetwork
             else if (currentRel.Affinity >= 50) gain = Math.Max(1, (int)(gain * 0.5));
         }
 
-        gain = Math.Max(1, gain);
+        gain = Math.Max(1, gain + flatTraitBonus);
 
         var newAffinity = Math.Clamp(currentRel.Affinity + gain, -100, 100);
         var newTrust = Math.Clamp(currentRel.Trust + 4, 0, 100);
         var newGifts = currentRel.GiftCount + 1;
         var newImpression = CalculateImpression(newAffinity);
 
-        var favText = isFavorite ? " rất tâm đắc món quà hợp ý này" : "";
+        var favText = (isFavorite ? " rất tâm đắc món quà hợp ý này" : "") + traitFlavorVi;
         _db.Transaction(() =>
         {
             _db.Execute(

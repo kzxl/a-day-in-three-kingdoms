@@ -23,7 +23,9 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
         if (lines.Count == 0)
             lines = QueryLines("role", "commoner", "stranger");
 
-        return lines.Select(ClampLine90).ToList();
+        var result = lines.Select(ClampLine90).ToList();
+        AppendTraitLinesForNpc(npc.Id, tier, result);
+        return result;
     }
 
     public TalkScene BuildTalkScene(long npcId, string? feedbackVi = null) =>
@@ -83,7 +85,8 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
             FeedbackVi: string.IsNullOrWhiteSpace(feedbackVi) ? null : ClampLine90(feedbackVi!),
             BlinkPath: blinkPath, TalkPath: talkPath,
             ArchetypeCode: psyche?.Archetype.ToString().ToLowerInvariant(),
-            ArchetypeBadgeVi: psyche?.BadgeVi);
+            ArchetypeBadgeVi: psyche?.BadgeVi,
+            Traits: socialService?.GetVisibleTraits(npc.Id));
     }
 
     public TalkChoiceOutcome HandleChoice(long npcId, string choiceId)
