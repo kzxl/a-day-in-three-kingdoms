@@ -47,11 +47,11 @@ public sealed class EconomyModule : ISimModule
 
         // 2. Caravan Service
         var freightPerUnit = context.Config.GetLong("freightPerUnit", CaravanService.DefaultFreightPerUnit);
-        var caravanService = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, player, context.Ids, context.Log, context.ActionTime, freightPerUnit, npcs);
+        var caravanService = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, player, context.Ids, context.Log, context.ActionTime, freightPerUnit, npcs, context.Capabilities);
         context.Capabilities.Provide(CapabilityIds.CaravanGuild, caravanService);
 
         // 3. Farm / Cultivation Service
-        var farmService = new FarmService(context.Db, context.Clock, wallet, bag, items, context.Ids, context.ActionTime, context.Log);
+        var farmService = new FarmService(context.Db, context.Clock, wallet, bag, items, context.Ids, context.ActionTime, context.Log, context.Capabilities);
         farmService.ValidateCrops();
         farmService.EnsurePlots(map);
         context.Capabilities.Provide(CapabilityIds.CultivationEstate, farmService);

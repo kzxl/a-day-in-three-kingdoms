@@ -46,7 +46,12 @@ internal sealed class FamilyScreen : IScreenContribution
         var commands = new List<ScreenCommand>();
         if (!_service.IsMarried)
         {
-            commands.Add(new ScreenCommand("marry", $"Cầu hôn ({LineageService.DowryCost} Quan)"));
+            var suitors = _service.EligibleNpcSuitors();
+            foreach (var suitor in suitors)
+            {
+                commands.Add(new ScreenCommand($"marry:{suitor.Npc.Id}", $"Cầu hôn {suitor.Npc.NameVi} ({suitor.Dowry} Quan)"));
+            }
+            commands.Add(new ScreenCommand("marry", suitors.Count > 0 ? $"Cầu hôn thứ dân ({LineageService.DowryCost} Quan)" : $"Cầu hôn ({LineageService.DowryCost} Quan)"));
         }
         else
         {
@@ -192,6 +197,14 @@ internal sealed class FamilyCommandHandler : IScreenCommandHandler
 
     public string? Execute(string commandId)
     {
+        if (commandId.StartsWith("marry:"))
+        {
+            if (long.TryParse(commandId["marry:".Length..], out var npcId))
+            {
+                return _service.Marry(npcId).Message;
+            }
+        }
+
         if (commandId == "marry")
         {
             return _service.Marry().Message;

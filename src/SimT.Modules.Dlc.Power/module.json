@@ -24,7 +24,11 @@
     "content.items",
     "social.network",
     "character.traits",
-    "character.debate"
+    "character.debate",
+    "player.equipment",
+    "society.chronicle",
+    "dlc.dialogue",
+    "player.destiny"
   ],
   "owns": {
     "tables": [

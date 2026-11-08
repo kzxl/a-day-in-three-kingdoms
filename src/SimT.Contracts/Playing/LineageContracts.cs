@@ -24,6 +24,8 @@ public interface ILineageHouse
 
     string? SpouseName { get; }
 
+    long? SpouseNpcId { get; }
+
     int ChildCount { get; }
 
     string? HeirName { get; }
@@ -37,6 +39,8 @@ public interface ILineageHouse
     IReadOnlyList<ChildDef> Children { get; }
 
     LineageResult Marry();
+
+    LineageResult Marry(long? npcId);
 
     LineageResult Beget();
 

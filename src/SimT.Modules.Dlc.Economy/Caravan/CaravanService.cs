@@ -29,6 +29,7 @@ internal sealed class CaravanService : ICaravanGuild
     private readonly IActionTime _actionTime;
     private readonly long _freightPerUnit;
     private readonly INpcRegistry? _npcRegistry;
+    private readonly SimT.Contracts.Modules.ICapabilityBroker? _capabilities;
 
     public CaravanService(
         IDbSession db,
@@ -42,7 +43,8 @@ internal sealed class CaravanService : ICaravanGuild
         ILog log,
         IActionTime actionTime,
         long freightPerUnit = DefaultFreightPerUnit,
-        INpcRegistry? npcRegistry = null)
+        INpcRegistry? npcRegistry = null,
+        SimT.Contracts.Modules.ICapabilityBroker? capabilities = null)
     {
         _db = db;
         _clock = clock;
@@ -58,7 +60,11 @@ internal sealed class CaravanService : ICaravanGuild
             ? freightPerUnit
             : throw new SimException("caravan.config_invalid", $"freightPerUnit must be positive, got {freightPerUnit}.");
         _npcRegistry = npcRegistry;
+        _capabilities = capabilities;
     }
+    private IPlayerDestiny? GetDestiny() =>
+        _capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var d) == true ? d : null;
+
 
     public long FeePerUnit => _freightPerUnit;
 
@@ -335,6 +341,19 @@ internal sealed class CaravanService : ICaravanGuild
 
         // Navigator bonus: Log >= 60 reduces route time by 1 day for longer journeys (>= 3 days)
         var days = (crew.NavigatorLog >= 60 && baseDays >= 3) ? Math.Max(1, baseDays - 1) : baseDays;
+        var destiny = GetDestiny();
+        if (destiny is not null)
+        {
+            var speedBonus = destiny.GetModifier("caravan_speed_bonus");
+            if (destiny.HasKeystone("macgia_keystone_wooden_ox"))
+            {
+                speedBonus += 30;
+            }
+            if (speedBonus >= 25 && days > 1)
+            {
+                days = Math.Max(1, days - 1);
+            }
+        }
 
         var units = rows.Sum(row => row.Quantity);
         var baseFee = units * _freightPerUnit;
@@ -648,6 +667,15 @@ internal sealed class CaravanService : ICaravanGuild
                 if (!run.EscortNpcId.HasValue && transitDays >= 2)
                 {
                     var ambushChance = transitDays >= 3 ? 0.35 : 0.20;
+                    var caravanDestiny = GetDestiny();
+                    if (caravanDestiny is not null)
+                    {
+                        var red = caravanDestiny.GetModifier("bandit_ambush_reduction");
+                        if (red > 0)
+                        {
+                            ambushChance *= Math.Max(0.0, 1.0 - Math.Min(90, red) / 100.0);
+                        }
+                    }
                     var rng = new Random((int)(run.Id * 31 + run.Depart));
                     if (rng.NextDouble() < ambushChance)
                     {
@@ -696,6 +724,19 @@ internal sealed class CaravanService : ICaravanGuild
     /// </summary>
     private int Spoilage(long itemId, int quantity, int transitDays, double reduction = 0.0)
     {
+        var destiny = GetDestiny();
+        if (destiny is not null && destiny.HasKeystone("macgia_keystone_wooden_ox"))
+        {
+            return 0;
+        }
+        if (destiny is not null)
+        {
+            var red = destiny.GetModifier("spoilage_rate_reduction");
+            if (red > 0)
+            {
+                reduction = Math.Clamp(reduction + red / 100.0, 0.0, 0.95);
+            }
+        }
         var item = _items.Find(itemId);
         if (item is null || item.ShelfLifeDays <= 0 || quantity <= 0)
         {

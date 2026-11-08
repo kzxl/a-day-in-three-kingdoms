@@ -116,7 +116,9 @@ public static class TacticalDuelEngine
         NpcDef opponent,
         TroopBranch playerBranch,
         int? seed = null,
-        IReadOnlyList<NpcTraitDef>? opponentTraits = null)
+        IReadOnlyList<NpcTraitDef>? opponentTraits = null,
+        int destinyDamageBonus = 0,
+        bool hasWarlordKeystone = false)
     {
         var rng = seed.HasValue ? new Random(seed.Value) : new Random();
         var opponentBranch = ResolveNpcBranch(opponent);
@@ -141,13 +143,22 @@ public static class TacticalDuelEngine
         const int maxRounds = 5;
 
         // Base Effective Combat Power
-        var pWar = (double)pAttr.War;
+        var pWar = (double)pAttr.War + destinyDamageBonus;
         var nWar = (double)nAttr.War;
 
         // Skill damage multipliers
         var skillNotes = new List<string>();
 
         var pSkillMult = 1.0;
+        if (hasWarlordKeystone)
+        {
+            pSkillMult += 0.50;
+            skillNotes.Add("Thiên Mệnh [Bá Vương Đơn Thương]: Sát thương quyết đấu tăng vọt +50%!");
+        }
+        if (destinyDamageBonus > 0)
+        {
+            skillNotes.Add($"Thiên Mệnh [Thiết Huyết Tiêu Cục]: Uy lực vũ công +{destinyDamageBonus} điểm!");
+        }
         if (playerAttrs.IsSkillEquipped("vo_thanh"))
         {
             var lvl = Math.Max(1, playerAttrs.GetEquippedSkillLevel("vo_thanh"));

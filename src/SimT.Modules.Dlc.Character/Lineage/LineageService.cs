@@ -8,7 +8,7 @@ using SimT.Contracts.Time;
 
 namespace SimT.Modules.Dlc.Character;
 
-public sealed record FamilyMember(long Id, string Name, string Role, int DayIndex, bool IsHeir);
+public sealed record FamilyMember(long Id, string Name, string Role, int DayIndex, bool IsHeir, long? NpcId = null);
 
 internal sealed record ChildTutorInfo(string Name, string Mentor, string Focus, int Progress, int Bonus);
 
@@ -36,6 +36,8 @@ internal sealed class LineageService : ILineageHouse
     private readonly IIdGenerator _ids;
     private readonly IActionTime _actionTime;
     private readonly ILog _log;
+    private readonly INpcRegistry? _registry;
+    private readonly ISocialNetwork? _social;
 
     public LineageService(
         IDbSession db,
@@ -44,7 +46,9 @@ internal sealed class LineageService : ILineageHouse
         IRng rng,
         IIdGenerator ids,
         IActionTime actionTime,
-        ILog log)
+        ILog log,
+        INpcRegistry? registry = null,
+        ISocialNetwork? social = null)
     {
         _db = db;
         _clock = clock;
@@ -53,12 +57,23 @@ internal sealed class LineageService : ILineageHouse
         _ids = ids;
         _actionTime = actionTime;
         _log = log;
+        _registry = registry;
+        _social = social;
     }
 
     public bool IsMarried => _db.ScalarLong("SELECT COUNT(*) FROM ln_spouse") > 0;
 
     public string? SpouseName =>
         _db.ScalarString("SELECT name_vi FROM ln_spouse ORDER BY id LIMIT 1");
+
+    public long? SpouseNpcId
+    {
+        get
+        {
+            var res = _db.Query("SELECT npc_id FROM ln_spouse ORDER BY id LIMIT 1", r => r.IsDbNull(0) ? (long?)null : r.GetInt64(0));
+            return res.Count > 0 ? res[0] : null;
+        }
+    }
 
     public int ChildCount => (int)_db.ScalarLong("SELECT COUNT(*) FROM ln_child");
 
@@ -102,8 +117,8 @@ internal sealed class LineageService : ILineageHouse
         var members = new List<FamilyMember>();
 
         var spouse = _db.QueryOne(
-            "SELECT id, name_vi, married_day_index FROM ln_spouse ORDER BY id LIMIT 1",
-            row => new FamilyMember(row.GetInt64(0), row.GetString(1), "Chính thất", row.GetInt32(2), false));
+            "SELECT id, name_vi, married_day_index, npc_id FROM ln_spouse ORDER BY id LIMIT 1",
+            row => new FamilyMember(row.GetInt64(0), row.GetString(1), "Chính thất", row.GetInt32(2), false, row.IsDbNull(3) ? null : row.GetInt64(3)));
 
         if (spouse is not null)
         {
@@ -122,36 +137,118 @@ internal sealed class LineageService : ILineageHouse
         return members;
     }
 
-    public LineageResult Marry()
+    public LineageResult Marry() => Marry(null);
+
+    public LineageResult Marry(long? npcId)
     {
         if (IsMarried)
         {
             return LineageResult.Failure("Đã có chính thất.");
         }
 
-        if (_wallet.Liquid < DowryCost)
+        string name;
+        long dowry = DowryCost;
+        NpcDef? targetNpc = null;
+
+        if (npcId.HasValue)
         {
-            return LineageResult.Failure($"Cần {DowryCost} Quan sính lễ, chỉ có {_wallet.Liquid}.");
+            targetNpc = _registry?.Find(npcId.Value);
+            if (targetNpc is null)
+            {
+                return LineageResult.Failure("Không tìm thấy nhân sĩ này.");
+            }
+
+            name = targetNpc.NameVi;
+
+            var hasSpouse = _db.ScalarLong(
+                "SELECT COUNT(1) FROM kz_npc_bond WHERE (npc_a = @id OR npc_b = @id) AND kind = 'spouse'",
+                DbArgs.One("@id", npcId.Value)) > 0;
+            if (hasSpouse)
+            {
+                return LineageResult.Failure($"{name} đã có hôn phối.");
+            }
+
+            if (_social is not null)
+            {
+                var affinity = _social.GetRelationship(npcId.Value).Affinity;
+                if (affinity < 80)
+                {
+                    return LineageResult.Failure($"Hảo cảm với {name} chưa đủ sâu đậm (hiện có {affinity}/80) để nên duyên cầm sắt.");
+                }
+            }
+
+            var rank = SocialService.EvaluateNpcRank(targetNpc);
+            dowry = rank switch
+            {
+                NpcRank.S => 1000,
+                NpcRank.A => 600,
+                NpcRank.B => 450,
+                _ => 300
+            };
+        }
+        else
+        {
+            name = SpouseNames[_rng.Next(0, SpouseNames.Length)];
         }
 
-        var name = SpouseNames[_rng.Next(0, SpouseNames.Length)];
+        if (_wallet.Liquid < dowry)
+        {
+            return LineageResult.Failure($"Cần {dowry} Quan sính lễ, chỉ có {_wallet.Liquid}.");
+        }
+
         var day = _clock.Today.DayIndex;
 
         _db.Transaction(() =>
         {
             _actionTime.Charge(ActionCodes.LineageMarry);
-            _wallet.Charge(DowryCost, JournalCodes.Dowry, $"Sính lễ cưới {name}");
+            _wallet.Charge(dowry, JournalCodes.Dowry, $"Sính lễ cưới {name}");
             _db.Execute(
-                "INSERT INTO ln_spouse(id, name_vi, dowry_paid, married_day_index) VALUES(@id, @name, @dowry, @day)",
+                "INSERT INTO ln_spouse(id, name_vi, dowry_paid, married_day_index, npc_id) VALUES(@id, @name, @dowry, @day, @npcId)",
                 new DbArgs()
                     .Add("@id", _ids.Next("lineage.spouse"))
                     .Add("@name", name)
-                    .Add("@dowry", DowryCost)
-                    .Add("@day", day));
+                    .Add("@dowry", dowry)
+                    .Add("@day", day)
+                    .Add("@npcId", npcId.HasValue ? (object)npcId.Value : DBNull.Value));
+
+
         });
 
-        _log.Info($"married {name} for {DowryCost}");
-        return LineageResult.Success($"Thành hôn với {name}, sính lễ {DowryCost} Quan.");
+        _log.Info($"married {name} for {dowry} (npc_id={npcId})");
+        return LineageResult.Success($"Thành hôn với {name}, sính lễ {dowry} Quan.");
+    }
+
+    public IReadOnlyList<(NpcDef Npc, int Affinity, long Dowry)> EligibleNpcSuitors()
+    {
+        if (_registry is null || _social is null || IsMarried)
+        {
+            return Array.Empty<(NpcDef, int, long)>();
+        }
+
+        var suitors = new List<(NpcDef Npc, int Affinity, long Dowry)>();
+        foreach (var npc in _registry.All)
+        {
+            var affinity = _social.GetRelationship(npc.Id).Affinity;
+            if (affinity >= 80)
+            {
+                var hasSpouse = _db.ScalarLong(
+                    "SELECT COUNT(1) FROM kz_npc_bond WHERE (npc_a = @id OR npc_b = @id) AND kind = 'spouse'",
+                    DbArgs.One("@id", npc.Id)) > 0;
+                if (!hasSpouse)
+                {
+                    var rank = SocialService.EvaluateNpcRank(npc);
+                    long dowry = rank switch
+                    {
+                        NpcRank.S => 1000,
+                        NpcRank.A => 600,
+                        NpcRank.B => 450,
+                        _ => 300
+                    };
+                    suitors.Add((npc, affinity, dowry));
+                }
+            }
+        }
+        return suitors.OrderByDescending(s => s.Affinity).ThenBy(s => s.Npc.NameVi).ToList();
     }
 
     public LineageResult Beget()

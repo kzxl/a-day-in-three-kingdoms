@@ -26,6 +26,7 @@ internal sealed class FarmService : ICultivationEstate
     private readonly IIdGenerator _ids;
     private readonly IActionTime _actionTime;
     private readonly ILog _log;
+    private readonly SimT.Contracts.Modules.ICapabilityBroker? _capabilities;
 
     public FarmService(
         IDbSession db,
@@ -35,7 +36,8 @@ internal sealed class FarmService : ICultivationEstate
         IItemCatalog items,
         IIdGenerator ids,
         IActionTime actionTime,
-        ILog log)
+        ILog log,
+        SimT.Contracts.Modules.ICapabilityBroker? capabilities = null)
     {
         _db = db;
         _clock = clock;
@@ -45,7 +47,25 @@ internal sealed class FarmService : ICultivationEstate
         _ids = ids;
         _actionTime = actionTime;
         _log = log;
+        _capabilities = capabilities;
     }
+    private IPlayerDestiny? GetDestiny() =>
+        _capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var d) == true ? d : null;
+
+    private long EffectiveRent(long baseRent)
+    {
+        var destiny = GetDestiny();
+        if (destiny is not null)
+        {
+            var discount = destiny.GetModifier("farm_rent_discount");
+            if (discount > 0)
+            {
+                return Math.Max(0, (long)Math.Round(baseRent * (1.0 - Math.Min(90, discount) / 100.0)));
+            }
+        }
+        return baseRent;
+    }
+
 
     public IReadOnlyList<PlotView> Plots =>
         _db.Query(
@@ -429,10 +449,32 @@ internal sealed class FarmService : ICultivationEstate
             "SELECT id FROM fm_crop WHERE plot_id=@plot AND status = 'READY' ORDER BY id LIMIT 1",
             DbArgs.One("@plot", plotId));
 
+        var destiny = GetDestiny();
+        if (destiny is not null)
+        {
+            var yieldBonus = destiny.GetModifier("farm_yield_bonus");
+            if (destiny.HasKeystone("badao_keystone_military_farm"))
+            {
+                yieldBonus += 40;
+            }
+            if (yieldBonus > 0)
+            {
+                yieldQuantity = Math.Max(1, (int)Math.Round(yieldQuantity * (1.0 + yieldBonus / 100.0)));
+            }
+        }
+
         var remainingHarvests = plot.RemainingHarvests > 0 ? plot.RemainingHarvests : 1;
         var harvestStage = plot.HarvestStage > 0 ? plot.HarvestStage : 1;
         var isPerennialRegrowth = cropSpec.IsPerennial && remainingHarvests > 1;
         var soilCost = isPerennialRegrowth ? (CropCalendar.SoilCostPerHarvest / 2) : CropCalendar.SoilCostPerHarvest;
+        if (destiny is not null)
+        {
+            var soilRed = destiny.GetModifier("soil_drain_reduction");
+            if (soilRed > 0)
+            {
+                soilCost = Math.Max(0, (int)Math.Round(soilCost * (1.0 - Math.Min(90, soilRed) / 100.0)));
+            }
+        }
         var soilAfter = Math.Max(0, plot.Soil - soilCost);
         var irrigationTier = GetFacilityTier(plot.CitadelId, FacilitySpecs.Irrigation);
         var regrowthDays = isPerennialRegrowth ? CropCalendar.RegrowthDays(cropSpec, _clock.Today.Month, irrigationTier) : 0;
@@ -963,14 +1005,15 @@ internal sealed class FarmService : ICultivationEstate
 
         foreach (var plot in plots)
         {
-            if (_wallet.Liquid < plot.Rent)
+            var actualRent = EffectiveRent(plot.Rent);
+            if (_wallet.Liquid < actualRent)
             {
-                _log.Warn($"Chưa trả được tiền ruộng {plot.Rent} Quan (khu {plot.Id}) ngày {date}.");
+                _log.Warn($"Chưa trả được tiền ruộng {actualRent} Quan (khu {plot.Id}) ngày {date}.");
                 continue;
             }
 
             _wallet.Charge(
-                plot.Rent,
+                actualRent,
                 JournalCodes.FarmRent,
                 $"Tiền ruộng khu {plot.Id} tháng {date.Month:00}/{date.Year}",
                 $"cultivation.rent:{plot.Id}:{date.DayIndex}");

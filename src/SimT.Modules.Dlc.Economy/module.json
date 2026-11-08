@@ -28,7 +28,11 @@
     "player.attributes",
     "character.traits",
     "character.debate",
-    "social.network"
+    "social.network",
+    "npc.registry",
+    "society.chronicle",
+    "military.command",
+    "player.destiny"
   ],
   "owns": {
     "tables": [

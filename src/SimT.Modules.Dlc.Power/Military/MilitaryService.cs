@@ -183,7 +183,14 @@ internal sealed class MilitaryService : IMilitaryCommand
         }
 
         // Run full multi-round tactical duel simulation
-        var duel = TacticalDuelEngine.SimulateDuel(_attributes, npc, playerBranch, opponentTraits: opponentTraits);
+        var destinyDamage = 0;
+        var hasWarlord = false;
+        if (_capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var destiny) == true && destiny is not null)
+        {
+            destinyDamage = destiny.GetModifier("duel_damage_bonus");
+            hasWarlord = destiny.HasKeystone("binhgia_keystone_warlord");
+        }
+        var duel = TacticalDuelEngine.SimulateDuel(_attributes, npc, playerBranch, opponentTraits: opponentTraits, destinyDamageBonus: destinyDamage, hasWarlordKeystone: hasWarlord);
 
         if (duel.Won && social is not null)
         {
@@ -331,7 +338,16 @@ internal sealed class MilitaryService : IMilitaryCommand
             var currentCity = _player.CurrentCityId;
             _db.Transaction(() =>
             {
-                _wallet.Pay(stronghold.LootGold, "military.loot", $"Chiến lợi phẩm tiễu phạt {stronghold.NameVi}", $"assault:{strongholdId}:{formattedDate}");
+                var actualLoot = (long)stronghold.LootGold;
+                if (_capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var dst) == true && dst is not null)
+                {
+                    var bountyBonus = dst.GetModifier("bandit_bounty_bonus");
+                    if (bountyBonus > 0)
+                    {
+                        actualLoot = (long)Math.Round(actualLoot * (1.0 + bountyBonus / 100.0));
+                    }
+                }
+                _wallet.Pay(actualLoot, "military.loot", $"Chiến lợi phẩm tiễu phạt {stronghold.NameVi}", $"assault:{strongholdId}:{formattedDate}");
 
                 if (item is not null)
                 {

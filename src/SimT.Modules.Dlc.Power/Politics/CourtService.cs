@@ -25,15 +25,20 @@ internal sealed partial class CourtService : IPoliticalCourt
     private readonly IWallet _wallet;
     private readonly ILog _log;
     private readonly IPlayerAttributes? _attributes;
+    private readonly SimT.Contracts.Modules.ICapabilityBroker? _capabilities;
 
-    public CourtService(IDbSession db, IGameClock clock, IWallet wallet, ILog log, IPlayerAttributes? attributes = null)
+    public CourtService(IDbSession db, IGameClock clock, IWallet wallet, ILog log, IPlayerAttributes? attributes = null, SimT.Contracts.Modules.ICapabilityBroker? capabilities = null)
     {
         _db = db;
         _clock = clock;
         _wallet = wallet;
         _log = log;
         _attributes = attributes;
+        _capabilities = capabilities;
     }
+
+    private IPlayerDestiny? GetDestiny() =>
+        _capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var d) == true ? d : null;
 
     public int Reputation => (int)State("reputation");
 
@@ -42,8 +47,24 @@ internal sealed partial class CourtService : IPoliticalCourt
     public string? OfficeName =>
         _db.ScalarString("SELECT name_vi FROM po_office WHERE id=@id", DbArgs.One("@id", OfficeId));
 
-    public long MonthlyStipend =>
-        _db.ScalarLong("SELECT COALESCE(monthly_stipend, 0) FROM po_office WHERE id=@id", DbArgs.One("@id", OfficeId));
+    public long MonthlyStipend
+    {
+        get
+        {
+            var baseStipend = _db.ScalarLong("SELECT COALESCE(monthly_stipend, 0) FROM po_office WHERE id=@id", DbArgs.One("@id", OfficeId));
+            if (baseStipend <= 0) return 0;
+            var destiny = GetDestiny();
+            if (destiny is not null)
+            {
+                var bonus = destiny.GetModifier("court_stipend_bonus");
+                if (bonus > 0)
+                {
+                    baseStipend = (long)Math.Round(baseStipend * (1.0 + bonus / 100.0));
+                }
+            }
+            return baseStipend;
+        }
+    }
 
     public long AllegianceFactionId => State("allegiance_faction_id");
 
