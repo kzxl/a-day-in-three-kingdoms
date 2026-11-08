@@ -1,9 +1,12 @@
 import { SimTBridge } from './bridge.js';
+import { travellerPath, travellerPosition, createTravellerMarker, TRAVELLER_LABELS } from './map-travellers.js';
 
 let animHandle = 0;
 let seasonAnimHandle = 0;
 let resizeObs = null;
 let visChangeHandler = null;
+let motionQuery = null;
+let sceneVisibilityObserver = null;
 
 export const MAP_WIDTH = 800;
 export const MAP_HEIGHT = 640;
@@ -29,6 +32,8 @@ export const LABEL_POS = {
 function stopTravelAnim() {
   if (animHandle) { cancelAnimationFrame(animHandle); animHandle = 0; }
   if (seasonAnimHandle) { cancelAnimationFrame(seasonAnimHandle); seasonAnimHandle = 0; }
+  if (motionQuery && visChangeHandler) motionQuery.removeEventListener('change', visChangeHandler);
+  if (sceneVisibilityObserver) { sceneVisibilityObserver.disconnect(); sceneVisibilityObserver = null; }
   if (resizeObs) { resizeObs.disconnect(); resizeObs = null; }
   if (visChangeHandler && typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
     document.removeEventListener('visibilitychange', visChangeHandler);
@@ -349,7 +354,7 @@ export function computeMapLayoutBoxes(winW = 1076, factionCount = 12) {
 
   const rows = Math.ceil(Math.max(1, factionCount) / 2);
   const legendW = 208;
-  const legendH = 28 + rows * 16 + 8;
+  const legendH = 28 + rows * 16 + 8 + 64;
   const factionLegendBox = {
     left: viewportBox.right - 8 - legendW,
     top: viewportBox.bottom - 8 - legendH,
@@ -501,7 +506,26 @@ export function renderMapScene(container, scene, bridge) {
   tokenImg.src = scene.playerPortraitPath || 'art/portraits/player/face.webp';
   tokenImg.alt = 'Vị trí của bạn';
 
-  canvas.append(bgLayer, factionCanvas, svg, tagsLayer, citiesLayer, tokenImg);
+  const travellersSvg = document.createElementNS(svgNS, 'svg');
+  travellersSvg.setAttribute('viewBox', '0 0 800 640');
+  travellersSvg.setAttribute('class', 'tk-map-svg tk-map-travellers');
+  let showTravellers = true;
+  let elapsed = 0;
+  const travellerNodes = (scene.travellers || []).slice(0, 30).map(t => {
+    const path = travellerPath(t, cities, routes);
+    if (path.length < 2) return null;
+    const marker = createTravellerMarker(t, path.map(c => c.nameVi).join(' → '));
+    travellersSvg.appendChild(marker);
+    return { t, path, marker };
+  }).filter(Boolean);
+  function positionTravellers() {
+    for (const { t, path, marker } of travellerNodes) {
+      const p = travellerPosition(path, Math.max(0.03, Math.min(0.97, t.progress + Math.sin(elapsed / 18) * 0.025)));
+      marker.setAttribute('transform', `translate(${p.x} ${p.y})`);
+    }
+  }
+  positionTravellers();
+  canvas.append(bgLayer, factionCanvas, svg, tagsLayer, citiesLayer, tokenImg, travellersSvg);
 
   const seasonCanvas = el('canvas', 'tk-map-season-canvas');
   seasonCanvas.width = MAP_WIDTH;
@@ -528,7 +552,7 @@ export function renderMapScene(container, scene, bridge) {
 
   function renderFactionLegend() {
     factionBox.replaceChildren();
-    if (factions.length === 0) {
+    if (factions.length === 0 && travellerNodes.length === 0) {
       factionBox.hidden = true;
       return;
     }
@@ -562,6 +586,26 @@ export function renderMapScene(container, scene, bridge) {
       list.appendChild(item);
     }
     factionBox.appendChild(list);
+    if (travellerNodes.length) {
+      const toggle = el('button', `tk-map-faction-toggle${showTravellers ? ' is-active' : ''}`, 'Người đi');
+      toggle.type = 'button'; toggle.setAttribute('aria-pressed', String(showTravellers));
+      toggle.addEventListener('click', () => {
+        showTravellers = !showTravellers;
+        travellersSvg.style.display = showTravellers ? '' : 'none';
+        renderFactionLegend();
+      });
+      factionBox.appendChild(toggle);
+      const legend = el('div', 'tk-map-traveller-legend');
+      for (const [kind, label] of Object.entries(TRAVELLER_LABELS)) {
+        const item = el('span', 'tk-map-faction-item');
+        const icon = document.createElementNS(svgNS, 'svg');
+        icon.setAttribute('viewBox', '-15 -15 30 30');
+        const marker = createTravellerMarker({kind, labelVi: label, color: '#c4a062'}, label);
+        marker.removeAttribute('tabindex'); icon.appendChild(marker);
+        item.append(icon, document.createTextNode(label)); legend.appendChild(item);
+      }
+      factionBox.appendChild(legend);
+    }
   }
 
   function setupSeasonParticles() {
@@ -571,19 +615,14 @@ export function renderMapScene(container, scene, bridge) {
       : createSeasonParticles(seasonKey, MAP_WIDTH, MAP_HEIGHT, SEASON_MAX_PARTICLES);
     seasonCanvas.dataset.particleCount = String(particles.length);
 
-    if (!ctx || particles.length === 0) {
-      if (ctx && typeof ctx.clearRect === 'function') ctx.clearRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
-      return;
-    }
-
     drawSeasonParticles(ctx, particles, seasonKey, MAP_WIDTH, MAP_HEIGHT);
 
     let lastNow = typeof performance !== 'undefined' ? performance.now() : 0;
     function canAnimateSeason() {
       if (isReducedMotionPreferred()) return false;
       if (typeof document !== 'undefined' && document.hidden) return false;
-      if (container.hidden) return false;
-      return particles.length > 0;
+      if (!container.isConnected || container.hidden || !container.getClientRects().length) return false;
+      return particles.length > 0 || (showTravellers && travellerNodes.length > 0);
     }
 
     function stepSeason(now) {
@@ -591,6 +630,8 @@ export function renderMapScene(container, scene, bridge) {
       if (!canAnimateSeason()) return;
       const dt = Math.min(0.05, Math.max(0.001, (now - lastNow) / 1000));
       lastNow = now;
+      elapsed += dt;
+      positionTravellers();
       stepSeasonParticles(particles, seasonKey, dt, MAP_WIDTH, MAP_HEIGHT);
       drawSeasonParticles(ctx, particles, seasonKey, MAP_WIDTH, MAP_HEIGHT);
       if (typeof requestAnimationFrame === 'function') {
@@ -614,6 +655,10 @@ export function renderMapScene(container, scene, bridge) {
       document.addEventListener('visibilitychange', visChangeHandler);
     }
 
+    motionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    motionQuery?.addEventListener('change', visChangeHandler);
+    sceneVisibilityObserver = new MutationObserver(visChangeHandler);
+    sceneVisibilityObserver.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['hidden', 'class', 'style'] });
     if (canAnimateSeason() && typeof requestAnimationFrame === 'function') {
       seasonAnimHandle = requestAnimationFrame(stepSeason);
     }
@@ -775,11 +820,29 @@ export function renderMapScene(container, scene, bridge) {
       line.setAttribute('y1', String(a.y));
       line.setAttribute('x2', String(b.x));
       line.setAttribute('y2', String(b.y));
-      line.setAttribute('stroke', isAct ? '#a8321f' : '#2a1f16');
-      line.setAttribute('stroke-width', isAct ? '4' : '1.4');
-      if (!isAct) line.setAttribute('stroke-dasharray', '5 5');
-      line.setAttribute('stroke-opacity', isAct ? '1' : '0.55');
+      // Only real danger (2-3) or a blockade turns a road red; level 1 is the normal road.
+      const risky = (r.danger || 0) >= 2;
+      line.setAttribute('stroke', r.blockedReasonVi || (risky && !isAct) ? '#a8321f' : isAct ? '#c4a062' : '#2a1f16');
+      line.setAttribute('stroke-width', String(isAct ? 4 : r.blockedReasonVi ? 2.5 : risky ? r.danger - 0.5 : 1.4));
+      if (r.blockedReasonVi) line.setAttribute('stroke-dasharray', '7 4');
+      line.setAttribute('stroke-opacity', isAct || r.blockedReasonVi ? '1' : risky ? '0.8' : '0.55');
       svg.appendChild(line);
+      if (isAct && risky && !r.blockedReasonVi) {
+        const selected = line.cloneNode(false);
+        selected.setAttribute('stroke', '#c4a062');
+        selected.setAttribute('stroke-width', '1.5');
+        svg.appendChild(selected);
+      }
+      if (r.blockedReasonVi) {
+        const block = document.createElementNS(svgNS, 'g');
+        block.setAttribute('transform', `translate(${(a.x+b.x)/2} ${(a.y+b.y)/2})`);
+        block.setAttribute('class', 'tk-map-block');
+        const title = document.createElementNS(svgNS, 'title'); title.textContent = r.blockedReasonVi;
+        const sign = document.createElementNS(svgNS, 'path');
+        sign.setAttribute('d', 'M-7-7h14v14H-7z M-5 5L5-5');
+        sign.setAttribute('stroke', '#a8321f'); sign.setAttribute('stroke-width', '3'); sign.setAttribute('fill', '#eadfc6');
+        block.append(title, sign); svg.appendChild(block);
+      }
     }
 
     tagsLayer.replaceChildren();
@@ -847,7 +910,7 @@ export function renderMapScene(container, scene, bridge) {
       ? 'Xanh rẻ · Vàng thường · Đỏ đắt'
       : state.layer === 'danger'
         ? 'Xanh an toàn · Vàng có cướp · Đỏ rất hiểm'
-        : 'Đường đỏ là lộ trình đang chọn · Cuộn chuột để thu phóng';
+        : 'Đỏ: đường nguy hiểm · Nét đứt đỏ: phong tỏa · Vàng: lộ trình';
     bottomBar.appendChild(el('div', 'tk-map-legend', legendText));
 
     rightCol.replaceChildren();
@@ -895,6 +958,12 @@ export function renderMapScene(container, scene, bridge) {
     routeBox.append(el('span', 'tk-map-field-label', 'Lộ trình: '), document.createTextNode(routeNames));
     rightCol.appendChild(routeBox);
 
+    if (activeQuote?.blockedReasonVi) {
+      rightCol.appendChild(el('div', 'tk-map-stored', activeQuote.blockedReasonVi));
+      const blocked = el('button', 'tk-map-go', 'Đường bị chặn'); blocked.disabled = true;
+      rightCol.appendChild(blocked); return;
+    }
+    if (activeQuote?.danger) rightCol.appendChild(el('div', 'tk-map-field', `Nguy hiểm mức ${activeQuote.danger}/3 trên lộ trình.`));
     for (const q of selCity.quotes || []) {
       const mBtn = el('button', `tk-map-mode${q.modeKey === state.mode ? ' is-active' : ''}`);
       mBtn.type = 'button';
@@ -992,7 +1061,7 @@ export function renderMapScene(container, scene, bridge) {
       const canAfford = (activeQuote.fee || 0) <= (scene.cash || 0);
       const goBtn = el('button', 'tk-map-go', state.moving ? 'Đang đi đường...' : !canAfford ? 'Không đủ tiền' : `Lên đường · ${activeQuote.actualDays} ngày`);
       goBtn.type = 'button';
-      goBtn.disabled = state.moving || !canAfford;
+      goBtn.disabled = state.moving || !canAfford || activeQuote.actualDays <= 0;
       goBtn.addEventListener('click', () => { if (!state.moving && canAfford) startTravelAnimation(pathIds, activeQuote, selCity.id); });
       rightCol.appendChild(goBtn);
     }

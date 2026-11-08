@@ -70,12 +70,16 @@ public sealed record MapTravelQuoteView(
     [property: JsonPropertyName("rations")] int Rations,
     [property: JsonPropertyName("fatigue")] int Fatigue,
     [property: JsonPropertyName("pathNodeIds")] IReadOnlyList<long> PathNodeIds,
-    [property: JsonPropertyName("carryCapacity")] int CarryCapacity = 40);
+    [property: JsonPropertyName("carryCapacity")] int CarryCapacity = 40,
+    [property: JsonPropertyName("danger")] int Danger = 0,
+    [property: JsonPropertyName("blockedReasonVi")] string BlockedReasonVi = "");
 
 public sealed record MapRouteView(
     [property: JsonPropertyName("fromId")] long FromId,
     [property: JsonPropertyName("toId")] long ToId,
-    [property: JsonPropertyName("days")] int Days);
+    [property: JsonPropertyName("days")] int Days,
+    [property: JsonPropertyName("danger")] int Danger = 0,
+    [property: JsonPropertyName("blockedReasonVi")] string BlockedReasonVi = "");
 
 /// <summary>
 /// Interactive Social Network scene payload (<c>NhanDuyen.dc.html</c>) rendered in WebView2.

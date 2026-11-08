@@ -64,9 +64,9 @@ public sealed partial record MapScene
                 var qWalk = map.QuoteTravel(currentCityId, c.Id, TravelMode.Walk);
                 var qHorse = map.QuoteTravel(currentCityId, c.Id, TravelMode.Horse);
                 var qCaravan = map.QuoteTravel(currentCityId, c.Id, TravelMode.Caravan);
-                quotes.Add(new MapTravelQuoteView("walk", "Bộ hành", $"Không tốn tiền · Mang {qWalk.CarryCapacity} đv", qWalk.BaseDays, qWalk.ActualDays, qWalk.TravelFee, qWalk.RationsNeeded, qWalk.FatigueExpected, qWalk.PathNodeIds, qWalk.CarryCapacity));
-                quotes.Add(new MapTravelQuoteView("horse", "Dịch mã", $"Nhanh nhất · Mang {qHorse.CarryCapacity} đv", qHorse.BaseDays, qHorse.ActualDays, qHorse.TravelFee, qHorse.RationsNeeded, qHorse.FatigueExpected, qHorse.PathNodeIds, qHorse.CarryCapacity));
-                quotes.Add(new MapTravelQuoteView("caravan", "Tiêu cục", $"Không gặp cướp · Mang {qCaravan.CarryCapacity} đv", qCaravan.BaseDays, qCaravan.ActualDays, qCaravan.TravelFee, qCaravan.RationsNeeded, qCaravan.FatigueExpected, qCaravan.PathNodeIds, qCaravan.CarryCapacity));
+                quotes.Add(new MapTravelQuoteView("walk", "Bộ hành", $"Không tốn tiền · Mang {qWalk.CarryCapacity} đv", qWalk.BaseDays, qWalk.ActualDays, qWalk.TravelFee, qWalk.RationsNeeded, qWalk.FatigueExpected, qWalk.PathNodeIds, qWalk.CarryCapacity, qWalk.Danger, qWalk.BlockedReasonVi));
+                quotes.Add(new MapTravelQuoteView("horse", "Dịch mã", $"Nhanh nhất · Mang {qHorse.CarryCapacity} đv", qHorse.BaseDays, qHorse.ActualDays, qHorse.TravelFee, qHorse.RationsNeeded, qHorse.FatigueExpected, qHorse.PathNodeIds, qHorse.CarryCapacity, qHorse.Danger, qHorse.BlockedReasonVi));
+                quotes.Add(new MapTravelQuoteView("caravan", "Tiêu cục", $"Không gặp cướp · Mang {qCaravan.CarryCapacity} đv", qCaravan.BaseDays, qCaravan.ActualDays, qCaravan.TravelFee, qCaravan.RationsNeeded, qCaravan.FatigueExpected, qCaravan.PathNodeIds, qCaravan.CarryCapacity, qCaravan.Danger, qCaravan.BlockedReasonVi));
             }
             var storedVi = bag is not null
                 ? TravelLuggage.FormatItemQuantities(bag.Rows(c.Id).Select(r => (r.ItemId, r.Quantity)), items)
@@ -91,11 +91,15 @@ public sealed partial record MapScene
                 .OrderByDescending(x => x.BasePrice).ThenBy(x => x.ItemId).ToList()
             : new List<MapBagItemView>();
 
-        var routes = map.Routes.Select(r => new MapRouteView(r.FromCitadelId, r.ToCitadelId, r.Days)).ToList();
+        var routes = map.Routes.Select(r =>
+        {
+            var status = map.GetRouteStatus(r.FromCitadelId, r.ToCitadelId);
+            return new MapRouteView(r.FromCitadelId, r.ToCitadelId, r.Days, status.Danger, status.BlockedReasonVi);
+        }).ToList();
         var recText = recommendation ?? $"Từ {currentCityName}, bấm một thành trên bản đồ để xem lộ trình ngắn nhất, chi phí, hành lý và sản vật trước khi lên đường.";
         return new MapScene(
             currentCityId, currentCityName, GameDateCodec.ShortVi(today),
             cash, fatigue, "art/map/thien_ha.webp",
-            SceneArtCatalog.PlayerPortraitFace, recText, cities, routes, currentBag, season, factions);
+            SceneArtCatalog.PlayerPortraitFace, recText, cities, routes, currentBag, season, factions) { Travellers = BuildTravellers(capabilities, today, cities) };
     }
 }
