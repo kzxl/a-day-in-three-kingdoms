@@ -199,7 +199,7 @@ public sealed class DialogueTests
         Assert.DoesNotContain(huaXiongScene.Lines, l => l.Contains("Dân đen chúng tôi", StringComparison.Ordinal));
 
         var simaYiScene = dialogue.BuildTalkScene(simaYi.Id);
-        Assert.Equal("art/portraits/scholar/full.webp", simaYiScene.PortraitFull);
+        Assert.Equal("art/portraits/sima_yi/full.webp", simaYiScene.PortraitFull);
         Assert.Equal("Nho nhã", simaYiScene.PersonalityVi);
 
         Assert.Equal("Trung Nguyên", RoleTitleVi.FormatRegion("trung_nguyen"));

@@ -32,6 +32,86 @@
     "npc_0140": {
       "portrait": "lady",
       "sprite": "civ_lady"
+    },
+    "npc_0024": {
+      "portrait": "zhao_yun",
+      "sprite": "han_officer"
+    },
+    "npc_0028": {
+      "portrait": "huang_zhong",
+      "sprite": "han_officer"
+    },
+    "npc_0017": {
+      "portrait": "zhou_yu",
+      "sprite": "han_officer"
+    },
+    "npc_0026": {
+      "portrait": "pang_tong",
+      "sprite": "civ_scholar"
+    },
+    "npc_0019": {
+      "portrait": "sun_quan",
+      "sprite": "civ_scholar"
+    },
+    "npc_0037": {
+      "portrait": "guo_jia",
+      "sprite": "civ_scholar"
+    },
+    "npc_0048": {
+      "portrait": "sun_ce",
+      "sprite": "han_officer"
+    },
+    "npc_0035": {
+      "portrait": "xun_yu",
+      "sprite": "civ_scholar"
+    },
+    "npc_0014": {
+      "portrait": "sun_jian",
+      "sprite": "han_officer"
+    },
+    "npc_0040": {
+      "portrait": "zhang_liao",
+      "sprite": "han_officer"
+    },
+    "npc_0039": {
+      "portrait": "sima_yi",
+      "sprite": "civ_scholar"
+    },
+    "npc_0043": {
+      "portrait": "xiahou_dun",
+      "sprite": "han_officer"
+    },
+    "npc_0018": {
+      "portrait": "yuan_shao",
+      "sprite": "han_officer"
+    },
+    "npc_0042": {
+      "portrait": "dian_wei",
+      "sprite": "han_officer"
+    },
+    "npc_0023": {
+      "portrait": "dong_zhuo",
+      "sprite": "han_officer"
+    },
+    "npc_0041": {
+      "portrait": "xu_chu",
+      "sprite": "han_officer"
+    },
+    "npc_0029": {
+      "portrait": "ma_chao",
+      "sprite": "han_officer"
+    },
+    "npc_0051": {
+      "portrait": "lu_xun",
+      "sprite": "han_officer"
+    },
+    "npc_0050": {
+      "portrait": "lu_meng",
+      "sprite": "civ_scholar"
+    },
+    "npc_0053": {
+      "portrait": "gan_ning",
+      "sprite": "han_officer"
     }
   },
   "archetype": {

@@ -7,6 +7,30 @@ namespace SimT.Modules.Dlc.Tests;
 
 public sealed class PortraitExpressionTests
 {
+    [Fact]
+    public void Part_a_portraits_are_distinct_keep_street_sprites_and_fall_back_for_expressions()
+    {
+        using var host = new DlcTestHost();
+        using var kernel = host.Boot();
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var portraits = new HashSet<string>();
+        foreach (var number in new[] { 24, 28, 17, 26, 19, 37, 48, 35, 14, 40,
+            39, 43, 18, 42, 23, 41, 29, 51, 50, 53 })
+        {
+            var npc = npcs.FindByCode($"npc_{number:0000}")!;
+            var art = SceneArtCatalog.ResolveNpcArt(npc);
+            var archetype = SceneArtCatalog.ClassifyArchetype(npc);
+            var previous = SceneArtCatalog.ResolveArchetypeKeys(archetype);
+            Assert.NotEqual($"art/portraits/{previous.PortraitKey}/full.webp", art.PortraitFull);
+            Assert.True(portraits.Add(art.PortraitFull), npc.Code);
+            Assert.True(art.SpritePath == $"art/sprites/{previous.SpriteKey}.png",
+                $"{npc.Code}: expected street sprite {previous.SpriteKey}, got {art.SpritePath}");
+            Assert.Equal(art.PortraitFace, SceneArtCatalog.ResolveProfileArt(npc));
+            foreach (var expression in new[] { "happy", "angry", "sad" })
+                Assert.Equal(art.PortraitFull, SceneArtCatalog.ResolvePortraitExpression(art.PortraitFull, expression));
+        }
+    }
+
     [Theory]
     [InlineData("art/portraits/absent/full.webp", "happy")]
     [InlineData("art/portraits/guan_yu/full.webp", "unknown")]
