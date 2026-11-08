@@ -1,5 +1,6 @@
 import { SimTBridge } from './bridge.js';
 import { createPortraitAnimator } from './sprite-anim.js';
+import { createPortraitSwapper, portraitForLine } from './portrait-expressions.js';
 
 const HAN_NUMERALS = ['壹', '貳', '參', '肆', '伍', '陸'];
 
@@ -9,6 +10,7 @@ let keyHandler = null;
 let moveHandler = null;
 let rafId = null;
 let portraitAnim = null;
+let portraitSwapper = null;
 const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 
 function escapeHtml(str) {
@@ -29,6 +31,7 @@ function advanceLine(container) {
   }
   currentLineIdx = (currentLineIdx + 1) % currentScene.lines.length;
   const countEl = container.querySelector('#tk-talk-count');
+  updatePortrait(currentLineIdx);
   if (portraitAnim) {
     portraitAnim.setLine(currentScene.lines[currentLineIdx]);
     if (prefersReducedMotion()) portraitAnim.completeLine();
@@ -36,6 +39,13 @@ function advanceLine(container) {
   if (countEl) {
     countEl.textContent = `${currentLineIdx + 1} / ${currentScene.lines.length}`;
   }
+}
+
+function updatePortrait(index) {
+  if (!currentScene) return;
+  const path = portraitForLine(currentScene, index, currentScene.portraitFull);
+  portraitAnim?.setFramesEnabled(path === currentScene.portraitFull);
+  portraitSwapper?.set(path, currentScene.portraitFull);
 }
 
 function renderTalkScene(container, scene, bridge) {
@@ -188,6 +198,8 @@ function renderTalkScene(container, scene, bridge) {
     talkEl: container.querySelector('#tk-char-talk'),
     lineEl
   });
+  portraitSwapper = createPortraitSwapper(container.querySelector('#tk-char-base'));
+  updatePortrait(0);
   portraitAnim.setLine(lines[0]);
   if (prefersReducedMotion()) portraitAnim.completeLine();
 
@@ -268,6 +280,8 @@ function unmountTalkScene() {
     window.removeEventListener('mousemove', moveHandler);
     moveHandler = null;
   }
+  portraitSwapper?.dispose();
+  portraitSwapper = null;
   portraitAnim = null;
   currentScene = null;
 }

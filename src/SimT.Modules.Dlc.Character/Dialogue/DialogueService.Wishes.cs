@@ -16,7 +16,11 @@ internal sealed partial class DialogueService
         if (!_context.Capabilities.TryGet<INpcWishes>(INpcWishes.CapabilityId,out var wishes) || wishes is null)
             return new(false,"Chưa có ước nguyện.");
         var row=wishes.ForNpc(npc.Id);
-        if (row is null) return new(false,"Ước nguyện đã kết thúc.",UpdatedScene:BuildTalkScene(npc.Id));
+        if (row is null)
+        {
+            const string ended = "Ước nguyện đã kết thúc.";
+            return new(false,ended,UpdatedScene:WithFeedbackExpression(BuildTalkScene(npc.Id,ended),"sad"));
+        }
         if (choice=="wish:ask")
         {
             var prompt=row.RequestVi + " Hạn: " + SimT.Contracts.Time.GameDateCodec.ShortVi(row.Wish.Deadline);
@@ -40,6 +44,7 @@ internal sealed partial class DialogueService
             "wish:give" => wishes.Give(npc.Id),
             _ => "Ta hiểu, khi nào thuận tiện hãy quay lại."
         };
-        return new(true,message,UpdatedScene:BuildTalkScene(npc.Id,message));
+        var expression = choice == "wish:decline" ? "sad" : choice == "wish:accept" ? "happy" : "normal";
+        return new(true,message,UpdatedScene:WithFeedbackExpression(BuildTalkScene(npc.Id,message),expression));
     }
 }

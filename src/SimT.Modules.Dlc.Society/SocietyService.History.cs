@@ -386,7 +386,10 @@ internal sealed partial class SocietyService : IEventRumorSource
 
                 return new HistoricalEventView(
                     code, date, row.GetString(4), row.GetString(5), row.GetInt64(6), citadels, npcs, row.GetString(9),
-                    choices, impacts, row.GetString(12), occurredDate, row.GetStringOrNull(14), $"evt:{code}");
+                    choices, impacts, row.GetString(12), occurredDate, row.GetStringOrNull(14), $"evt:{code}")
+                {
+                    PortraitExpressions = ReadEventExpressions(code)
+                };
             },
             args);
     }
