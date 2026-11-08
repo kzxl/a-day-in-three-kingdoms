@@ -136,6 +136,11 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
                     price = Math.Max(1, price * shockMult / 1000);
                 }
             }
+            var warMult = GetWarPriceFactorPermille(row.City, item);
+            if (warMult != 1000)
+            {
+                price = Math.Max(1, price * warMult / 1000);
+            }
             samples.Add((row.City, row.Item, price));
         }
 
@@ -215,7 +220,53 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
                 price = Math.Max(1, price * shockMult / 1000);
             }
         }
+
+        var warMult = GetWarPriceFactorPermille(cityId, item);
+        if (warMult != 1000)
+        {
+            price = Math.Max(1, price * warMult / 1000);
+        }
+
         return price;
+    }
+
+    private int GetWarPriceFactorPermille(long citadelId, ItemDef item)
+    {
+        if (_capabilities == null || !_capabilities.TryGet<IGeopoliticalWar>(CapabilityIds.GeopoliticalWar, out var war) || war == null)
+        {
+            return 1000;
+        }
+
+        var status = war.GetCitadelWarStatus(citadelId);
+        if (!status.IsFrontline && !status.IsBesieged)
+        {
+            return 1000;
+        }
+
+        var isBesieged = status.IsBesieged;
+        var intensity = status.Intensity;
+
+        if (item.Code is "rice" or "wheat" or "dried_fish" || item.Id is 1 or 8 or 9)
+        {
+            return isBesieged ? 2000 : (intensity >= 2 ? 1400 : 1200);
+        }
+
+        if (item.Code is "iron" or "copper" or "coal" || item.Id is 5 or 15 or 16)
+        {
+            return isBesieged ? 2200 : (intensity >= 2 ? 1500 : 1250);
+        }
+
+        if (item.Code is "medicine" or "ginseng" || item.Id is 7 or 13)
+        {
+            return isBesieged ? 1800 : (intensity >= 2 ? 1350 : 1150);
+        }
+
+        if (item.Code is "silk" or "brocade" or "agarwood" || item.Id is 4 or 12 or 14)
+        {
+            return isBesieged ? 750 : 900;
+        }
+
+        return 1000;
     }
 
     public long QuoteBuy(long cityId, long itemId)

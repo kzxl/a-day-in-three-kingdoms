@@ -12,7 +12,8 @@
   "provides": [
     "politics.court",
     "military.command",
-    "politics.lord-tasks"
+    "politics.lord-tasks",
+    "power.geopolitical-war"
   ],
   "consumes": [
     "world.map",
@@ -44,7 +45,8 @@
       "ml_duel_log",
       "ml_supply_requisition",
       "po_faction_name",
-      "ml_citadel_armory"
+      "ml_citadel_armory",
+      "po_faction_conflict"
     ],
     "migrations": [
       "migrations"

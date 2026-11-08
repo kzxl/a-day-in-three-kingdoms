@@ -16,6 +16,9 @@ public interface ICapabilityBroker
 
     bool TryGet<T>(string capabilityId, out T? provider)
         where T : class;
+
+    /// <summary>Creates a restricted view enforcing the module's manifest contracts.</summary>
+    ICapabilityBroker CreateScope(ModuleManifest manifest);
 }
 
 /// <summary>Raised when a module asks for a capability nobody provides (or was disabled).</summary>
@@ -28,4 +31,22 @@ public sealed class MissingCapabilityException : SimException
     }
 
     public string CapabilityId { get; }
+}
+
+/// <summary>Raised when a module accesses or provides a capability not declared in its manifest.</summary>
+public sealed class CapabilityAccessDeniedException : SimException
+{
+    public CapabilityAccessDeniedException(string moduleId, string capabilityId, string operation)
+        : base(
+            $"capability.{operation}_denied",
+            $"Module '{moduleId}' is not authorized to {operation} capability '{capabilityId}'. Ensure it is declared in module.json.")
+    {
+        ModuleId = moduleId;
+        CapabilityId = capabilityId;
+        Operation = operation;
+    }
+
+    public string ModuleId { get; }
+    public string CapabilityId { get; }
+    public string Operation { get; }
 }

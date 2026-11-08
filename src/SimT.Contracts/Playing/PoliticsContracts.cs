@@ -30,6 +30,8 @@ public interface IPoliticalCourt
     CourtResult EnactPolicy(string policyCode, long citadelId);
 
     void SetCityOwner(long citadelId, long factionId, long? governorNpcId = null) { }
+
+    void AdjustCityStability(long citadelId, int unrestDelta, int defenseDelta) { }
 }
 
 public sealed record OfficeView(
@@ -58,7 +60,10 @@ public sealed record CityGovernanceView(
     long GovernorNpcId,
     int UnrestLevel,
     int DefenseStrength,
-    int TaxRatePercent);
+    int TaxRatePercent)
+{
+    public int Security => Math.Clamp(100 - UnrestLevel, 0, 100);
+}
 
 public sealed record DecreeLogView(
     long Id,

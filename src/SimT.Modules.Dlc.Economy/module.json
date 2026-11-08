@@ -17,7 +17,9 @@
     "professions.guild",
     "player.equipment",
     "economy.value_chain",
-    "market.rumor_events"
+    "market.rumor_events",
+    "market.portfolio",
+    "market.player_stall"
   ],
   "consumes": [
     "content.items",
@@ -32,6 +34,7 @@
     "npc.registry",
     "society.chronicle",
     "military.command",
+    "power.geopolitical-war",
     "player.destiny"
   ],
   "owns": {

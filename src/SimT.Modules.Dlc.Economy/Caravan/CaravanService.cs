@@ -355,6 +355,20 @@ internal sealed class CaravanService : ICaravanGuild
             }
         }
 
+        if (_capabilities != null && _capabilities.TryGet<IGeopoliticalWar>(CapabilityIds.GeopoliticalWar, out var war) && war != null)
+        {
+            var originWar = war.GetCitadelWarStatus(fromCity);
+            var destWar = war.GetCitadelWarStatus(toCity);
+            if (originWar.IsBesieged || destWar.IsBesieged)
+            {
+                days = (int)Math.Ceiling(days * 1.5);
+            }
+            else if (originWar.IsFrontline || destWar.IsFrontline)
+            {
+                days = (int)Math.Ceiling(days * 1.25);
+            }
+        }
+
         var units = rows.Sum(row => row.Quantity);
         var baseFee = units * _freightPerUnit;
         var fleet = Fleet;
@@ -440,6 +454,20 @@ internal sealed class CaravanService : ICaravanGuild
 
         var crew = Crew;
         var days = (crew.NavigatorLog >= 60 && baseDays >= 3) ? Math.Max(1, baseDays - 1) : baseDays;
+
+        if (_capabilities != null && _capabilities.TryGet<IGeopoliticalWar>(CapabilityIds.GeopoliticalWar, out var war) && war != null)
+        {
+            var originWar = war.GetCitadelWarStatus(fromCity);
+            var destWar = war.GetCitadelWarStatus(toCity);
+            if (originWar.IsBesieged || destWar.IsBesieged)
+            {
+                days = (int)Math.Ceiling(days * 1.5);
+            }
+            else if (originWar.IsFrontline || destWar.IsFrontline)
+            {
+                days = (int)Math.Ceiling(days * 1.25);
+            }
+        }
 
         var incidentLog = string.Empty;
 
@@ -664,9 +692,12 @@ internal sealed class CaravanService : ICaravanGuild
                 var ambushLoss = 0;
 
                 // Ambush check: If unescorted and route takes >= 2 days, bandits may ambush
-                if (!run.EscortNpcId.HasValue && transitDays >= 2)
+                var isWarZone = _capabilities != null && _capabilities.TryGet<IGeopoliticalWar>(CapabilityIds.GeopoliticalWar, out var war) && war != null
+                    && (war.GetCitadelWarStatus(run.ToCity).IsFrontline || war.GetCitadelWarStatus(run.ToCity).IsBesieged);
+
+                if (!run.EscortNpcId.HasValue && (transitDays >= 2 || isWarZone))
                 {
-                    var ambushChance = transitDays >= 3 ? 0.35 : 0.20;
+                    var ambushChance = (transitDays >= 3 ? 0.35 : 0.20) + (isWarZone ? 0.25 : 0.0);
                     var caravanDestiny = GetDestiny();
                     if (caravanDestiny is not null)
                     {

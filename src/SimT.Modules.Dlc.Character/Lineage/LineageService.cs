@@ -225,27 +225,35 @@ internal sealed class LineageService : ILineageHouse
             return Array.Empty<(NpcDef, int, long)>();
         }
 
-        var suitors = new List<(NpcDef Npc, int Affinity, long Dowry)>();
-        foreach (var npc in _registry.All)
+        var highAffinityNpcs = _db.Query(
+            "SELECT npc_id, affinity FROM kz_relationship WHERE affinity >= 80",
+            r => (NpcId: r.GetInt64(0), Affinity: r.GetInt32(1)));
+
+        if (highAffinityNpcs.Count == 0)
         {
-            var affinity = _social.GetRelationship(npc.Id).Affinity;
-            if (affinity >= 80)
+            return Array.Empty<(NpcDef, int, long)>();
+        }
+
+        var suitors = new List<(NpcDef Npc, int Affinity, long Dowry)>();
+        foreach (var (npcId, affinity) in highAffinityNpcs)
+        {
+            var npc = _registry.Find(npcId);
+            if (npc is null) continue;
+
+            var hasSpouse = _db.ScalarLong(
+                "SELECT COUNT(1) FROM kz_npc_bond WHERE (npc_a = @id OR npc_b = @id) AND kind = 'spouse'",
+                DbArgs.One("@id", npc.Id)) > 0;
+            if (!hasSpouse)
             {
-                var hasSpouse = _db.ScalarLong(
-                    "SELECT COUNT(1) FROM kz_npc_bond WHERE (npc_a = @id OR npc_b = @id) AND kind = 'spouse'",
-                    DbArgs.One("@id", npc.Id)) > 0;
-                if (!hasSpouse)
+                var rank = SocialService.EvaluateNpcRank(npc);
+                long dowry = rank switch
                 {
-                    var rank = SocialService.EvaluateNpcRank(npc);
-                    long dowry = rank switch
-                    {
-                        NpcRank.S => 1000,
-                        NpcRank.A => 600,
-                        NpcRank.B => 450,
-                        _ => 300
-                    };
-                    suitors.Add((npc, affinity, dowry));
-                }
+                    NpcRank.S => 1000,
+                    NpcRank.A => 600,
+                    NpcRank.B => 450,
+                    _ => 300
+                };
+                suitors.Add((npc, affinity, dowry));
             }
         }
         return suitors.OrderByDescending(s => s.Affinity).ThenBy(s => s.Npc.NameVi).ToList();

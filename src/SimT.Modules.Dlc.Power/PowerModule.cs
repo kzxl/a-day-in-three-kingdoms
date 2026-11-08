@@ -68,6 +68,20 @@ public sealed class PowerModule : ISimModule
         context.Events.Subscribe<DayAdvanced>(_ => lordTasks.Tick());
         lordTasks.Tick();
 
+        // 3. Geopolitical Conflict Engine
+        var conflictEngine = new GeopoliticalConflictEngine(
+            context.Db,
+            context.Clock,
+            map,
+            context.Log,
+            context.Capabilities);
+
+        context.Capabilities.Provide(CapabilityIds.GeopoliticalWar, conflictEngine);
+        context.Events.Subscribe<MonthClosed>(closed =>
+        {
+            conflictEngine.AdvanceConflictMonth(closed.Date.DayIndex, 0);
+        });
+
         // Invariants
         foreach (var invariant in PowerInvariants.All())
         {

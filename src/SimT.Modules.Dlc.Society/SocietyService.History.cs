@@ -61,7 +61,7 @@ internal sealed partial class SocietyService : IEventRumorSource
                         applyTemporaryShocks: false,
                         queuePlayerScene: false,
                         finalStatus: "viewed",
-                        defaultChoice: "continue");
+                        defaultChoice: "continue", checkPreconditions: false);
                 }
             });
         }
@@ -170,7 +170,7 @@ internal sealed partial class SocietyService : IEventRumorSource
         bool applyTemporaryShocks,
         bool queuePlayerScene,
         string finalStatus,
-        string? defaultChoice)
+        string? defaultChoice, bool checkPreconditions = true)
     {
         var checkStatus = _db.ScalarString(
             "SELECT status FROM so_historical_event WHERE code = @code",
@@ -180,7 +180,7 @@ internal sealed partial class SocietyService : IEventRumorSource
             return;
         }
 
-        if (!EvaluatePreconditions(evt, out var brokenReason))
+        if (checkPreconditions && !EvaluatePreconditions(evt, out var brokenReason))
         {
             var divDateStr = GameDateCodec.Format(evt.ScheduledDate);
             _db.Execute(

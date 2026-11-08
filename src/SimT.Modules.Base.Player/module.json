@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "apiVersion": "1",
   "kind": "base",
-  "requires": ["base.world"],
+  "requires": [
+    "base.world"
+  ],
   "provides": [
     "player.wallet",
     "player.bag",
@@ -12,7 +14,14 @@
     "player.reputation",
     "player.destiny"
   ],
-  "consumes": ["world.map"],
+  "consumes": [
+    "world.map",
+    "npc.registry",
+    "player.equipment",
+    "politics.court",
+    "military.command",
+    "social.network"
+  ],
   "owns": {
     "tables": [
       "pl_player",
@@ -27,7 +36,9 @@
       "pl_destiny_talent",
       "pl_destiny_milestone"
     ],
-    "migrations": ["migrations"]
+    "migrations": [
+      "migrations"
+    ]
   },
   "screens": [
     "player.reputation",

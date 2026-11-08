@@ -13,7 +13,10 @@
   ],
   "consumes": [
     "world.map",
-    "player.state"
+    "player.state",
+    "player.attributes",
+    "social.network",
+    "society.chronicle"
   ],
   "owns": {
     "tables": [
