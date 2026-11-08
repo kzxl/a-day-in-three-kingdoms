@@ -42,11 +42,23 @@ public sealed record HistoricalEventView(
     string BackgroundKey,
     IReadOnlyList<HistoricalEventChoiceDef> Choices,
     IReadOnlyList<HistoricalEventImpactDef> Impacts,
-    string Status, // "pending", "occurred", "viewed"
+    string Status, // "pending", "occurred", "viewed", "diverged"
     GameDate? OccurredDate,
     string? ChoiceCode,
-    string EventKey)
+    string EventKey,
+    IReadOnlyList<EventPreconditionDef>? Preconditions = null,
+    bool IsDiverged = false,
+    string? DivergenceCode = null,
+    string? DivergenceTitleVi = null,
+    string? DivergenceNarrativeVi = null)
 {
+    public SandboxEventTier Tier => SandboxEventTier.Historical;
+    public IReadOnlyList<EventPreconditionDef> Preconditions { get; init; } = Preconditions ?? Array.Empty<EventPreconditionDef>();
+    public bool IsDiverged { get; init; } = IsDiverged;
+    public string? DivergenceCode { get; init; } = DivergenceCode;
+    public string? DivergenceTitleVi { get; init; } = DivergenceTitleVi;
+    public string? DivergenceNarrativeVi { get; init; } = DivergenceNarrativeVi;
+
     public IReadOnlyDictionary<string, IReadOnlyList<string>> PortraitExpressions { get; init; }
         = new Dictionary<string, IReadOnlyList<string>>();
 }
