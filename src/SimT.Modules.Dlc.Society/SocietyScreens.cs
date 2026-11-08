@@ -61,6 +61,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
         var displayedEvents = _filterKind switch
         {
             "local" => localEvents,
+            "migration" => allEvents.Where(e => e.StatImpact != null && e.StatImpact.Contains("Di cư") || e.StatImpact != null && e.StatImpact.Contains("tị nạn") || e.StatImpact != null && e.StatImpact.Contains("Tránh giặc")).ToList(),
             "martial" => allEvents.Where(e => e.EventKind == "martial").ToList(),
             "commerce" => allEvents.Where(e => e.EventKind == "commerce").ToList(),
             "scholarly" => allEvents.Where(e => e.EventKind == "scholarly").ToList(),
@@ -79,9 +80,19 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
                 localEvents.Select(ToRow).ToList()));
         }
 
+        var migrationEvents = allEvents.Where(e => e.StatImpact != null && e.StatImpact.Contains("Di cư") || e.StatImpact != null && e.StatImpact.Contains("tị nạn") || e.StatImpact != null && e.StatImpact.Contains("Tránh giặc")).Take(6).ToList();
+        if (_filterKind == "all" && migrationEvents.Count > 0)
+        {
+            sections.Add(new ScreenSection(
+                $"🏃 Dòng Di Cư Thiên Hạ Gần Đây ({migrationEvents.Count})",
+                Columns,
+                migrationEvents.Select(ToRow).ToList()));
+        }
+
         var headerTitle = _filterKind switch
         {
             "local" => $"Sự kiện tại {currentCitadelName}",
+            "migration" => "Dòng di cư lánh loạn & tìm miền đất hứa",
             "martial" => "Phong vân võ nghiệp quần hùng",
             "commerce" => "Thương trường & đại lộ phú thương",
             "scholarly" => "Mưu thần & sĩ phu luận đàm",
@@ -115,6 +126,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
             new("filter:all", "Tất Cả", _filterKind == "all" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", _filterKind == "rivals" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:karma", "⚖️ Nhân Quả", _filterKind == "karma" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:migration", "🏃 Di Cư", _filterKind == "migration" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:local", $"Tại {currentCitadelName}", _filterKind == "local" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:martial", "⚔️ Võ Nghiệp", _filterKind == "martial" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:commerce", "💰 Thương Lộ", _filterKind == "commerce" ? CommandKind.Primary : CommandKind.Secondary),
@@ -424,6 +436,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
     {
         "rivals" => "Bảng phú hào",
         "karma" => "Nhân quả báo ứng",
+        "migration" => "Dòng di cư thiên hạ",
         "local" => "Đồng thành",
         "martial" => "Võ nghiệp",
         "commerce" => "Thương lộ",

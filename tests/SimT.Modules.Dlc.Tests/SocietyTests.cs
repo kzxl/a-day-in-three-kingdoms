@@ -210,4 +210,39 @@ public sealed class SocietyTests : IDisposable
         var debutLogs = society.RecentEvents(limit: 50);
         Assert.Contains(debutLogs, log => log.HeadlineVi.Contains("Nhân tài mới xuất thế"));
     }
+
+    
+    [Fact]
+    public void Society_migration_responds_to_security_and_screen_filters_migration_flow()
+    {
+        using var kernel = _host.Boot();
+        var society = kernel.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle);
+        Assert.NotNull(society);
+
+        // Advance 90 days (3 months) to allow multiple rounds of monthly simulation
+        kernel.AdvanceDays(90);
+
+        var allEvents = society.RecentEvents(limit: 100);
+        Assert.NotEmpty(allEvents);
+
+        // Test Society screen rendering with filter:migration
+        var screenDef = kernel.Ui.Screens.FirstOrDefault(s => s.ScreenId == "society.chronicle");
+        Assert.NotNull(screenDef);
+
+        var modelBefore = screenDef.Render();
+        Assert.NotNull(modelBefore);
+        Assert.Contains(modelBefore.Commands, c => c.Id == "filter:migration");
+
+        Assert.True(kernel.TryGetCommandHandler("society.chronicle", out var handler));
+        var filterResult = handler!.Execute("filter:migration");
+        Assert.Contains("migration", filterResult);
+
+        var modelFiltered = screenDef.Render();
+        Assert.NotNull(modelFiltered);
+        Assert.True(modelFiltered.Sections.Any(s => s.Heading.Contains("Dòng di cư")), "Expected a section with Dòng di cư");
+
+        var failures = kernel.RunInvariants();
+        Assert.Empty(failures);
+    }
+
 }

@@ -127,6 +127,12 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
             govByCitadel = court.Governances.ToDictionary(g => g.CitadelId);
         }
 
+        IMilitaryCommand? military = null;
+        if (_broker is not null && _broker.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var mil))
+        {
+            military = mil;
+        }
+
         HashSet<long>? swornBrotherIds = null;
         Dictionary<long, RetainerDef>? retainersByNpc = null;
         if (_broker is not null && _broker.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
@@ -196,6 +202,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
                 var currentUnrest = govByCitadel != null && govByCitadel.TryGetValue(act.CurrentCitadelId, out var gView)
                     ? gView.UnrestLevel
                     : 10;
+                var currentSecurity = military != null ? military.GetCitadelSecurity(act.CurrentCitadelId) : 60;
 
                 var travelChance = isGovernorOrRuler ? 2 : (act.FocusPath switch
                 {
@@ -206,12 +213,21 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
                     _ => 15
                 });
 
-                // Migration pressure: high unrest in origin pushes commoners, merchants and scholars to flee
+                // Migration pressure: high unrest or low route security pushes commoners and wanderers to flee
                 var isUnrestMigration = false;
-                if (!isGovernorOrRuler && currentUnrest >= 25)
+                var isSecurityMigration = false;
+                if (!isGovernorOrRuler)
                 {
-                    travelChance += (currentUnrest - 20) * 2;
-                    isUnrestMigration = true;
+                    if (currentUnrest >= 25)
+                    {
+                        travelChance += (currentUnrest - 20) * 2;
+                        isUnrestMigration = true;
+                    }
+                    if (currentSecurity < 40)
+                    {
+                        travelChance += (45 - currentSecurity);
+                        isSecurityMigration = true;
+                    }
                 }
 
                 if (rng.Next(100) < travelChance)
@@ -220,12 +236,13 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
                     if (neighbours.Count > 0)
                     {
                         long targetCitId;
-                        if (isUnrestMigration && govByCitadel != null)
+                        if ((isUnrestMigration || isSecurityMigration) && (govByCitadel != null || military != null))
                         {
-                            // Flee towards neighbouring citadel with lowest unrest and strongest defense
+                            // Flee towards neighbouring citadel with lowest unrest, highest route security and strongest defense
                             targetCitId = neighbours
-                                .OrderBy(nid => govByCitadel.TryGetValue(nid, out var ng) ? ng.UnrestLevel : 20)
-                                .ThenByDescending(nid => govByCitadel.TryGetValue(nid, out var ng) ? ng.DefenseStrength : 50)
+                                .OrderBy(nid => govByCitadel != null && govByCitadel.TryGetValue(nid, out var ng) ? ng.UnrestLevel : 20)
+                                .ThenByDescending(nid => military != null ? military.GetCitadelSecurity(nid) : 50)
+                                .ThenByDescending(nid => govByCitadel != null && govByCitadel.TryGetValue(nid, out var ng) ? ng.DefenseStrength : 50)
                                 .First();
                         }
                         else if (act.FocusPath == "merchant")
@@ -245,7 +262,21 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
 
                         string headline, detail, statImpact, actionText;
 
-                        if (isUnrestMigration)
+                        if (isUnrestMigration && isSecurityMigration)
+                        {
+                            headline = $"{npc.NameVi} di cư lánh loạn và giặc cỏ từ {citName} sang {targetName}";
+                            detail = $"{npc.NameVi} thu xếp gia quyến rời {citName} do trị an suy đồi và phỉ khấu lộng hành, chuyển đến {targetName} an cư lạc nghiệp.";
+                            actionText = $"Lánh nạn tại {targetName}";
+                            statImpact = "Di cư tị nạn";
+                        }
+                        else if (isSecurityMigration)
+                        {
+                            headline = $"{npc.NameVi} lánh nạn đạo tặc từ {citName} sang {targetName}";
+                            detail = $"{npc.NameVi} thu xếp hành trang rời khỏi {citName} do sơn tặc hoành hành, quan lộ nguy hiểm, tìm đến thành trì kiên cố {targetName} an toàn hơn.";
+                            actionText = $"Tị nạn đạo tặc tại {targetName}";
+                            statImpact = "Tránh giặc tị nạn";
+                        }
+                        else if (isUnrestMigration)
                         {
                             headline = $"{npc.NameVi} di cư lánh loạn từ {citName} sang {targetName}";
                             detail = $"{npc.NameVi} thu xếp gia quyến rời khỏi {citName} do trị an bất ổn và hiểm họa chiến tranh, tìm đến vùng đất thái bình {targetName} để an cư lập nghiệp.";
