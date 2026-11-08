@@ -28,7 +28,8 @@
     "player.equipment",
     "society.chronicle",
     "dlc.dialogue",
-    "player.destiny"
+    "player.destiny",
+    "market.trade"
   ],
   "owns": {
     "tables": [
@@ -42,7 +43,8 @@
       "ml_stronghold",
       "ml_duel_log",
       "ml_supply_requisition",
-      "po_faction_name"
+      "po_faction_name",
+      "ml_citadel_armory"
     ],
     "migrations": [
       "migrations"

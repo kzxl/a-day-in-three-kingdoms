@@ -58,6 +58,13 @@ public sealed class PowerModule : ISimModule
         courtService.LordTasks = lordTasks;
         context.Capabilities.Provide(ILordTasks.CapabilityId, lordTasks);
         context.Events.Subscribe<MonthClosed>(closed => lordTasks.AssignMonth(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed =>
+        {
+            foreach (var citadel in map.Citadels)
+            {
+                militaryService.SimulateMonthlyArmoryAndProcurement(citadel.Id, closed.Date);
+            }
+        });
         context.Events.Subscribe<DayAdvanced>(_ => lordTasks.Tick());
         lordTasks.Tick();
 

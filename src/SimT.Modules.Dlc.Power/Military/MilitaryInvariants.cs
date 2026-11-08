@@ -48,11 +48,23 @@ internal static class MilitaryInvariants
         }
     }
 
+    public sealed class ArmoryStockNonNegative : IInvariant
+    {
+        public string Id => "military.armory.stock_non_negative";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong("SELECT COUNT(*) FROM ml_citadel_armory WHERE weapons_stock < 0");
+            return bad == 0 ? null : $"{bad} armory records have negative weapons stock";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new DangerLevelBounded();
         yield return new LootGoldNonNegative();
         yield return new RequisitionQuantityPositive();
         yield return new DuelWinnerValid();
+        yield return new ArmoryStockNonNegative();
     }
 }
