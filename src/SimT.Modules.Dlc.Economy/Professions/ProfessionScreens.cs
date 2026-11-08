@@ -93,9 +93,12 @@ internal sealed class ProfessionScreen : IScreenContribution
             var eqSellVal = _service.CalculateEquipmentSellValue(eq);
             commands.Add(new ScreenCommand($"sell:eq:{eq.Id}", $"Bán ({eqSellVal} Quan)"));
 
+            var creatorLabel = !string.IsNullOrWhiteSpace(eq.CreatorNameVi) ? $" · 👑 {eq.CreatorNameVi}" : string.Empty;
+            var featLabel = eq.KillCount > 0 ? $" · ⚔️ Trảm {eq.KillCount} (Uy Danh {eq.FameScore})" : string.Empty;
+
             equipRows.Add(new ScreenRow(
                 [
-                    $"{eq.NameVi} [+{eq.TemperLevel}]" + (isEquipped ? " [Đang mặc]" : string.Empty),
+                    $"{eq.NameVi} [+{eq.TemperLevel}]" + (isEquipped ? " [Đang mặc]" : string.Empty) + creatorLabel + featLabel,
                     $"+{eq.BonusValue} {eq.BonusStat}",
                     $"{eq.Durability}/{eq.MaxDurability}",
                     ProfessionService.FormatQualityRankVi(eq.QualityRank)

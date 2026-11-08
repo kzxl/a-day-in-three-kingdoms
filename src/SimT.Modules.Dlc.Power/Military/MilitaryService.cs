@@ -325,6 +325,20 @@ internal sealed class MilitaryService : IMilitaryCommand
 
             _equipment?.DegradeEquipped("WEAPON", 5);
             _equipment?.DegradeEquipped("ARMOR", 5);
+
+            if (_equipment != null)
+            {
+                var weaponSlot = _equipment.GetSlot("WEAPON");
+                if (weaponSlot?.EquipmentId != null)
+                {
+                    _equipment.RecordCombatFeat(
+                        weaponSlot.EquipmentId.Value,
+                        _player.Name,
+                        $"tiễu phạt sào huyệt {stronghold.NameVi}, tiêu diệt thủ ác",
+                        killDelta: stronghold.DangerLevel * 10,
+                        fameDelta: stronghold.DangerLevel * 15);
+                }
+            }
             _log.Info($"Assaulted stronghold {stronghold.NameVi}: victory, loot={stronghold.LootGold}, item={itemName}.");
         }
         else

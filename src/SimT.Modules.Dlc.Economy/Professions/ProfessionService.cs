@@ -1,3 +1,4 @@
+using SimT.Contracts.Modules;
 using SimT.Contracts;
 using SimT.Contracts.Data;
 using SimT.Contracts.Ledger;
@@ -31,6 +32,8 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     private readonly INpcRegistry? _npcs;
     private readonly ISocialNetwork? _social;
     private readonly ISocietyChronicle? _chronicle;
+    private readonly IPlayerState? _player;
+    private readonly ICapabilityBroker? _broker;
 
     public ProfessionService(
         IDbSession db,
@@ -43,7 +46,9 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         IWorldMap? map = null,
         INpcRegistry? npcs = null,
         ISocialNetwork? social = null,
-        ISocietyChronicle? chronicle = null)
+        ISocietyChronicle? chronicle = null,
+        IPlayerState? player = null,
+        ICapabilityBroker? broker = null)
     {
         _db = db;
         _clock = clock;
@@ -56,7 +61,24 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         _npcs = npcs;
         _social = social;
         _chronicle = chronicle;
+        _player = player;
+        _broker = broker;
         Trades = LoadTrades(db);
+    }
+
+    private ISocietyChronicle? GetChronicle()
+    {
+        if (_chronicle != null)
+        {
+            return _chronicle;
+        }
+
+        if (_broker != null && _broker.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var sc))
+        {
+            return sc;
+        }
+
+        return null;
     }
 
     public IReadOnlyList<TradeDefinition> Trades { get; }
@@ -82,45 +104,47 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 row.GetInt32(10),
                 row.GetInt64(11)));
 
+    private static EquipmentDef MapEquipment(DbRecord row) =>
+        new(
+            row.GetInt64(0),
+            row.GetString(1),
+            row.GetInt64(2),
+            row.GetInt64(3),
+            row.GetInt32(4),
+            row.GetInt32(5),
+            row.GetString(6),
+            row.GetString(7),
+            row.GetInt32(8),
+            row.GetInt32(9),
+            row.IsDbNull(10) ? null : row.GetInt64(10),
+            row.IsDbNull(11) ? null : row.GetString(11),
+            row.IsDbNull(12) ? null : row.GetInt64(12),
+            row.IsDbNull(13) ? null : row.GetInt64(13),
+            row.GetInt32(14),
+            row.GetInt32(15),
+            row.IsDbNull(16) ? null : row.GetString(16));
+
     public IReadOnlyList<EquipmentDef> Equipments(long citadelId) =>
         _db.Query(
             """
-            SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value, COALESCE(temper_level, 0)
+            SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value, COALESCE(temper_level, 0),
+                   creator_id, creator_name_vi, forged_citadel_id, forged_day_index, COALESCE(fame_score, 0), COALESCE(kill_count, 0), legend_narrative
             FROM pf_equipment
             WHERE citadel_id = @citadel
             ORDER BY id ASC
             """,
-            row => new EquipmentDef(
-                row.GetInt64(0),
-                row.GetString(1),
-                row.GetInt64(2),
-                row.GetInt64(3),
-                row.GetInt32(4),
-                row.GetInt32(5),
-                row.GetString(6),
-                row.GetString(7),
-                row.GetInt32(8),
-                row.GetInt32(9)),
+            MapEquipment,
             DbArgs.One("@citadel", citadelId));
 
     public EquipmentDef? FindEquipment(long equipmentId) =>
         _db.QueryOne(
             """
-            SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value, COALESCE(temper_level, 0)
+            SELECT id, name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value, COALESCE(temper_level, 0),
+                   creator_id, creator_name_vi, forged_citadel_id, forged_day_index, COALESCE(fame_score, 0), COALESCE(kill_count, 0), legend_narrative
             FROM pf_equipment
             WHERE id = @id
             """,
-            row => new EquipmentDef(
-                row.GetInt64(0),
-                row.GetString(1),
-                row.GetInt64(2),
-                row.GetInt64(3),
-                row.GetInt32(4),
-                row.GetInt32(5),
-                row.GetString(6),
-                row.GetString(7),
-                row.GetInt32(8),
-                row.GetInt32(9)),
+            MapEquipment,
             DbArgs.One("@id", equipmentId));
 
     public void ValidateCatalog()
@@ -387,10 +411,15 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 _ => "POL"  // Nông phu, Ngư dân
             };
 
+            var creatorId = _player?.PlayerId ?? 0;
+            var creatorName = !string.IsNullOrWhiteSpace(_player?.Name) ? _player.Name : "Đại Sư Lữ Khách";
+            var forgedDay = _clock.Today.DayIndex;
+            var initialFame = qualityRank == "MASTER" ? 25 : (qualityRank == "FINE" ? 10 : 0);
+
             _db.Execute(
                 """
-                INSERT INTO pf_equipment(name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value)
-                VALUES(@name, @item, @citadel, @dura, @dura, @quality, @stat, @bonus)
+                INSERT INTO pf_equipment(name_vi, item_id, citadel_id, durability, max_durability, quality_rank, bonus_stat, bonus_value, creator_id, creator_name_vi, forged_citadel_id, forged_day_index, fame_score, kill_count)
+                VALUES(@name, @item, @citadel, @dura, @dura, @quality, @stat, @bonus, @creatorId, @creatorName, @forgedCit, @forgedDay, @fame, 0)
                 """,
                 new DbArgs()
                     .Add("@name", recipe.NameVi)
@@ -399,7 +428,12 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                     .Add("@dura", maxDura)
                     .Add("@quality", qualityRank)
                     .Add("@stat", bonusStat)
-                    .Add("@bonus", bonusValue));
+                    .Add("@bonus", bonusValue)
+                    .Add("@creatorId", creatorId)
+                    .Add("@creatorName", creatorName)
+                    .Add("@forgedCit", cityId)
+                    .Add("@forgedDay", forgedDay)
+                    .Add("@fame", initialFame));
         });
 
         return WorkResult.Success(
@@ -1557,4 +1591,64 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
                 row.GetInt32(6),
                 row.GetInt64(7),
                 row.GetString(8)));
+
+    public EquipmentDef? RecordCombatFeat(long equipmentId, string wielderNameVi, string featDescriptionVi, int killDelta = 1, int fameDelta = 10)
+    {
+        var equip = FindEquipment(equipmentId);
+        if (equip is null)
+        {
+            return null;
+        }
+
+        var newNarrative = string.IsNullOrWhiteSpace(equip.LegendNarrative)
+            ? $"{wielderNameVi}: {featDescriptionVi}"
+            : $"{equip.LegendNarrative} | {wielderNameVi}: {featDescriptionVi}";
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                """
+                UPDATE pf_equipment
+                SET fame_score = fame_score + @fame,
+                    kill_count = kill_count + @kills,
+                    legend_narrative = @narrative
+                WHERE id = @id
+                """,
+                new DbArgs()
+                    .Add("@fame", fameDelta)
+                    .Add("@kills", killDelta)
+                    .Add("@narrative", newNarrative)
+                    .Add("@id", equipmentId));
+        });
+
+        var chronicle = GetChronicle();
+        if (chronicle != null)
+        {
+            var creatorInfo = !string.IsNullOrWhiteSpace(equip.CreatorNameVi)
+                ? $"do Danh Sư {equip.CreatorNameVi} chế tác"
+                : "truyền thế";
+
+            var headline = $"{wielderNameVi} cầm bảo khí {equip.NameVi} lập đại công!";
+            var detail = $"{wielderNameVi} mang theo thần binh {equip.NameVi} ({creatorInfo}) xuất chiến, {featDescriptionVi}. Uy danh bảo vật chấn động tứ phương!";
+            var impact = $"Trảm địch +{killDelta} · Uy danh +{fameDelta}";
+
+            chronicle.RecordEvent(
+                _clock.Today,
+                equip.CreatorId ?? 0,
+                equip.CreatorNameVi ?? "Danh Sư",
+                equip.CitadelId,
+                headline,
+                detail,
+                category: "martial",
+                statImpact: impact);
+        }
+
+        if (_attributes != null && equip.CreatorId.HasValue && equip.CreatorId.Value == (_player?.PlayerId ?? 0))
+        {
+            _attributes.GainFame(Math.Max(1, fameDelta / 2), $"Vũ khí do tự tay đúc được {wielderNameVi} cầm lập chiến công.");
+        }
+
+        return FindEquipment(equipmentId);
+    }
+
 }

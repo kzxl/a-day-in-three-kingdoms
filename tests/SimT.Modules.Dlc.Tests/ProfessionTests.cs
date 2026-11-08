@@ -710,9 +710,62 @@ public sealed class ProfessionTests : IDisposable
 
     private static IProfessionGuild Guild(SimKernel kernel) =>
         kernel.Capabilities.Get<IProfessionGuild>(CapabilityIds.ProfessionGuild);
+
+    [Fact]
+    public void Crafted_equipment_records_creator_signature_and_provenance()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var player = Player(kernel);
+        var bag = Bag(kernel);
+
+        // Supply materials for recipe 3 (Đúc Binh Đao Bằng Sắt: 2 sat)
+        bag.Add(player.CurrentCityId, 5, 10);
+
+        var msg = Command(kernel, "craft:3");
+        Assert.Contains("Chế tác thành công", msg);
+
+        var equips = guild.Equipments(player.CurrentCityId);
+        var crafted = equips.LastOrDefault(e => e.NameVi.Contains("Binh Đao"));
+        Assert.NotNull(crafted);
+        Assert.Equal(player.Name, crafted.CreatorNameVi);
+        Assert.Equal(player.PlayerId, crafted.CreatorId);
+        Assert.Equal(player.CurrentCityId, crafted.ForgedCitadelId);
+        Assert.True(crafted.FameScore >= 0);
+    }
+
+    [Fact]
+    public void Combat_victory_records_feats_on_weapon_and_broadcasts_chronicle()
+    {
+        using var kernel = _host.Boot();
+        var guild = Guild(kernel);
+        var military = kernel.Capabilities.Get<IMilitaryCommand>(CapabilityIds.MilitaryCommand);
+        var chronicle = kernel.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle);
+        var eq = kernel.Capabilities.Get<IPlayerEquipment>(CapabilityIds.PlayerEquipment);
+
+        // Equip weapon 1
+        Command(kernel, "equip:1");
+        var weaponBefore = eq.GetSlot("WEAPON")?.Equipment;
+        Assert.NotNull(weaponBefore);
+
+        var targetStronghold = military.StrongholdsAt(1).First();
+        var summary = military.AssaultStronghold(targetStronghold.Id);
+        Assert.NotEmpty(summary);
+
+        var weaponAfter = guild.Equipments(1).FirstOrDefault(e => e.Id == weaponBefore.Id);
+        Assert.NotNull(weaponAfter);
+        Assert.True(weaponAfter.KillCount >= 10);
+        Assert.True(weaponAfter.FameScore >= 15);
+        Assert.NotNull(weaponAfter.LegendNarrative);
+        Assert.Contains("tiêu diệt thủ ác", weaponAfter.LegendNarrative);
+
+        // Check broadcast to living world chronicle
+        var martialEvents = chronicle.RecentEvents(limit: 20, category: "martial");
+        Assert.Contains(martialEvents, e => e.HeadlineVi.Contains("lập đại công"));
+    }
+
 }
 
-/// <summary>Mirror of the service constants for tests, so a change on either side is visible.</summary>
 internal static class ProfessionServiceConstants
 {
     public const int PracticesPerTier = 4;

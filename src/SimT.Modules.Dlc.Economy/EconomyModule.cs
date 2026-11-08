@@ -64,7 +64,7 @@ public sealed class EconomyModule : ISimModule
         var logisticsService = new AutomatedLogisticsService(context.Db, context.Log);
 
         // 4. Profession Service
-        var professionService = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes, map, npcs, social, chronicle);
+        var professionService = new ProfessionService(context.Db, context.Clock, wallet, bag, items, context.Log, attributes, map, npcs, social, chronicle, player, context.Capabilities);
         professionService.ValidateCatalog();
         context.Capabilities.Provide(CapabilityIds.ProfessionGuild, professionService);
         context.Capabilities.Provide(CapabilityIds.PlayerEquipment, professionService);
