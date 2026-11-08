@@ -76,6 +76,42 @@ public sealed class PortraitExpressionTests
         Assert.Equal(count, reopened.Db.ScalarLong("SELECT COUNT(*) FROM so_event_portrait_expression", new DbArgs()));
     }
 
+    [Fact]
+    public void Archetype_variants_are_deterministic_distinct_across_adjacent_codes_and_preserve_named_or_profile_npcs()
+    {
+        foreach (var archetype in new[] { "general", "scholar", "merchant", "elder", "commoner", "lady", "farmer_woman", "swordswoman" })
+        {
+            var a0 = SceneArtCatalog.ResolveNpcArt("npc_0090", archetype);
+            var a0Repeat = SceneArtCatalog.ResolveNpcArt("npc_0090", archetype);
+            Assert.Equal(a0, a0Repeat);
+
+            var a1 = SceneArtCatalog.ResolveNpcArt("npc_0091", archetype);
+            var a2 = SceneArtCatalog.ResolveNpcArt("npc_0092", archetype);
+            Assert.Equal($"art/portraits/{archetype}/full.webp", a0.PortraitFull);
+            Assert.Equal($"art/portraits/{archetype}_v2/full.webp", a1.PortraitFull);
+            Assert.Equal($"art/portraits/{archetype}_v3/full.webp", a2.PortraitFull);
+            Assert.Equal(3, new[] { a0.PortraitFull, a1.PortraitFull, a2.PortraitFull }.Distinct().Count());
+            Assert.Equal(3, new[] { a0.PortraitFace, a1.PortraitFace, a2.PortraitFace }.Distinct().Count());
+        }
+
+        // Named characters with dedicated portraits never change
+        Assert.Equal("art/portraits/liu_bei/full.webp", SceneArtCatalog.ResolveNpcArt("npc_0001", "general").PortraitFull);
+        Assert.Equal("art/portraits/zhang_fei/full.webp", SceneArtCatalog.ResolveNpcArt("npc_0002", "general").PortraitFull);
+        Assert.Equal("art/portraits/guan_yu/full.webp", SceneArtCatalog.ResolveNpcArt("npc_0003", "general").PortraitFull);
+        Assert.Equal("art/portraits/cao_cao/full.webp", SceneArtCatalog.ResolveNpcArt("npc_0022", "general").PortraitFull);
+        Assert.Equal("art/portraits/zhuge_liang/full.webp", SceneArtCatalog.ResolveNpcArt("npc_0025", "scholar").PortraitFull);
+        Assert.Equal("art/portraits/lu_bu/full.webp", SceneArtCatalog.ResolveNpcArt("npc_0057", "general").PortraitFull);
+
+        // Profile-backed NPCs and player stay unchanged
+        Assert.Equal("art/profiles/npc_0205.webp", SceneArtCatalog.ResolveNpcArt("npc_0205", "scholar").PortraitFull);
+        Assert.Equal(("player", "traveler"), SceneArtCatalog.ResolveArchetypeKeys("player", "npc_0091"));
+
+        // Missing variant falls back to base portrait
+        var partialVariants = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "general_v2" };
+        Assert.Equal("general_v2", SceneArtCatalog.ResolveArchetypeVariantKey("general", "npc_0091", partialVariants));
+        Assert.Equal("general", SceneArtCatalog.ResolveArchetypeVariantKey("general", "npc_0092", partialVariants));
+    }
+
     private static void AssertFeedback(TalkScene scene, string expected)
     {
         Assert.Equal(scene.Lines.Count, scene.LineExpressions.Count);

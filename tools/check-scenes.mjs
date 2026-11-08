@@ -84,9 +84,55 @@ for (const entry of effects) {
   }
 }
 
-// Verify manifest.json asset references exist on disk
+// Verify manifest.json asset references exist on disk and portrait dimensions match spec
+function readWebpDimensions(filePath) {
+  const buf = fs.readFileSync(filePath);
+  assert.equal(buf.toString('ascii', 0, 4), 'RIFF', `Expected RIFF header in ${filePath}`);
+  assert.equal(buf.toString('ascii', 8, 12), 'WEBP', `Expected WEBP header in ${filePath}`);
+  const chunk = buf.toString('ascii', 12, 16);
+  if (chunk === 'VP8X') return { width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) };
+  if (chunk === 'VP8 ') return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff };
+  if (chunk === 'VP8L') {
+    const bits = buf.readUInt32LE(21);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+  }
+  throw new Error(`Unsupported WEBP chunk ${chunk} in ${filePath}`);
+}
+
+function assertPortraitDir(portraitKey, isVariant = false) {
+  const fullPath = path.join(scenesDir, 'art', 'portraits', portraitKey, 'full.webp');
+  const facePath = path.join(scenesDir, 'art', 'portraits', portraitKey, 'face.webp');
+  assert.ok(fs.existsSync(fullPath), `Missing portrait full for ${portraitKey}: ${fullPath}`);
+  assert.ok(fs.existsSync(facePath), `Missing portrait face for ${portraitKey}: ${facePath}`);
+  const fullDim = readWebpDimensions(fullPath);
+  const faceDim = readWebpDimensions(facePath);
+  assert.equal(fullDim.height, 900, `Expected full.webp height 900 for ${portraitKey}, got ${fullDim.width}x${fullDim.height}`);
+  if (isVariant) {
+    assert.ok(fullDim.width >= 520 && fullDim.width <= 640, `Expected variant ${portraitKey} full.webp width 520..640, got ${fullDim.width}`);
+  }
+  assert.equal(faceDim.width, 160, `Expected face.webp width 160 for ${portraitKey}, got ${faceDim.width}x${faceDim.height}`);
+  assert.equal(faceDim.height, 160, `Expected face.webp height 160 for ${portraitKey}, got ${faceDim.width}x${faceDim.height}`);
+}
+
 const manifestPath = path.join(scenesDir, 'art', 'manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+if (manifest.player) {
+  assertPortraitDir(manifest.player.portrait);
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', 'sprites', `${manifest.player.sprite}.png`)), `Missing player sprite ${manifest.player.sprite}`);
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', manifest.player.anim)), `Missing player anim ${manifest.player.anim}`);
+}
+for (const [code, entry] of Object.entries(manifest.npc || {})) {
+  assertPortraitDir(entry.portrait);
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', 'sprites', `${entry.sprite}.png`)), `Missing NPC sprite for ${code}: ${entry.sprite}`);
+}
+for (const [arch, entry] of Object.entries(manifest.archetype || {})) {
+  assertPortraitDir(entry.portrait);
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', 'sprites', `${entry.sprite}.png`)), `Missing archetype sprite for ${arch}: ${entry.sprite}`);
+  assert.ok(Array.isArray(entry.variants) && entry.variants.length === 3, `Expected 3 portrait variants on archetype ${arch}`);
+  for (const vKey of entry.variants) {
+    assertPortraitDir(vKey, vKey !== entry.portrait);
+  }
+}
 for (const [k, rel] of Object.entries(manifest.backgrounds || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing background ${k}: ${rel}`);
 }
@@ -102,6 +148,8 @@ for (const [key, variants] of Object.entries(manifest.portraitExpressions || {})
     assert.ok(['happy', 'angry', 'sad'].includes(expression), `Unknown portrait expression ${expression}`);
     assert.equal(rel, `portraits/${key}/full_${expression}.webp`);
     assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing expression ${key}/${expression}: ${rel}`);
+    const exprDim = readWebpDimensions(path.join(scenesDir, 'art', rel));
+    assert.equal(exprDim.height, 900, `Expected expression ${rel} height 900, got ${exprDim.height}`);
   }
 }
 for (const [k, rel] of Object.entries(manifest.anim || {})) {
@@ -113,6 +161,9 @@ for (const [k, rel] of Object.entries(manifest.profile || {})) {
 for (const [k, obj] of Object.entries(manifest.portraitFrames || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.blink)), `Missing portrait blink ${k}: ${obj.blink}`);
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.talk)), `Missing portrait talk ${k}: ${obj.talk}`);
+}
+for (const [k, rel] of Object.entries(manifest.map || {})) {
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing map asset ${k}: ${rel}`);
 }
 
 assert.equal(SCALE_DUEL, 2.85, 'Expected SCALE_DUEL = 2.85');
