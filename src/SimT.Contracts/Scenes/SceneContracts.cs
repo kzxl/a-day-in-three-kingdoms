@@ -49,10 +49,44 @@ public sealed record EventScene(
     IReadOnlyList<EventPortraitView> Portraits, IReadOnlyList<string> ImpactBadges,
     IReadOnlyList<SceneChoice> Choices, bool IsReplay = false);
 
+public sealed record DebateScene(
+    string SceneId,
+    long NpcId,
+    string NpcCode,
+    string NpcNameVi,
+    string? NpcNameHan,
+    string? StyleNameVi,
+    string RoleVi,
+    string? PersonalityVi,
+    string LocationNameVi,
+    string LocationHan,
+    string Topic,
+    string TopicTitleVi,
+    string PortraitFull,
+    string PortraitFace,
+    string BackgroundPath,
+    int Persuasion,
+    int Turn,
+    int MaxTurns,
+    bool IsFinished,
+    string OutcomeCode,
+    string? OutcomeTitleVi,
+    string LatestSpeakerVi,
+    string LatestLineVi,
+    string? PlayerLastLineVi,
+    string? ConsequenceVi,
+    IReadOnlyList<NpcTraitView> Traits,
+    IReadOnlyList<SceneChoice> Choices,
+    string? BlinkPath = null,
+    string? TalkPath = null,
+    string? ArchetypeCode = null,
+    string? ArchetypeBadgeVi = null);
+
 public sealed record SceneClientMessage(string Type, string? SceneId = null, string? Id = null);
 
 public sealed record TalkChoiceOutcome(
-    bool Ok, string MessageVi, bool OpenDuel = false, bool CloseScene = false, TalkScene? UpdatedScene = null);
+    bool Ok, string MessageVi, bool OpenDuel = false, bool CloseScene = false, TalkScene? UpdatedScene = null,
+    bool OpenDebate = false, DebateScene? DebateScene = null);
 
 /// <summary>
 /// Capability exposed by <c>dlc.dialogue</c> (<see cref="CapabilityIds.Dialogue"/>).
@@ -64,6 +98,8 @@ public interface IDialogueModule
     TalkChoiceOutcome HandleChoice(long npcId, string choiceId);
 
     IReadOnlyList<string> GetLinesForNpc(long npcId, string relationTierKey);
+
+    DebateScene? BuildDebateScene(DebateSessionView? session);
 }
 
 /// <summary>
@@ -260,6 +296,7 @@ public static class SceneTrustGuard
         DuelScene duel => duel.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         CityScene city => city.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         EventScene evt => evt.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
+        DebateScene debate => debate.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         MapScene map => IsValidMapChoice(id, map),
         SocialScene social => IsValidSocialChoice(id, social),
         MarketScene market => IsValidMarketChoice(id, market),

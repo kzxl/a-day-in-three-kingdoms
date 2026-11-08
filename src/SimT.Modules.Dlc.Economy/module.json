@@ -27,6 +27,7 @@
     "player.state",
     "player.attributes",
     "character.traits",
+    "character.debate",
     "social.network"
   ],
   "owns": {

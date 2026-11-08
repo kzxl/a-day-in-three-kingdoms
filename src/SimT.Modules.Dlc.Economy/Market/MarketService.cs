@@ -226,7 +226,7 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
             return TradeResult.Fail("Sạp không đủ hàng.");
         }
 
-        var unit = QuoteBuy(cityId, itemId);
+        var unit = ApplyBulkHaggleBuyUnitPrice(cityId, itemId, quantity, QuoteBuy(cityId, itemId));
         var total = MarketPricing.Total(unit, quantity);
         if (_wallet.Liquid < total)
         {

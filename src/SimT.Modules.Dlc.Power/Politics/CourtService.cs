@@ -79,7 +79,7 @@ internal sealed partial class CourtService : IPoliticalCourt
                 row.GetInt64(2),
                 row.GetInt32(3),
                 row.GetInt32(4),
-                row.GetInt32(5)));
+                ApplyDebateTaxRelief(row.GetInt64(0), row.GetInt32(5))));
 
     public void SetCityOwner(long citadelId, long factionId, long? governorNpcId = null)
     {

@@ -49,7 +49,10 @@ public sealed class CharacterModule : ISimModule
         context.Ui.AddCommandHandler(new SocialCommandHandler(socialService, bag, player, items, attributes));
         context.Events.Subscribe<MonthClosed>(month => socialService.OnMonthClosed(month.Date));
 
-        // 2. Dialogue Service
+        // 2. Dialogue & Debate Services
+        var debateService = new DebateService(context, socialService);
+        context.Capabilities.Provide(CapabilityIds.Debate, debateService);
+
         var dialogueService = new DialogueService(context);
         context.Capabilities.Provide(CapabilityIds.Dialogue, dialogueService);
 
