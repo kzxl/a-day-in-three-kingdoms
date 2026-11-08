@@ -523,4 +523,30 @@ public sealed class SocialTests : IDisposable
         var npcsInCity1 = registry.FindByCitadel(1);
         Assert.Contains(npcsInCity1, n => n.Id == npc.Id);
     }
+
+    [Fact]
+    public void Npc_psyche_archetypes_and_social_profile_resolutions()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        var firstNpc = registry.All[0];
+        var profile = social.GetPsycheProfile(firstNpc.Id);
+        Assert.NotNull(profile);
+        Assert.Contains(profile.Archetype, new[]
+        {
+            CharacterArchetype.Hegemon,
+            CharacterArchetype.Benevolent,
+            CharacterArchetype.Pragmatist,
+            CharacterArchetype.Hermit
+        });
+        Assert.False(string.IsNullOrWhiteSpace(profile.BadgeVi));
+
+        var screen = kernel.Ui.Screens.First(s => s.ScreenId == "social.network");
+        var model = screen.Render();
+        var localSection = model.Sections.First(s => s.Heading.Contains("Nhân Sĩ Hữu Duyên Cùng Thành"));
+        Assert.NotEmpty(localSection.Rows);
+        Assert.Contains("[", localSection.Rows[0].Cells[0]);
+    }
 }

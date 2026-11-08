@@ -3,6 +3,29 @@ using SimT.Contracts.Time;
 namespace SimT.Contracts.Playing;
 
 /// <summary>
+/// 4 Psychological Archetypes governing NPC personality, dialogue affinity, and gift preferences.
+/// </summary>
+public enum CharacterArchetype
+{
+    Hegemon = 1,     // Bá Đạo (Trọng võ công, danh vọng, vũ khí giáp trụ, phản đối quy phục)
+    Benevolent = 2,  // Vương Đạo (Trọng nhân nghĩa, bá tánh, lương thảo, y dược, chán ghét trục lợi)
+    Pragmatist = 3,  // Thương Nhân / Thực Dụng (Trọng tiền tài, trao đổi sòng phẳng, hàng xa xỉ)
+    Hermit = 4       // Ẩn Sĩ / Phương Ngoại (Trọng phẩm trà, kỳ vật, thanh tịnh, chán ghét nịnh bợ)
+}
+
+/// <summary>
+/// Detailed psyche and personality archetype profile of an NPC in the Three Kingdoms.
+/// </summary>
+public sealed record NpcPsycheProfile(
+    long NpcId,
+    CharacterArchetype Archetype,
+    string ArchetypeVi,
+    string BadgeVi,
+    int Ambition,
+    int Integrity,
+    int Materialism);
+
+/// <summary>
 /// A bilateral social bond between the player and an NPC.
 /// </summary>
 public sealed record RelationshipDef(
@@ -94,6 +117,9 @@ public sealed record LetterDef(
 public interface ISocialNetwork
 {
     RelationshipDef GetRelationship(long npcId);
+
+    /// <summary>Gets the psychological archetype and personality profile of an NPC.</summary>
+    NpcPsycheProfile GetPsycheProfile(long npcId);
 
     IReadOnlyList<RelationshipDef> AllRelationships();
 

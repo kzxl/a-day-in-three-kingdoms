@@ -10,6 +10,8 @@ public sealed record ChildDef(
     long Id,
     string NameVi,
     int BornDay,
+    int Age,
+    bool IsAdult,
     bool IsHeir,
     string? MentorName,
     string? FocusStat,

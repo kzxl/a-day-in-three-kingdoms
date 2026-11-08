@@ -238,6 +238,27 @@ public sealed class LineageTests : IDisposable
         Assert.Contains(House(kernel).SpouseName, LineageService.SpouseNames);
     }
 
+    [Fact]
+    public void Child_ages_and_advances_to_adulthood()
+    {
+        using var kernel = _host.Boot();
+        Command(kernel, "marry");
+        Command(kernel, "beget");
+
+        var house = House(kernel);
+        Assert.Equal(1, house.ChildCount);
+        var child = house.Children[0];
+        Assert.Equal(0, child.Age);
+        Assert.False(child.IsAdult);
+
+        // Advance 16 years (16 * 360 = 5760 days)
+        kernel.AdvanceDays(5760);
+
+        var childGrown = house.Children[0];
+        Assert.True(childGrown.Age >= 16);
+        Assert.True(childGrown.IsAdult);
+    }
+
     private static string MarryAndReadSpouse(TestHost host)
     {
         using var kernel = host.Boot();

@@ -383,6 +383,7 @@ internal sealed class SocialScreen : IScreenContribution
                 commands.Insert(commands.Count - 1, new ScreenCommand($"recruit:{npc.Id}", $"Chiêu Mộ 🤝 ({req.SigningFee}Q)", CommandKind.Primary));
             }
 
+            var psyche = _social.GetPsycheProfile(npc.Id);
             var affinityDisplay = affinity >= 0 ? $"+{affinity}" : affinity.ToString();
             var recruitStatus = isRetainer
                 ? "Đã đầu quân"
@@ -394,7 +395,7 @@ internal sealed class SocialScreen : IScreenContribution
 
             return new ScreenRow(
                 [
-                    npc.NameVi,
+                    $"{npc.NameVi} [{psyche.BadgeVi}]",
                     rankBadge,
                     SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role),
                     skillDisplay,
@@ -403,10 +404,11 @@ internal sealed class SocialScreen : IScreenContribution
                     recruitStatus
                 ],
                 commands,
-                Title: $"{npc.NameVi} ({rankBadge} · {npc.Role})",
+                Title: $"{npc.NameVi} [{psyche.BadgeVi}] ({rankBadge} · {npc.Role})",
                 Details:
                 [
                     new ScreenDetail("Họ Tên", npc.NameVi),
+                    new ScreenDetail("Tâm Tính & Chí Hướng", $"{psyche.BadgeVi} · {psyche.ArchetypeVi} (Khát vọng: {psyche.Ambition}, Tiết tháo: {psyche.Integrity}, Thực dụng: {psyche.Materialism})"),
                     new ScreenDetail("Phẩm Giai", $"{rankBadge} · Sính lễ: {req.SigningFee:N0} Quan, Bổng lộc tối thiểu: {req.MinMonthlyStipend:N0} Quan/tháng"),
                     new ScreenDetail("Thân Phận", SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role)),
                     new ScreenDetail("Đặc Kỹ", npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => $"[{s.NameVi}] {s.EffectSummary}")) : "Chưa khai mở"),

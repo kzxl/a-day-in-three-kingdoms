@@ -81,7 +81,7 @@ internal sealed class FamilyScreen : IScreenContribution
         var children = _service.Children;
         if (children.Count > 0)
         {
-            var childCols = new[] { "Tử Tức", "Kế Vị", "Danh Sư Giáo Dưỡng", "Thiên Hướng", "Chỉ Số Tăng Thêm" };
+            var childCols = new[] { "Tử Tức", "Tuổi Tác", "Kế Vị", "Danh Sư Giáo Dưỡng", "Thiên Hướng", "Chỉ Số Tăng Thêm" };
             var childRows = children.Select(c =>
             {
                 var rowCmds = new List<ScreenCommand>();
@@ -103,7 +103,8 @@ internal sealed class FamilyScreen : IScreenContribution
                 return new ScreenRow(
                     [
                         c.NameVi,
-                        c.IsHeir ? "Người kế vị" : "Thứ tử",
+                        $"{c.Age} tuổi" + (c.IsAdult ? " (Nhược quán)" : " (Ấu thơ)"),
+                        c.IsHeir ? "★ Đích Tử Kế Vị" : "Thứ tử",
                         c.MentorName ?? "Chưa có",
                         c.FocusStat ?? "—",
                         $"+{c.StatBonus} {c.FocusStat ?? ""}"

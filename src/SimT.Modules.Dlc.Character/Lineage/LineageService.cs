@@ -79,14 +79,23 @@ internal sealed class LineageService : ILineageHouse
             LEFT JOIN ln_tutoring t ON t.child_id = c.id
             ORDER BY c.born_day_index, c.id
             """,
-            row => new ChildDef(
-                row.GetInt64(0),
-                row.GetString(1),
-                row.GetInt32(2),
-                row.GetInt64(3) != 0,
-                row.IsDbNull(4) ? null : row.GetString(4),
-                row.IsDbNull(5) ? null : row.GetString(5),
-                row.GetInt32(6)));
+            row =>
+            {
+                var bornDay = row.GetInt32(2);
+                var birthDate = GameDate.FromDayIndex(bornDay);
+                var age = Math.Max(0, _clock.Today.Year - birthDate.Year);
+                var isAdult = age >= 16;
+                return new ChildDef(
+                    row.GetInt64(0),
+                    row.GetString(1),
+                    bornDay,
+                    age,
+                    isAdult,
+                    row.GetInt64(3) != 0,
+                    row.IsDbNull(4) ? null : row.GetString(4),
+                    row.IsDbNull(5) ? null : row.GetString(5),
+                    row.GetInt32(6));
+            });
 
     public IReadOnlyList<FamilyMember> Members()
     {

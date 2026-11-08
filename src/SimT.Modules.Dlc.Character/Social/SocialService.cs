@@ -1658,6 +1658,77 @@ internal sealed class SocialService : ISocialNetwork
         return $"Đại yến thành công rực rỡ! {localNpcs.Count} danh sĩ ({string.Join(", ", localNpcs.Select(n => n.NameVi))}) tề tựu nâng chén, hảo cảm đồng loạt tăng +12 và tín nhiệm +5!";
     }
 
+    public NpcPsycheProfile GetPsycheProfile(long npcId)
+    {
+        var npc = _registry.Find(npcId);
+        if (npc is null)
+        {
+            return new NpcPsycheProfile(npcId, CharacterArchetype.Pragmatist, "Thương Nhân", "💰 Thực Dụng", 50, 50, 50);
+        }
+
+        var arch = ResolveNpcArchetype(npc);
+        var (archVi, badgeVi, ambition, integrity, materialism) = arch switch
+        {
+            CharacterArchetype.Hegemon => ("Bá Đạo Kiêu Hùng", "⚔️ Bá Đạo", 90, 45, 60),
+            CharacterArchetype.Benevolent => ("Vương Đạo Nhân Nghĩa", "🕊️ Vương Đạo", 60, 95, 30),
+            CharacterArchetype.Pragmatist => ("Thực Dụng Thương Doanh", "💰 Thực Dụng", 65, 60, 90),
+            CharacterArchetype.Hermit => ("Phương Ngoại Ẩn Sĩ", "🍵 Ẩn Sĩ", 20, 85, 25),
+            _ => ("Hào Kiệt", "★ Trung Dung", 50, 50, 50)
+        };
+
+        return new NpcPsycheProfile(npcId, arch, archVi, badgeVi, ambition, integrity, materialism);
+    }
+
+    public static CharacterArchetype ResolveNpcArchetype(NpcDef npc)
+    {
+        var code = (npc.Code ?? string.Empty).ToLowerInvariant();
+        var role = (npc.Role ?? string.Empty).ToLowerInvariant();
+        var name = (npc.NameVi ?? string.Empty).ToLowerInvariant();
+
+        if (code is "npc_0001" or "npc_0004" or "npc_0016" or "npc_0018" or "npc_0019" or "npc_0020" or "npc_0021" or "npc_0022" or "npc_0023")
+        {
+            if (name.Contains("lưu bị") || name.Contains("quan vũ") || name.Contains("triệu vân"))
+                return CharacterArchetype.Benevolent;
+            return CharacterArchetype.Hegemon;
+        }
+
+        if (name.Contains("hoa đà") || name.Contains("tư mã huy") || name.Contains("gia cát") || name.Contains("tả từ") ||
+            role.Contains("đạo nhân") || role.Contains("kỳ sĩ") || role.Contains("tiên sinh") || role.Contains("dược"))
+        {
+            return CharacterArchetype.Hermit;
+        }
+
+        if (name.Contains("lưu bị") || name.Contains("quan vũ") || name.Contains("trương phi") || name.Contains("triệu vân") ||
+            role.Contains("nhân đức") || role.Contains("nghĩa hiệp") || role.Contains("hoàng gia"))
+        {
+            return CharacterArchetype.Benevolent;
+        }
+
+        if (role.Contains("thương") || role.Contains("chưởng quỹ") || role.Contains("tiền trang") || role.Contains("lão bản") ||
+            name.Contains("mi trúc") || name.Contains("lỗ túc"))
+        {
+            return CharacterArchetype.Pragmatist;
+        }
+
+        var attr = npc.Attributes;
+        if (attr.War >= 75 || attr.Ldr >= 80)
+        {
+            return attr.War >= 85 ? CharacterArchetype.Hegemon : CharacterArchetype.Benevolent;
+        }
+
+        if (attr.Com >= 65)
+        {
+            return CharacterArchetype.Pragmatist;
+        }
+
+        if (attr.Int >= 75)
+        {
+            return CharacterArchetype.Hermit;
+        }
+
+        return CharacterArchetype.Benevolent;
+    }
+
     private static string AutoAssignRole(CharacterAttributes a)
     {
         if (a.War >= 75) return "bodyguard";

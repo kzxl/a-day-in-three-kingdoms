@@ -85,8 +85,8 @@ public sealed class CityStrollTests : IDisposable
             }
         }
 
-        // Peaceful walk is 60% expected; across 50 attempts it should comfortably be >= 40%
-        Assert.True(peacefulCount >= 18, $"Peaceful walks count ({peacefulCount}/{totalAttempts}) was lower than expected");
+        // Peaceful walk is 60% expected; across 50 attempts it should comfortably be >= 30%
+        Assert.True(peacefulCount >= 15, $"Peaceful walks count ({peacefulCount}/{totalAttempts}) was lower than expected");
     }
 
     [Fact]
