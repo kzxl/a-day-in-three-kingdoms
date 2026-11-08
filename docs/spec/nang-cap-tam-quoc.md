@@ -18,8 +18,8 @@ Nguồn tham khảo: Tam Quốc Chí 8 Remake (2024), XIII, XIV. Chỉ lấy ý 
 | 4 | Lưới quan hệ thiên hạ | Codex | `prompts/16` | Xong (merge "batch 4") |
 | 5 | Đặc tính nhân vật | agy | `prompts/17` | Đang làm |
 | 6 | Ước nguyện NPC | Codex | `prompts/18` | Xong (merge "batch 6") |
-| 7 | Đầu quân chúa công | Codex (agy bận đợt 3) | `prompts/19` | Đang làm |
-| 8 | Người đi trên bản đồ | Codex | `prompts/20` | Chưa làm |
+| 7 | Đầu quân chúa công | Codex (agy bận đợt 3) | `prompts/19` | Xong (merge "batch 7") |
+| 8 | Người đi trên bản đồ | Codex | `prompts/20` | Đang làm |
 | 9 | Biện luận | agy | `prompts/21` | Chưa làm |
 | 10 | Kịch bản khởi đầu | Codex | `prompts/22` | Chưa làm |
 | 11 | Chân dung nhiều biểu cảm | Codex | `prompts/23` | Chưa làm |
