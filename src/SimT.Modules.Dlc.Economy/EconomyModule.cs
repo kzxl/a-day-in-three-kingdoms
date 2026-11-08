@@ -89,7 +89,7 @@ public sealed class EconomyModule : ISimModule
         context.Ui.AddScreen(new PlayerBankScreen(playerBankService, map, player, wallet, context.Clock));
         context.Ui.AddCommandHandler(new PlayerBankCommandHandler(playerBankService, player));
 
-        context.Ui.AddScreen(new ProfessionScreen(professionService, items, player));
+        context.Ui.AddScreen(new ProfessionScreen(professionService, items, player, bag));
         context.Ui.AddCommandHandler(new ProfessionCommandHandler(professionService, player));
 
         // Event Subscriptions

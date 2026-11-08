@@ -666,6 +666,36 @@ public sealed class ProfessionTests : IDisposable
         Assert.Equal(fameBefore + order.FameReward, guild.TotalGuildFame);
     }
 
+    [Fact]
+    public void Workbench_visual_recipe_flow_renders_quality_preview_and_material_checks()
+    {
+        using var kernel = _host.Boot();
+        var screen = kernel.Ui.Screens.First(s => s.ScreenId == "professions.trades");
+        var model = screen.Render();
+
+        var recipeSection = model.Sections.First(s => s.Heading == "Bản Vẽ Chế Tác Khí Cụ");
+        Assert.NotEmpty(recipeSection.Rows);
+
+        var firstRow = recipeSection.Rows[0];
+        Assert.Contains("Bậc", firstRow.Cells[1]);
+        Assert.Contains("Quan", firstRow.Cells[3]);
+        Assert.Contains("ngày", firstRow.Cells[4]);
+
+        var detail = firstRow.Details!.First(d => d.Label == "Quy Trình Gia Công");
+        Assert.Contains("➔", detail.Value);
+
+        // Add materials to bag and re-render
+        var bag = Bag(kernel);
+        var player = Player(kernel);
+        var guild = Guild(kernel);
+        var recipe = guild.Recipes[0];
+        bag.Add(player.CurrentCityId, recipe.MaterialItemId, recipe.MaterialQuantity * 2);
+
+        var modelAfter = screen.Render();
+        var rowAfter = modelAfter.Sections.First(s => s.Heading == "Bản Vẽ Chế Tác Khí Cụ").Rows[0];
+        Assert.Contains("✅", rowAfter.Cells[2]);
+    }
+
     private static string Command(SimKernel kernel, string commandId)
     {
         Assert.True(kernel.TryGetCommandHandler("professions.trades", out var handler), "professions screen is not registered");

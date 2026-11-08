@@ -26,12 +26,14 @@ internal sealed class ProfessionScreen : IScreenContribution
     private readonly ProfessionService _service;
     private readonly IItemCatalog _items;
     private readonly IPlayerState _player;
+    private readonly IBag? _bag;
 
-    public ProfessionScreen(ProfessionService service, IItemCatalog items, IPlayerState player)
+    public ProfessionScreen(ProfessionService service, IItemCatalog items, IPlayerState player, IBag? bag = null)
     {
         _service = service;
         _items = items;
         _player = player;
+        _bag = bag;
     }
 
     public string ScreenId => "professions.trades";
@@ -59,7 +61,7 @@ internal sealed class ProfessionScreen : IScreenContribution
                     equip?.NameVi ?? "(Để trống)",
                     equip != null ? $"+{equip.BonusValue} {equip.BonusStat}" : "—",
                     equip != null ? $"{equip.Durability}/{equip.MaxDurability}" : "—",
-                    equip?.QualityRank ?? "—"
+                    ProfessionService.FormatQualityRankVi(equip?.QualityRank)
                 ],
                 commands,
                 Title: slot.SlotNameVi));
@@ -96,7 +98,7 @@ internal sealed class ProfessionScreen : IScreenContribution
                     $"{eq.NameVi} [+{eq.TemperLevel}]" + (isEquipped ? " [Đang mặc]" : string.Empty),
                     $"+{eq.BonusValue} {eq.BonusStat}",
                     $"{eq.Durability}/{eq.MaxDurability}",
-                    eq.QualityRank
+                    ProfessionService.FormatQualityRankVi(eq.QualityRank)
                 ],
                 commands));
         }
@@ -205,37 +207,70 @@ internal sealed class ProfessionScreen : IScreenContribution
                 commands));
         }
 
-        // 5. Crafting recipes
+        // 5. Crafting recipes & workbench visual flow
         var recipeRows = new List<ScreenRow>();
+        var wsFurnaceLvl = workshop != null && workshop.IsActive ? workshop.FurnaceLevel : 0;
         foreach (var r in _service.Recipes)
         {
-            var mat = _items.Find(r.MaterialItemId)?.NameVi ?? $"Vật phẩm #{r.MaterialItemId}";
+            var matItem = _items.Find(r.MaterialItemId);
+            var mat = matItem?.NameVi ?? $"Vật phẩm #{r.MaterialItemId}";
             var output = _items.Find(r.OutputItemId)?.NameVi ?? r.NameVi;
             var currentTier = _service.Tier(r.TradeId);
-            var canCraft = currentTier >= r.RequiredTier;
+            var canCraftTier = currentTier >= r.RequiredTier;
+
+            var matHeld = _bag?.Quantity(cityId, r.MaterialItemId) ?? 0;
+            var hasMainMat = matHeld >= r.MaterialQuantity;
+
+            var hasSecMat = true;
+            string secInfo = "Không yêu cầu";
+            string secShort = string.Empty;
+            if (r.SecondaryItemId.HasValue && r.SecondaryQuantity > 0)
+            {
+                var secItem = _items.Find(r.SecondaryItemId.Value);
+                var secName = secItem?.NameVi ?? $"Vật phẩm #{r.SecondaryItemId.Value}";
+                var secHeld = _bag?.Quantity(cityId, r.SecondaryItemId.Value) ?? 0;
+                hasSecMat = secHeld >= r.SecondaryQuantity;
+                secInfo = $"{r.SecondaryQuantity}x {secName} (Có {secHeld})";
+                secShort = $" + {r.SecondaryQuantity}x {secName}";
+            }
+
+            var hasMaterials = hasMainMat && hasSecMat;
+            var canCraft = canCraftTier && hasMaterials;
 
             var commands = canCraft
                 ? new List<ScreenCommand> { new ScreenCommand($"craft:{r.Id}", "Rèn đúc") }
                 : new List<ScreenCommand>();
 
+            var qualityPreview = currentTier >= 4
+                ? (wsFurnaceLvl >= 3 ? "Cực Phẩm ★★★" : "Thượng Phẩm ★★")
+                : (currentTier >= 2 ? "Trung Phẩm ★" : "Hạ Phẩm");
+
+            var matDisplay = $"{r.MaterialQuantity}x {mat}" + (hasMainMat ? " ✅" : $" (⚠️ {matHeld}/{r.MaterialQuantity})");
+            if (!string.IsNullOrEmpty(secShort))
+            {
+                matDisplay += hasSecMat ? " + Phụ ✅" : " + Phụ ⚠️";
+            }
+
             recipeRows.Add(new ScreenRow(
                 [
                     r.NameVi,
-                    $"Cần bậc {r.RequiredTier} (hiện {currentTier})",
-                    $"{r.MaterialQuantity}x {mat}",
+                    $"Bậc {r.RequiredTier} (Hiện {currentTier})",
+                    matDisplay,
                     $"{r.CraftFee} Quan",
                     $"{r.CraftDays} ngày",
-                    $"{r.OutputQuantity}x {output}"
+                    $"{r.OutputQuantity}x {output} [{qualityPreview}]"
                 ],
                 commands,
                 Title: r.NameVi,
                 Details:
                 [
                     new ScreenDetail("Bản Vẽ Chế Tác", r.NameVi),
-                    new ScreenDetail("Bậc Tay Nghề", $"Bậc {r.RequiredTier} (Cấp của bạn: Bậc {currentTier})"),
-                    new ScreenDetail("Trạng Thái", canCraft ? "✅ Đủ điều kiện rèn đúc" : "❌ Chưa đủ bậc tay nghề"),
-                    new ScreenDetail("Nguyên Liệu Chính", $"{r.MaterialQuantity}x {mat}"),
-                    new ScreenDetail("Nguyên Liệu Phụ", r.SecondaryItemId.HasValue ? $"{r.SecondaryQuantity}x {_items.Find(r.SecondaryItemId.Value)?.NameVi}" : "Không yêu cầu"),
+                    new ScreenDetail("Quy Trình Gia Công", $"{mat} ({r.MaterialQuantity}){secShort} ➔ [Lò Cấp {wsFurnaceLvl}] ➔ {output} ({r.OutputQuantity})"),
+                    new ScreenDetail("Bậc Tay Nghề", $"Yêu cầu Bậc {r.RequiredTier} (Cấp hiện tại: Bậc {currentTier})"),
+                    new ScreenDetail("Nguyên Liệu Chính", $"{r.MaterialQuantity}x {mat} (Trong túi: {matHeld})"),
+                    new ScreenDetail("Nguyên Liệu Phụ", secInfo),
+                    new ScreenDetail("Dự Báo Phẩm Chất", $"{qualityPreview} (Cấp lò xưởng: {wsFurnaceLvl}/5)"),
+                    new ScreenDetail("Trạng Thái", canCraft ? "✅ Đủ điều kiện rèn đúc" : (canCraftTier ? "⚠️ Chưa đủ nguyên liệu" : "❌ Chưa đủ bậc tay nghề")),
                     new ScreenDetail("Phí Thuê Lò", $"{r.CraftFee} Quan"),
                     new ScreenDetail("Thời Gian Chế Tác", $"{r.CraftDays} ngày"),
                     new ScreenDetail("Thành Phẩm", $"{r.OutputQuantity}x {output}")

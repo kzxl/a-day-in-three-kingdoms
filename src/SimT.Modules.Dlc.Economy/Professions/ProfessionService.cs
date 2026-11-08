@@ -1343,6 +1343,15 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
         return WorkResult.Success($"Tôi luyện thành công {eq.NameVi} lên cấp +{nextLevel}! Chỉ số tăng lên +{newBonus} {eq.BonusStat}, độ bền tối đa đạt {newMaxDur}.{milestoneMsg}", 1, 1);
     }
 
+    public static string FormatQualityRankVi(string? rank) => rank switch
+    {
+        "LEGENDARY" => "Cực Phẩm ★★★",
+        "MASTER" => "Thượng Phẩm ★★",
+        "FINE" => "Trung Phẩm ★",
+        "COMMON" => "Hạ Phẩm",
+        _ => rank ?? "—"
+    };
+
     public long CalculateEquipmentSellValue(EquipmentDef equipment)
     {
         var baseItem = _items.Find(equipment.ItemId);
