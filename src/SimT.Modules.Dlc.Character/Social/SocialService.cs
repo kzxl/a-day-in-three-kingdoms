@@ -1773,8 +1773,54 @@ internal sealed partial class SocialService : ISocialNetwork
         "manager" => "Chưởng Quầy Sạp Hàng (Kinh doanh thương mại)",
         "advisor" => "Mưu Thần Quân Sư (Hiến kế mưu lược)",
         "accountant" => "Kế Toán Sổ Sách (Quản lý kho quỹ)",
+        "artisan" => "Giám Công Thợ Cả (Ủy thác khai thác & chế tác)",
         _ => "Gia Thần"
     };
+
+    public void RecordCooperation(long npcId, int affinityDelta, int trustDelta, string summaryVi)
+    {
+        var npc = _registry.Find(npcId);
+        if (npc is null) return;
+
+        var formattedDate = GameDateCodec.Format(_clock.Today);
+        var rel = GetRelationship(npcId);
+        var newAffinity = Math.Clamp(rel.Affinity + affinityDelta, -100, 100);
+        var newTrust = Math.Clamp(rel.Trust + trustDelta, 0, 100);
+        var impression = CalculateImpression(newAffinity);
+        var sentiment = affinityDelta >= 0 ? "positive" : "negative";
+        var summary = string.IsNullOrWhiteSpace(summaryVi)
+            ? $"Hợp tác thương vụ và hoàn thành ủy thác cùng {npc.NameVi}."
+            : summaryVi.Trim();
+
+        _db.Execute(
+            """
+            INSERT INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date)
+            VALUES (@npcId, @aff, @trust, @imp, 0, @date)
+            ON CONFLICT(npc_id) DO UPDATE SET
+                affinity = excluded.affinity,
+                trust = excluded.trust,
+                impression = excluded.impression,
+                last_interaction_date = excluded.last_interaction_date
+            """,
+            new DbArgs()
+                .Add("@npcId", npcId)
+                .Add("@aff", newAffinity)
+                .Add("@trust", newTrust)
+                .Add("@imp", impression)
+                .Add("@date", formattedDate));
+
+        _db.Execute(
+            """
+            INSERT INTO kz_memory (npc_id, date, topic, sentiment, affinity_delta, summary_vi)
+            VALUES (@npcId, @date, 'commission', @sentiment, @delta, @summary)
+            """,
+            new DbArgs()
+                .Add("@npcId", npcId)
+                .Add("@date", formattedDate)
+                .Add("@sentiment", sentiment)
+                .Add("@delta", affinityDelta)
+                .Add("@summary", summary));
+    }
 
     private sealed class SimpleRng
     {

@@ -12,7 +12,7 @@ public sealed record WorkshopDef(
     bool IsActive,
     int CreatedDayIndex);
 
-/// <summary>Crafting commission or order from factions, garrisons, or merchants.</summary>
+/// <summary>Crafting or resource-gathering commission (INBOUND from NPCs/guilds, or OUTBOUND bounty posted by the player).</summary>
 public sealed record CraftOrderDef(
     long Id,
     string ClientNameVi,
@@ -24,7 +24,11 @@ public sealed record CraftOrderDef(
     int FameReward,
     int DeadlineDay,
     string Status,
-    int? AcceptedDay = null);
+    int? AcceptedDay = null,
+    string Direction = "INBOUND",
+    long? AssigneeNpcId = null,
+    string? AssigneeNameVi = null,
+    int? CompletionDay = null);
 
 /// <summary>Equipment slot on the protagonist (Weapon, Armor, Tool).</summary>
 public sealed record EquippedSlotDef(
@@ -47,6 +51,8 @@ public interface IPlayerEquipment
     WorkResult Unequip(string slotCode);
 
     void DegradeEquipped(string slotCode, int loss);
+
+    EquipmentDef? RecordCombatFeat(long equipmentId, string wielderNameVi, string featDescriptionVi, int killDelta = 1, int fameDelta = 10);
 }
 
 /// <summary>Read surface of <c>dlc.professions</c>, provided as the <c>professions.guild</c> capability.</summary>
@@ -70,6 +76,8 @@ public interface IProfessionGuild
 
     WorkResult Craft(long cityId, long recipeId);
 
+    long CalculateRepairCost(long cityId, EquipmentDef equipment);
+
     WorkResult Repair(long cityId, long equipmentId);
 
     // Workshop features
@@ -85,14 +93,22 @@ public interface IProfessionGuild
 
     WorkResult UpgradeFurnace(long citadelId);
 
-    // Crafting orders
+    // Crafting orders & Player Bounties
     IReadOnlyList<CraftOrderDef> AvailableOrders(long citadelId);
 
     IReadOnlyList<CraftOrderDef> ActiveOrders();
 
+    IReadOnlyList<CraftOrderDef> PlayerBounties(long? citadelId = null);
+
     WorkResult AcceptOrder(long orderId);
 
     WorkResult FulfillOrder(long citadelId, long orderId);
+
+    WorkResult PostBounty(long citadelId, long targetItemId, int quantity, int rewardCopper);
+
+    WorkResult DispatchRetainerBounty(long citadelId, long retainerNpcId, long targetItemId, int quantity);
+
+    WorkResult CancelBounty(long orderId);
 
     // Equipment features
     IReadOnlyList<EquippedSlotDef> EquippedSlots { get; }
@@ -121,6 +137,8 @@ public interface IProfessionGuild
 
     WorkResult Hunt(long citadelId);
 
+    WorkResult Mine(long citadelId);
+
     WorkResult Temper(long citadelId, long equipmentId);
 
     // Economic circulation & commerce for crafted goods
@@ -131,6 +149,8 @@ public interface IProfessionGuild
     long CalculateDishSellValue(DishRecipeDef dish);
 
     WorkResult SellDish(long citadelId, long dishId, int quantity = 1);
+
+    EquipmentDef? RecordCombatFeat(long equipmentId, string wielderNameVi, string featDescriptionVi, int killDelta = 1, int fameDelta = 10);
 }
 
 public sealed record DishRecipeDef(
@@ -191,7 +211,15 @@ public sealed record EquipmentDef(
     string QualityRank,
     string BonusStat,
     int BonusValue,
-    int TemperLevel = 0);
+    int TemperLevel = 0,
+    long? CreatorId = null,
+    string? CreatorNameVi = null,
+    long? ForgedCitadelId = null,
+    long? ForgedDayIndex = null,
+    int FameScore = 0,
+    int KillCount = 0,
+    string? LegendNarrative = null,
+    string? LotCode = null);
 
 public readonly record struct WorkResult(bool Ok, string Message, int Quantity, int Days)
 {

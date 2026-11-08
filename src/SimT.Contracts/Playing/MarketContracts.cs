@@ -164,6 +164,19 @@ public sealed record MarketDemandStatus(
     string VelocityLevelVi,
     int DaysUntilDepletion);
 
+/// <summary>Historical resource node (mine, forest, herb valley, fishery, or weaving hub) attached to a citadel.</summary>
+public sealed record RegionalResourceNodeDef(
+    long CitadelId,
+    string NodeCode,
+    string NodeNameVi,
+    string NodeType,
+    long PrimaryItemId,
+    string PrimaryItemCode,
+    long? SecondaryItemId,
+    string? SecondaryItemCode,
+    int BaseMonthlyYield,
+    string DescriptionVi);
+
 /// <summary>Macro-economic value chain and civic consumption engine provided by <c>dlc.economy</c>.</summary>
 public interface IValueChainService
 {
@@ -171,5 +184,8 @@ public interface IValueChainService
     MarketDemandStatus GetDemandStatus(long citadelId, long itemId);
     MarketDemandStatus EstimateDemand(long citadelId, long itemId, string itemCode, string itemNameVi, string category, int stock, int baseline, int npcCount);
     IReadOnlyList<MarketDemandStatus> GetCitadelDemands(long citadelId);
+    IReadOnlyList<RegionalResourceNodeDef> GetResourceNodes(long citadelId);
+    IReadOnlyList<RegionalResourceNodeDef> AllResourceNodes { get; }
+    int SimulateRegionalExtraction(long citadelId);
     void SimulateMonthlyCivicConsumption(SimT.Contracts.Time.GameDate date);
 }

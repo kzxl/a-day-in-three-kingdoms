@@ -87,4 +87,32 @@ public sealed class ValueChainTests : IDisposable
         Assert.True(stockAfter < 80, $"Surplus stock should decrease, got {stockAfter}");
         Assert.True(stockAfter >= 40, $"Stock should not fall below baseline, got {stockAfter}");
     }
+
+    [Fact]
+    public void Regional_resource_nodes_cover_all_citadels_and_extract_specialty_goods()
+    {
+        using var kernel = _host.Boot();
+        var valueChain = kernel.Capabilities.Get<IValueChainService>(CapabilityIds.ValueChain);
+        var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
+
+        Assert.Equal(20, valueChain.AllResourceNodes.Count);
+
+        var shangdangNodes = valueChain.GetResourceNodes(18);
+        Assert.Single(shangdangNodes);
+        Assert.Equal("MINE", shangdangNodes[0].NodeType);
+        Assert.Equal(5, shangdangNodes[0].PrimaryItemId); // sat
+        Assert.Equal(25, shangdangNodes[0].SecondaryItemId); // black_iron
+
+        var ironBefore = trade.StallStock(18, 5);
+        var blackIronBefore = trade.StallStock(18, 25);
+
+        var extracted = valueChain.SimulateRegionalExtraction(18);
+        Assert.True(extracted > 0);
+        Assert.True(trade.StallStock(18, 5) > ironBefore);
+        Assert.True(trade.StallStock(18, 25) > blackIronBefore);
+
+        var stallScreen = kernel.Ui.Screens.First(s => s.ScreenId == "market.stall");
+        var model = stallScreen.Render();
+        Assert.Contains(model.Sections, s => s.Heading.Contains("Mỏ Khoáng & Nguồn Cung Đặc Sản Bản Địa"));
+    }
 }

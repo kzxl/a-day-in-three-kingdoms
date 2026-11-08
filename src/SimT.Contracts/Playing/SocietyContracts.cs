@@ -69,6 +69,9 @@ public interface ISocietyChronicle
     /// <summary>Chronicle feed of recent events across the realm or at a specific citadel.</summary>
     IReadOnlyList<SocietyLogEntry> RecentEvents(int limit = 50, string? category = null, long? citadelId = null);
 
+    /// <summary>Records an external event or heroic feat into the living world chronicle.</summary>
+    void RecordEvent(GameDate date, long npcId, string npcNameVi, long citadelId, string headlineVi, string detailVi, string category = "travel", string statImpact = "");
+
     /// <summary>Gets the current autonomous activity and location of an NPC.</summary>
     NpcActivityDef? GetNpcActivity(long npcId);
 

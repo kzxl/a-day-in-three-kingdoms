@@ -73,6 +73,25 @@ internal static class ProfessionInvariants
         }
     }
 
+    public sealed class BountyOrdersValid : IInvariant
+    {
+        public string Id => "professions.order.bounty_valid";
+
+        public string? Check(IInvariantContext context)
+        {
+            var bad = context.Db.ScalarLong(
+                """
+                SELECT COUNT(*) FROM pf_order
+                WHERE quantity_needed <= 0
+                   OR reward_copper <= 0
+                   OR COALESCE(direction, 'INBOUND') NOT IN ('INBOUND', 'OUTBOUND')
+                   OR (COALESCE(direction, 'INBOUND') = 'OUTBOUND' AND status IN ('ACCEPTED', 'COMPLETED') AND assignee_npc_id IS NULL)
+                """);
+
+            return bad == 0 ? null : $"{bad} order/bounty row(s) violate direction or assignee constraints";
+        }
+    }
+
     public static IEnumerable<IInvariant> All()
     {
         yield return new TierMatchesPractice();
@@ -80,5 +99,6 @@ internal static class ProfessionInvariants
         yield return new OutputRegistered();
         yield return new RecipeValid();
         yield return new EquipmentDurabilityValid();
+        yield return new BountyOrdersValid();
     }
 }

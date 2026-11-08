@@ -89,6 +89,37 @@ public sealed class AutomatedLogisticsService
             new DbArgs().Add("@code", cartelCode).Add("@delta", delta));
     }
 
+    public string GiftCartel(string cartelCode, IWallet wallet)
+    {
+        const long giftCost = 300;
+        var cartel = GetCartels().FirstOrDefault(c => c.CartelCode.Equals(cartelCode, StringComparison.OrdinalIgnoreCase));
+        if (cartel is null) return $"Không tìm thấy đại thương bang '{cartelCode}'.";
+        if (wallet.Liquid < giftCost) return $"Cần {giftCost} Quan để dâng lễ vật kết giao {cartel.CartelNameVi}, trong ví chỉ có {wallet.Liquid} Quan.";
+
+        wallet.Charge(giftCost, "caravan.cartel_gift", $"Lễ vật kết giao {cartel.CartelNameVi} ({cartel.LeaderVi})");
+        AdjustCartelStanding(cartel.CartelCode, 15);
+        var newStanding = Math.Min(100, cartel.Standing + 15);
+        if (newStanding >= 20 && cartel.TreatyStatus == "NEUTRAL")
+        {
+            _db.Execute("UPDATE cv_cartel_reputation SET treaty_status = 'FRIENDLY' WHERE cartel_code = @code", DbArgs.One("@code", cartel.CartelCode));
+        }
+        return $"Đã dâng lễ vật 300 Quan kết giao {cartel.CartelNameVi} ({cartel.LeaderVi}): Hào cảm tăng lên {newStanding}/100!";
+    }
+
+    public string SignCartelTreaty(string cartelCode, IWallet wallet)
+    {
+        const long treatyFee = 500;
+        var cartel = GetCartels().FirstOrDefault(c => c.CartelCode.Equals(cartelCode, StringComparison.OrdinalIgnoreCase));
+        if (cartel is null) return $"Không tìm thấy đại thương bang '{cartelCode}'.";
+        if (cartel.TreatyStatus == "ALLIED") return $"Bạn đã ký Minh Ước Thông Thương Độc Quyền với {cartel.CartelNameVi} rồi.";
+        if (cartel.Standing < 35) return $"Cần đạt tối thiểu 35 điểm hào cảm với {cartel.CartelNameVi} (hiện có {cartel.Standing}/100) mới được ký Minh Ước.";
+        if (wallet.Liquid < treatyFee) return $"Cần {treatyFee} Quan tiền cọc thương hội để ký Minh Ước với {cartel.CartelNameVi}.";
+
+        wallet.Charge(treatyFee, "caravan.cartel_treaty", $"Ký Minh Ước Thông Thương cùng {cartel.CartelNameVi}");
+        _db.Execute("UPDATE cv_cartel_reputation SET treaty_status = 'ALLIED', standing = MIN(100, standing + 10) WHERE cartel_code = @code", DbArgs.One("@code", cartel.CartelCode));
+        return $"Đã ký thành công Minh Ước Thông Thương Độc Quyền với {cartel.CartelNameVi}! Hưởng đặc quyền miễn thuế bến bãi & tăng +20% lợi nhuận tuyến buôn tự động.";
+    }
+
     public IReadOnlyList<AutoRouteDef> GetRoutes()
     {
         return _db.Query(
@@ -150,10 +181,18 @@ public sealed class AutomatedLogisticsService
         IMarketTrade trade,
         IWallet wallet,
         IWorldMap map,
-        IItemCatalog items)
+        IItemCatalog items,
+        ICaravanGuild? caravan = null)
     {
         var routes = GetRoutes().Where(r => r.Active).ToList();
         if (routes.Count == 0) return;
+
+        var cartels = GetCartels();
+        var alliedCount = cartels.Count(c => c.TreatyStatus == "ALLIED");
+        var friendlyCount = cartels.Count(c => c.TreatyStatus == "FRIENDLY");
+        var cartelBonusPermille = 1000 + (alliedCount * 150) + (friendlyCount * 50);
+
+        var maxFleetBatch = caravan is not null ? caravan.Fleet.Tier * 25 : 100;
 
         foreach (var route in routes)
         {
@@ -165,15 +204,18 @@ public sealed class AutomatedLogisticsService
 
             if (buyQuote <= route.MaxBuyPrice && sellQuote >= route.SellMinPrice)
             {
-                var totalCost = buyQuote * route.BatchSize;
+                var effectiveBatch = Math.Min(route.BatchSize, maxFleetBatch);
+                var totalCost = buyQuote * effectiveBatch;
                 if (wallet.Liquid >= totalCost)
                 {
-                    var grossRevenue = sellQuote * route.BatchSize;
-                    var netProfit = grossRevenue - totalCost;
+                    var grossRevenue = sellQuote * effectiveBatch;
+                    var rawProfit = grossRevenue - totalCost;
+                    var netProfit = (rawProfit * cartelBonusPermille) / 1000;
 
                     if (netProfit > 0)
                     {
-                        // Deduct buy cost, receive sell revenue => net profit added directly to wallet
+                        trade.AdjustStock(route.FromCityId, route.BuyItemId, -Math.Min(10, effectiveBatch / 2));
+                        trade.AdjustStock(route.ToCityId, route.BuyItemId, Math.Min(10, effectiveBatch / 2));
                         wallet.Pay(netProfit, "logistics.auto_route", $"Lợi nhuận ròng tuyến buôn '{route.Name}': +{netProfit} Quan.");
                         _db.Execute("UPDATE cv_auto_route SET last_run_day = @day WHERE id = @id", new DbArgs().Add("@day", today.DayIndex).Add("@id", route.Id));
                         _log.Info($"Tuyến buôn '{route.Name}' hoàn tất chuyến hàng, thu về +{netProfit} Quan.");

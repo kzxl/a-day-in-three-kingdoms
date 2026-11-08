@@ -36,8 +36,10 @@ internal sealed partial class SocietyService : ITavernRumors
         var selected = new List<RumorView>();
         while (groups.Count > 0 && selected.Count < TavernRules.BatchSize)
         {
+            // An upcoming historical event is always foreshadowed, even when market shocks fill the event group.
+            static bool IsHistorical(RumorView r) => r.EventKey?.StartsWith("evt_", StringComparison.Ordinal) == true;
             var histIdx = selected.Count == 1
-                ? groups.FindIndex(g => g.Key == "event" && g.First().EventKey?.StartsWith("evt_", StringComparison.Ordinal) == true)
+                ? groups.FindIndex(g => g.Key == "event" && g.Any(IsHistorical))
                 : -1;
             var index = selected.Count == 0 && groups[0].Key == "price"
                 ? 0
@@ -45,7 +47,7 @@ internal sealed partial class SocietyService : ITavernRumors
                     ? histIdx
                     : rng.Next(0, groups.Count);
             var choices = groups[index].ToArray();
-            selected.Add(choices[0]);
+            selected.Add(index == histIdx ? choices.First(IsHistorical) : choices[0]);
             groups.RemoveAt(index);
         }
         foreach (var candidate in candidates)

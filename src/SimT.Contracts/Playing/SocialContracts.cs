@@ -219,4 +219,7 @@ public interface ISocialNetwork
 
     /// <summary>Count of unread letters in the player's inbox.</summary>
     int UnreadLetterCount();
+
+    /// <summary>Records a mutually beneficial commercial or commission cooperation with an NPC, boosting affinity and trust.</summary>
+    void RecordCooperation(long npcId, int affinityDelta, int trustDelta, string summaryVi);
 }

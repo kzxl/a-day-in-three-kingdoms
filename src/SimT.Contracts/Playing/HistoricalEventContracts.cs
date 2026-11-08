@@ -67,5 +67,5 @@ public sealed record HistoricalChoiceOutcome(
 /// </summary>
 public interface IMarketShockTrigger
 {
-    void TriggerShock(long citadelId, string shockType, int startDay, int durationDays, int severityPermille, string noteVi);
+    void TriggerShock(long citadelId, string shockType, long startDay, int durationDays, int severityPermille, string noteVi);
 }

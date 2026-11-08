@@ -769,6 +769,15 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
                 .Add("@tick", tick));
     }
 
+    public void RecordEvent(GameDate date, long npcId, string npcNameVi, long citadelId, string headlineVi, string detailVi, string category = "travel", string statImpact = "")
+    {
+        var cit = _map.Find(citadelId);
+        var citName = cit?.NameVi ?? "Châu quận";
+        var formattedDate = GameDateCodec.Format(date);
+        var validCategory = category is "martial" or "commerce" or "governance" or "scholarly" or "travel" ? category : "travel";
+        LogEvent(formattedDate, npcId, npcNameVi, citadelId, citName, validCategory, headlineVi, detailVi, statImpact, date.DayIndex);
+    }
+
     public IReadOnlyList<SocietyLogEntry> RecentEvents(int limit = 50, string? category = null, long? citadelId = null)
     {
         var sql = "SELECT id, date, npc_id, npc_name_vi, citadel_id, citadel_name_vi, event_kind, headline_vi, detail_vi, stat_impact " +

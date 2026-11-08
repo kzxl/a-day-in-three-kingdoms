@@ -98,4 +98,45 @@ public sealed class PlayerBankTests
         Assert.True(branch2.VaultCash >= 5000);
         Assert.True(branch2.NpcDeposits > 0);
     }
+
+    [Fact]
+    public void PlayerBank_separates_daily_convoys_from_monthly_interest_and_supports_sovereign_faction_war_loans()
+    {
+        using var host = new DlcTestHost();
+        using var kernel = host.Boot();
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        wallet.Pay(30_000, "test.fund", "Nạp quỹ kiểm thử");
+
+        Assert.True(kernel.TryGetCommandHandler("market.player_bank", out var handler));
+        var estMsg = handler!.Execute("establish");
+        Assert.Contains("Đại khai môn đình", estMsg);
+
+        var bankService = new PlayerBankService(kernel.Db, kernel.Clock, wallet, new TestLog());
+        var bank = bankService.GetBank()!;
+        var hqBefore = bankService.GetBranch(bank.Id, 1)!;
+
+        // Advancing 5 days (without crossing month boundary) must NOT compound monthly deposit growth on DayAdvanced
+        kernel.AdvanceDays(5);
+        var hqAfter5Days = bankService.GetBranch(bank.Id, 1)!;
+        Assert.Equal(hqBefore.NpcDeposits, hqAfter5Days.NpcDeposits);
+
+        // Issue a Sovereign War Loan of 2,000 Quan to Faction 1 (Tào Ngụy) via command handler
+        var loanMsg = handler.Execute("faction_loan:1:2000");
+        Assert.NotNull(loanMsg);
+        Assert.Contains("Quân Phí", loanMsg);
+
+        var loans = bankService.GetFactionLoans(bank.Id);
+        var activeLoan = Assert.Single(loans);
+        Assert.Equal(2000, activeLoan.PrincipalAmount);
+        Assert.Equal("TAX_EXEMPT_NORTH", activeLoan.PrivilegeCode);
+        Assert.True(bankService.HasFactionPrivilege("TAX_EXEMPT_NORTH"));
+
+        var vaultAfterLoan = bankService.GetBranch(bank.Id, 1)!.VaultCash;
+        Assert.Equal(hqBefore.VaultCash - 2000, vaultAfterLoan);
+
+        // Advance across month boundary -> collects monthly sovereign interest (+120 Quan on 2000 @ 6%) + branch growth
+        kernel.AdvanceDays(30);
+        var vaultAfterMonth = bankService.GetBranch(bank.Id, 1)!.VaultCash;
+        Assert.True(vaultAfterMonth > vaultAfterLoan + 120);
+    }
 }
