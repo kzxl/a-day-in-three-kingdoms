@@ -34,7 +34,10 @@
       "so_event_portrait_expression",
       "so_merchant_cargo",
       "so_dynamic_event",
-      "so_personal_event"
+      "so_personal_event",
+      "so_npc_bond",
+      "so_npc_needs",
+      "so_npc_goal"
     ],
     "migrations": [
       "migrations"
