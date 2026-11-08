@@ -33,7 +33,7 @@ public sealed class EconomyModule : ISimModule
         var shockEngine = new MarketShockEngine(context.Db);
         context.Capabilities.Provide(CapabilityIds.MarketRumorEvents, (IEventRumorSource)shockEngine);
 
-        var marketService = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log, npcs, shockEngine);
+        var marketService = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log, npcs, shockEngine, context.Capabilities);
         marketService.EnsureListings(items, map);
         context.Capabilities.Provide(CapabilityIds.MarketTrade, marketService);
         context.Capabilities.Provide(CapabilityIds.MarketPortfolio, marketService);

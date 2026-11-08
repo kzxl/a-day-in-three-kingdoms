@@ -25,7 +25,9 @@
     "player.wallet",
     "player.bag",
     "player.state",
-    "player.attributes"
+    "player.attributes",
+    "character.traits",
+    "social.network"
   ],
   "owns": {
     "tables": [

@@ -40,7 +40,9 @@ public sealed class CharacterModule : ISimModule
             items,
             context.Log,
             context.Capabilities);
+        socialService.SetCampaignSeed(context.Campaign.Seed);
         context.Capabilities.Provide(CapabilityIds.SocialNetwork, socialService);
+        context.Capabilities.Provide(CapabilityIds.NpcTraits, socialService);
 
         var socialScreen = new SocialScreen(socialService, registry, map, player, bag, items, context.Clock, attributes);
         context.Ui.AddScreen(socialScreen);
@@ -64,7 +66,12 @@ public sealed class CharacterModule : ISimModule
         context.Capabilities.Provide(INpcWishes.CapabilityId, wishes);
         context.Events.Subscribe<MonthClosed>(month => wishes.OnMonthClosed(month.Date));
         context.Events.Subscribe<DayAdvanced>(day => wishes.Refresh(day.Date));
-        context.Events.Subscribe<SimT.Contracts.Events.DuelCompletedEvent>(duel => wishes.OnDuel(duel.NpcId, duel.PlayerWon, duel.Date));
+        context.Events.Subscribe<SimT.Contracts.Events.DuelCompletedEvent>(duel =>
+        {
+            wishes.OnDuel(duel.NpcId, duel.PlayerWon, duel.Date);
+            if (duel.PlayerWon)
+                socialService.RecordDuelVictoryBonus(duel.NpcId);
+        });
 
         // Invariants
         foreach (var invariant in CharacterInvariants.All())

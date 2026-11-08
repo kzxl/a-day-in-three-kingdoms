@@ -4,7 +4,7 @@
   "apiVersion": "1",
   "kind": "dlc",
   "requires": ["base.world", "base.npc", "base.player", "base.content"],
-  "provides": ["social.network", "dlc.dialogue", "lineage.house", "npc.bonds", "npc.wishes"],
+  "provides": ["social.network", "character.traits", "dlc.dialogue", "lineage.house", "npc.bonds", "npc.wishes"],
   "consumes": [
     "world.map",
     "npc.registry",

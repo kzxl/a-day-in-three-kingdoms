@@ -181,6 +181,24 @@ function paintListAndCard(bridge) {
   const visitLabel = isLocal ? 'Bái phỏng' : remoteLabel;
   const sparLabel = isLocal ? 'So tài' : remoteLabel;
   const talkLabel = isLocal ? 'Mở cảnh nói chuyện' : remoteLabel;
+  const traits = Array.isArray(current.traits) ? current.traits : [];
+  const traitsHtml = traits.length > 0
+    ? '<div class="dossier-traits" aria-label="Đặc tính nhân vật">' +
+        '<span class="dossier-traits-lbl">Đặc tính:</span>' +
+        traits.map((t) => {
+          const hiddenCls = t.hidden ? ' is-hidden' : '';
+          const desc = t.descriptionVi || '';
+          return (
+            '<span class="dossier-trait-pill' + hiddenCls + '" ' +
+              'title="' + esc(desc) + '" ' +
+              'data-trait-code="' + esc(t.code || '') + '" ' +
+              'data-tooltip="' + esc(desc) + '">' +
+              esc(t.nameVi || '???') +
+            '</span>'
+          );
+        }).join('') +
+      '</div>'
+    : '';
 
   cardEl.innerHTML =
     '<div class="dossier-left-pane">' +
@@ -211,6 +229,7 @@ function paintListAndCard(bridge) {
         '<span class="dossier-chip">Khí chất ' + esc(current.moodVi || 'Điềm đạm') + '</span>' +
         '<span class="dossier-chip">Ngụ tại ' + esc(current.cityNameVi) + '</span>' +
       '</div>' +
+      traitsHtml +
       '<div class="dossier-radar-row">' +
         '<svg class="dossier-radar-svg" viewBox="-140 -122 280 244" role="img" aria-label="Biểu đồ tám năng lực">' +
           '<polygon points="' + radarRingPoints(0.33) + '" fill="none" stroke="#3a2c20"></polygon>' +

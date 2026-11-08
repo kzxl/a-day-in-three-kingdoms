@@ -34,6 +34,7 @@ public static class CapabilityIds
     public const string HistoricalRumorEvents = "history.rumor_events";
     public const string SocietyChronicle = "society.chronicle";
     public const string SocialNetwork = "social.network";
+    public const string NpcTraits = "character.traits";
     public const string MilitaryCommand = "military.command";
     public const string PlayerDestiny = "player.destiny";
     public const string CityStroll = "world.stroll";

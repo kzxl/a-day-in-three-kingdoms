@@ -121,6 +121,15 @@ public interface ISocialNetwork
     /// <summary>Gets the psychological archetype and personality profile of an NPC.</summary>
     NpcPsycheProfile GetPsycheProfile(long npcId);
 
+    /// <summary>Gets the full canonical or seed-determined traits (1–3) of an NPC.</summary>
+    IReadOnlyList<NpcTraitDef> GetTraits(long npcId);
+
+    /// <summary>Gets the UI-visible traits of an NPC, masking secondary traits as "???" when affinity is low.</summary>
+    IReadOnlyList<NpcTraitView> GetVisibleTraits(long npcId);
+
+    /// <summary>Awards bonus affinity after the player wins a martial duel against an NPC with the Mê võ trait.</summary>
+    int RecordDuelVictoryBonus(long npcId);
+
     IReadOnlyList<RelationshipDef> AllRelationships();
 
     IReadOnlyList<MemoryEntry> GetMemories(long npcId, int limit = 20);

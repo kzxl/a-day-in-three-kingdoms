@@ -340,4 +340,14 @@ assert.equal(eventSentences.length, 3, 'Expected 3 chronicle sentences');
 const eventLayout1076 = computeEventLayout(1076, 2);
 assert.equal(eventLayout1076.hasHorizontalOverflow, false, 'Event scene must not overflow horizontally at 1076px');
 
-console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, historical event scene, and manifest assets OK.`);
+// Verify Batch 5 character trait pills in dossier-scene & talk-scene
+const dossierJs = fs.readFileSync(path.join(scenesDir, 'dossier-scene.js'), 'utf8');
+const dossierCss = fs.readFileSync(path.join(scenesDir, 'dossier-scene.css'), 'utf8');
+const talkJs = fs.readFileSync(path.join(scenesDir, 'talk-scene.js'), 'utf8');
+const sceneCss = fs.readFileSync(path.join(scenesDir, 'scene.css'), 'utf8');
+assert.ok(dossierJs.includes('dossier-trait-pill') && dossierJs.includes('data-tooltip'), 'dossier-scene.js must render trait pills with tooltip');
+assert.ok(dossierCss.includes('.dossier-traits') && dossierCss.includes('flex-wrap: wrap'), 'dossier-scene.css must wrap trait pills to prevent 1076px overflow');
+assert.ok(talkJs.includes('tk-trait-pill') && talkJs.includes('data-tooltip'), 'talk-scene.js must render trait pills with tooltip');
+assert.ok(sceneCss.includes('.tk-trait-row') && sceneCss.includes('flex-wrap: wrap'), 'scene.css must wrap talk trait pills to prevent 1076px overflow');
+
+console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, historical event scene, character trait pills, and manifest assets OK.`);

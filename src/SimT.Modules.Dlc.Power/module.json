@@ -12,7 +12,9 @@
     "npc.registry",
     "player.bag",
     "player.attributes",
-    "content.items"
+    "content.items",
+    "social.network",
+    "character.traits"
   ],
   "owns": {
     "tables": [

@@ -296,4 +296,5 @@ public sealed record DossierNpcView(
     [property: JsonPropertyName("dip")] int Dip,
     [property: JsonPropertyName("com")] int Com,
     [property: JsonPropertyName("logStat")] int LogStat,
-    [property: JsonPropertyName("cra")] int Cra);
+    [property: JsonPropertyName("cra")] int Cra,
+    [property: JsonPropertyName("traits")] IReadOnlyList<SimT.Contracts.Playing.NpcTraitView>? Traits = null);

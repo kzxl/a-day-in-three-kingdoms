@@ -44,7 +44,8 @@ public sealed class PowerModule : ISimModule
             attributes!,
             items,
             context.Log,
-            equipment);
+            equipment,
+            context.Capabilities);
 
         context.Capabilities.Provide(CapabilityIds.MilitaryCommand, militaryService);
         context.Ui.AddScreen(new MilitaryScreen(militaryService, registry, map, player, attributes!, bag, items, context.Clock));
