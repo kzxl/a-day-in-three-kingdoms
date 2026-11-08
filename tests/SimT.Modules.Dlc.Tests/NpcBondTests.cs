@@ -15,7 +15,7 @@ public sealed class NpcBondTests : IDisposable
     public void Dispose() => _host.Dispose();
     private static INpcBonds Bonds(SimKernel k) => k.Capabilities.Get<INpcBonds>(INpcBonds.CapabilityId);
     private static INpcRegistry Registry(SimKernel k) => k.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
-    private static long Id(SimKernel k, string code) => Registry(k).All.Single(n => n.Code == code).Id;
+    private static long Id(SimKernel k, string code) => Registry(k).FindByCode(code)!.Id;
     private static void Befriend(SimKernel k, long id) => k.Db.Execute(
         "INSERT OR REPLACE INTO kz_relationship VALUES (@id,80,70,'Thân thiết',0,@d)",
         new DbArgs().Add("@id",id).Add("@d",GameDateCodec.Format(k.Today)));

@@ -646,7 +646,8 @@ public sealed class ProfessionTests : IDisposable
         // Advance 30 days to trigger MonthClosed and dynamic NPC orders
         kernel.AdvanceDays(31);
 
-        var orders = guild.AvailableOrders(1);
+        // The available roster changes which cities receive orders; search the whole map.
+        var orders = Enumerable.Range(1, 20).SelectMany(city => guild.AvailableOrders(city)).ToArray();
         Assert.NotEmpty(orders);
 
         var order = orders.First();

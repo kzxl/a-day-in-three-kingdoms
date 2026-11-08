@@ -3,8 +3,17 @@
   "version": "1.0.0",
   "apiVersion": "1",
   "kind": "dlc",
-  "requires": ["base.world", "base.player", "base.npc", "base.content"],
-  "provides": ["politics.court", "military.command", "politics.lord-tasks"],
+  "requires": [
+    "base.world",
+    "base.player",
+    "base.npc",
+    "base.content"
+  ],
+  "provides": [
+    "politics.court",
+    "military.command",
+    "politics.lord-tasks"
+  ],
   "consumes": [
     "world.map",
     "player.wallet",
@@ -27,9 +36,15 @@
       "po_lord_trust",
       "ml_stronghold",
       "ml_duel_log",
-      "ml_supply_requisition"
+      "ml_supply_requisition",
+      "po_faction_name"
     ],
-    "migrations": ["migrations"]
+    "migrations": [
+      "migrations"
+    ]
   },
-  "screens": ["politics.court", "military.arena"]
+  "screens": [
+    "politics.court",
+    "military.arena"
+  ]
 }

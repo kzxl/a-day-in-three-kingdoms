@@ -395,7 +395,7 @@ public partial class MainWindow
         }
 
         var npc = registry.Find(npcId);
-        if (npc is null)
+        if (npc is null || !registry.IsPresent(npcId))
         {
             StatusText.Text = $"Không tìm thấy nhân sĩ mã {npcId}.";
             return;
@@ -533,7 +533,7 @@ public partial class MainWindow
         }
 
         var npc = registry.Find(npcId);
-        if (npc is null)
+        if (npc is null || !registry.IsPresent(npcId))
         {
             StatusText.Text = $"Không tìm thấy võ sĩ mã {npcId}.";
             return;

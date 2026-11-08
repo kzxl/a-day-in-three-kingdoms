@@ -251,12 +251,14 @@ public sealed class NpcWishTests : IDisposable
         for(int i=1;i<=15;i++)
         {
             k.Db.Execute("DELETE FROM kz_npc_wish");
+            var homes = Registry(k).All.ToDictionary(n => n.Id, n => n.CitadelId);
+            var locations = Registry(k).All.ToDictionary(n => n.Id, n => n.CurrentCitadelId(k.Capabilities));
             Events(k).Publish(new MonthClosed(k.Today.AddDays(i*30),k.Today));
             foreach(var row in k.Db.Query("SELECT npc_id,city_id FROM kz_npc_wish WHERE template='home'",r=>(Npc:r.GetInt64(0),City:r.GetInt64(1))))
             {
                 generated=true; var npc=Registry(k).Find(row.Npc)!;
-                Assert.Equal(npc.CitadelId,row.City);
-                Assert.NotEqual(npc.CitadelId,npc.CurrentCitadelId(k.Capabilities));
+                Assert.Equal(homes[row.Npc],row.City);
+                Assert.NotEqual(row.City,locations[row.Npc]);
             }
         }
         Assert.True(generated);

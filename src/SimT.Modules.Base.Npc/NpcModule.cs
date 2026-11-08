@@ -7,11 +7,14 @@ namespace SimT.Modules.Base.Npc;
 /// <summary>
 /// base.npc — historical and local characters, exposed as the <c>npc.registry</c> capability.
 /// </summary>
-public sealed class NpcModule : ISimModule
+public sealed partial class NpcModule : ISimModule
 {
     public void Start(ModuleContext context)
     {
         var registry = new NpcRegistry(context.Db);
+        registry.InitializeLifetimes(context.Clock.Today.Year);
+        context.Capabilities.Provide(INpcLifetimes.CapabilityId, registry);
+        context.Events.Subscribe<SimT.Contracts.Time.DayAdvanced>(day => registry.AdvanceLifetimes(day.Date.Year));
         context.Capabilities.Provide(CapabilityIds.NpcRegistry, registry);
         context.Log.Info($"npc registry ready with {registry.All.Count} characters");
 
@@ -21,7 +24,7 @@ public sealed class NpcModule : ISimModule
         context.Ui.AddCommandHandler(new NpcCommandHandler(registry));
     }
 
-    private sealed class NpcRegistry : INpcRegistry
+    private sealed partial class NpcRegistry : INpcRegistry, INpcLifetimes
     {
         private readonly IDbSession _db;
         private readonly List<NpcDef> _all;
@@ -121,7 +124,7 @@ public sealed class NpcModule : ISimModule
             {
                 lock (_gate)
                 {
-                    return _all.ToArray();
+                    return _all.Where(IsAvailable).ToArray();
                 }
             }
         }
@@ -147,7 +150,7 @@ public sealed class NpcModule : ISimModule
             lock (_gate)
             {
                 return _byCitadel.TryGetValue(citadelId, out var list)
-                    ? list.ToArray()
+                    ? list.Where(IsAvailable).ToArray()
                     : Array.Empty<NpcDef>();
             }
         }

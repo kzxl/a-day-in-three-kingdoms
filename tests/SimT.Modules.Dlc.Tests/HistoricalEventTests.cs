@@ -21,11 +21,11 @@ public sealed class HistoricalEventTests : IDisposable
     private static ITavernRumors Rumors(SimKernel k) => k.Capabilities.Get<ITavernRumors>(CapabilityIds.TavernRumors);
 
     [Fact]
-    public void All_14_historical_events_are_seeded_in_chronological_order_184_to_220()
+    public void All_24_historical_events_are_seeded_in_chronological_order_184_to_220()
     {
         using var k = _host.Boot();
         var events = Society(k).GetHistoricalEvents();
-        Assert.Equal(14, events.Count);
+        Assert.Equal(24, events.Count);
         Assert.Equal("evt_184_khan_vang", events[0].Code);
         Assert.Equal("evt_220_tao_phi_xung_de", events[^1].Code);
         Assert.All(events, e =>
@@ -98,14 +98,14 @@ public sealed class HistoricalEventTests : IDisposable
         using var k = _host.Boot();
         var society = Society(k);
 
-        // Move player to Thành Đô (15), far from Lạc Dương (1)
-        Player(k).MoveTo(15, k.Today);
+        // Move player to Tây Lương (19), away from the intervening supplemental events.
+        Player(k).MoveTo(19, k.Today);
 
-        // Before 189-09-25, Lạc Dương (1) belongs to faction 1 (#ef4444)
+        // Before 189-09-25, Lạc Dương (1) belongs to the Han court.
         var beforeMap = MapScene.Build(k.Capabilities, k.Today, 1000)!;
         var lacDuongBefore = beforeMap.Cities.Single(c => c.Id == 1);
-        Assert.Equal(1, lacDuongBefore.FactionId);
-        Assert.Equal("#ef4444", lacDuongBefore.FactionColor);
+        Assert.Equal(13, lacDuongBefore.FactionId);
+        Assert.Equal("#a8a29e", lacDuongBefore.FactionColor);
 
         // Advance to 189-09-25 (Đổng Trác tiến kinh Lạc Dương)
         var daysTo189 = (int)(new GameDate(189, 9, 25).DayIndex - k.Today.DayIndex);
@@ -201,10 +201,10 @@ public sealed class HistoricalEventTests : IDisposable
         Assert.Equal("viewed", society.FindHistoricalEvent("evt_192_lu_bo_tru_dong_trac")!.Status);
         Assert.Equal("pending", society.FindHistoricalEvent("evt_196_hien_de_hua_xuong")!.Status);
 
-        // Tôn Kiên (npc_0014) and Đổng Trác (npc_0023) are deceased; Trường An (2) owned by faction 6
+        // Tôn Kiên and Đổng Trác are deceased; the supplemental 192 transition gives Trường An to Lý Thôi.
         Assert.True(Npcs(reopened).FindByCode("npc_0014")!.IsDeceased(society));
         Assert.True(Npcs(reopened).FindByCode("npc_0023")!.IsDeceased(society));
-        Assert.Equal(6, Court(reopened).Governances.Single(g => g.CitadelId == 2).FactionId);
+        Assert.Equal(19, Court(reopened).Governances.Single(g => g.CitadelId == 2).FactionId);
     }
 
     [Fact]

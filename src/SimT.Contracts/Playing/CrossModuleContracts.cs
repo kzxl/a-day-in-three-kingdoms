@@ -227,8 +227,12 @@ public interface IItemHubService
 /// <summary>NPC registry owned by <c>base.npc</c>.</summary>
 public interface INpcRegistry
 {
+    /// <summary>Characters present in this campaign year, including deceased historical records.</summary>
     IReadOnlyList<NpcDef> All { get; }
 
+    bool IsPresent(long npcId) => All.Any(n => n.Id == npcId);
+
+    /// <summary>Catalog lookup, also available for historical impacts on characters not yet present.</summary>
     NpcDef? Find(long npcId);
 
     NpcDef? FindByCode(string code);

@@ -44,6 +44,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         EnsureMerchantRivalsInitialized();
         EnsureKarmaInitialized();
         EnsureHistoricalEventsInitialized();
+        RefreshNpcLifetimes();
     }
 
     private void EnsureActivityInitialized()
@@ -146,7 +147,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         {
             foreach (var act in activities)
             {
-                if (act.IsDeceased || !npcsById.TryGetValue(act.NpcId, out var npc) || npc.IsDeceasedFlag)
+                if (_newlyArrivedNpcIds.Remove(act.NpcId) || act.IsDeceased || !npcsById.TryGetValue(act.NpcId, out var npc) || npc.IsDeceasedFlag)
                 {
                     continue;
                 }

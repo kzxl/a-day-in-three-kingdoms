@@ -185,15 +185,13 @@ public sealed class DialogueTests
         var localRows = npcScreen.Sections.First().Rows;
         var caiYanRow = localRows.Single(r => r.Cells[0].Contains("Thái Diễm", StringComparison.Ordinal));
         var huaXiongRow = localRows.Single(r => r.Cells[0].Contains("Hoa Hùng", StringComparison.Ordinal));
-        var simaYiRow = localRows.Single(r => r.Cells[0].Contains("Tư Mã Ý", StringComparison.Ordinal));
+        Assert.DoesNotContain(localRows, r => r.Cells[0].Contains("Tư Mã Ý", StringComparison.Ordinal)); // born 179, not yet 15
 
         Assert.Equal("art/portraits/lady/face.webp", SceneArtCatalog.ResolveRowNpcArt(caiYanRow).PortraitFace);
         Assert.Equal("art/portraits/general/face.webp", SceneArtCatalog.ResolveRowNpcArt(huaXiongRow).PortraitFace);
-        Assert.Equal("art/portraits/scholar/face.webp", SceneArtCatalog.ResolveRowNpcArt(simaYiRow).PortraitFace);
 
         Assert.Equal("art/portraits/lady/face.webp", SceneArtCatalog.ResolveRowNpcArt(caiYanRow, npcs).PortraitFace);
         Assert.Equal("art/portraits/general/face.webp", SceneArtCatalog.ResolveRowNpcArt(huaXiongRow, npcs).PortraitFace);
-        Assert.Equal("art/portraits/scholar/face.webp", SceneArtCatalog.ResolveRowNpcArt(simaYiRow, npcs).PortraitFace);
 
         var huaXiongScene = dialogue.BuildTalkScene(huaXiong.Id);
         Assert.Equal("art/portraits/general/full.webp", huaXiongScene.PortraitFull);
