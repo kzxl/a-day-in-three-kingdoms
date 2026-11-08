@@ -440,7 +440,7 @@ export function renderMapScene(container, scene, bridge) {
 
   const firstTarget = cities.find((c) => c.id !== curCity.id) || curCity;
   const state = {
-    selectedCityId: firstTarget.id,
+    selectedCityId: byId.has(scene.focusCityId) ? scene.focusCityId : firstTarget.id,
     layer: 'city',
     mode: 'walk',
     moving: false,

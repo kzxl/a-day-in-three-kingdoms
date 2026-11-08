@@ -243,6 +243,7 @@ public partial class MainWindow
         briefing.RequestStroll += () => TriggerCityStroll(preferModalWhenOutsideScene: true);
         briefing.RequestTalkNpc += npcId => TryOpenTalkScene(npcId);
 
+        briefing.RequestWishDestination += OpenWishDestination;
         briefing.Bind(_kernel);
         ContentPanel.Children.Add(briefing);
     }
