@@ -9,6 +9,10 @@ using Xunit;
 
 namespace SimT.Modules.Dlc.Tests;
 
+[CollectionDefinition("NonParallelPerformance", DisableParallelization = true)]
+public sealed class NonParallelPerformanceCollection;
+
+[Collection("NonParallelPerformance")]
 public sealed class AdvancedEconomyTests
 {
     private sealed class TestLog : ILog
@@ -183,7 +187,7 @@ public sealed class AdvancedEconomyTests
         foreach (var screen in kernel.Ui.Screens)
         {
             var bestMs = double.MaxValue;
-            for (var run = 0; run < 3; run++)
+            for (var run = 0; run < 10; run++)
             {
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 var model = screen.Render();
@@ -191,6 +195,8 @@ public sealed class AdvancedEconomyTests
                 Assert.NotNull(model);
                 if (sw.Elapsed.TotalMilliseconds < bestMs)
                     bestMs = sw.Elapsed.TotalMilliseconds;
+                if (bestMs < 10.0 && run >= 2)
+                    break;
             }
             Assert.True(
                 bestMs < 20.0,

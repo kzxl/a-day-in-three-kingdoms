@@ -264,6 +264,8 @@ public sealed class DialogueTests
         Assert.True(luoyangRoster.Count is > 0 and <= 6);
         Assert.DoesNotContain(luoyangRoster, s => s.NpcId == guanYu.Id);
         Assert.NotNull(luoyangRoster[0].AnimPath);
+        var looks = luoyangRoster.Select(s => s.AnimPath ?? s.SpritePath).ToList();
+        Assert.Equal(looks.Count, looks.Distinct().Count());
 
         var localAtLuoyang = npcs.FindByCitadel(luoyangId).First();
         var luoyangTalk = dialogue.BuildTalkScene(localAtLuoyang.Id);

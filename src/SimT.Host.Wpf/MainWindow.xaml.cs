@@ -42,7 +42,12 @@ public partial class MainWindow : Window
     private ScreenSection? _firstSection;
     private string _filter = string.Empty;
 
-    public MainWindow(SimKernel kernel, SaveManager saves, CampaignMeta meta, bool isSmoke = false)
+    public MainWindow(
+        SimKernel kernel,
+        SaveManager saves,
+        CampaignMeta meta,
+        bool isSmoke = false,
+        LoadingProgressState? loadingState = null)
     {
         InitializeComponent();
         _kernel = kernel;
@@ -50,7 +55,7 @@ public partial class MainWindow : Window
         _meta = meta;
         _isSmoke = isSmoke;
         ToastHost.SuppressTimers = isSmoke;
-        InitializeSceneHost();
+        InitializeSceneHost(loadingState);
 
         CampaignText.Text = meta.Name;
         VersionText.Text = ShortVersion();
@@ -64,7 +69,7 @@ public partial class MainWindow : Window
         UpdateHeader();
         _loaded = true;
         RenderSelected();
-        Loaded += (_, _) => { var sw = System.Diagnostics.Stopwatch.StartNew(); var lastT = 0.0; CompositionTarget.Rendering += (_, _) => { var curT = sw.Elapsed.TotalSeconds; var dt = curT - lastT; lastT = curT; if (DebugOverlay.Visibility == Visibility.Visible) { DebugOverlay.Diagnostics.BeginFrame(); DebugOverlay.Diagnostics.EndFrame(dt); DebugOverlay.Refresh(dt); } }; };
+        AttachDebugOverlayLoop();
     }
 
     private readonly List<NavGroupVm> _navGroups = [];
@@ -324,6 +329,9 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (HandleLoadingScreenKeyDown(e))
+            return;
+
         if (e.OriginalSource is TextBox && e.Key != System.Windows.Input.Key.Escape) return;
         if (e.OriginalSource is ButtonBase && e.Key is System.Windows.Input.Key.Space or System.Windows.Input.Key.Enter) return;
 
@@ -375,25 +383,4 @@ public partial class MainWindow : Window
         _saves.Touch(_meta, GameDateCodec.Format(_kernel.Today));
         _kernel.Dispose();
     }
-
-    private static string Describe(Exception error) => error switch
-    {
-        SimException sim => $"[{sim.Code}] {sim.Message}",
-        _ => $"[internal] {error.GetType().Name}: {error.Message}"
-    };
-
-    private static string ShortVersion()
-    {
-        var full = Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-            ?? "unknown";
-
-        var plus = full.IndexOf('+');
-        if (plus < 0) return $"Một Ngày Ở Tam Quốc {full}";
-        var hash = full[(plus + 1)..];
-        return $"Một Ngày Ở Tam Quốc {full[..plus]} · {hash[..Math.Min(7, hash.Length)]}";
-    }
-
-    private static string FormatRegionName(string? regionCode) => RoleTitleVi.FormatRegion(regionCode);
 }

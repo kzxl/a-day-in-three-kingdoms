@@ -1,42 +1,66 @@
+using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Windows;
-using System.Windows.Media.Animation;
+using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
+using SimT.Contracts;
 using SimT.Contracts.Playing;
+using SimT.Contracts.Scenes;
+using SimT.Host.Wpf.Controls;
 
 namespace SimT.Host.Wpf;
 
 public partial class MainWindow
 {
+    private LoadingProgressState? _loadingState;
     private DispatcherTimer? _startupOverlayTimer;
     private Task? _sceneWarmTask;
     private bool _startupOverlayDismissed;
 
-    private void InitializeSceneHost()
+    public GameLoadingScreen LoadingScreenControl => LoadingScreen;
+
+    private void InitializeSceneHost(LoadingProgressState? loadingState)
     {
+        _loadingState = loadingState;
         SceneOverlay.ClientMessageReceived += OnSceneClientMessageReceived;
-        SceneOverlay.ScenePainted += _ => DismissStartupOverlay(immediate: false);
+        SceneOverlay.ScenePainted += OnSceneOverlayPainted;
 
         if (_isSmoke)
         {
             _ = SceneOverlay.InitializeWarmAsync(string.Empty, skipForSmoke: true);
-            StartupOverlay.Visibility = Visibility.Collapsed;
+            LoadingScreen.Visibility = Visibility.Collapsed;
             _startupOverlayDismissed = true;
             return;
         }
 
-        StartupBgImage.Source = TitleWindow.GetSharedBackgroundImage();
-        StartupStatusText.Text = $"Đang vào {ResolveCurrentCityName()}...";
-        StartupOverlay.Visibility = Visibility.Visible;
-        StartupOverlay.Opacity = 1.0;
-        SceneOverlay.ConcealUntilPainted();
-
-        _startupOverlayTimer = new DispatcherTimer(DispatcherPriority.Normal, Dispatcher)
+        var useLoadingScreen = _loadingState is not null;
+        if (useLoadingScreen)
         {
-            Interval = TimeSpan.FromSeconds(3)
-        };
-        _startupOverlayTimer.Tick += (_, _) => DismissStartupOverlay(immediate: true);
-        _startupOverlayTimer.Start();
+            _loadingState!.UpdateFromKernel(_kernel, _meta.Name);
+            LoadingScreen.AttachState(_loadingState);
+            LoadingScreen.EnterCityRequested += (_, _) => OnLoadingScreenEnterCity();
+            SceneOverlay.ConcealUntilPainted(holdAfterPaint: true);
+
+            _startupOverlayTimer = new DispatcherTimer(DispatcherPriority.Normal, Dispatcher)
+            {
+                Interval = TimeSpan.FromSeconds(10)
+            };
+            _startupOverlayTimer.Tick += (_, _) =>
+            {
+                _startupOverlayTimer?.Stop();
+                _startupOverlayTimer = null;
+                _loadingState?.MarkStepDone(4);
+                _loadingState?.MarkStepDone(5);
+            };
+            _startupOverlayTimer.Start();
+        }
+        else
+        {
+            LoadingScreen.Visibility = Visibility.Collapsed;
+            _startupOverlayDismissed = true;
+        }
 
         var scenesDir = Path.Combine(AppContext.BaseDirectory, "assets", "scenes");
         SourceInitialized += (_, _) =>
@@ -53,16 +77,22 @@ public partial class MainWindow
             }
 
             await warmTask;
+            Scenes.SceneOverlayControl.ReleaseWarmController();
             if (!_loaded || !SceneOverlay.IsAvailable)
             {
-                DismissStartupOverlay(immediate: true);
+                _startupOverlayTimer?.Stop();
+                _startupOverlayTimer = null;
+                _loadingState?.MarkStepDone(4);
+                _loadingState?.MarkStepDone(5);
                 return;
             }
+
+            _loadingState?.MarkStepDone(4);
 
             if (string.Equals(_screenId, CitySceneScreenId, StringComparison.Ordinal))
             {
                 if (SceneOverlay.ActiveScene is null && !TryOpenCityScene())
-                    DismissStartupOverlay(immediate: true);
+                    _loadingState?.MarkStepDone(5);
             }
             else if (TryOpenFeatureScene(_screenId))
             {
@@ -70,79 +100,112 @@ public partial class MainWindow
             }
             else
             {
-                DismissStartupOverlay(immediate: true);
+                _loadingState?.MarkStepDone(5);
             }
         };
+    }
+
+    private void OnSceneOverlayPainted(object? scene)
+    {
+        _startupOverlayTimer?.Stop();
+        _startupOverlayTimer = null;
+        _loadingState?.MarkStepDone(4);
+        _loadingState?.MarkStepDone(5);
+
+        if (_startupOverlayDismissed)
+            SceneOverlay.RevealPaintedScene();
+    }
+
+    private void OnLoadingScreenEnterCity()
+    {
+        _startupOverlayTimer?.Stop();
+        _startupOverlayTimer = null;
+        _startupOverlayDismissed = true;
+
+        var revealTimer = new DispatcherTimer(DispatcherPriority.Render, Dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(310)
+        };
+        revealTimer.Tick += (_, _) =>
+        {
+            revealTimer.Stop();
+            SceneOverlay.AllowRevealOnPaint();
+            SceneOverlay.RevealPaintedScene();
+        };
+        revealTimer.Start();
+    }
+
+    private bool HandleLoadingScreenKeyDown(KeyEventArgs e)
+    {
+        if (LoadingScreen.Visibility != Visibility.Visible || LoadingScreen.IsDismissed)
+            return false;
+
+        if (e.Key == Key.Enter && LoadingScreen.IsReady)
+            LoadingScreen.TriggerEnterCity();
+
+        e.Handled = true;
+        return true;
     }
 
     private static bool IsWebSceneScreen(string screenId) =>
         screenId is CitySceneScreenId or "world.map" or "social.network" or "market.stall" or "npc.directory";
 
-    private string ResolveCurrentCityName()
-    {
-        if (_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var ps) && ps is not null &&
-            _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) &&
-            map?.Find(ps.CurrentCityId) is { } cit)
-        {
-            return cit.NameVi;
-        }
-
-        return "Lạc Dương";
-    }
-
     public void DismissStartupOverlay(bool immediate)
     {
         _startupOverlayTimer?.Stop();
         _startupOverlayTimer = null;
+        _startupOverlayDismissed = true;
+        SceneOverlay.AllowRevealOnPaint();
         SceneOverlay.RevealPaintedScene();
 
-        if (_startupOverlayDismissed)
-        {
-            if (immediate && StartupOverlay.Visibility != Visibility.Collapsed)
-            {
-                StartupOverlay.BeginAnimation(OpacityProperty, null);
-                StartupOverlay.Visibility = Visibility.Collapsed;
-            }
+        if (LoadingScreen.Visibility != Visibility.Visible && LoadingScreen.IsDismissed)
             return;
-        }
 
-        _startupOverlayDismissed = true;
-        StartupOverlay.IsHitTestVisible = false;
-        if (immediate || _isSmoke || !IsLoaded)
-        {
-            StartupOverlay.BeginAnimation(OpacityProperty, null);
-            StartupOverlay.Opacity = 0;
-            StartupOverlay.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        void CollapseNow()
-        {
-            StartupOverlay.BeginAnimation(OpacityProperty, null);
-            StartupOverlay.Opacity = 0;
-            StartupOverlay.Visibility = Visibility.Collapsed;
-        }
-
-        var fadeTimer = new DispatcherTimer(DispatcherPriority.Render, Dispatcher)
-        {
-            Interval = TimeSpan.FromMilliseconds(165)
-        };
-        fadeTimer.Tick += (_, _) =>
-        {
-            fadeTimer.Stop();
-            CollapseNow();
-        };
-        fadeTimer.Start();
-
-        var fade = new DoubleAnimation(StartupOverlay.Opacity, 0.0, TimeSpan.FromMilliseconds(150))
-        {
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-        };
-        fade.Completed += (_, _) =>
-        {
-            fadeTimer.Stop();
-            CollapseNow();
-        };
-        StartupOverlay.BeginAnimation(OpacityProperty, fade);
+        LoadingScreen.TriggerEnterCity(immediate: immediate || _isSmoke || !IsLoaded);
     }
+
+    private void AttachDebugOverlayLoop()
+    {
+        Loaded += (_, _) =>
+        {
+            var sw = Stopwatch.StartNew();
+            var lastT = 0.0;
+            CompositionTarget.Rendering += (_, _) =>
+            {
+                var curT = sw.Elapsed.TotalSeconds;
+                var dt = curT - lastT;
+                lastT = curT;
+                if (DebugOverlay.Visibility == Visibility.Visible)
+                {
+                    DebugOverlay.Diagnostics.BeginFrame();
+                    DebugOverlay.Diagnostics.EndFrame(dt);
+                    DebugOverlay.Refresh(dt);
+                }
+            };
+        };
+    }
+
+    private static string Describe(Exception error) => error switch
+    {
+        SimException sim => $"[{sim.Code}] {sim.Message}",
+        _ => $"[internal] {error.GetType().Name}: {error.Message}"
+    };
+
+    private static string ShortVersion()
+    {
+        var full = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+            ?? "unknown";
+
+        var plus = full.IndexOf('+');
+        if (plus < 0)
+            return $"Một Ngày Ở Tam Quốc {full}";
+
+        var hash = full[(plus + 1)..];
+        return $"Một Ngày Ở Tam Quốc {full[..plus]} · {hash[..Math.Min(7, hash.Length)]}";
+    }
+
+    private static string FormatRegionName(string? regionCode) =>
+        RoleTitleVi.FormatRegion(regionCode);
 }

@@ -196,33 +196,18 @@ public partial class TitleWindow : Window
         }
     }
 
-    private async void New_Click(object sender, RoutedEventArgs e)
+    private void New_Click(object sender, RoutedEventArgs e)
     {
         if (_isEntering)
             return;
 
         var name = string.IsNullOrWhiteSpace(NameBox.Text) ? "Lữ Khách" : NameBox.Text.Trim();
-        await BeginEnteringAsync(isNewCampaign: true);
-
-        SimKernel? kernel = null;
-        try
+        var state = LoadingProgressState.ForNewSave(name);
+        _ = RunLoadingFlowAsync(state, () =>
         {
-            var meta = await Task.Run(() => _saves.Create(name));
-            kernel = await Task.Run(() => _saves.Open(meta));
-            await HandOffToMainWindowAsync(kernel, meta);
-        }
-        catch (SimException error)
-        {
-            kernel?.Dispose();
-            RestoreInteractiveState();
-            Fail(error);
-        }
-        catch (Exception error)
-        {
-            kernel?.Dispose();
-            RestoreInteractiveState();
-            Fail(error.Message);
-        }
+            state.MarkStepDone(0);
+            return _saves.CreateAndOpen(name, state.OnKernelLog);
+        });
     }
 
     private void EmptyState_ActionClick(object sender, RoutedEventArgs e) =>
@@ -231,7 +216,7 @@ public partial class TitleWindow : Window
     private void Load_Click(object sender, RoutedEventArgs e)
     {
         if (!_isEntering && SaveList.SelectedItem is SaveItem selected)
-            _ = EnterAsync(selected.Meta);
+            EnterSaveItem(selected);
     }
 
     private void Load_DoubleClick(object sender, MouseButtonEventArgs e)
@@ -243,7 +228,19 @@ public partial class TitleWindow : Window
         }
 
         if (SaveList.SelectedItem is SaveItem selected)
-            _ = EnterAsync(selected.Meta);
+            EnterSaveItem(selected);
+    }
+
+    private void EnterSaveItem(SaveItem selected)
+    {
+        var state = LoadingProgressState.ForSaveItem(selected);
+        var meta = selected.Meta;
+        _ = RunLoadingFlowAsync(state, () =>
+        {
+            state.MarkStepDone(0);
+            var kernel = _saves.Open(meta, state.OnKernelLog);
+            return (meta, kernel);
+        });
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -291,76 +288,65 @@ public partial class TitleWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        SceneOverlayControl.ReleaseWarmController();
+        if (!_isEntering)
+            SceneOverlayControl.ReleaseWarmController();
         base.OnClosed(e);
     }
 
-    private async Task EnterAsync(CampaignMeta meta)
+    private async Task RunLoadingFlowAsync(
+        LoadingProgressState state,
+        Func<(CampaignMeta Meta, SimKernel Kernel)> backgroundOpen)
     {
         if (_isEntering)
             return;
 
-        await BeginEnteringAsync(isNewCampaign: false);
+        _isEntering = true;
+        _allowClose = true;
+        state.MarkStepDone(0);
+        var openTask = Task.Run(backgroundOpen);
+
+        var loadingWindow = new LoadingWindow(state, this);
+        Application.Current.MainWindow = loadingWindow;
+        loadingWindow.Show();
+        Close();
+
         SimKernel? kernel = null;
         try
         {
-            kernel = await Task.Run(() => _saves.Open(meta));
-            await HandOffToMainWindowAsync(kernel, meta);
-        }
-        catch (SimException error)
-        {
-            kernel?.Dispose();
-            RestoreInteractiveState();
-            Fail(error);
+            var result = await openTask;
+            var meta = result.Meta;
+            kernel = result.Kernel;
+
+            state.MarkKernelOpenCompleted();
+            state.UpdateFromKernel(kernel, meta.Name);
+
+            loadingWindow.Screen.StopLoop();
+            var mainWindow = new MainWindow(kernel, _saves, meta, isSmoke: false, loadingState: state);
+            loadingWindow.CopyPlacementTo(mainWindow);
+            Application.Current.MainWindow = mainWindow;
+            mainWindow.Show();
+
+            await mainWindow.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+            loadingWindow.AllowClose();
+            loadingWindow.Close();
         }
         catch (Exception error)
         {
             kernel?.Dispose();
-            RestoreInteractiveState();
-            Fail(error.Message);
+            var titleWindow = new TitleWindow(_saves);
+            Application.Current.MainWindow = titleWindow;
+            titleWindow.Show();
+            loadingWindow.AllowClose();
+            loadingWindow.Close();
+
+            await titleWindow.Dispatcher.InvokeAsync(() =>
+            {
+                if (error is SimException simError)
+                    titleWindow.Fail(simError);
+                else
+                    titleWindow.Fail(error.Message);
+            }, DispatcherPriority.Loaded);
         }
-    }
-
-    private async Task BeginEnteringAsync(bool isNewCampaign)
-    {
-        _isEntering = true;
-        if (isNewCampaign)
-        {
-            NewCampaignButton.Label = "Đang vào...";
-            EmptyStateControl.Configure(EmptyTitle, EmptyDesc, "📜", "Đang vào...");
-        }
-        else
-        {
-            EnterGameButton.Label = "Đang vào...";
-            EnterGameButton.CostText = null;
-        }
-
-        TitleRoot.IsEnabled = false;
-        Cursor = Cursors.Wait;
-        UpdateLayout();
-        await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
-    }
-
-    private async Task HandOffToMainWindowAsync(SimKernel kernel, CampaignMeta meta)
-    {
-        var window = new MainWindow(kernel, _saves, meta);
-        Application.Current.MainWindow = window;
-        window.Show();
-        await window.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
-        _allowClose = true;
-        Hide();
-        _ = window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(Close));
-    }
-
-    private void RestoreInteractiveState()
-    {
-        _isEntering = false;
-        NewCampaignButton.Label = "Khởi nghiệp";
-        EnterGameButton.Label = "VÀO VÁN CHƠI";
-        EnterGameButton.CostText = "Enter";
-        EmptyStateControl.Configure(EmptyTitle, EmptyDesc, "📜", "Khởi nghiệp ngay");
-        TitleRoot.IsEnabled = true;
-        Cursor = null;
     }
 
     private void Fail(SimException error) =>

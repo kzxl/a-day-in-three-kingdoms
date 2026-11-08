@@ -110,6 +110,9 @@ public static class NpcLocation
                 return isGeneralOrAnimated ? 0 : 1;
             })
             .ThenBy(npc => npc.Id)
+            // Most NPCs share an archetype sprite; show each look once so the street has no clones.
+            .DistinctBy(npc => SimT.Contracts.Scenes.SceneArtCatalog.ResolveNpcAnim(npc).AnimPath
+                ?? SimT.Contracts.Scenes.SceneArtCatalog.ResolveNpcArt(npc).SpritePath)
             .Take(maxCount)
             .ToList();
 
