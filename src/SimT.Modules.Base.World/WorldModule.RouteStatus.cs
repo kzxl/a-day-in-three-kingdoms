@@ -1,4 +1,3 @@
-using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
 
 namespace SimT.Modules.Base.World;
@@ -7,8 +6,6 @@ public sealed partial class WorldModule
 {
     private sealed partial class WorldMap
     {
-        private readonly ICapabilityBroker? _capabilities;
-
         public void SetRouteHazard(long fromCitadelId, long toCitadelId, int dangerDelta,
             bool isBlocked, long expiresDayIndex, string? reasonVi = null)
         {
@@ -20,12 +17,10 @@ public sealed partial class WorldModule
 
         public RouteStatus GetRouteStatus(long fromCitadelId, long toCitadelId)
         {
+            // City danger already prices in local bandits; a road is only as risky as its worse end (0-2).
+            // Every stronghold starts uncleared, so counting them again here painted the whole map red.
             var danger = Math.Clamp(Math.Max(GetEcosystem(fromCitadelId).DangerLevel,
                 GetEcosystem(toCitadelId).DangerLevel) - 1, 0, 3);
-            if (_capabilities is not null &&
-                _capabilities.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var military) && military is not null &&
-                military.AllStrongholds().Any(s => (s.CitadelId == fromCitadelId || s.CitadelId == toCitadelId) && s.ClearedCount == 0))
-                danger = Math.Max(2, danger);
             if (!TryGetActiveRouteHazard(fromCitadelId, toCitadelId, out var hazard))
                 return new(danger, "");
             return new(Math.Max(danger, Math.Clamp((hazard.SeverityPermille - 1000) / 400 + 1, 1, 3)),

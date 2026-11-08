@@ -10,7 +10,7 @@ public sealed partial class WorldModule : ISimModule
 {
     public void Start(ModuleContext context)
     {
-        var map = new WorldMap(context.Db, context.Clock, context.Capabilities);
+        var map = new WorldMap(context.Db, context.Clock);
         context.Capabilities.Provide(CapabilityIds.WorldMap, map);
         var stroll = new CityStrollService(map, context.Capabilities, context.Clock, context.Log);
         context.Capabilities.Provide(CapabilityIds.CityStroll, stroll);
@@ -33,10 +33,9 @@ public sealed partial class WorldModule : ISimModule
         private readonly Dictionary<(long A, long B), RouteHazardEntry> _routeHazards = new();
         private readonly Dictionary<long, List<RouteHazardEntry>> _cityHazards = new();
 
-        public WorldMap(IDbSession db, IGameClock? clock = null, ICapabilityBroker? capabilities = null)
+        public WorldMap(IDbSession db, IGameClock? clock = null)
         {
             _clock = clock;
-            _capabilities = capabilities;
             _citadels = db.Query(
                     "SELECT id, code, name_vi, name_en, region, price_factor_permille FROM wd_citadel ORDER BY id",
                     row => new CitadelDef(

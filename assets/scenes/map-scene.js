@@ -820,12 +820,14 @@ export function renderMapScene(container, scene, bridge) {
       line.setAttribute('y1', String(a.y));
       line.setAttribute('x2', String(b.x));
       line.setAttribute('y2', String(b.y));
-      line.setAttribute('stroke', r.danger || r.blockedReasonVi ? '#a8321f' : isAct ? '#c4a062' : '#2a1f16');
-      line.setAttribute('stroke-width', String(r.blockedReasonVi ? 3 : r.danger ? 1.5 + r.danger : isAct ? 4 : 1.4));
+      // Only real danger (2-3) or a blockade turns a road red; level 1 is the normal road.
+      const risky = (r.danger || 0) >= 2;
+      line.setAttribute('stroke', r.blockedReasonVi || (risky && !isAct) ? '#a8321f' : isAct ? '#c4a062' : '#2a1f16');
+      line.setAttribute('stroke-width', String(isAct ? 4 : r.blockedReasonVi ? 2.5 : risky ? r.danger - 0.5 : 1.4));
       if (r.blockedReasonVi) line.setAttribute('stroke-dasharray', '7 4');
-      line.setAttribute('stroke-opacity', isAct || r.danger || r.blockedReasonVi ? '1' : '0.55');
+      line.setAttribute('stroke-opacity', isAct || r.blockedReasonVi ? '1' : risky ? '0.8' : '0.55');
       svg.appendChild(line);
-      if (isAct && r.danger && !r.blockedReasonVi) {
+      if (isAct && risky && !r.blockedReasonVi) {
         const selected = line.cloneNode(false);
         selected.setAttribute('stroke', '#c4a062');
         selected.setAttribute('stroke-width', '1.5');
