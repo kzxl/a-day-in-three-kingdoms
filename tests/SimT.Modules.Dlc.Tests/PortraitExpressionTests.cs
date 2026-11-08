@@ -8,14 +8,16 @@ namespace SimT.Modules.Dlc.Tests;
 public sealed class PortraitExpressionTests
 {
     [Fact]
-    public void Part_a_portraits_are_distinct_keep_street_sprites_and_fall_back_for_expressions()
+    public void Part_a_and_b_portraits_are_distinct_keep_street_sprites_and_fall_back_for_expressions()
     {
         using var host = new DlcTestHost();
         using var kernel = host.Boot();
         var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
         var portraits = new HashSet<string>();
         foreach (var number in new[] { 24, 28, 17, 26, 19, 37, 48, 35, 14, 40,
-            39, 43, 18, 42, 23, 41, 29, 51, 50, 53 })
+            39, 43, 18, 42, 23, 41, 29, 51, 50, 53,
+            54, 49, 52, 38, 36, 44, 45, 46, 47, 30,
+            31, 58, 59, 60, 61, 4, 73, 87, 88, 89 })
         {
             var npc = npcs.FindByCode($"npc_{number:0000}")!;
             var art = SceneArtCatalog.ResolveNpcArt(npc);

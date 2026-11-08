@@ -112,6 +112,86 @@
     "npc_0053": {
       "portrait": "gan_ning",
       "sprite": "han_officer"
+    },
+    "npc_0054": {
+      "portrait": "taishi_ci",
+      "sprite": "han_officer"
+    },
+    "npc_0049": {
+      "portrait": "lu_su",
+      "sprite": "civ_scholar"
+    },
+    "npc_0052": {
+      "portrait": "huang_gai",
+      "sprite": "han_officer"
+    },
+    "npc_0038": {
+      "portrait": "jia_xu",
+      "sprite": "civ_scholar"
+    },
+    "npc_0036": {
+      "portrait": "xun_you",
+      "sprite": "civ_scholar"
+    },
+    "npc_0044": {
+      "portrait": "xiahou_yuan",
+      "sprite": "han_officer"
+    },
+    "npc_0045": {
+      "portrait": "cao_ren",
+      "sprite": "han_officer"
+    },
+    "npc_0046": {
+      "portrait": "zhang_he",
+      "sprite": "han_officer"
+    },
+    "npc_0047": {
+      "portrait": "xu_huang",
+      "sprite": "han_officer"
+    },
+    "npc_0030": {
+      "portrait": "wei_yan",
+      "sprite": "han_officer"
+    },
+    "npc_0031": {
+      "portrait": "jiang_wei",
+      "sprite": "han_officer"
+    },
+    "npc_0058": {
+      "portrait": "chen_gong",
+      "sprite": "civ_scholar"
+    },
+    "npc_0059": {
+      "portrait": "yuan_shu",
+      "sprite": "han_officer"
+    },
+    "npc_0060": {
+      "portrait": "gongsun_zan",
+      "sprite": "han_officer"
+    },
+    "npc_0061": {
+      "portrait": "hua_tuo",
+      "sprite": "civ_merchant"
+    },
+    "npc_0004": {
+      "portrait": "zhang_jiao",
+      "sprite": "yellow_turban"
+    },
+    "npc_0073": {
+      "portrait": "cao_pi",
+      "sprite": "civ_scholar"
+    },
+    "npc_0087": {
+      "portrait": "sun_shangxiang",
+      "sprite": "female_warrior"
+    },
+    "npc_0088": {
+      "portrait": "da_qiao",
+      "sprite": "civ_lady"
+    },
+    "npc_0089": {
+      "portrait": "xiao_qiao",
+      "sprite": "civ_lady"
     }
   },
   "archetype": {
