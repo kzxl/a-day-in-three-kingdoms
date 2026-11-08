@@ -6,7 +6,8 @@ const stageHandlers = {
   social: null,
   market: null,
   dossier: null,
-  event: null
+  event: null,
+  debate: null
 };
 
 let activeKind = 'none';
@@ -52,7 +53,7 @@ function showStageSection(kind, scene) {
     root.dataset.active = kind;
   }
 
-  for (const key of ['talk', 'duel', 'city', 'map', 'social', 'market', 'dossier', 'event']) {
+  for (const key of ['talk', 'duel', 'city', 'map', 'social', 'market', 'dossier', 'event', 'debate']) {
     const el = document.getElementById(`stage-${key}`);
     if (!el) continue;
     if (key === kind) {
@@ -124,6 +125,9 @@ function handleHostEnvelope(raw) {
       break;
     case 'scene:event':
       showStageSection('event', data.scene);
+      break;
+    case 'scene:debate':
+      showStageSection('debate', data.scene);
       break;
     case 'scene:hide':
       showStageSection('none', null);

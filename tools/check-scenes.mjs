@@ -338,14 +338,61 @@ const { splitEventSentences } = await import('../assets/scenes/event-scene.js');
 const eventSentences = splitEventSentences('Thiên Công Tướng Quân Trương Giác phất cờ Thái Bình Đạo tại Quảng Tông. Hàng chục vạn nông dân đội khăn vàng nổi dậy khắp Ký Châu. Bắc Quân Trung Lang Tướng Lư Thực vây hãm thành Quảng Tông suốt nhiều tháng ròng.');
 assert.equal(eventSentences.length, 3, 'Expected 3 chronicle sentences');
 
+const { clampPersuasion, formatTurnCounter, renderDebateScene } = await import('../assets/scenes/debate-scene.js');
+assert.equal(clampPersuasion(50), 50);
+assert.equal(clampPersuasion(120), 100);
+assert.equal(clampPersuasion(-15), 0);
+assert.equal(formatTurnCounter(2, 5), 'Lượt 2 / 5');
+
+const mockDebateContainer = {
+  innerHTML: '',
+  querySelector() { return null; },
+  querySelectorAll() { return []; }
+};
+renderDebateScene(mockDebateContainer, {
+  sceneId: 'debate:1:haggle',
+  npcId: 1,
+  npcNameVi: 'Trương Lão Bản',
+  npcNameHan: '張',
+  roleVi: 'Thương nhân',
+  locationNameVi: 'Lạc Dương',
+  locationHan: '洛',
+  topicTitleVi: 'Mặc cả lô hàng',
+  persuasion: 68,
+  turn: 2,
+  maxTurns: 5,
+  isFinished: false,
+  latestSpeakerVi: 'Trương Lão Bản',
+  latestLineVi: 'Lụa Thục năm nay vận chuyển qua bao ải, bớt thế sao đặng.',
+  traits: [
+    { code: 'greedy', nameVi: 'Tham tài', hintVi: 'Lợi ×1.5', revealed: true },
+    { code: 'hidden_1', nameVi: '???', hintVi: 'Đặc tính ẩn', revealed: false }
+  ],
+  choices: [
+    { id: 'arg:Reason', labelVi: 'Lụa Thục năm nay được mùa, giá ấy đã quá cao.', hintVi: 'Lý · Mưu trí', enabled: true },
+    { id: 'arg:Profit', labelVi: 'Ta đặt cọc thêm tiền mặt tại bàn, đôi bên cùng lợi.', hintVi: 'Lợi · 36 quan', enabled: true },
+    { id: 'arg:Prestige', labelVi: 'Uy tín của ta khắp thành đều rõ, xin chớ câu nệ.', hintVi: 'Uy · Danh vọng', enabled: true },
+    { id: 'concede', labelVi: 'Nhượng bộ', hintVi: 'Hòa nhẹ', enabled: true }
+  ]
+}, null);
+assert.ok(mockDebateContainer.innerHTML.includes('tk-talk-stage') && mockDebateContainer.innerHTML.includes('tk-dialog-paper'), 'debate-scene must reuse tk-talk-stage and tk-dialog-paper');
+assert.ok(mockDebateContainer.innerHTML.includes('tk-trait-row') && mockDebateContainer.innerHTML.includes('tk-mood-pill'), 'debate-scene must reuse tk-trait-row and tk-mood-pill');
+assert.ok(mockDebateContainer.innerHTML.includes('Lượt 2 / 5'), 'debate-scene must render turn counter');
+
 // Verify Batch 5 character trait pills in dossier-scene & talk-scene
 const dossierJs = fs.readFileSync(path.join(scenesDir, 'dossier-scene.js'), 'utf8');
 const dossierCss = fs.readFileSync(path.join(scenesDir, 'dossier-scene.css'), 'utf8');
 const talkJs = fs.readFileSync(path.join(scenesDir, 'talk-scene.js'), 'utf8');
 const sceneCss = fs.readFileSync(path.join(scenesDir, 'scene.css'), 'utf8');
+const debateCss = fs.readFileSync(path.join(scenesDir, 'debate-scene.css'), 'utf8');
+const indexHtml = fs.readFileSync(path.join(scenesDir, 'index.html'), 'utf8');
+const bridgeJs = fs.readFileSync(path.join(scenesDir, 'bridge.js'), 'utf8');
 assert.ok(dossierJs.includes('dossier-chip is-trait') && dossierJs.includes('title='), 'dossier-scene.js must render traits as dossier chips with a title');
 assert.ok(dossierCss.includes('.dossier-traits') && dossierCss.includes('flex-wrap: wrap'), 'dossier-scene.css must wrap trait pills to prevent 1076px overflow');
 assert.ok(talkJs.includes('tk-trait-row') && talkJs.includes('tk-mood-pill'), 'talk-scene.js must render traits as paper mood pills');
 assert.ok(sceneCss.includes('.tk-trait-row') && sceneCss.includes('flex-wrap: wrap'), 'scene.css must wrap talk trait pills to prevent 1076px overflow');
+assert.ok(!debateCss.includes('gradient('), 'debate-scene.css must not use custom gradients');
+assert.ok(indexHtml.includes('debate-scene.css') && indexHtml.includes('debate-scene.js') && indexHtml.includes('stage-debate'), 'index.html must wire debate scene');
+assert.ok(bridgeJs.includes("case 'scene:debate':"), 'bridge.js must handle scene:debate');
 
-console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, historical event scene, character trait pills, and manifest assets OK.`);
+console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, historical event scene, debate scene, character trait pills, and manifest assets OK.`);

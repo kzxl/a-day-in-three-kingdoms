@@ -196,9 +196,10 @@ internal sealed partial class SocialService : ISocialNetwork
 
         var rel = GetRelationship(npcId);
         var playerFame = _attributes.Social.Fame;
+        if (HasCompletedWish(npcId)) signingFee = 0;
+        ApplyDebateRecruitModifier(npcId, ref reqAffinity, ref signingFee);
         var hasEnoughAffinity = rel.Affinity >= reqAffinity;
         var hasEnoughFame = playerFame >= reqFame;
-        if (HasCompletedWish(npcId)) signingFee = 0;
         var hasEnoughCash = _wallet.Liquid >= signingFee;
 
         var canRecruit = !isWarlord && hasEnoughAffinity && hasEnoughFame && hasEnoughCash && GetRetainer(npcId) is null;
@@ -667,6 +668,7 @@ internal sealed partial class SocialService : ISocialNetwork
             reqFame = (int)(reqFame * 0.85);
         }
         if (HasCompletedWish(npcId)) recruitmentFee = 0;
+        ApplyDebateRecruitModifier(npcId, ref reqAffinity, ref recruitmentFee);
         var rel = GetRelationship(npcId);
 
         if (rel.Affinity < reqAffinity)

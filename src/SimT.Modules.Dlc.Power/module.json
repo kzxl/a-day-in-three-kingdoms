@@ -14,7 +14,8 @@
     "player.attributes",
     "content.items",
     "social.network",
-    "character.traits"
+    "character.traits",
+    "character.debate"
   ],
   "owns": {
     "tables": [

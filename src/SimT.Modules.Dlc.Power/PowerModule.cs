@@ -23,7 +23,10 @@ public sealed class PowerModule : ISimModule
         var equipment = context.Capabilities.TryGet<IPlayerEquipment>(CapabilityIds.PlayerEquipment, out var pe) ? pe : null;
 
         // 1. Politics / Court Service
-        var courtService = new CourtService(context.Db, context.Clock, wallet, context.Log, attributes);
+        var courtService = new CourtService(context.Db, context.Clock, wallet, context.Log, attributes)
+        {
+            Capabilities = context.Capabilities
+        };
         _ = courtService.Reputation;
         _ = courtService.AllegianceFactionId;
 

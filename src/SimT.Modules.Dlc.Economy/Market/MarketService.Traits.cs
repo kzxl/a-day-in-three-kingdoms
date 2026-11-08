@@ -48,12 +48,11 @@ internal sealed partial class MarketService
         }
 
         if (HasNpcTrait(npcId, NpcTraitCodes.ThamTai))
-            return Math.Max(1L, (basePrice * NpcTraitRules.ThamTaiSellToPlayerPercent + 50) / 100);
+            basePrice = Math.Max(1L, (basePrice * NpcTraitRules.ThamTaiSellToPlayerPercent + 50) / 100);
+        else if (HasNpcTrait(npcId, NpcTraitCodes.HaoSang))
+            basePrice = Math.Max(1L, basePrice * NpcTraitRules.HaoSangSellToPlayerPercent / 100);
 
-        if (HasNpcTrait(npcId, NpcTraitCodes.HaoSang))
-            return Math.Max(1L, basePrice * NpcTraitRules.HaoSangSellToPlayerPercent / 100);
-
-        return Math.Max(1L, basePrice);
+        return ApplyDebateHagglePrice(cityId, npcId, itemId, basePrice);
     }
 
     public long QuoteNpcOfferUnitPrice(long cityId, long npcId, long itemId, int discountPermille = 50)

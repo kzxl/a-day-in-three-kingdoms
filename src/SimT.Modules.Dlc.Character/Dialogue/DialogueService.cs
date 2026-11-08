@@ -100,6 +100,8 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
 
         if (choiceId.StartsWith("wish:", StringComparison.Ordinal)) return HandleWishChoice(npc, choiceId);
 
+        if (choiceId.StartsWith("debate:", StringComparison.OrdinalIgnoreCase)) return HandleDebateChoice(npc, choiceId);
+
         RecordVisit(npc.Id);
         var normalized = choiceId.Trim().ToLowerInvariant();
         if (normalized == "gift:cancel")
@@ -258,6 +260,7 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
         }
 
         AddWishChoices(npc, list);
+        AddDebateChoices(npc, currentCityId, list);
         list.Add(new SceneChoice("bye", "Tạm biệt", "Rời cuộc trò chuyện"));
         return list;
     }

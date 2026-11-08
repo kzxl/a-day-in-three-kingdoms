@@ -164,6 +164,8 @@ public sealed partial class SceneOverlayControl : Border, IDisposable
 
     public bool ShowEventScene(EventScene scene) => ShowScene("scene:event", scene);
 
+    public bool ShowDebateScene(DebateScene scene) => ShowScene("scene:debate", scene);
+
     private bool ShowScene<T>(string envelopeType, T scene) where T : notnull
     {
         if (!_isAvailable)

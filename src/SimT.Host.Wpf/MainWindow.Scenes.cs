@@ -232,6 +232,7 @@ public partial class MainWindow
         else if (activeScene is MarketScene market) HandleMarketSceneMessage(type, message.Id ?? string.Empty, market);
         else if (activeScene is DossierScene dossier) HandleDossierSceneMessage(type, message.Id ?? string.Empty, dossier);
         else if (activeScene is EventScene evtScene) HandleEventSceneMessage(type, message.Id ?? string.Empty, evtScene);
+        else if (activeScene is DebateScene debateScene) HandleDebateSceneMessage(type, message.Id ?? string.Empty, debateScene);
     }
 
     private void HandleCitySceneMessage(string type, string id, CityScene _)
@@ -302,6 +303,12 @@ public partial class MainWindow
         UpdateHeader();
         InvalidateBadges(); RefreshBadges();
 
+        if (outcome.OpenDebate && outcome.DebateScene is not null)
+        {
+            SceneOverlay.ShowDebateScene(outcome.DebateScene);
+            return;
+        }
+
         if (outcome.OpenDuel)
         {
             if (_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) &&
@@ -354,5 +361,37 @@ public partial class MainWindow
             }
             catch (Exception ex) { StatusText.Text = Describe(ex); }
         }
+    }
+
+    private void HandleDebateSceneMessage(string type, string id, DebateScene debateScene)
+    {
+        if (type != "choice") return;
+        if (id == "leave")
+        {
+            if (!TryOpenTalkScene(debateScene.NpcId, debateScene.ConsequenceVi))
+            {
+                SceneOverlay.HideScene();
+                RenderSelected();
+            }
+            return;
+        }
+
+        if (!_kernel.Capabilities.TryGet<IDebateService>(CapabilityIds.Debate, out var debate) || debate is null ||
+            !_kernel.Capabilities.TryGet<IDialogueModule>(CapabilityIds.Dialogue, out var dialogue) || dialogue is null)
+            return;
+
+        try
+        {
+            var session = id == "concede" ? debate.Concede() : debate.StepDebate(id);
+            _kernel.Save();
+            UpdateHeader();
+            InvalidateBadges(); RefreshBadges();
+            if (dialogue.BuildDebateScene(session) is { } nextScene)
+            {
+                SceneOverlay.ShowDebateScene(nextScene);
+                StatusText.Text = nextScene.ConsequenceVi ?? nextScene.LatestLineVi;
+            }
+        }
+        catch (Exception ex) { StatusText.Text = Describe(ex); }
     }
 }
