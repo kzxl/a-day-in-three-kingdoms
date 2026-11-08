@@ -148,4 +148,32 @@ public sealed class SceneContractsTests
         Assert.Equal("art/anim/zhang_fei.png", zhangFeiPath);
         Assert.Equal("zhang_fei", zhangFeiKey);
     }
+
+    [Fact]
+    public void MapScene_SeasonAndDefaults_MatchMonthAndEmptyWithoutPoliticsCapability()
+    {
+        var broker = new SimT.Core.Modules.CapabilityBroker();
+        var citadels = new[] { new CitadelDef(1, "lac_duong", "Lạc Dương", "Luoyang", "trung_nguyen", 1000) };
+
+        Assert.Equal("spring", MapScene.ResolveFactionsAndSeason(broker, citadels, new SimT.Contracts.Time.GameDate(184, 1, 1)).Season);
+        Assert.Equal("spring", MapScene.ResolveFactionsAndSeason(broker, citadels, new SimT.Contracts.Time.GameDate(184, 3, 30)).Season);
+        Assert.Equal("summer", MapScene.ResolveFactionsAndSeason(broker, citadels, new SimT.Contracts.Time.GameDate(184, 4, 1)).Season);
+        Assert.Equal("summer", MapScene.ResolveFactionsAndSeason(broker, citadels, new SimT.Contracts.Time.GameDate(184, 6, 30)).Season);
+        Assert.Equal("autumn", MapScene.ResolveFactionsAndSeason(broker, citadels, new SimT.Contracts.Time.GameDate(184, 7, 1)).Season);
+        Assert.Equal("autumn", MapScene.ResolveFactionsAndSeason(broker, citadels, new SimT.Contracts.Time.GameDate(184, 9, 30)).Season);
+        Assert.Equal("winter", MapScene.ResolveFactionsAndSeason(broker, citadels, new SimT.Contracts.Time.GameDate(184, 10, 1)).Season);
+        Assert.Equal("winter", MapScene.ResolveFactionsAndSeason(broker, citadels, new SimT.Contracts.Time.GameDate(184, 12, 30)).Season);
+
+        var (cityGov, factions, _) = MapScene.ResolveFactionsAndSeason(broker, citadels, new SimT.Contracts.Time.GameDate(184, 5, 1));
+        Assert.Empty(cityGov);
+        Assert.Empty(factions);
+
+        var defaultCity = new MapCityView(
+            1, "lac_duong", "Lạc Dương", "Trung Nguyên", 446.4, 236.0, 1000, 1,
+            "Đế Đô", "Ôn đới", "Đồng bằng", "Lụa", "Trà", Array.Empty<MapTravelQuoteView>());
+        Assert.Equal(0, defaultCity.FactionId);
+        Assert.Equal(string.Empty, defaultCity.FactionNameVi);
+        Assert.Equal(string.Empty, defaultCity.FactionColor);
+        Assert.Equal(string.Empty, defaultCity.GovernorNameVi);
+    }
 }

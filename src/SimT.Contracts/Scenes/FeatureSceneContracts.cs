@@ -5,7 +5,7 @@ namespace SimT.Contracts.Scenes;
 /// <summary>
 /// Interactive World Map scene payload (<c>BanDo.dc.html</c>) rendered in WebView2.
 /// </summary>
-public sealed record MapScene(
+public sealed partial record MapScene(
     [property: JsonPropertyName("currentCityId")] long CurrentCityId,
     [property: JsonPropertyName("currentCityName")] string CurrentCityName,
     [property: JsonPropertyName("dateText")] string DateText,
@@ -16,11 +16,22 @@ public sealed record MapScene(
     [property: JsonPropertyName("recommendation")] string Recommendation,
     [property: JsonPropertyName("cities")] IReadOnlyList<MapCityView> Cities,
     [property: JsonPropertyName("routes")] IReadOnlyList<MapRouteView> Routes,
-    [property: JsonPropertyName("currentBag")] IReadOnlyList<MapBagItemView>? CurrentBag = null)
+    [property: JsonPropertyName("currentBag")] IReadOnlyList<MapBagItemView>? CurrentBag = null,
+    [property: JsonPropertyName("season")] string Season = "spring",
+    IReadOnlyList<MapFactionView>? Factions = null)
 {
     [JsonPropertyName("kind")]
     public string Kind => "map";
+
+    [JsonPropertyName("factions")]
+    public IReadOnlyList<MapFactionView> Factions { get; init; } = Factions ?? Array.Empty<MapFactionView>();
 }
+
+public sealed record MapFactionView(
+    [property: JsonPropertyName("id")] long Id,
+    [property: JsonPropertyName("nameVi")] string NameVi,
+    [property: JsonPropertyName("color")] string Color,
+    [property: JsonPropertyName("cityCount")] int CityCount);
 
 public sealed record MapBagItemView(
     [property: JsonPropertyName("itemId")] long ItemId,
@@ -43,7 +54,11 @@ public sealed record MapCityView(
     [property: JsonPropertyName("primarySpecialtyVi")] string PrimarySpecialtyVi,
     [property: JsonPropertyName("secondarySpecialtyVi")] string SecondarySpecialtyVi,
     [property: JsonPropertyName("quotes")] IReadOnlyList<MapTravelQuoteView> Quotes,
-    [property: JsonPropertyName("storedItemsSummaryVi")] string StoredItemsSummaryVi = "");
+    [property: JsonPropertyName("storedItemsSummaryVi")] string StoredItemsSummaryVi = "",
+    [property: JsonPropertyName("factionId")] long FactionId = 0,
+    [property: JsonPropertyName("factionNameVi")] string FactionNameVi = "",
+    [property: JsonPropertyName("factionColor")] string FactionColor = "",
+    [property: JsonPropertyName("governorNameVi")] string GovernorNameVi = "");
 
 public sealed record MapTravelQuoteView(
     [property: JsonPropertyName("modeKey")] string ModeKey,

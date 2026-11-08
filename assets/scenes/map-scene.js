@@ -1,7 +1,23 @@
 import { SimTBridge } from './bridge.js';
 
 let animHandle = 0;
+let seasonAnimHandle = 0;
 let resizeObs = null;
+let visChangeHandler = null;
+
+export const MAP_WIDTH = 800;
+export const MAP_HEIGHT = 640;
+export const FACTION_GRID_DIV = 8;
+export const FACTION_MAX_RADIUS = 105;
+export const SEASON_MAX_PARTICLES = 60;
+const FACTION_STORAGE_KEY = 'simt.map.showFactions';
+
+export const SEASON_NAMES_VI = {
+  spring: 'Mùa Xuân',
+  summer: 'Mùa Hạ',
+  autumn: 'Mùa Thu',
+  winter: 'Mùa Đông'
+};
 
 export const LABEL_POS = {
   1: 'top', 2: 'top', 3: 'right', 4: 'left', 5: 'left',
@@ -12,7 +28,12 @@ export const LABEL_POS = {
 
 function stopTravelAnim() {
   if (animHandle) { cancelAnimationFrame(animHandle); animHandle = 0; }
+  if (seasonAnimHandle) { cancelAnimationFrame(seasonAnimHandle); seasonAnimHandle = 0; }
   if (resizeObs) { resizeObs.disconnect(); resizeObs = null; }
+  if (visChangeHandler && typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+    document.removeEventListener('visibilitychange', visChangeHandler);
+    visChangeHandler = null;
+  }
 }
 
 function el(tag, className, text) {
@@ -20,6 +41,323 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined && text !== null) node.textContent = String(text);
   return node;
+}
+
+function loadShowFactions() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = window.localStorage.getItem(FACTION_STORAGE_KEY);
+      if (raw !== null) return raw !== '0' && raw !== 'false';
+    }
+  } catch {
+    // Ignore storage access errors
+  }
+  return true;
+}
+
+function saveShowFactions(val) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(FACTION_STORAGE_KEY, val ? '1' : '0');
+    }
+  } catch {
+    // Ignore storage access errors
+  }
+}
+
+function isReducedMotionPreferred() {
+  try {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      return Boolean(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+  } catch {
+    // Ignore matchMedia errors
+  }
+  return false;
+}
+
+export function parseHexRgb(hex) {
+  const clean = String(hex || '').trim().replace(/^#/, '');
+  if (clean.length === 3) {
+    const r = parseInt(clean[0] + clean[0], 16);
+    const g = parseInt(clean[1] + clean[1], 16);
+    const b = parseInt(clean[2] + clean[2], 16);
+    if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) return [r, g, b];
+  }
+  if (clean.length >= 6) {
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    if (!Number.isNaN(r) && !Number.isNaN(g) && !Number.isNaN(b)) return [r, g, b];
+  }
+  return [196, 160, 98];
+}
+
+export function computeFactionGrid(
+  cities,
+  mapW = MAP_WIDTH,
+  mapH = MAP_HEIGHT,
+  gridDiv = FACTION_GRID_DIV,
+  maxRadius = FACTION_MAX_RADIUS
+) {
+  const gridW = Math.max(1, Math.round(mapW / gridDiv));
+  const gridH = Math.max(1, Math.round(mapH / gridDiv));
+  const cellW = mapW / gridW;
+  const cellH = mapH / gridH;
+  const maxDistSq = maxRadius * maxRadius;
+
+  const validCities = Array.isArray(cities) ? cities : [];
+  const rgbByFaction = new Map();
+  for (const c of validCities) {
+    if (c.factionId && c.factionColor && !rgbByFaction.has(c.factionId)) {
+      rgbByFaction.set(c.factionId, parseHexRgb(c.factionColor));
+    }
+  }
+
+  const totalCells = gridW * gridH;
+  const cellFactionIds = new Array(totalCells).fill(0);
+
+  for (let gy = 0; gy < gridH; gy += 1) {
+    const cy = (gy + 0.5) * cellH;
+    const rowOff = gy * gridW;
+    for (let gx = 0; gx < gridW; gx += 1) {
+      const cx = (gx + 0.5) * cellW;
+      let bestDistSq = maxDistSq;
+      let nearestCity = null;
+      for (let i = 0; i < validCities.length; i += 1) {
+        const c = validCities[i];
+        const dx = cx - c.x;
+        const dy = cy - c.y;
+        const dSq = dx * dx + dy * dy;
+        if (dSq <= bestDistSq) {
+          bestDistSq = dSq;
+          nearestCity = c;
+        }
+      }
+      if (nearestCity && nearestCity.factionId && nearestCity.factionColor) {
+        cellFactionIds[rowOff + gx] = nearestCity.factionId;
+      }
+    }
+  }
+
+  const borderMask = new Uint8Array(totalCells);
+  const rgba = new Uint8ClampedArray(totalCells * 4);
+  let paintedCount = 0;
+  let borderCount = 0;
+
+  for (let gy = 0; gy < gridH; gy += 1) {
+    const rowOff = gy * gridW;
+    for (let gx = 0; gx < gridW; gx += 1) {
+      const idx = rowOff + gx;
+      const fid = cellFactionIds[idx];
+      if (!fid) continue;
+
+      paintedCount += 1;
+      let isBorder = false;
+      const neighbors = [
+        gx > 0 ? cellFactionIds[idx - 1] : 0,
+        gx + 1 < gridW ? cellFactionIds[idx + 1] : 0,
+        gy > 0 ? cellFactionIds[idx - gridW] : 0,
+        gy + 1 < gridH ? cellFactionIds[idx + gridW] : 0
+      ];
+      for (let n = 0; n < 4; n += 1) {
+        const nfid = neighbors[n];
+        if (nfid && nfid !== fid) {
+          isBorder = true;
+          break;
+        }
+      }
+
+      const rgb = rgbByFaction.get(fid) || [196, 160, 98];
+      const p = idx * 4;
+      rgba[p] = rgb[0];
+      rgba[p + 1] = rgb[1];
+      rgba[p + 2] = rgb[2];
+      if (isBorder) {
+        borderMask[idx] = 1;
+        borderCount += 1;
+        rgba[p + 3] = 166; // ~0.65 alpha at inter-faction borders
+      } else {
+        rgba[p + 3] = 51; // ~0.20 alpha for territory fill
+      }
+    }
+  }
+
+  return { gridW, gridH, cellFactionIds, borderMask, rgba, paintedCount, borderCount };
+}
+
+export function paintFactionCanvas(factionCanvas, cities, showFactions = true) {
+  if (!factionCanvas) return { paintedCount: 0, borderCount: 0 };
+  const w = factionCanvas.width || MAP_WIDTH;
+  const h = factionCanvas.height || MAP_HEIGHT;
+  const ctx = typeof factionCanvas.getContext === 'function' ? factionCanvas.getContext('2d') : null;
+
+  if (!showFactions) {
+    if (ctx && typeof ctx.clearRect === 'function') ctx.clearRect(0, 0, w, h);
+    if (factionCanvas.dataset) {
+      factionCanvas.dataset.visible = '0';
+      factionCanvas.dataset.paintedCells = '0';
+      factionCanvas.dataset.borderCells = '0';
+    }
+    factionCanvas._lastGrid = null;
+    return { paintedCount: 0, borderCount: 0 };
+  }
+
+  const grid = computeFactionGrid(cities, w, h, FACTION_GRID_DIV, FACTION_MAX_RADIUS);
+  factionCanvas._lastGrid = grid;
+  if (factionCanvas.dataset) {
+    factionCanvas.dataset.visible = '1';
+    factionCanvas.dataset.paintedCells = String(grid.paintedCount);
+    factionCanvas.dataset.borderCells = String(grid.borderCount);
+  }
+
+  if (ctx) {
+    if (typeof ctx.clearRect === 'function') ctx.clearRect(0, 0, w, h);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    let drewScaled = false;
+    if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+      const off = document.createElement('canvas');
+      off.width = grid.gridW;
+      off.height = grid.gridH;
+      const offCtx = typeof off.getContext === 'function' ? off.getContext('2d') : null;
+      if (offCtx && typeof offCtx.createImageData === 'function' && typeof offCtx.putImageData === 'function' && typeof ctx.drawImage === 'function') {
+        const imgData = offCtx.createImageData(grid.gridW, grid.gridH);
+        imgData.data.set(grid.rgba);
+        offCtx.putImageData(imgData, 0, 0);
+        ctx.drawImage(off, 0, 0, w, h);
+        drewScaled = true;
+      }
+    }
+
+    if (!drewScaled && typeof ctx.putImageData === 'function') {
+      ctx.putImageData({ data: grid.rgba, width: grid.gridW, height: grid.gridH }, 0, 0);
+    }
+  }
+
+  return grid;
+}
+
+export function resolveSceneFactions(scene, cities) {
+  if (scene && Array.isArray(scene.factions) && scene.factions.length > 0) {
+    return scene.factions.filter((f) => f && f.cityCount > 0);
+  }
+  const map = new Map();
+  for (const c of Array.isArray(cities) ? cities : []) {
+    if (!c.factionId || !c.factionNameVi || !c.factionColor) continue;
+    const prev = map.get(c.factionId);
+    if (prev) {
+      prev.cityCount += 1;
+    } else {
+      map.set(c.factionId, {
+        id: c.factionId,
+        nameVi: c.factionNameVi,
+        color: c.factionColor,
+        cityCount: 1
+      });
+    }
+  }
+  return Array.from(map.values());
+}
+
+export function createSeasonParticles(season, width = MAP_WIDTH, height = MAP_HEIGHT, maxCount = SEASON_MAX_PARTICLES) {
+  const key = String(season || 'spring').toLowerCase();
+  if (key === 'summer' || (key !== 'spring' && key !== 'autumn' && key !== 'winter')) {
+    return [];
+  }
+  const count = Math.min(SEASON_MAX_PARTICLES, Math.max(0, maxCount));
+  const targetCount = Math.min(count, key === 'winter' ? 48 : 40);
+  const list = [];
+  for (let i = 0; i < targetCount; i += 1) {
+    const seed = (i * 9301 + 49297) % 233280;
+    const norm = seed / 233280;
+    const seed2 = ((i + 7) * 4391 + 19381) % 233280;
+    const norm2 = seed2 / 233280;
+    list.push({
+      x: norm * width,
+      y: norm2 * height,
+      vx: key === 'winter' ? (norm - 0.5) * 14 : 12 + norm * 18,
+      vy: key === 'winter' ? 22 + norm2 * 20 : 18 + norm2 * 22,
+      size: key === 'winter' ? 2 + (i % 3) : 3.5 + (i % 3) * 1.2,
+      phase: norm * Math.PI * 2,
+      colorIdx: i % 3
+    });
+  }
+  return list;
+}
+
+export function stepSeasonParticles(particles, season, dt, width = MAP_WIDTH, height = MAP_HEIGHT) {
+  if (!Array.isArray(particles) || particles.length === 0) return;
+  const stepDt = Math.max(0, Math.min(0.08, dt || 0.016));
+  for (let i = 0; i < particles.length; i += 1) {
+    const p = particles[i];
+    p.phase += stepDt * 2.2;
+    p.x += (p.vx + Math.sin(p.phase) * 10) * stepDt;
+    p.y += p.vy * stepDt;
+    if (p.y > height + 8) {
+      p.y = -6;
+      p.x = ((p.x + width * 0.37) % width + width) % width;
+    }
+    if (p.x > width + 8) p.x -= width + 12;
+    else if (p.x < -8) p.x += width + 12;
+  }
+}
+
+function drawSeasonParticles(ctx, particles, season, width, height) {
+  if (!ctx || typeof ctx.clearRect !== 'function') return;
+  ctx.clearRect(0, 0, width, height);
+  if (!Array.isArray(particles) || particles.length === 0) return;
+
+  const palettes = {
+    spring: ['rgba(255, 198, 214, 0.82)', 'rgba(245, 158, 184, 0.78)', 'rgba(255, 224, 232, 0.85)'],
+    autumn: ['rgba(217, 119, 36, 0.82)', 'rgba(200, 75, 32, 0.78)', 'rgba(226, 168, 50, 0.82)'],
+    winter: ['rgba(240, 246, 252, 0.86)', 'rgba(219, 234, 254, 0.80)', 'rgba(255, 255, 255, 0.90)']
+  };
+  const colors = palettes[season] || palettes.spring;
+
+  for (let i = 0; i < particles.length; i += 1) {
+    const p = particles[i];
+    ctx.fillStyle = colors[p.colorIdx % colors.length];
+    ctx.beginPath();
+    if (season === 'winter') {
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    } else if (typeof ctx.ellipse === 'function') {
+      ctx.ellipse(p.x, p.y, p.size, p.size * 0.6, p.phase * 0.5, 0, Math.PI * 2);
+    } else {
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    }
+    ctx.fill();
+  }
+}
+
+export function computeMapLayoutBoxes(winW = 1076, factionCount = 12) {
+  const shellPadX = 22;
+  const bodyGap = 14;
+  const rightW = Math.min(336, Math.max(276, Math.round((winW - shellPadX * 2) * 0.31)));
+  const leftW = Math.max(480, winW - shellPadX * 2 - rightW - bodyGap);
+  const viewportH = winW <= 1076 ? 430 : 510;
+
+  const viewportBox = { left: shellPadX, top: 96, right: shellPadX + leftW, bottom: 96 + viewportH };
+  const rightPanelBox = { left: viewportBox.right + bodyGap, top: 96, right: viewportBox.right + bodyGap + rightW, bottom: 96 + viewportH + 48 };
+  const goButtonBox = {
+    left: rightPanelBox.left + 14,
+    top: rightPanelBox.bottom - 14 - 44,
+    right: rightPanelBox.right - 14,
+    bottom: rightPanelBox.bottom - 14
+  };
+
+  const rows = Math.ceil(Math.max(1, factionCount) / 2);
+  const legendW = 208;
+  const legendH = 28 + rows * 16 + 8;
+  const factionLegendBox = {
+    left: viewportBox.right - 8 - legendW,
+    top: viewportBox.bottom - 8 - legendH,
+    right: viewportBox.right - 8,
+    bottom: viewportBox.bottom - 8
+  };
+
+  return { viewportBox, factionLegendBox, rightPanelBox, goButtonBox };
 }
 
 function pricePct(city) {
@@ -81,13 +419,19 @@ export function computeDefaultMapLuggage(currentBag, rationsNeeded = 0, carryCap
   return { avail, selected };
 }
 
-function renderMapScene(container, scene, bridge) {
+export function renderMapScene(container, scene, bridge) {
   stopTravelAnim();
   if (!container || !scene) return;
   container.replaceChildren();
 
   const cities = Array.isArray(scene.cities) ? scene.cities : [];
   const routes = Array.isArray(scene.routes) ? scene.routes : [];
+  const factions = resolveSceneFactions(scene, cities);
+  const seasonKey = ['spring', 'summer', 'autumn', 'winter'].includes(String(scene.season || '').toLowerCase())
+    ? String(scene.season).toLowerCase()
+    : 'spring';
+  const seasonLabelVi = SEASON_NAMES_VI[seasonKey] || 'Mùa Xuân';
+
   const byId = new Map();
   for (const c of cities) byId.set(c.id, c);
 
@@ -105,6 +449,7 @@ function renderMapScene(container, scene, bridge) {
     zoom: 1,
     panX: 0,
     panY: 0,
+    showFactions: loadShowFactions(),
     luggageOpen: false,
     luggageKey: '',
     luggageSelected: new Map(),
@@ -119,8 +464,9 @@ function renderMapScene(container, scene, bridge) {
   const statusEl = el(
     'div',
     'tk-map-status',
-    `Đang ở ${scene.currentCityName || curCity.nameVi} · ${scene.dateText || ''} · ${(scene.cash || 0).toLocaleString('vi-VN')} quan · Mệt ${scene.fatigue || 0}%`
+    `Đang ở ${scene.currentCityName || curCity.nameVi} · ${scene.dateText || ''} · ${seasonLabelVi} · ${(scene.cash || 0).toLocaleString('vi-VN')} quan · Mệt ${scene.fatigue || 0}%`
   );
+  statusEl.setAttribute('data-season', seasonKey);
   header.append(titleWrap, statusEl);
   shell.appendChild(header);
 
@@ -133,23 +479,36 @@ function renderMapScene(container, scene, bridge) {
 
   const body = el('div', 'tk-map-body');
   const leftCol = el('div', 'tk-map-left');
-  const viewport = el('div', 'tk-map-viewport');
-  const canvas = el('div', 'tk-map-canvas');
-  canvas.style.backgroundImage = `url("${scene.mapImagePath || 'art/map/thien_ha.webp'}")`;
+  const viewport = el('div', `tk-map-viewport season-${seasonKey}`);
+  const canvas = el('div', `tk-map-canvas season-${seasonKey}`);
+  canvas.setAttribute('data-season', seasonKey);
+
+  const bgLayer = el('div', `tk-map-bg season-${seasonKey}`);
+  bgLayer.style.backgroundImage = `url("${scene.mapImagePath || 'art/map/thien_ha.webp'}")`;
+
+  const factionCanvas = el('canvas', 'tk-map-faction-canvas');
+  factionCanvas.width = MAP_WIDTH;
+  factionCanvas.height = MAP_HEIGHT;
 
   const svgNS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNS, 'svg');
   svg.setAttribute('viewBox', '0 0 800 640');
   svg.setAttribute('class', 'tk-map-svg');
-  canvas.appendChild(svg);
 
   const tagsLayer = el('div');
   const citiesLayer = el('div');
   const tokenImg = el('img', 'tk-map-token');
   tokenImg.src = scene.playerPortraitPath || 'art/portraits/player/face.webp';
   tokenImg.alt = 'Vị trí của bạn';
-  canvas.append(tagsLayer, citiesLayer, tokenImg);
-  viewport.appendChild(canvas);
+
+  canvas.append(bgLayer, factionCanvas, svg, tagsLayer, citiesLayer, tokenImg);
+
+  const seasonCanvas = el('canvas', 'tk-map-season-canvas');
+  seasonCanvas.width = MAP_WIDTH;
+  seasonCanvas.height = MAP_HEIGHT;
+
+  const factionBox = el('aside', 'tk-map-faction-box');
+  viewport.append(canvas, seasonCanvas, factionBox);
 
   const bottomBar = el('div', 'tk-map-bar');
   const rightCol = el('div', 'tk-map-right');
@@ -158,6 +517,107 @@ function renderMapScene(container, scene, bridge) {
   body.append(leftCol, rightCol);
   shell.appendChild(body);
   container.appendChild(shell);
+
+  let lastFactionPaintKey = '';
+  function ensureFactionCanvasPainted() {
+    const sig = `${state.showFactions ? 1 : 0}:${cities.map((c) => `${c.id}-${c.factionId || 0}-${c.factionColor || ''}`).join('|')}`;
+    if (sig === lastFactionPaintKey) return;
+    lastFactionPaintKey = sig;
+    paintFactionCanvas(factionCanvas, cities, state.showFactions);
+  }
+
+  function renderFactionLegend() {
+    factionBox.replaceChildren();
+    if (factions.length === 0) {
+      factionBox.hidden = true;
+      return;
+    }
+    factionBox.hidden = false;
+
+    const head = el('div', 'tk-map-faction-head');
+    head.appendChild(el('span', 'tk-map-faction-title', 'Chư hầu cát cứ'));
+    const toggleBtn = el(
+      'button',
+      `tk-map-faction-toggle${state.showFactions ? ' is-active' : ''}`,
+      'Thế lực'
+    );
+    toggleBtn.type = 'button';
+    toggleBtn.setAttribute('aria-pressed', state.showFactions ? 'true' : 'false');
+    toggleBtn.addEventListener('click', () => {
+      state.showFactions = !state.showFactions;
+      saveShowFactions(state.showFactions);
+      ensureFactionCanvasPainted();
+      renderFactionLegend();
+    });
+    head.appendChild(toggleBtn);
+    factionBox.appendChild(head);
+
+    const list = el('div', `tk-map-faction-list${state.showFactions ? '' : ' is-muted'}`);
+    for (const f of factions) {
+      const item = el('div', 'tk-map-faction-item');
+      const sw = el('span', 'tk-map-faction-swatch');
+      sw.style.background = f.color || '#c4a062';
+      const txt = el('span', 'tk-map-faction-name', `${f.nameVi} (${f.cityCount})`);
+      item.append(sw, txt);
+      list.appendChild(item);
+    }
+    factionBox.appendChild(list);
+  }
+
+  function setupSeasonParticles() {
+    const ctx = typeof seasonCanvas.getContext === 'function' ? seasonCanvas.getContext('2d') : null;
+    const particles = isReducedMotionPreferred()
+      ? []
+      : createSeasonParticles(seasonKey, MAP_WIDTH, MAP_HEIGHT, SEASON_MAX_PARTICLES);
+    seasonCanvas.dataset.particleCount = String(particles.length);
+
+    if (!ctx || particles.length === 0) {
+      if (ctx && typeof ctx.clearRect === 'function') ctx.clearRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+      return;
+    }
+
+    drawSeasonParticles(ctx, particles, seasonKey, MAP_WIDTH, MAP_HEIGHT);
+
+    let lastNow = typeof performance !== 'undefined' ? performance.now() : 0;
+    function canAnimateSeason() {
+      if (isReducedMotionPreferred()) return false;
+      if (typeof document !== 'undefined' && document.hidden) return false;
+      if (container.hidden) return false;
+      return particles.length > 0;
+    }
+
+    function stepSeason(now) {
+      seasonAnimHandle = 0;
+      if (!canAnimateSeason()) return;
+      const dt = Math.min(0.05, Math.max(0.001, (now - lastNow) / 1000));
+      lastNow = now;
+      stepSeasonParticles(particles, seasonKey, dt, MAP_WIDTH, MAP_HEIGHT);
+      drawSeasonParticles(ctx, particles, seasonKey, MAP_WIDTH, MAP_HEIGHT);
+      if (typeof requestAnimationFrame === 'function') {
+        seasonAnimHandle = requestAnimationFrame(stepSeason);
+      }
+    }
+
+    visChangeHandler = () => {
+      if (!canAnimateSeason()) {
+        if (seasonAnimHandle) {
+          cancelAnimationFrame(seasonAnimHandle);
+          seasonAnimHandle = 0;
+        }
+      } else if (!seasonAnimHandle && typeof requestAnimationFrame === 'function') {
+        lastNow = typeof performance !== 'undefined' ? performance.now() : 0;
+        seasonAnimHandle = requestAnimationFrame(stepSeason);
+      }
+    };
+
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', visChangeHandler);
+    }
+
+    if (canAnimateSeason() && typeof requestAnimationFrame === 'function') {
+      seasonAnimHandle = requestAnimationFrame(stepSeason);
+    }
+  }
 
   function getFitScale() {
     const vw = viewport.clientWidth || 520;
@@ -184,7 +644,7 @@ function renderMapScene(container, scene, bridge) {
   }, { passive: false });
 
   viewport.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('button')) return;
+    if (e.target.closest('button') || e.target.closest('.tk-map-faction-box')) return;
     dragStart = { x: e.clientX - state.panX, y: e.clientY - state.panY };
     viewport.classList.add('is-dragging');
     viewport.setPointerCapture(e.pointerId);
@@ -289,6 +749,8 @@ function renderMapScene(container, scene, bridge) {
   }
 
   function redrawAll() {
+    ensureFactionCanvasPainted();
+
     const selCity = byId.get(state.selectedCityId) || curCity;
     const isHere = selCity.id === curCity.id;
     const activeQuote = isHere ? null : getSelectedQuote(selCity);
@@ -344,6 +806,9 @@ function renderMapScene(container, scene, bridge) {
 
       const dot = el('span', 'tk-map-dot');
       dot.style.background = cityColor(c, curCity.id, state.layer);
+      if (c.factionColor) {
+        dot.style.borderColor = c.factionColor;
+      }
       const nm = el('span', 'tk-map-nm', cityLabel(c, state.layer));
       btn.append(dot, nm);
       btn.addEventListener('click', () => {
@@ -388,6 +853,15 @@ function renderMapScene(container, scene, bridge) {
     rightCol.replaceChildren();
     const headBox = el('div');
     headBox.append(el('div', 'tk-map-sel-name', selCity.nameVi), el('div', 'tk-map-sel-biome', selCity.biomeVi));
+    if (selCity.factionNameVi && selCity.governorNameVi) {
+      const govLine = el('div', 'tk-map-sel-gov', `Thuộc ${selCity.factionNameVi} · Thái thú ${selCity.governorNameVi}`);
+      if (selCity.factionColor) govLine.style.borderLeftColor = selCity.factionColor;
+      headBox.appendChild(govLine);
+    } else if (selCity.factionNameVi) {
+      const govLine = el('div', 'tk-map-sel-gov', `Thuộc ${selCity.factionNameVi}`);
+      if (selCity.factionColor) govLine.style.borderLeftColor = selCity.factionColor;
+      headBox.appendChild(govLine);
+    }
     rightCol.appendChild(headBox);
 
     const chips = el('div', 'tk-map-chips');
@@ -524,7 +998,9 @@ function renderMapScene(container, scene, bridge) {
     }
   }
 
+  renderFactionLegend();
   redrawAll();
+  setupSeasonParticles();
 }
 
 SimTBridge.registerStage('map', { render: renderMapScene, unmount: stopTravelAnim });
