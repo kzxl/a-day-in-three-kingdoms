@@ -1,4 +1,5 @@
 import { SimTBridge } from './bridge.js';
+import { renderBondWorld } from './social-world.js';
 
 let activeTabKey = 'rel';
 let rememberedNpcId = 0;
@@ -102,7 +103,7 @@ function renderSocialScene(container, scene, bridge) {
   function redrawTabs() {
     tabsBox.replaceChildren();
     const tabDefs = [
-      ['rel', 'Quan hệ'], ['skill', 'Tuyệt kỹ'],
+      ['rel', 'Của tôi'], ...(scene.world ? [['world', 'Thiên hạ']] : []), ['skill', 'Tuyệt kỹ'],
       ['mail', `Thư từ${letters.length ? ` (${letters.length})` : ''}`],
       ['team', `Gia thần${retainers.length ? ` (${retainers.length})` : ''}`]
     ];
@@ -382,7 +383,8 @@ function renderSocialScene(container, scene, bridge) {
   }
 
   function redrawBody() {
-    if (activeTabKey === 'rel') redrawRelationTab();
+    if (activeTabKey === 'world' && scene.world) renderBondWorld(bodyBox, scene.world, bridge);
+    else if (activeTabKey === 'rel') redrawRelationTab();
     else if (activeTabKey === 'skill') redrawSkillsTab();
     else if (activeTabKey === 'mail') redrawListTab(true);
     else redrawListTab(false);

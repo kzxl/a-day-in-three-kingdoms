@@ -22,6 +22,11 @@ public sealed class CharacterModule : ISimModule
         var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
         var items = context.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
 
+        var bonds = new NpcBondService(context);
+        bonds.Initialize();
+        context.Capabilities.Provide(INpcBonds.CapabilityId, bonds);
+        context.Events.Subscribe<MonthClosed>(month => bonds.OnMonthClosed(month.Date));
+
         // 1. Social Service
         var socialService = new SocialService(
             context.Db,

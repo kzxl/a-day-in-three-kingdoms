@@ -78,7 +78,8 @@ public sealed record SocialScene(
     [property: JsonPropertyName("skills")] IReadOnlyList<SocialSkillView> Skills,
     [property: JsonPropertyName("letters")] IReadOnlyList<SocialLetterView> Letters,
     [property: JsonPropertyName("retainers")] IReadOnlyList<SocialRetainerView> Retainers,
-    [property: JsonPropertyName("giftItems")] IReadOnlyList<SocialGiftItemView> GiftItems)
+    [property: JsonPropertyName("giftItems")] IReadOnlyList<SocialGiftItemView> GiftItems,
+    [property: JsonPropertyName("world")] NpcBondScene? World = null)
 {
     [JsonPropertyName("kind")]
     public string Kind => "social";

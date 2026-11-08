@@ -67,6 +67,9 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
 
         _context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var socialService);
         var psyche = socialService?.GetPsycheProfile(npc.Id);
+        var introduction = socialService?.GetMemories(npc.Id,100).FirstOrDefault(m => m.Topic == "introduction")?.SummaryVi
+            ?? socialService?.GetRelationship(npc.Id).Impression;
+        if (introduction?.StartsWith("Bạn của ", StringComparison.Ordinal) == true) lines.Insert(0, introduction);
 
         return new TalkScene(
             SceneId: $"talk:{npc.Id}", NpcId: npc.Id, NpcCode: npc.Code,
