@@ -85,6 +85,7 @@ public sealed partial class SceneOverlayControl : Border, IDisposable
     public void PrequeueScene<T>(string envelopeType, T scene) where T : notnull
     {
         _activeScene = scene;
+        Audio.GameAudio.ShowScene(scene);
         _pendingEnvelopeJson = JsonSerializer.Serialize(new { type = envelopeType, scene }, JsonOptions);
     }
 
@@ -173,6 +174,7 @@ public sealed partial class SceneOverlayControl : Border, IDisposable
 
         _activeScene = scene;
         Visibility = Visibility.Visible;
+        Audio.GameAudio.ShowScene(scene);
         SendEnvelope(envelopeType, scene);
         return true;
     }
@@ -180,6 +182,7 @@ public sealed partial class SceneOverlayControl : Border, IDisposable
     public void HideScene()
     {
         _activeScene = null;
+        Audio.GameAudio.ShowScene(null);
         _pendingEnvelopeJson = null;
         Visibility = Visibility.Collapsed;
         if (_isAvailable && _isJsReady && _webView?.CoreWebView2 is not null)
@@ -224,6 +227,14 @@ public sealed partial class SceneOverlayControl : Border, IDisposable
         }
         catch
         {
+            return;
+        }
+
+        // Sound messages carry no sceneId by contract; only catalogue SFX can be played.
+        if (message?.Type == "sfx")
+        {
+            if (_activeScene is not null && Visibility == Visibility.Visible && message.Id is { Length: > 0 and <= 128 } key)
+                Audio.GameAudio.Engine.PlaySfx(key);
             return;
         }
 

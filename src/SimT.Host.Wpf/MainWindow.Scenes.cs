@@ -277,6 +277,8 @@ public partial class MainWindow
                 "stroll:decline" => strollCap.ResolveChoice(playerState.CurrentCityId, "decline"),
                 _ => strollCap.ResolveChoice(playerState.CurrentCityId, id["stroll:choice:".Length..])
             };
+            if (resolved.Ok && id.StartsWith("stroll:buy:", StringComparison.Ordinal))
+                Audio.GameAudio.Engine.PlaySfx("trade.coin");
             _kernel.Save();
             UpdateHeader();
             ShowNotification($"[{resolved.LocationName} · {resolved.Title}] {resolved.RewardSummary}");
@@ -298,6 +300,7 @@ public partial class MainWindow
             return;
 
         var outcome = dialogue.HandleChoice(talk.NpcId, id);
+        if (outcome.Ok && id == "lord:accept") Audio.GameAudio.Engine.PlaySfx("ui.seal");
         StatusText.Text = outcome.MessageVi;
         _kernel.Save();
         UpdateHeader();

@@ -33,6 +33,7 @@ public partial class TitleWindow : Window
     public TitleWindow(SaveManager saves)
     {
         InitializeComponent();
+        Audio.GameAudio.ShowScene(null);
         _saves = saves;
         DarkTitleBar.Apply(this);
 
