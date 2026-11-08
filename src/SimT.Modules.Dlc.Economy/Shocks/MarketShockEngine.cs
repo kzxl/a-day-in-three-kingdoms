@@ -41,7 +41,7 @@ public sealed record ArbitrageOpportunity(
 /// Geopolitical Shocks & Arbitrage Intelligence Engine.
 /// Simulates siege shortages, drought famines, epidemics, and computes optimal trade corridors.
 /// </summary>
-public sealed class MarketShockEngine
+public sealed partial class MarketShockEngine : IEventRumorSource
 {
     private readonly IDbSession _db;
 

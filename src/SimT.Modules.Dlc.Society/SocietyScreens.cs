@@ -4,7 +4,7 @@ using SimT.Contracts.Ui;
 
 namespace SimT.Modules.Dlc.Society;
 
-internal sealed class SocietyChronicleScreen : IScreenContribution
+internal sealed partial class SocietyChronicleScreen : IScreenContribution
 {
     private static readonly string[] Columns = ["Ngày", "Nhân Sĩ", "Thành Trì", "Phân Loại", "Hành Trạng", "Biến Động"];
 
@@ -54,6 +54,8 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
         {
             return RenderKarmaScreen(currentCityId, currentCitadelName);
         }
+
+        if (_filterKind == "rumors") return RenderRumors();
 
         var allEvents = _chronicle.RecentEvents(limit: 60);
         var localEvents = allEvents.Where(e => e.CitadelId == currentCityId).ToList();
@@ -123,6 +125,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
+            new("filter:rumors", "Tin đồn", CommandKind.Secondary),
             new("filter:all", "Tất Cả", _filterKind == "all" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", _filterKind == "rivals" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:karma", "⚖️ Nhân Quả", _filterKind == "karma" ? CommandKind.Primary : CommandKind.Secondary),
@@ -225,6 +228,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
+            new("filter:rumors", "Tin đồn", CommandKind.Secondary),
             new("filter:all", "Tất Cả", CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", CommandKind.Primary),
             new("filter:karma", "⚖️ Nhân Quả", CommandKind.Secondary),
@@ -372,6 +376,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
+            new("filter:rumors", "Tin đồn", CommandKind.Secondary),
             new("filter:all", "Tất Cả", CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", CommandKind.Secondary),
             new("filter:karma", "⚖️ Nhân Quả", CommandKind.Primary),

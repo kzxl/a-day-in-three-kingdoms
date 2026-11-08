@@ -16,7 +16,8 @@
     "cultivation.estate",
     "professions.guild",
     "player.equipment",
-    "economy.value_chain"
+    "economy.value_chain",
+    "market.rumor_events"
   ],
   "consumes": [
     "content.items",

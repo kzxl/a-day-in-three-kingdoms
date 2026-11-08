@@ -48,7 +48,7 @@ Hai đợt cùng hàng (1–2, 3–4, …) chạy song song vì đụng ít file
 
 **Mục tiêu:** có lý do ghé tửu quán; tin đồn giúp đi buôn và dẫn tới biến cố.
 
-- Cảnh Trong thành có điểm "Tửu quán". Vào đó mua một bình rượu (tốn ít tiền, nửa buổi) thì nghe 3 tin đồn. Mỗi thành làm mới tin sau 10 ngày.
+- Cảnh Trong thành có điểm "Tửu quán". Vào đó mua một bình rượu (tốn 20 quan, không tốn thời gian) thì nghe 3 tin đồn. Mỗi thành làm mới tin sau 10 ngày.
 - Loại tin, lấy từ dữ liệu thật:
   - giá: mặt hàng nào đang khan hoặc ế ở thành nào;
   - biến cố sắp tới: từ karma, cú sốc chợ, và sử biến khi đợt 3 có;

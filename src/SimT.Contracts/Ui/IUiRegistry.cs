@@ -125,7 +125,8 @@ public sealed record ScreenRow(
     string? Title = null,
     IReadOnlyList<ScreenDetail>? Details = null,
     string? IconHint = null,
-    string? RarityHint = null)
+    string? RarityHint = null,
+    bool IsMuted = false)
 {
     public static ScreenRow Of(IReadOnlyList<string> cells) => new(cells, Array.Empty<ScreenCommand>());
 

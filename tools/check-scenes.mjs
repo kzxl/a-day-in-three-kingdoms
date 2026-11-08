@@ -264,3 +264,8 @@ assert.equal(horseLug.selected.get(3), 20, 'Horse default (cap 20) should take 2
 assert.equal(horseLug.selected.get(1), 0, 'Horse default (cap 20) should take 0 Gạo');
 
 console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label layout (1076 & 1440), social layout, luggage defaults, and manifest assets OK.`);
+
+// Event cards must show all three tavern rumors, escaping player-facing source text.
+const { formatCityNarrative } = await import('../assets/scenes/city-scene.js');
+assert.equal(formatCityNarrative('One\n\nTwo\nThree'), 'One<br><br>Two<br><br>Three');
+assert.equal(formatCityNarrative('<script>'), '&lt;script&gt;');

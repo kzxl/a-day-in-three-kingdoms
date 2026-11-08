@@ -94,7 +94,7 @@ public partial class MainWindow
         _ => ("Mùa Đông", "snow")
     };
 
-    private static IReadOnlyList<CityHotspot> BuildCityHotspots(IReadOnlyList<SublocationDef> subs)
+    private IReadOnlyList<CityHotspot> BuildCityHotspots(IReadOnlyList<SublocationDef> subs)
     {
         string MatchSub(string fallback, params string[] keywords)
         {
@@ -107,7 +107,8 @@ public partial class MainWindow
 
         return
         [
-            new("social.network", "Quán trọ", MatchSub("Đàm đạo nhân duyên", "Tửu", "Quán", "Trà", "Viện"), "social.network", 15, 34),
+            TavernScene.Hotspot(subs, _kernel.Capabilities.IsProvided(CapabilityIds.TavernRumors))
+                ?? new("social.network", "Quán trọ", MatchSub("Đàm đạo nhân duyên", "Tửu", "Quán", "Trà", "Viện"), "social.network", 15, 34),
             new("market.stall", "Chợ", MatchSub("Mua bán hàng hóa", "Chợ", "Thương", "Thị"), "market.stall", 31, 44),
             new("market.warehouse", "Kho", MatchSub("Trữ hàng bảo quản", "Khố", "Kho", "Xưởng"), "market.warehouse", 38, 26),
             new("politics.court", "Quan phủ", MatchSub("Nhậm chức chính sự", "Cung", "Phủ", "Điện", "Đàn"), "politics.court", 52, 20),
@@ -231,6 +232,7 @@ public partial class MainWindow
     {
         if (type == "navigate")
         {
+            if (id == "society.tavern") { PresentTavern(false); return; }
             if (id.StartsWith("npc:", StringComparison.Ordinal) && long.TryParse(id["npc:".Length..], out var npcId))
             {
                 if (!TryOpenTalkScene(npcId)) MeetNpcFallback(npcId);
@@ -241,7 +243,9 @@ public partial class MainWindow
         }
 
         if (type != "choice") return;
-        if (id == "briefing") SelectScreen(CityHubScreenId);
+        if (id == "tavern:listen") PresentTavern(true);
+        else if (id == "tavern:leave") TryOpenCityScene();
+        else if (id == "briefing") SelectScreen(CityHubScreenId);
         else if (id == "stroll") TriggerCityStroll();
         else if (id == "stroll:log")
         {
