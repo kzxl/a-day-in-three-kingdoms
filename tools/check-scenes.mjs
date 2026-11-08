@@ -611,3 +611,28 @@ assert.equal(swapBase.src, 'normal.webp');
 globalThis.Image = originalImage;
 window.matchMedia = originalMatchMedia;
 console.log('check-scenes: expression fallback, normal-only mouth/blink, image-load races, unmount and reduced motion OK.');
+
+// Part A/B shared sound catalogue and WebView contract.
+const audioRoot = path.join(rootDir, 'assets', 'audio');
+const audioCatalog = JSON.parse(fs.readFileSync(path.join(audioRoot, 'audio.json'), 'utf8'));
+for (const group of ['music', 'ambience', 'sfx']) {
+  assert.ok(audioCatalog[group] && typeof audioCatalog[group] === 'object', `Missing audio group: ${group}`);
+  for (const [key, relative] of Object.entries(audioCatalog[group])) {
+    const full = path.resolve(audioRoot, relative);
+    assert.ok(full.startsWith(audioRoot + path.sep), `Unsafe audio path: ${key}`);
+    assert.ok(fs.existsSync(full), `Missing audio: ${key} -> ${relative}`);
+    assert.ok(group === 'sfx' ? /\.(ogg|wav)$/i.test(relative) : /\.ogg$/i.test(relative), `Bad audio format: ${key}`);
+  }
+}
+const { SimTBridge: audioBridge } = await import('../assets/scenes/bridge.js');
+assert.equal(typeof audioBridge.playSfx, 'function');
+const oldWebview = window.chrome.webview;
+const soundMessages = [];
+window.chrome.webview = { postMessage(message) { soundMessages.push(message); } };
+audioBridge.playSfx('fx.sword_slash');
+audioBridge.playSfx('');
+audioBridge.playSfx(null);
+audioBridge.playSfx('x'.repeat(129));
+assert.deepEqual(soundMessages, [{ type: 'sfx', id: 'fx.sword_slash' }]);
+window.chrome.webview = oldWebview;
+console.log('check-scenes: audio catalogue files and SimTBridge.playSfx contract OK.');

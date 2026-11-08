@@ -26,6 +26,13 @@
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Society\SimT.Modules.Dlc.Society.csproj" />
   </ItemGroup>
 
+  <!-- Pure host policy is tested without loading WPF, NAudio, or an output device. -->
+  <ItemGroup>
+    <Compile Include="..\..\src\SimT.Host.Wpf\Audio\AudioCatalog.cs" Link="Audio/AudioCatalog.cs" />
+    <Compile Include="..\..\src\SimT.Host.Wpf\Audio\AudioSettings.cs" Link="Audio/AudioSettings.cs" />
+    <Compile Include="..\..\src\SimT.Host.Wpf\Audio\AudioScenePolicy.cs" Link="Audio/AudioScenePolicy.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>

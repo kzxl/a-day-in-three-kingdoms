@@ -1,0 +1,21 @@
+{
+  "music": {
+    "city": "music/lotus_pond.ogg",
+    "duel": "music/dragon_dance.ogg",
+    "map": "music/asian_oriental.ogg",
+    "event": "music/orien.ogg"
+  },
+  "ambience": {
+    "war": "ambience/war_drums.ogg",
+    "birds": "ambience/birds.ogg",
+    "rain": "ambience/rain.ogg",
+    "wind": "ambience/wind.ogg"
+  },
+  "sfx": {
+    "ui.click": "sfx/ui_click.ogg",
+    "ui.book": "sfx/ui_book.ogg",
+    "ui.turn": "sfx/ui_turn.ogg",
+    "ui.seal": "sfx/ui_seal.ogg",
+    "trade.coin": "sfx/trade_coin.ogg"
+  }
+}
