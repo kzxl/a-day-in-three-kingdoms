@@ -36,7 +36,8 @@ export function travellerPosition(path, progress) {
       const t = Math.max(0.14, Math.min(0.86, lengths[i] ? distance / lengths[i] : 0));
       return { x: path[i].x + (path[i + 1].x - path[i].x) * t,
         y: path[i].y + (path[i + 1].y - path[i].y) * t,
-        t, dx: (path[i + 1].x - path[i].x) / (lengths[i] || 1),
+        t, seg: [path[i].id, path[i + 1].id].sort().join('-'),
+        dx: (path[i + 1].x - path[i].x) / (lengths[i] || 1),
         dy: (path[i + 1].y - path[i].y) / (lengths[i] || 1) };
     }
     distance -= lengths[i];
@@ -48,26 +49,45 @@ export function travellerBox(p, width) {
   return { left: p.x - width / 2, right: p.x + width / 2, top: p.y - width * 2 / 3, bottom: p.y + 2 };
 }
 
+export const MAX_TRAVELLERS_SHOWN = 14;
+// Slide along the road first, then at most one 10px lane to either side, so a marker always sits on its road.
+const ALONG = [0, 0.08, -0.08, 0.16, -0.16, 0.24, -0.24, 0.32, -0.32];
+
 // All distances supplied by the caller are in map coordinates, including screen-pixel clearances.
-export function placeTravellers(entries, obstacles = [], width = 54, scale = 1) {
+// Travellers of one kind on the same road segment share one marker whose `count` says how many.
+// `obstacles` (city dots) are never covered; `softObstacles` (city names) are avoided when the road allows it.
+export function placeTravellers(entries, obstacles = [], width = 54, scale = 1, softObstacles = []) {
   const placed = [];
-  return entries.map(({ path, progress }, index) => {
-    const base = travellerPosition(path, progress);
-    if (!base) return null;
+  const groups = new Map();
+  return entries.map(({ path, progress, kind }, index) => {
+    const here = travellerPosition(path, progress);
+    const key = here && kind ? `${kind}:${here.seg}` : null;
+    if (key && groups.has(key)) { groups.get(key).count += 1; return null; }
+    if (placed.length >= MAX_TRAVELLERS_SHOWN) return null;
     const sign = index % 2 ? -1 : 1;
+    const candidates = ALONG.flatMap(dt => [0, sign, -sign].map(lane => [dt, lane]));
     let result = null;
-    for (let attempt = 0; attempt < 161; attempt++) {
-      const lane = attempt === 0 ? 0 : Math.ceil(attempt / 2) * (attempt % 2 ? sign : -sign);
-      const offset = lane * 10 / scale;
-      const p = { ...base, x: base.x - base.dy * offset, y: base.y + base.dx * offset };
-      const box = travellerBox(p, width);
-      if (box.left < 0 || box.right > 800 || box.top < 0 || box.bottom > 640) continue;
-      if (obstacles.some(b => overlaps(box, b))) continue;
-      if (placed.some(q => Math.hypot(q.x - p.x, q.y - p.y) * scale < 24 || overlaps(box, travellerBox(q, width)))) continue;
-      result = p; break;
+    for (const avoidNames of [true, false]) {
+      for (const [dt, lane] of candidates) {
+        const base = travellerPosition(path, progress + dt);
+        if (!base) return null;
+        const offset = lane * 10 / scale;
+        const p = { ...base, x: base.x - base.dy * offset, y: base.y + base.dx * offset };
+        const box = travellerBox(p, width);
+        if (box.left < 0 || box.right > 800 || box.top < 0 || box.bottom > 640) continue;
+        if (obstacles.some(b => overlaps(box, b))) continue;
+        if (avoidNames && softObstacles.some(b => overlaps(box, b))) continue;
+        if (placed.some(q => Math.hypot(q.x - p.x, q.y - p.y) * scale < 24 || overlaps(box, travellerBox(q, width)))) continue;
+        result = p; break;
+      }
+      if (result) break;
     }
-    // Omit a marker only if the entire perpendicular corridor is occupied; never obscure a city.
-    if (result) placed.push(result);
+    // No free spot on its own road: hide it rather than drift off the road or cover a city.
+    if (result) {
+      result.count = 1;
+      placed.push(result);
+      if (key) groups.set(key, result);
+    }
     return result;
   });
 }
@@ -111,7 +131,8 @@ export function createTravellerMarker(traveller, routeLabel) {
     const defs = svgNode('defs'); defs.append(mask);
     sprite.append(defs, svgNode('rect', { width: 192, height: 256, fill: traveller.color || '#e8dec4', mask: `url(#${id})` }));
   }
-  g.append(title, shadow, hit, sprite);
+  const count = svgNode('text', { class: 'tk-map-traveller-count', x: 14, y: -26 });
+  g.append(title, shadow, hit, sprite, count);
   g.addEventListener('click', () => { g.classList.toggle('is-open'); });
   const tooltip = svgNode('text', { y: -42, 'text-anchor': 'middle' }); tooltip.textContent = label;
   g.append(tooltip);

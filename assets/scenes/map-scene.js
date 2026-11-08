@@ -531,19 +531,27 @@ export function renderMapScene(container, scene, bridge) {
       if (!p) return;
       marker.setAttribute('transform', `translate(${p.x} ${p.y})`);
       setTravellerFrame(marker, frame, p.dx < 0, travellerWidth);
+      const countEl = marker.querySelector('.tk-map-traveller-count');
+      if (countEl) {
+        countEl.textContent = p.count > 1 ? `×${p.count}` : '';
+        countEl.setAttribute('x', String(travellerWidth / 2 - 4));
+        countEl.setAttribute('y', String(-travellerWidth * 2 / 3 + 4));
+      }
     });
   }
   function layoutTravellers() {
     const scale = getFitScale() * state.zoom;
-    const desiredWidth = 36 + 8 * Math.max(0, Math.min(1, (window.innerWidth - 1076) / 364));
+    const desiredWidth = 40 + 8 * Math.max(0, Math.min(1, (window.innerWidth - 1076) / 364));
     travellerWidth = desiredWidth / getFitScale();
     const origin = canvas.getBoundingClientRect();
-    const obstacles = [...citiesLayer.querySelectorAll('.tk-map-dot, .tk-map-nm')].map(node => {
+    // City dots are never covered; names are avoided first and only grazed when a crowded road has no other spot.
+    const boxesOf = selector => [...citiesLayer.querySelectorAll(selector)].map(node => {
       const b = node.getBoundingClientRect();
       return { left: (b.left - origin.left) / scale - 3, right: (b.right - origin.left) / scale + 3,
         top: (b.top - origin.top) / scale - 3, bottom: (b.bottom - origin.top) / scale + 3 };
     });
-    travellerPlacements = placeTravellers(travellerNodes.map(({ t, path }) => ({ path, progress: t.progress })), obstacles, travellerWidth, scale);
+    travellerPlacements = placeTravellers(travellerNodes.map(({ t, path }) => ({ path, progress: t.progress, kind: t.kind })),
+      boxesOf('.tk-map-dot'), travellerWidth, scale, boxesOf('.tk-map-nm'));
     positionTravellers(true);
   }
   canvas.append(bgLayer, factionCanvas, svg, tagsLayer, citiesLayer, tokenImg, travellersSvg);

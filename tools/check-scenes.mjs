@@ -359,7 +359,10 @@ const travellerRoutes = [{ fromId: 1, toId: 3, days: 1, blockedReasonVi: 'Phong 
 const traveller = { id: 'rival:1', kind: 'rival', fromId: 1, toId: 3, progress: .5, labelVi: 'Thương nhân' };
 assert.deepEqual(travellerPath(traveller, travellerCities, travellerRoutes).map(c => c.id), [1, 2, 3]);
 assert.deepEqual(travellerPath({ ...traveller, kind: 'army' }, travellerCities, travellerRoutes).map(c => c.id), [1, 3]);
-assert.deepEqual(travellerPosition(travellerCities, .75), { x: 100, y: 50, t: .5, dx: 0, dy: 1 });
+assert.deepEqual(travellerPosition(travellerCities, .75), { x: 100, y: 50, t: .5, seg: '2-3', dx: 0, dy: 1 });
+// Same kind on the same segment shares one marker with a count.
+const grouped = placeTravellers([{ path: travellerCities, progress: .75, kind: 'rival' }, { path: travellerCities, progress: .8, kind: 'rival' }, { path: travellerCities, progress: .75, kind: 'npc' }]);
+assert.equal(grouped[0].count, 2); assert.equal(grouped[1], null);
 assert.equal(new Set(Object.values(TRAVELLER_ROWS)).size, 4);
 const originalCreateNS = document.createElementNS;
 document.createElementNS = (_, tag) => ({ tag, attributes: {}, children: [], setAttribute(k, v) { this.attributes[k] = v; }, append(...nodes) { this.children.push(...nodes); }, addEventListener() {} });
@@ -425,10 +428,12 @@ for (const progress of [0, .01, .49, .5, .51, .99, 1]) {
 const road = [{ x: 100, y: 180 }, { x: 650, y: 180 }];
 const obstacles = [{ left: 350, right: 400, top: 145, bottom: 185 }];
 const placements = placeTravellers(Array.from({ length: 8 }, () => ({ path: road, progress: .5 })), obstacles);
-assert.equal(placements.filter(Boolean).length, 8);
-placements.forEach((p, i) => {
+// A crowded road shows what fits and hides the rest; nothing may drift more than one lane off its road.
+assert.ok(placements.filter(Boolean).length >= 4, 'A crowded road should still show several travellers');
+placements.filter(Boolean).forEach(p => assert.ok(Math.abs(p.y - 180) <= 10.5, 'Traveller drifted off its road'));
+placements.filter(Boolean).forEach((p, i, shown) => {
   assert.ok(!obstacles.some(b => rectsOverlap(travellerBox(p, 54), b)));
-  placements.slice(0, i).forEach(q => {
+  shown.slice(0, i).forEach(q => {
     assert.ok(Math.hypot(p.x - q.x, p.y - q.y) >= 24);
     assert.ok(!rectsOverlap(travellerBox(p, 54), travellerBox(q, 54)));
   });

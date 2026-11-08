@@ -666,3 +666,4 @@
 
 .tk-map-traveller-sprite image { image-rendering: pixelated; }
 .tk-map-traveller-sprite { overflow: hidden; pointer-events: none; }
+.tk-map-traveller text.tk-map-traveller-count { display: block; font-size: 11px; font-weight: 700; fill: #f3e6cc; stroke: #241a13; stroke-width: 3px; paint-order: stroke; text-anchor: start; }
