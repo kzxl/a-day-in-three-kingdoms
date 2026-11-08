@@ -178,10 +178,12 @@
 
 .dossier-portrait-frame img {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 3 / 4;
   height: auto;
   display: block;
-  object-fit: cover;
+  /* Full-body art is about 0.6 wide per 1 tall; contain keeps the head instead of cropping to the torso. */
+  object-fit: contain;
+  object-position: center bottom;
   background: #140f0b;
 }
 
@@ -374,122 +376,101 @@
   color: #eadfc6;
 }
 
-.dossier-head-left {
+/* ---- Tabs: one row of book tabs (Hồ sơ · Võ tướng lục · Sử biến), colours from scene.css tokens ---- */
+.dossier-tabs {
   display: flex;
-  align-items: flex-end;
-  gap: 18px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.dossier-mode-tabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.dossier-tab-btn {
+  gap: 4px;
   flex: none;
-  height: 34px;
-  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.dossier-tab {
+  height: 38px;
+  padding: 0 18px;
+  margin-bottom: -1px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font: 600 14px var(--font-body);
+  cursor: pointer;
+}
+
+.dossier-tab:hover {
+  color: var(--text);
+}
+
+.dossier-tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--gold);
 }
 
 .dossier-body[hidden],
-.dossier-vtl-view[hidden],
+.dossier-rec-bar[hidden],
 .dossier-vtl-characters[hidden],
 .dossier-vtl-history[hidden] {
   display: none !important;
 }
 
-.dossier-vtl-view {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.dossier-vtl-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: #1d1611;
-  border: 1px solid #3a2c20;
-  flex: none;
-}
-
-.dossier-vtl-counter {
-  font-size: 13.5px;
-  color: #b9aa8c;
-  white-space: nowrap;
-}
-
-.dossier-vtl-counter b {
-  color: #e8b75c;
-}
-
+/* ---- Võ tướng lục: one filter row, then an unboxed portrait wall ---- */
 .dossier-vtl-characters {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
-.dossier-vtl-filters {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  background: #1d1611;
-  border: 1px solid #3a2c20;
-  flex: none;
-}
-
-.dossier-filter-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  min-width: 0;
-}
-
-.dossier-filter-lbl {
-  width: 74px;
-  flex: none;
-  font-size: 12px;
-  font-weight: 600;
-  color: #b9aa8c;
-  padding-top: 4px;
-}
-
-.dossier-filter-strip {
-  flex: 1;
-  min-width: 0;
+.dossier-vtl-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  max-height: 56px;
-  overflow-y: auto;
+  align-items: center;
+  gap: 8px;
+  flex: none;
 }
 
-.dossier-filter-btn {
+.dossier-vtl-search {
+  width: clamp(180px, 24%, 280px);
+}
+
+.dossier-vtl-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dossier-select {
+  height: 36px;
+  max-width: 190px;
+  padding: 0 8px;
+  background: var(--lacquer);
+  border: 1px solid var(--line);
+  color: var(--text);
+  font: 400 13.5px var(--font-body);
+  outline: none;
   cursor: pointer;
-  color: #eadfc6;
-  font-family: 'Be Vietnam Pro', sans-serif;
 }
 
-.dossier-filter-btn:hover {
-  border-color: #c4a062;
+.dossier-select:hover,
+.dossier-select:focus {
+  border-color: var(--gold);
 }
 
-.dossier-filter-btn.active {
-  background: #2a1f16;
-  border-color: #e8b75c;
-  color: #e8b75c;
-  font-weight: 600;
+.dossier-select option {
+  background: var(--lacquer);
+  color: var(--text);
+}
+
+.dossier-vtl-count {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.dossier-vtl-count b {
+  color: var(--ink);
 }
 
 .dossier-vtl-scroll {
@@ -497,28 +478,25 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 12px;
-  background: #1d1611;
-  border: 1px solid #3a2c20;
+  padding: 4px 6px 12px 2px;
 }
 
 .dossier-vtl-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(106px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 16px 10px;
 }
 
 .dossier-vtl-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 6px;
-  background: #241a13;
-  border: 1px solid #3a2c20;
-  color: #eadfc6;
-  font-family: 'Be Vietnam Pro', sans-serif;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font-family: var(--font-body);
   text-align: center;
-  box-sizing: border-box;
   min-width: 0;
 }
 
@@ -526,27 +504,26 @@
   cursor: pointer;
 }
 
-.dossier-vtl-cell.is-met:hover {
-  border-color: #e8b75c;
-  background: #2a1f16;
-}
-
-.dossier-vtl-cell.is-unmet {
-  cursor: default;
-  opacity: 0.88;
+.dossier-vtl-cell.is-met:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 4px;
 }
 
 .dossier-vtl-avatar {
   position: relative;
-  width: 64px;
-  height: 64px;
-  border: 1px solid #6a4f2e;
-  background: #140f0b;
+  width: 84px;
+  height: 84px;
+  border: 1px solid var(--line);
+  background: var(--lacquer-alt);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   flex: none;
+}
+
+.dossier-vtl-cell.is-met:hover .dossier-vtl-avatar {
+  border-color: var(--gold);
 }
 
 .dossier-vtl-img {
@@ -556,8 +533,8 @@
   display: block;
 }
 
-.dossier-vtl-img.is-silhouette {
-  filter: brightness(0);
+.dossier-vtl-cell.is-unmet .dossier-vtl-avatar {
+  background: var(--lacquer);
 }
 
 .dossier-vtl-qmark {
@@ -566,115 +543,187 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 700 24px 'Noto Serif', serif;
-  color: #c4a062;
+  font: 700 26px var(--font-display);
+  color: var(--faint);
   pointer-events: none;
 }
 
 .dossier-vtl-name {
-  margin-top: 6px;
+  margin-top: 7px;
   width: 100%;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
-  color: #f3e6cc;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.dossier-vtl-cell.is-met:hover .dossier-vtl-name {
+  color: var(--gold-hover);
 }
 
 .dossier-vtl-cell.is-unmet .dossier-vtl-name {
-  color: #8c7b65;
+  color: var(--faint);
 }
 
 .dossier-vtl-sub {
-  margin-top: 2px;
+  margin-top: 1px;
   width: 100%;
-  font-size: 11px;
-  color: #b9aa8c;
+  font-size: 11.5px;
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.dossier-vtl-history {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: #1d1611;
-  border: 1px solid #3a2c20;
-  padding: 12px;
+.dossier-vtl-cell.is-unmet .dossier-vtl-sub {
+  color: var(--faint);
 }
 
-.dossier-vtl-history-scroll {
+/* ---- Sử biến: a timeline, year on the left, a dot on one vertical line ---- */
+.dossier-vtl-history {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
-.dossier-history-row {
-  height: 62px;
-  padding: 0 14px;
-  gap: 14px;
+.dossier-timeline {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 12px 0;
 }
 
-.dossier-history-row.is-viewed {
-  border-color: #6a4f2e;
+.dossier-timeline::before {
+  content: '';
+  position: absolute;
+  left: 103px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
 }
 
-.dossier-history-row.is-viewed:hover {
-  border-color: #e8b75c;
-  background: #2a1f16;
+.dossier-tl-row {
+  width: 100%;
+  min-height: 60px;
+  display: grid;
+  grid-template-columns: 88px 31px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0;
+  padding: 8px 12px 8px 0;
+  box-sizing: border-box;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--text);
+  font-family: var(--font-body);
+  text-align: left;
 }
 
-.dossier-history-row.is-missed {
-  opacity: 0.56;
-  cursor: default;
+.dossier-tl-row.is-viewed {
+  cursor: pointer;
 }
 
-.dossier-history-row.is-pending {
-  opacity: 0.72;
-  cursor: default;
+.dossier-tl-row.is-viewed:hover {
+  background: var(--lacquer);
 }
 
-.dossier-history-year {
-  width: 96px;
-  flex: none;
-  font: 700 14px 'Noto Serif', serif;
-  color: #e8b75c;
+.dossier-tl-year {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  font: 700 15px var(--font-display);
+  color: var(--gold);
 }
 
-.dossier-history-year small {
-  font: 400 11px 'Be Vietnam Pro', sans-serif;
-  color: #b9aa8c;
+.dossier-tl-year small {
+  font: 400 11.5px var(--font-body);
+  color: var(--muted);
 }
 
-.dossier-row-tag.is-viewed {
-  border-color: #c4a062;
-  color: #f3e6cc;
-  background: #a8321f;
+.dossier-tl-dot {
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--faint);
 }
 
-.dossier-row-tag.is-missed {
-  color: #9e8f75;
-  border-color: #3a2c20;
+.dossier-tl-row.is-viewed .dossier-tl-dot {
+  background: var(--gold);
+  border-color: var(--gold);
 }
 
-.dossier-row-tag.is-pending {
-  color: #8c7b65;
-  border-color: #3a2c20;
+.dossier-tl-body {
+  min-width: 0;
+  padding-left: 6px;
+}
+
+.dossier-tl-title {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dossier-tl-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dossier-tl-act {
+  padding-left: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.dossier-tl-row.is-viewed:hover .dossier-tl-title,
+.dossier-tl-row.is-viewed:hover .dossier-tl-act {
+  color: var(--gold-hover);
+}
+
+.dossier-tl-row.is-missed .dossier-tl-title {
+  color: var(--muted);
+}
+
+.dossier-tl-row.is-missed .dossier-tl-act {
+  font-weight: 400;
+  color: var(--faint);
+}
+
+.dossier-tl-row.is-pending .dossier-tl-year,
+.dossier-tl-row.is-pending .dossier-tl-title {
+  color: var(--faint);
+}
+
+.dossier-tl-row.is-pending .dossier-tl-title {
+  font-weight: 400;
+}
+
+.dossier-tl-row.is-pending .dossier-tl-dot {
+  border-color: var(--line);
 }
 
 .dossier-history-empty {
   padding: 24px;
   text-align: center;
-  color: #b9aa8c;
+  color: var(--muted);
   font-size: 13.5px;
 }

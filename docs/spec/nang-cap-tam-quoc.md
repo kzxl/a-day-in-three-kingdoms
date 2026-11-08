@@ -28,6 +28,7 @@ Nguồn tham khảo: Tam Quốc Chí 8 Remake (2024), XIII, XIV. Chỉ lấy ý 
 | 13 | Chân dung riêng (40 nhân vật sử) và biến thể chân dung dùng chung | Codex (A, B), agy (C) | `prompts/26` | Xong (merge "portraits part A", "part B", "variants") |
 
 | 14 | Âm thanh: nhạc nền và âm nền CC0, tiếng giao diện Kenney, tiếng chiêu thức tổng hợp, cài đặt âm lượng | Codex (A), agy (B) | `prompts/27` | Xong (merge "audio part A", "audio part B"); chưa nghe kiểm bằng tai |
+| 15 | Làm lại giao diện Võ tướng lục: một hàng tab, bộ lọc thả xuống, tường chân dung không khung, sử biến dạng dòng thời gian; hồ sơ dùng ảnh mặt ở danh sách và hiện đủ người ở khung lớn | Claude | — | Xong; chưa chơi thử |
 
 **Lượt kiểm tra cuối:** build Release 0 cảnh báo, 619 test, `check-scenes`, `--smoke`, hai golden replay (57 bất biến) đều qua. Chưa chơi thử trong game.
 
