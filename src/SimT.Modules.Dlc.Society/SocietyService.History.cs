@@ -336,6 +336,8 @@ internal sealed partial class SocietyService : IEventRumorSource
             new DbArgs().Add("@choice", choice.Key).Add("@code", evt.Code));
         if (string.Equals(_pendingPlayerSceneEventCode, evt.Code, StringComparison.OrdinalIgnoreCase))
             _pendingPlayerSceneEventCode = null;
+        if (_broker is not null && _broker.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+            social.CheckAndAwardRosterMilestones();
 
         var msg = string.Equals(choice.Key, "continue", StringComparison.OrdinalIgnoreCase)
             ? $"Đã ghi nhận sử biến: {evt.TitleVi}."

@@ -267,11 +267,23 @@ public sealed record DossierScene(
     [property: JsonPropertyName("perceptionText")] string PerceptionText,
     [property: JsonPropertyName("recommendation")] string Recommendation,
     [property: JsonPropertyName("selectedNpcId")] long SelectedNpcId,
-    [property: JsonPropertyName("npcs")] IReadOnlyList<DossierNpcView> Npcs)
+    [property: JsonPropertyName("npcs")] IReadOnlyList<DossierNpcView> Npcs,
+    [property: JsonPropertyName("societyEnabled")] bool SocietyEnabled = false,
+    [property: JsonPropertyName("historicalEvents")] IReadOnlyList<DossierHistoricalEventView>? HistoricalEvents = null,
+    [property: JsonPropertyName("initialMode")] string? InitialMode = null)
 {
     [JsonPropertyName("kind")]
     public string Kind => "dossier";
 }
+
+public sealed record DossierHistoricalEventView(
+    [property: JsonPropertyName("code")] string Code,
+    [property: JsonPropertyName("year")] int Year,
+    [property: JsonPropertyName("dateText")] string DateText,
+    [property: JsonPropertyName("titleVi")] string TitleVi,
+    [property: JsonPropertyName("citadelNameVi")] string CitadelNameVi,
+    [property: JsonPropertyName("summaryVi")] string SummaryVi,
+    [property: JsonPropertyName("status")] string Status);
 
 public sealed record DossierNpcView(
     [property: JsonPropertyName("id")] long Id,
@@ -301,4 +313,7 @@ public sealed record DossierNpcView(
     [property: JsonPropertyName("com")] int Com,
     [property: JsonPropertyName("logStat")] int LogStat,
     [property: JsonPropertyName("cra")] int Cra,
-    [property: JsonPropertyName("traits")] IReadOnlyList<SimT.Contracts.Playing.NpcTraitView>? Traits = null);
+    [property: JsonPropertyName("traits")] IReadOnlyList<SimT.Contracts.Playing.NpcTraitView>? Traits = null,
+    [property: JsonPropertyName("roleCategoryVi")] string? RoleCategoryVi = null,
+    [property: JsonPropertyName("firstMetDateText")] string? FirstMetDateText = null,
+    [property: JsonPropertyName("metCitadelNameVi")] string? MetCitadelNameVi = null);

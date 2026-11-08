@@ -16,4 +16,11 @@ internal sealed partial class SocietyService
         if (npc is null) return;
         LogEvent(GameDateCodec.Format(date), npc.Id, npc.NameVi, npc.CurrentCitadelId(this), _map.Find(npc.CurrentCitadelId(this))?.NameVi ?? "", "relationship", headlineVi, headlineVi, "", 0);
     }
+
+    public void RecordMilestoneEvent(GameDate date, string eventKind, string headlineVi, string detailVi, string statImpact)
+    {
+        var citId = _player.CurrentCityId;
+        var citName = _map.Find(citId)?.NameVi ?? "Thiên hạ";
+        LogEvent(GameDateCodec.Format(date), 0, _player.Name, citId, citName, eventKind, headlineVi, detailVi, statImpact, date.DayIndex);
+    }
 }

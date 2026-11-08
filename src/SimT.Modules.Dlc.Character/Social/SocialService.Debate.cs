@@ -63,6 +63,8 @@ internal sealed partial class SocialService
                     .Add("@delta", delta)
                     .Add("@summary", summaryVi));
         });
+
+        RecordMetNpc(npcId, _clock.Today);
     }
 
     internal bool CompleteDebateRecruit(long npcId, int discountPercent, out int feePaid, out string roleTitleVi)
@@ -124,6 +126,7 @@ internal sealed partial class SocialService
         });
 
         feePaid = paid;
+        RecordMetNpc(npcId, _clock.Today, npc.CurrentCitadelId(_capabilities));
         return true;
     }
 }

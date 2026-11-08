@@ -96,6 +96,14 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
         if (npc is null)
             return new TalkChoiceOutcome(false, "Không tìm thấy nhân vật.", CloseScene: true);
 
+        var outcome = HandleChoiceCore(npc, choiceId);
+        if (_context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+            social.RecordMetNpc(npc.Id, _context.Clock.Today, npc.CurrentCitadelId(_context.Capabilities));
+        return outcome;
+    }
+
+    private TalkChoiceOutcome HandleChoiceCore(NpcDef npc, string choiceId)
+    {
         if (choiceId.StartsWith("lord:", StringComparison.Ordinal)) return HandleLordChoice(npc, choiceId);
 
         if (choiceId.StartsWith("wish:", StringComparison.Ordinal)) return HandleWishChoice(npc, choiceId);
