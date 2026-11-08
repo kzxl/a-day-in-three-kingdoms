@@ -184,15 +184,13 @@ function paintListAndCard(bridge) {
   const traits = Array.isArray(current.traits) ? current.traits : [];
   const traitsHtml = traits.length > 0
     ? '<div class="dossier-traits" aria-label="Đặc tính nhân vật">' +
-        '<span class="dossier-traits-lbl">Đặc tính:</span>' +
         traits.map((t) => {
           const hiddenCls = t.hidden ? ' is-hidden' : '';
           const desc = t.descriptionVi || '';
           return (
-            '<span class="dossier-trait-pill' + hiddenCls + '" ' +
+            '<span class="dossier-chip is-trait' + hiddenCls + '" ' +
               'title="' + esc(desc) + '" ' +
-              'data-trait-code="' + esc(t.code || '') + '" ' +
-              'data-tooltip="' + esc(desc) + '">' +
+              'data-trait-code="' + esc(t.code || '') + '">' +
               esc(t.nameVi || '???') +
             '</span>'
           );

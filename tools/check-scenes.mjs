@@ -345,9 +345,9 @@ const dossierJs = fs.readFileSync(path.join(scenesDir, 'dossier-scene.js'), 'utf
 const dossierCss = fs.readFileSync(path.join(scenesDir, 'dossier-scene.css'), 'utf8');
 const talkJs = fs.readFileSync(path.join(scenesDir, 'talk-scene.js'), 'utf8');
 const sceneCss = fs.readFileSync(path.join(scenesDir, 'scene.css'), 'utf8');
-assert.ok(dossierJs.includes('dossier-trait-pill') && dossierJs.includes('data-tooltip'), 'dossier-scene.js must render trait pills with tooltip');
+assert.ok(dossierJs.includes('dossier-chip is-trait') && dossierJs.includes('title='), 'dossier-scene.js must render traits as dossier chips with a title');
 assert.ok(dossierCss.includes('.dossier-traits') && dossierCss.includes('flex-wrap: wrap'), 'dossier-scene.css must wrap trait pills to prevent 1076px overflow');
-assert.ok(talkJs.includes('tk-trait-pill') && talkJs.includes('data-tooltip'), 'talk-scene.js must render trait pills with tooltip');
+assert.ok(talkJs.includes('tk-trait-row') && talkJs.includes('tk-mood-pill'), 'talk-scene.js must render traits as paper mood pills');
 assert.ok(sceneCss.includes('.tk-trait-row') && sceneCss.includes('flex-wrap: wrap'), 'scene.css must wrap talk trait pills to prevent 1076px overflow');
 
 console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, historical event scene, character trait pills, and manifest assets OK.`);

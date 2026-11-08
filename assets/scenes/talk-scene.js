@@ -86,12 +86,10 @@ function renderTalkScene(container, scene, bridge) {
   const traits = Array.isArray(scene.traits) ? scene.traits : [];
   const traitsHtml = traits.length > 0 ? `
     <div class="tk-trait-row" aria-label="Đặc tính nhân vật">
-      <span class="tk-trait-lbl">Đặc tính:</span>
       ${traits.map((t) => `
-        <span class="tk-trait-pill ${t.hidden ? 'is-hidden' : ''}"
+        <span class="tk-mood-pill ${t.hidden ? 'is-hidden' : ''}"
               title="${escapeHtml(t.descriptionVi || '')}"
-              data-trait-code="${escapeHtml(t.code || '')}"
-              data-tooltip="${escapeHtml(t.descriptionVi || '')}">${escapeHtml(t.nameVi || '???')}</span>
+              data-trait-code="${escapeHtml(t.code || '')}">${escapeHtml(t.nameVi || '???')}</span>
       `).join('')}
     </div>
   ` : '';
