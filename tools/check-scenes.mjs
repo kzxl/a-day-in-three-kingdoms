@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 globalThis.window = globalThis.window || {
   addEventListener() {},
+  removeEventListener() {},
   chrome: {}
 };
 globalThis.document = globalThis.document || {
@@ -611,3 +612,176 @@ assert.equal(swapBase.src, 'normal.webp');
 globalThis.Image = originalImage;
 window.matchMedia = originalMatchMedia;
 console.log('check-scenes: expression fallback, normal-only mouth/blink, image-load races, unmount and reduced motion OK.');
+
+// Verify Prompt 27 Part B: pixel effects map to audio keys, all audio files exist, WAV SFX < 1.5s, and scenes emit playSfx.
+const { SimTBridge } = await import('../assets/scenes/bridge.js');
+const { FX_SFX_KEYS, sfxKeyForFx, pushFx, renderDuelScene } = await import('../assets/scenes/duel-scene.js');
+const { renderEventScene } = await import('../assets/scenes/event-scene.js');
+
+const audioDir = path.join(rootDir, 'assets', 'audio');
+const audioCatalogPath = path.join(audioDir, 'audio.json');
+assert.ok(fs.existsSync(audioCatalogPath), `Missing audio catalog: ${audioCatalogPath}`);
+const audioCatalog = JSON.parse(fs.readFileSync(audioCatalogPath, 'utf8'));
+assert.ok(audioCatalog && typeof audioCatalog === 'object', 'audio.json must be a JSON object');
+assert.ok(audioCatalog.sfx && typeof audioCatalog.sfx === 'object', 'audio.json must contain sfx map');
+assert.ok(audioCatalog.ambience && typeof audioCatalog.ambience === 'object', 'audio.json must contain ambience map');
+
+function readWavMeta(filePath) {
+  const buf = fs.readFileSync(filePath);
+  assert.equal(buf.toString('ascii', 0, 4), 'RIFF', `Expected RIFF header in ${filePath}`);
+  assert.equal(buf.toString('ascii', 8, 12), 'WAVE', `Expected WAVE header in ${filePath}`);
+  let offset = 12;
+  let fmt = null;
+  let dataBytes = 0;
+  let maxSample = 0;
+  while (offset + 8 <= buf.length) {
+    const id = buf.toString('ascii', offset, offset + 4);
+    const size = buf.readUInt32LE(offset + 4);
+    const body = offset + 8;
+    if (id === 'fmt ') {
+      fmt = {
+        audioFormat: buf.readUInt16LE(body),
+        channels: buf.readUInt16LE(body + 2),
+        sampleRate: buf.readUInt32LE(body + 4),
+        byteRate: buf.readUInt32LE(body + 8),
+        bitsPerSample: buf.readUInt16LE(body + 14)
+      };
+    } else if (id === 'data') {
+      dataBytes = size;
+      const end = Math.min(buf.length, body + size);
+      for (let p = body; p + 1 < end; p += 2) {
+        const s = Math.abs(buf.readInt16LE(p));
+        if (s > maxSample) maxSample = s;
+      }
+    }
+    offset = body + size + (size % 2);
+  }
+  assert.ok(fmt, `Missing fmt chunk in ${filePath}`);
+  assert.ok(dataBytes > 0, `Missing or empty data chunk in ${filePath}`);
+  return { ...fmt, dataBytes, duration: dataBytes / fmt.byteRate, maxSample };
+}
+
+for (const section of ['music', 'ambience', 'sfx']) {
+  for (const [key, rel] of Object.entries(audioCatalog[section] || {})) {
+    const abs = path.join(audioDir, rel);
+    assert.ok(fs.existsSync(abs), `Missing audio file for ${section}.${key}: ${abs}`);
+    const stat = fs.statSync(abs);
+    assert.ok(stat.size > 64, `Audio file too small for ${section}.${key}: ${abs}`);
+  }
+}
+
+const combatPixelFx = [
+  ['weapons/sword-slash', swordSlash, 'fx.sword_slash'],
+  ['weapons/thrust', thrustFx, 'fx.thrust'],
+  ['weapons/spear-sweep', spearSweep, 'fx.spear_sweep'],
+  ['weapons/arrow', arrowFx, 'fx.arrow'],
+  ['impacts/hit-flash', hitFlash, 'fx.hit_flash'],
+  ['impacts/critical-hit', criticalHit, 'fx.critical_hit'],
+  ['ui/crit-number', critNumber, 'fx.crit_number'],
+  ['ui/damage-number', damageNumber, 'fx.hit_flash']
+];
+for (const [fxName, mod, expectedKey] of combatPixelFx) {
+  const actualKey = sfxKeyForFx(mod);
+  assert.equal(actualKey, expectedKey, `Pixel effect ${fxName} must map to ${expectedKey}, got ${actualKey}`);
+  assert.ok(FX_SFX_KEYS.has(mod), `FX_SFX_KEYS must register ${fxName}`);
+  assert.ok(audioCatalog.sfx[actualKey], `audio.json missing sfx key ${actualKey} for ${fxName}`);
+}
+
+const requiredSynthesizedKeys = [
+  'fx.sword_slash', 'fx.thrust', 'fx.spear_sweep', 'fx.arrow',
+  'fx.hit_flash', 'fx.critical_hit', 'fx.crit_number',
+  'duel.start', 'duel.win', 'duel.lose',
+  'debate.push', 'debate.counter', 'debate.win', 'debate.lose',
+  'event.reveal'
+];
+for (const key of requiredSynthesizedKeys) {
+  const rel = audioCatalog.sfx[key];
+  assert.ok(rel, `Missing required synthesized key ${key} in audio.json`);
+  const abs = path.join(audioDir, rel);
+  assert.ok(fs.existsSync(abs), `Missing WAV file for ${key}: ${abs}`);
+  if (abs.endsWith('.wav')) {
+    const wav = readWavMeta(abs);
+    assert.equal(wav.audioFormat, 1, `Expected PCM WAV for ${key}`);
+    assert.equal(wav.channels, 1, `Expected mono WAV for ${key}`);
+    assert.equal(wav.sampleRate, 22050, `Expected 22050 Hz WAV for ${key}`);
+    assert.equal(wav.bitsPerSample, 16, `Expected 16-bit WAV for ${key}`);
+    assert.ok(wav.duration > 0.1 && wav.duration < 1.5, `Expected ${key} duration < 1.5s, got ${wav.duration.toFixed(3)}s`);
+    assert.ok(wav.maxSample > 1000, `Expected non-silent waveform for ${key}`);
+  }
+}
+
+const marketRel = audioCatalog.ambience['ambience.market'] || audioCatalog.ambience.market;
+assert.equal(marketRel, 'ambience/market.ogg', 'Expected market ambience mapped to ambience/market.ogg');
+const marketOggBuf = fs.readFileSync(path.join(audioDir, marketRel));
+assert.equal(marketOggBuf.toString('ascii', 0, 4), 'OggS', 'Expected OggS header in ambience/market.ogg');
+
+const playedSfx = [];
+const prevPlaySfx = SimTBridge.playSfx;
+SimTBridge.playSfx = (k) => playedSfx.push(k);
+try {
+  for (const [, mod] of combatPixelFx.slice(0, 7)) {
+    pushFx(mod, { x: 200, y: 150, seed: 7 });
+  }
+  for (const expected of ['fx.sword_slash', 'fx.thrust', 'fx.spear_sweep', 'fx.arrow', 'fx.hit_flash', 'fx.critical_hit', 'fx.crit_number']) {
+    assert.ok(playedSfx.includes(expected), `Expected pushFx to play ${expected}`);
+  }
+
+  playedSfx.length = 0;
+  const mockDuelEl = { innerHTML: '', querySelector() { return null; }, querySelectorAll() { return []; } };
+  renderDuelScene(mockDuelEl, {
+    sceneId: 'duel:test', citadelNameVi: 'Lạc Dương', titleVi: 'Lôi đài', matchupSummaryVi: 'Cân sức',
+    backgroundPath: 'art/backgrounds/arena.png',
+    player: { nameVi: 'Bạn', subVi: 'Bộ', facePath: '', spritePath: '', branch: 'Infantry', hp: 100, maxHp: 100, spirit: 10, maxSpirit: 100 },
+    opponent: { nameVi: 'Địch', subVi: 'Kỵ', facePath: '', spritePath: '', branch: 'Cavalry', hp: 100, maxHp: 100, spirit: 10, maxSpirit: 100 },
+    result: { won: true, roundLogs: [], combatSummaryVi: 'Thắng' }, choices: []
+  }, SimTBridge);
+  assert.ok(playedSfx.includes('duel.start') && playedSfx.includes('duel.win'), 'Expected duel-scene to play duel.start and duel.win');
+
+  playedSfx.length = 0;
+  renderDuelScene(mockDuelEl, {
+    sceneId: 'duel:test2', citadelNameVi: 'Lạc Dương', titleVi: 'Lôi đài', matchupSummaryVi: 'Cân sức',
+    backgroundPath: 'art/backgrounds/arena.png',
+    player: { nameVi: 'Bạn', subVi: 'Bộ', facePath: '', spritePath: '', branch: 'Infantry', hp: 100, maxHp: 100, spirit: 10, maxSpirit: 100 },
+    opponent: { nameVi: 'Địch', subVi: 'Kỵ', facePath: '', spritePath: '', branch: 'Cavalry', hp: 100, maxHp: 100, spirit: 10, maxSpirit: 100 },
+    result: { won: false, roundLogs: [], combatSummaryVi: 'Thua' }, choices: []
+  }, SimTBridge);
+  assert.ok(playedSfx.includes('duel.lose'), 'Expected duel-scene to play duel.lose');
+
+  playedSfx.length = 0;
+  renderDebateScene(mockDebateContainer, {
+    sceneId: 'debate:sfx:1', npcId: 1, npcNameVi: 'Trương Lão Bản', persuasion: 65, turn: 2, maxTurns: 5,
+    isFinished: false, outcomeCode: 'ongoing', latestLineVi: 'Lý lẽ sắc bén.', traits: [], choices: []
+  }, SimTBridge);
+  renderDebateScene(mockDebateContainer, {
+    sceneId: 'debate:sfx:1', npcId: 1, npcNameVi: 'Trương Lão Bản', persuasion: 48, turn: 3, maxTurns: 5,
+    isFinished: false, outcomeCode: 'ongoing', latestLineVi: 'Phản biện.', traits: [], choices: []
+  }, SimTBridge);
+  renderDebateScene(mockDebateContainer, {
+    sceneId: 'debate:sfx:1', npcId: 1, npcNameVi: 'Trương Lão Bản', persuasion: 82, turn: 4, maxTurns: 5,
+    isFinished: true, outcomeCode: 'majorwin', latestLineVi: 'Tâm phục khẩu phục.', traits: [], choices: []
+  }, SimTBridge);
+  renderDebateScene(mockDebateContainer, {
+    sceneId: 'debate:sfx:2', npcId: 1, npcNameVi: 'Trương Lão Bản', persuasion: 18, turn: 3, maxTurns: 5,
+    isFinished: true, outcomeCode: 'majorloss', latestLineVi: 'Đuối lý.', traits: [], choices: []
+  }, SimTBridge);
+  for (const k of ['debate.push', 'debate.counter', 'debate.win', 'debate.lose']) {
+    assert.ok(playedSfx.includes(k), `Expected debate-scene to play ${k}`);
+  }
+
+  playedSfx.length = 0;
+  const mockEventEl = {
+    innerHTML: '',
+    querySelector() { return { classList: { remove() {}, add() {} }, addEventListener() {}, offsetWidth: 0, textContent: '', innerHTML: '' }; },
+    querySelectorAll() { return []; }
+  };
+  renderEventScene(mockEventEl, {
+    sceneId: 'event:sfx:1', titleVi: 'Khăn Vàng nổi dậy', locationLabelVi: 'Quảng Tông', eraLabelVi: '184',
+    narrativeVi: 'Thiên hạ đại biến.', sentencesVi: ['Thiên hạ đại biến.'], backgroundArtPath: '', portraits: [], impactBadges: [], choices: []
+  }, SimTBridge);
+  assert.ok(playedSfx.includes('event.reveal'), 'Expected event-scene to play event.reveal');
+} finally {
+  if (prevPlaySfx === undefined) delete SimTBridge.playSfx;
+  else SimTBridge.playSfx = prevPlaySfx;
+}
+console.log('check-scenes: synthesized audio catalog, <1.5s WAV durations, market.ogg ambience, and duel/debate/event SFX wiring OK.');
+

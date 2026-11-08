@@ -52,9 +52,10 @@ function figureHtml(p) {
   `;
 }
 
-function renderEventScene(container, scene, bridge) {
+export function renderEventScene(container, scene, bridge) {
   unmountEventScene();
   if (!container || !scene) return;
+  SimTBridge.playSfx?.('event.reveal');
 
   const sentences = Array.isArray(scene.sentencesVi) && scene.sentencesVi.length > 0
     ? scene.sentencesVi

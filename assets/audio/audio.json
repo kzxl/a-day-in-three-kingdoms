@@ -1,0 +1,24 @@
+{
+  "music": {},
+  "ambience": {
+    "market": "ambience/market.ogg",
+    "ambience.market": "ambience/market.ogg"
+  },
+  "sfx": {
+    "fx.sword_slash": "sfx/fx_sword_slash.wav",
+    "fx.thrust": "sfx/fx_thrust.wav",
+    "fx.spear_sweep": "sfx/fx_spear_sweep.wav",
+    "fx.arrow": "sfx/fx_arrow.wav",
+    "fx.hit_flash": "sfx/fx_hit_flash.wav",
+    "fx.critical_hit": "sfx/fx_critical_hit.wav",
+    "fx.crit_number": "sfx/fx_crit_number.wav",
+    "duel.start": "sfx/duel_start.wav",
+    "duel.win": "sfx/duel_win.wav",
+    "duel.lose": "sfx/duel_lose.wav",
+    "debate.push": "sfx/debate_push.wav",
+    "debate.counter": "sfx/debate_counter.wav",
+    "debate.win": "sfx/debate_win.wav",
+    "debate.lose": "sfx/debate_lose.wav",
+    "event.reveal": "sfx/event_reveal.wav"
+  }
+}
