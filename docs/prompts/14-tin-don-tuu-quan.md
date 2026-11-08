@@ -22,7 +22,7 @@ Tửu quán là chỗ nghe tin. Tin đồn giúp đi buôn và báo trước bi�
    - khóa tham chiếu tùy loại: item, thành đích, npc, karma seed.
    Khai báo bảng trong `module.json` của society như các bảng khác.
 2. **Nghe tin.** Thêm lệnh "Uống rượu nghe chuyện" ở tửu quán của thành.
-   - Chi phí: trả 20 quan qua ví (lý do `society.tavern`) và tốn nửa buổi theo bảng chi phí hành động có sẵn. Đặt cả hai số thành hằng số một chỗ.
+   - Chi phí: trả 20 quan qua ví (lý do `society.tavern`) và không tốn thời gian theo bảng chi phí hành động có sẵn. Đặt cả hai số thành hằng số một chỗ.
    - Kết quả: 3 tin cho thành đó. Trong vòng 10 ngày, nghe lại thì ra đúng 3 tin cũ và không trừ tiền lần nữa.
 3. **Nguồn tin.** Chỉ lấy từ dữ liệu thật đang có, không bịa:
    - `price`: mặt hàng có giá ở một thành khác lệch nhiều nhất so với giá gốc, khan hoặc ế. Dùng capability chợ đang có (xem `MarketShockEngine.ScanArbitrageCorridors` và capability giá).

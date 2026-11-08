@@ -29,6 +29,9 @@ public static class CapabilityIds
     public const string CourtOffice = "politics.court";
     public const string NpcRegistry = "npc.registry";
     public const string NpcMarket = "market.npc_stalls";
+    public const string TavernRumors = "society.rumors";
+    public const string MarketRumorEvents = "market.rumor_events";
+    public const string HistoricalRumorEvents = "history.rumor_events";
     public const string SocietyChronicle = "society.chronicle";
     public const string SocialNetwork = "social.network";
     public const string MilitaryCommand = "military.command";

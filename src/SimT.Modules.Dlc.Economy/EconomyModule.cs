@@ -55,6 +55,7 @@ public sealed class EconomyModule : ISimModule
 
         // 2b. Shocks & Arbitrage Engine
         var shockEngine = new MarketShockEngine(context.Db);
+        context.Capabilities.Provide(CapabilityIds.MarketRumorEvents, (IEventRumorSource)shockEngine);
 
         // 2c. Banking Service
         var bankingService = new BankingService(context.Db, context.Clock, wallet, context.Log);

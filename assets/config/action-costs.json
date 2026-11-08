@@ -16,6 +16,7 @@
     "farm.fertilise": { "days": 1 },
     "lineage.marry": { "days": 1 },
     "lineage.beget": { "days": 0 },
-    "politics.serve": { "days": 0 }
+    "politics.serve": { "days": 0 },
+    "society.tavern": { "days": 0 }
   }
 }

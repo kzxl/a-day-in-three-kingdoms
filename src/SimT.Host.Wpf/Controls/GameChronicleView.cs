@@ -13,7 +13,7 @@ namespace SimT.Host.Wpf.Controls;
 /// Implements Elegy of the Vast Land aesthetic: Painterly Historical Illustration,
 /// dark historical strategy + parchment feel, and deep interactive causality decisions.
 /// </summary>
-public sealed class GameChronicleView : Border
+public sealed partial class GameChronicleView : Border
 {
     private static readonly Brush CanvasDarkBg = Freeze(new SolidColorBrush(Color.FromRgb(0x13, 0x0E, 0x0A)));
     private static readonly Brush ParchmentCardBg = Freeze(new SolidColorBrush(Color.FromRgb(0x1E, 0x16, 0x11)));
@@ -30,6 +30,7 @@ public sealed class GameChronicleView : Border
     // Internal model for unified historical event stream
     private sealed class ChronicleEventModel
     {
+        public bool IsMuted { get; init; }
         public long Id { get; init; }
         public long? SeedId { get; init; }
         public GameDate Date { get; init; }
@@ -51,7 +52,7 @@ public sealed class GameChronicleView : Border
     private ChronicleEventModel? _selectedEvent;
 
     // UI elements
-    private readonly StackPanel _filterBar;
+    private readonly WrapPanel _filterBar;
     private readonly StackPanel _eventListStack;
     private readonly Border _detailContainer;
     private readonly ScrollViewer _listScroller;
@@ -114,7 +115,7 @@ public sealed class GameChronicleView : Border
         topSection.Children.Add(headerRow);
 
         // Filter Bar (7 Categories + All + Actionable)
-        _filterBar = new StackPanel { Orientation = Orientation.Horizontal };
+        _filterBar = new WrapPanel { Orientation = Orientation.Horizontal };
         BuildFilterButtons();
         topSection.Children.Add(_filterBar);
 
@@ -159,6 +160,7 @@ public sealed class GameChronicleView : Border
     public void Bind(SimKernel kernel)
     {
         _kernel = kernel;
+        BuildFilterButtons();
         LoadEvents();
         RenderList();
     }
@@ -170,6 +172,7 @@ public sealed class GameChronicleView : Border
         var filters = new (string Key, string Label)[]
         {
             ("all", "📜 Toàn Bộ"),
+            ("rumors", "Tin đồn"),
             ("actionable", "⚡ Chờ Quyết Sách"),
             ("turmoil", "🔥 Loạn Lạc"),
             ("bankruptcy", "💰 Phá Sản"),
@@ -182,6 +185,7 @@ public sealed class GameChronicleView : Border
 
         foreach (var (key, label) in filters)
         {
+            if (key == "rumors" && _kernel?.Capabilities.IsProvided(CapabilityIds.TavernRumors) != true) continue;
             var btn = new Button
             {
                 Content = label,
@@ -290,6 +294,8 @@ public sealed class GameChronicleView : Border
             }
         }
 
+        LoadRumorEvents();
+
         // Sort events: actionable first, then descending by date
         _allEvents.Sort((a, b) =>
         {
@@ -354,6 +360,7 @@ public sealed class GameChronicleView : Border
 
         var card = new Border
         {
+            Opacity = ev.IsMuted ? 0.45 : 1.0,
             Background = isSelected ? ParchmentSelectedBg : ParchmentCardBg,
             BorderBrush = isSelected ? GoldAccent : BorderBronze,
             BorderThickness = new Thickness(isSelected ? 1.5 : 1),
