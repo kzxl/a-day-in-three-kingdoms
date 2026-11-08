@@ -156,6 +156,9 @@ internal sealed class CourtScreen : IScreenContribution
 
         if (_service.AllegianceFactionId != 0)
         {
+            var leader = _service.Factions.First(f => f.Id == _service.AllegianceFactionId).LeaderNpcId;
+            commands.Add(new ScreenCommand($"talk:npc:{leader}", "Bái kiến chúa công"));
+            commands.Add(new ScreenCommand("lord_report", "Trình lên"));
             commands.Add(new ScreenCommand("leave_faction", "Rời chư hầu", CommandKind.Secondary));
         }
 
@@ -164,6 +167,12 @@ internal sealed class CourtScreen : IScreenContribution
             : $"Uy tín {_service.Reputation} · {_service.OfficeName} · Bổng {_service.MonthlyStipend} Quan/tháng · Minh chủ: {_service.AllegianceFactionName ?? "Tự do"}";
 
         var alerts = new List<ScreenAlert>();
+        if (_service.LordTasks is { } tasks)
+        {
+            if (_service.AllegianceFactionId != 0)
+                alerts.Add(new ScreenAlert($"Tín nhiệm {tasks.Trust}/100 · Trượt liên tiếp {tasks.ConsecutiveFailures}/3", AlertLevel.Info));
+            if (!string.IsNullOrWhiteSpace(tasks.Notice)) alerts.Add(new ScreenAlert(tasks.Notice, AlertLevel.Info));
+        }
         if (_service.OfficeId == 0)
         {
             var next = _service.Offices.FirstOrDefault(office => office.ReputationRequired > _service.Reputation);
@@ -222,6 +231,7 @@ internal sealed class CourtCommandHandler : IScreenCommandHandler
 
     public string? Execute(string commandId)
     {
+        if (commandId == "lord_report") return _service.LordTasks?.Report();
         if (commandId == "serve")
         {
             return _service.Serve().Message;

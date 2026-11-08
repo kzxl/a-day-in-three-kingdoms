@@ -50,6 +50,11 @@ public partial class MainWindow
             new("map", "Xem bản đồ", "Hành trình liên thành")
         ];
 
+        if (customChoices is null && _kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice,out var court)
+            && court?.Factions.FirstOrDefault(f => f.Id == court.AllegianceFactionId) is { } faction
+            && faction.CapitalCityId == cityId)
+            choices = new[] { new SceneChoice("lord:audience","Bái kiến chúa công","Nhận và trình công vụ") }.Concat(choices).ToList();
+
         return new CityScene(
             $"city:{cityId}", cityId, cityName, "城", regionVi,
             GameDateCodec.ShortVi(_kernel.Today), seasonVi, weatherFx,
@@ -243,7 +248,9 @@ public partial class MainWindow
         }
 
         if (type != "choice") return;
-        if (id == "tavern:listen") PresentTavern(true);
+        if (id == "lord:audience" && _kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice,out var court)
+            && court?.Factions.FirstOrDefault(f => f.Id == court.AllegianceFactionId) is { } faction) TryOpenTalkScene(faction.LeaderNpcId);
+        else if (id == "tavern:listen") PresentTavern(true);
         else if (id == "tavern:leave") TryOpenCityScene();
         else if (id == "briefing") SelectScreen(CityHubScreenId);
         else if (id == "stroll") TriggerCityStroll();
