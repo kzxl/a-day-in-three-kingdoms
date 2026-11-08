@@ -1,4 +1,5 @@
-using SimT.Contracts.Data;
+﻿using SimT.Contracts.Data;
+using SimT.Contracts.Identity;
 using SimT.Contracts.Logging;
 using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
@@ -17,6 +18,8 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
     private readonly IPlayerState _player;
     private readonly ILog _log;
     private readonly ICapabilityBroker? _broker;
+    private readonly IRng? _kernelRng;
+    private readonly long _campaignSeed;
 
     public SocietyService(
         IDbSession db,
@@ -25,7 +28,9 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         IWorldMap map,
         IPlayerState player,
         ILog log,
-        ICapabilityBroker? broker = null)
+        ICapabilityBroker? broker = null,
+        IRng? kernelRng = null,
+        long campaignSeed = 0)
     {
         _db = db;
         _clock = clock;
@@ -34,8 +39,24 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         _player = player;
         _log = log;
         _broker = broker;
+        _kernelRng = kernelRng;
+        _campaignSeed = campaignSeed;
 
         EnsureInitialized();
+    }
+
+    /// <summary>
+    /// Derives an independent, deterministic sub-stream IRng for a specific domain entity and date.
+    /// Eliminates cross-NPC execution order bias while strictly binding to the Kernel campaign seed.
+    /// </summary>
+    private IRng CreateSubStreamRng(long entityId, int dayIndex, ulong domainSalt)
+    {
+        var baseSeed = _campaignSeed != 0 ? (ulong)_campaignSeed : (_kernelRng?.State ?? 0x123456789ABCDEFUL);
+        var z = baseSeed ^ ((ulong)entityId * 0x9E3779B97F4A7C15UL) ^ ((ulong)dayIndex * 0xBF58476D1CE4E5B9UL) ^ domainSalt;
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
+        var streamSeed = z ^ (z >> 31);
+        return new SocietySubStreamRng(streamSeed);
     }
 
     public void EnsureInitialized()
@@ -181,8 +202,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
                 }
 
                 // Deterministic pseudo-random seed per turn per NPC
-                var seed = (uint)(date.DayIndex * 397 ^ (int)npc.Id);
-                var rng = new SimpleRng(seed);
+                var rng = CreateSubStreamRng(npc.Id, (int)date.DayIndex, 0x50C1E71UL);
 
                 // 50% chance of notable activity each month
                 if (rng.Next(100) >= 50)
@@ -378,7 +398,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         _log.Info($"Society monthly simulation executed for date {formattedDate}.");
     }
 
-    private void ExecuteMartialAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, SimpleRng rng)
+    private void ExecuteMartialAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, IRng rng)
     {
         var roll = rng.Next(4);
         var skillTag = npc.Skills.Count > 0 ? $"[{npc.Skills[0].NameVi}] " : "";
@@ -427,7 +447,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         LogEvent(date, npc.Id, npc.NameVi, act.CurrentCitadelId, citName, "martial", headline, detail, impact, tick);
     }
 
-    private void ExecuteMerchantAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, SimpleRng rng)
+    private void ExecuteMerchantAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, IRng rng)
     {
         var rival = GetRival(npc.Id);
         if (rival != null)
@@ -482,7 +502,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         LogEvent(date, npc.Id, npc.NameVi, act.CurrentCitadelId, citName, "commerce", headline, detail, impact, tick);
     }
 
-    private void ExecuteStrategistAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, SimpleRng rng)
+    private void ExecuteStrategistAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, IRng rng)
     {
         var roll = rng.Next(3);
         string headline, detail, impact, actionText;
@@ -522,7 +542,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         LogEvent(date, npc.Id, npc.NameVi, act.CurrentCitadelId, citName, "scholarly", headline, detail, impact, tick);
     }
 
-    private void ExecuteGovernorAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, SimpleRng rng)
+    private void ExecuteGovernorAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, IRng rng)
     {
         var roll = rng.Next(3);
         string headline, detail, impact, actionText;
@@ -562,7 +582,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
         LogEvent(date, npc.Id, npc.NameVi, act.CurrentCitadelId, citName, "governance", headline, detail, impact, tick);
     }
 
-    private void ExecuteWandererAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, SimpleRng rng)
+    private void ExecuteWandererAction(NpcDef npc, NpcActivityDef act, string citName, string date, long tick, IRng rng)
     {
         var lifeSkill = npc.Skills.FirstOrDefault(s => s.Code is "am_thuc" or "tam_duoc" or "dieu_ngu" or "thu_liep" or "che_tac" or "khai_khoang" or "det_may" or "u_men" or "luyen_dan");
 
@@ -985,8 +1005,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
 
         for (var i = 0; i < count; i++)
         {
-            var seed = (uint)(tick * 7919 + i * 101 + _registry.All.Count);
-            var rng = new SimpleRng(seed);
+            var rng = CreateSubStreamRng(i * 1009L + _registry.All.Count, (int)(tick % int.MaxValue), 0x50C1E71_002UL);
 
             // Rebalance population: pick citadel with fewest NPCs
             var targetCit = citadels
@@ -1156,5 +1175,37 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
             if (max <= min) return min;
             return min + Next(max - min);
         }
+    }
+    private sealed class SocietySubStreamRng : IRng
+    {
+        private const ulong Gamma = 0x9E3779B97F4A7C15UL;
+        private ulong _state;
+
+        public SocietySubStreamRng(ulong seed)
+        {
+            _state = seed == 0 ? 0x0123456789ABCDEFUL : seed;
+        }
+
+        public ulong State => _state;
+
+        public void Reseed(ulong state) => _state = state == 0 ? 0x0123456789ABCDEFUL : state;
+
+        public ulong NextULong()
+        {
+            _state += Gamma;
+            var z = _state;
+            z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
+            z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
+            return z ^ (z >> 31);
+        }
+
+        public int Next(int minInclusive, int maxExclusive)
+        {
+            if (maxExclusive <= minInclusive) return minInclusive;
+            var span = (ulong)(long)(maxExclusive - minInclusive);
+            return (int)(minInclusive + (long)(NextULong() % span));
+        }
+
+        public double NextDouble() => (NextULong() >> 11) * (1.0 / (1UL << 53));
     }
 }

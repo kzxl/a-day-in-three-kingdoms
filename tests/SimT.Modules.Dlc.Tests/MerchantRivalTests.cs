@@ -143,4 +143,40 @@ public sealed class MerchantRivalTests : IDisposable
         Assert.NotNull(rivalsCmd);
         Assert.Equal(CommandKind.Primary, rivalsCmd.Kind);
     }
+    [Fact]
+    public void Physical_cargo_conserves_goods_and_prevents_magic_stock_on_empty_market()
+    {
+        using var kernel = _host.Boot();
+        var rivalry = kernel.Capabilities.Get<IMerchantRivalry>(CapabilityIds.MerchantRivalry);
+        var market = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
+        var db = kernel.Db;
+
+        var rivals = rivalry.GetAllRivals();
+        var firstRival = rivals.First();
+
+        // 1. Force origin stall stock to 0 to simulate dry market
+        var currentCit = firstRival.CurrentCitadelId;
+        var goodId = firstRival.PrimaryGoodId;
+        var initialStock = market.StallStock(currentCit, goodId);
+        market.AdjustStock(currentCit, goodId, -initialStock);
+        Assert.Equal(0, market.StallStock(currentCit, goodId));
+
+        // 2. Also ensure no pre-existing cargo on this rival
+        db.Execute("DELETE FROM so_merchant_cargo WHERE npc_id = @id", DbArgs.One("@id", firstRival.NpcId));
+
+        // 3. Advance 30 days to trigger monthly simulation
+        kernel.AdvanceDays(30);
+
+        // 4. Verify that no magic goods were created
+        var updatedRival = rivalry.GetRival(firstRival.NpcId);
+        Assert.NotNull(updatedRival);
+
+        // Rival should have CarriedCargoQty == 0 because market was empty
+        var carried = db.ScalarLong("SELECT COALESCE(SUM(quantity), 0) FROM so_merchant_cargo WHERE npc_id = @id", DbArgs.One("@id", firstRival.NpcId));
+        Assert.Equal(0, carried);
+
+        // Invariants must hold
+        var failures = kernel.RunInvariants();
+        Assert.Empty(failures);
+    }
 }

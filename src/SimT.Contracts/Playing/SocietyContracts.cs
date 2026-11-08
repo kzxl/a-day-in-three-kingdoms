@@ -194,7 +194,8 @@ public sealed record MerchantRivalDef(
     long MonthlyProfit,
     long TotalTradeVolume,
     string LastActionDesc,
-    GameDate UpdatedDate)
+    GameDate UpdatedDate,
+    int CarriedCargoQty = 0)
 {
     public static string TierToTitle(int tier) => tier switch
     {
