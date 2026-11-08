@@ -1,4 +1,4 @@
-﻿using SimT.Contracts.Data;
+using SimT.Contracts.Data;
 using SimT.Contracts.Identity;
 using SimT.Contracts.Logging;
 using SimT.Contracts.Modules;
@@ -49,7 +49,7 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
     /// Derives an independent, deterministic sub-stream IRng for a specific domain entity and date.
     /// Eliminates cross-NPC execution order bias while strictly binding to the Kernel campaign seed.
     /// </summary>
-    private IRng CreateSubStreamRng(long entityId, int dayIndex, ulong domainSalt)
+    private IRng CreateSubStreamRng(long entityId, long dayIndex, ulong domainSalt)
     {
         var baseSeed = _campaignSeed != 0 ? (ulong)_campaignSeed : (_kernelRng?.State ?? 0x123456789ABCDEFUL);
         var z = baseSeed ^ ((ulong)entityId * 0x9E3779B97F4A7C15UL) ^ ((ulong)dayIndex * 0xBF58476D1CE4E5B9UL) ^ domainSalt;
@@ -1151,31 +1151,6 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
     }
 
 
-    private sealed class SimpleRng
-    {
-        private uint _state;
-
-        public SimpleRng(uint seed)
-        {
-            _state = seed == 0 ? 0x12345678 : seed;
-        }
-
-        public int Next(int max)
-        {
-            if (max <= 1) return 0;
-            // Xorshift32
-            _state ^= _state << 13;
-            _state ^= _state >> 17;
-            _state ^= _state << 5;
-            return (int)(_state % (uint)max);
-        }
-
-        public int Next(int min, int max)
-        {
-            if (max <= min) return min;
-            return min + Next(max - min);
-        }
-    }
     private sealed class SocietySubStreamRng : IRng
     {
         private const ulong Gamma = 0x9E3779B97F4A7C15UL;

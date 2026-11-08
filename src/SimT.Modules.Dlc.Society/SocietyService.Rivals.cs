@@ -1,4 +1,4 @@
-using SimT.Contracts.Data;
+﻿using SimT.Contracts.Data;
 using SimT.Contracts.Identity;
 using SimT.Contracts.Logging;
 using SimT.Contracts.Modules;
@@ -175,8 +175,7 @@ internal sealed partial class SocietyService
         {
             foreach (var rival in rivals)
             {
-                var seed = (uint)(date.DayIndex * 1013 ^ (int)rival.NpcId);
-                var rng = new SimpleRng(seed);
+                var rng = CreateSubStreamRng(rival.NpcId, date.DayIndex, 0x50C1E71_003UL);
 
                 var currentCitId = rival.CurrentCitadelId;
                 var currentCit = _map.Find(currentCitId);
