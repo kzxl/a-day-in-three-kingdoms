@@ -1007,6 +1007,45 @@ public sealed class ProfessionTests : IDisposable
     private static bool SocialService_IsWarlord(NpcDef npc) =>
         npc.Role.Contains("Chủ") || npc.Role.Contains("Đế") || npc.Role.Contains("Thái") || npc.Role.Contains("Vương");
 
+    [Fact]
+    public void Processing_workshop_requires_raw_materials_and_consumes_them_on_month_close()
+    {
+        using var kernel = _host.Boot();
+        var bag = Bag(kernel);
+
+        // Open smelting workshop at city 1 (trade 4: luyen_kim -> outputs Iron #5, requires Coal #15)
+        var openMsg = Command(kernel, "workshop:open:4");
+        Assert.Contains("Mở thành công", openMsg);
+
+        // Hire 2 artisans
+        Command(kernel, "workshop:hire:0");
+        Command(kernel, "workshop:hire:0");
+
+        // Ensure 0 Coal (#15) in bag initially
+        var coalInitial = bag.Quantity(1, 15);
+        if (coalInitial > 0) bag.Remove(1, 15, coalInitial);
+        var ironBefore = bag.Quantity(1, 5);
+
+        // 1. Advance 30 days WITHOUT coal -> smelting workshop stalls and produces 0 iron!
+        for (var day = 0; day < 30; day++)
+        {
+            kernel.Clock.Advance(1);
+        }
+        Assert.Equal(ironBefore, bag.Quantity(1, 5));
+
+        // 2. Supply 5 Coal (#15) into bag and upgrade furnace to level 2 (+1 yield per artisan)
+        bag.Add(1, 15, 5);
+        Command(kernel, "workshop:upgrade:0");
+
+        for (var day = 0; day < 31; day++)
+        {
+            kernel.Clock.Advance(1);
+        }
+
+        // 2 artisans consume 2 Coal (#15) and produce 2 * (base 2 + furnace bonus 1) = 6 Iron (#5)
+        Assert.Equal(3, bag.Quantity(1, 15));
+        Assert.Equal(ironBefore + 6, bag.Quantity(1, 5));
+    }
 }
 
 internal static class ProfessionServiceConstants

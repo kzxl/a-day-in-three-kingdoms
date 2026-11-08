@@ -1380,6 +1380,17 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
     // MONTHLY TICK (WORKSHOP RENT & ARTISAN LABOUR)
     // =========================================================================
 
+    public static long? GetWorkshopInputItemId(string tradeCode) => tradeCode switch
+    {
+        "luyen_kim" => 15, // Than đá -> Sắt (#5)
+        "duc_dong" => 15,  // Than đá -> Đồng (#16)
+        "nau_ruou" => 1,   // Gạo -> Rượu (#10)
+        "det_gam" => 4,    // Lụa -> Gấm (#12)
+        "tho_det" => 19,   // Cây giống dâu tằm / Tơ -> Vải (#11)
+        "duoc_su" => 20,   // Dược thảo -> Thuốc (#7)
+        _ => null          // Nghề khai thác thô sơ cấp (thợ mộc, nông phu, ngư dân, khai khoáng...)
+    };
+
     public void OnMonth(GameDate date)
     {
         var workshops = AllWorkshops();
@@ -1400,31 +1411,51 @@ internal sealed class ProfessionService : IProfessionGuild, IPlayerEquipment
             // Artisan salaries & production
             if (ws.HiredArtisans > 0)
             {
-                var totalSalary = ws.HiredArtisans * ArtisanMonthlySalary;
+                var trade = Trades.FirstOrDefault(t => t.Id == ws.TradeId);
+                if (trade is null) continue;
+
+                var requiredInputId = GetWorkshopInputItemId(trade.Code);
+                var activeArtisans = ws.HiredArtisans;
+
+                if (requiredInputId.HasValue)
+                {
+                    var availableInput = _bag.Quantity(ws.CitadelId, requiredInputId.Value);
+                    activeArtisans = Math.Min(ws.HiredArtisans, availableInput);
+                    if (activeArtisans <= 0)
+                    {
+                        var inputName = _items.Find(requiredInputId.Value)?.NameVi ?? $"Nguyên liệu #{requiredInputId.Value}";
+                        _log.Warn($"Xưởng {ws.NameVi} đình trệ tháng {date.Month:00}/{date.Year}: thiếu nguyên liệu đầu vào [{inputName}] trong hành trang tại thành #{ws.CitadelId}.");
+                        continue;
+                    }
+                }
+
+                var totalSalary = activeArtisans * ArtisanMonthlySalary;
                 if (_wallet.Liquid >= totalSalary)
                 {
-                    _wallet.Charge(totalSalary, JournalCodes.ToolFee, $"Lương thợ phụ {ws.NameVi} ({ws.HiredArtisans} người)");
+                    _wallet.Charge(totalSalary, JournalCodes.ToolFee, $"Lương thợ phụ {ws.NameVi} ({activeArtisans} người)");
 
-                    var trade = Trades.FirstOrDefault(t => t.Id == ws.TradeId);
-                    if (trade is not null)
+                    if (requiredInputId.HasValue)
                     {
-                        var yieldPerWorker = trade.BaseQuantity;
-                        var totalYield = ws.HiredArtisans * yieldPerWorker;
-                        _bag.Add(ws.CitadelId, trade.OutputItemId, totalYield);
-
-                        var currentPractice = PracticeCount(trade.Id);
-                        var newPractice = currentPractice + ws.HiredArtisans;
-                        var newTier = Math.Min(MaxTier, newPractice / PracticesPerTier);
-
-                        _db.Execute(
-                            """
-                            INSERT INTO pf_skill(trade_id, practice_count, tier) VALUES(@trade, @practice, @tier)
-                            ON CONFLICT(trade_id) DO UPDATE SET practice_count = excluded.practice_count, tier = excluded.tier
-                            """,
-                            new DbArgs().Add("@trade", trade.Id).Add("@practice", newPractice).Add("@tier", newTier));
-
-                        _log.Info($"Workshop {ws.NameVi} produced +{totalYield} items via {ws.HiredArtisans} artisans.");
+                        _bag.Remove(ws.CitadelId, requiredInputId.Value, activeArtisans);
                     }
+
+                    var furnaceBonus = Math.Max(0, ws.FurnaceLevel - 1);
+                    var yieldPerWorker = trade.BaseQuantity + furnaceBonus;
+                    var totalYield = activeArtisans * yieldPerWorker;
+                    _bag.Add(ws.CitadelId, trade.OutputItemId, totalYield);
+
+                    var currentPractice = PracticeCount(trade.Id);
+                    var newPractice = currentPractice + activeArtisans;
+                    var newTier = Math.Min(MaxTier, newPractice / PracticesPerTier);
+
+                    _db.Execute(
+                        """
+                        INSERT INTO pf_skill(trade_id, practice_count, tier) VALUES(@trade, @practice, @tier)
+                        ON CONFLICT(trade_id) DO UPDATE SET practice_count = excluded.practice_count, tier = excluded.tier
+                        """,
+                        new DbArgs().Add("@trade", trade.Id).Add("@practice", newPractice).Add("@tier", newTier));
+
+                    _log.Info($"Workshop {ws.NameVi} produced +{totalYield} items via {activeArtisans} artisans.");
                 }
                 else
                 {

@@ -75,6 +75,18 @@ internal sealed class FarmScreen : IScreenContribution
                 {
                     commands.Add(new ScreenCommand($"irrigate:{plot.Id}", "Đào mương (80 Quan)"));
                 }
+
+                if (plot.Rented)
+                {
+                    if (string.IsNullOrWhiteSpace(plot.TenantCropCode))
+                    {
+                        commands.Add(new ScreenCommand($"tenant:{plot.Id}:gao", "Tá Điền: Lúa (70% tô)"));
+                    }
+                    else
+                    {
+                        commands.Add(new ScreenCommand($"tenant:{plot.Id}:off", "Thôi Tá Điền"));
+                    }
+                }
             }
 
             var irrigationText = plot.IrrigationLevel > 0 ? $"Bậc {plot.IrrigationLevel}/2" : "Chưa có";
@@ -368,6 +380,7 @@ internal sealed class FarmCommandHandler : IScreenCommandHandler
             "harvest_store" => _service.HarvestAndStore(plotId, city, _warehouse).Message,
             "fertilise" => _service.Fertilise(plotId, city).Message,
             "irrigate" => _service.Irrigate(plotId, city).Message,
+            "tenant" => _service.SetTenantCrop(plotId, city, parts.Length > 2 ? parts[2] : "gao").Message,
             var verb => $"Động từ '{verb}' không thuộc DLC cultivation."
         };
     }

@@ -100,6 +100,57 @@ internal static class CropCalendar
 
     public static int Yield(int areaMu, CropSpec crop, int month, int soil, int irrigationTier = 0)
     {
+        return RegionalYield(areaMu, crop, month, soil, region: null, irrigationTier);
+    }
+
+    public static int RegionPermille(string? region, string cropCode, int month)
+    {
+        if (string.IsNullOrWhiteSpace(region)) return 1000;
+        var reg = region.ToLowerInvariant();
+
+        // Northern frontier regions suffer severe frost in winter months (10..12, 1..2)
+        if (reg is "u_chau" or "tinh_chau" or "luong_chau" or "ky_chau")
+        {
+            var isWinter = month is >= 10 or <= 2;
+            if (isWinter)
+            {
+                return cropCode.Equals("duoc_thao", StringComparison.OrdinalIgnoreCase) ? 1150 : 550;
+            }
+            return 950;
+        }
+
+        // Southern riverlands & warm basins excel at Rice, Tea, and Mulberry in spring/summer
+        if (reg is "giang_dong" or "kinh_chau" or "ich_chau" or "giao_chau")
+        {
+            var isWarm = month is >= 3 and <= 8;
+            if (isWarm)
+            {
+                return 1250;
+            }
+            return 1050;
+        }
+
+        return 1000;
+    }
+
+    public static int RegionalGrowthDays(CropSpec crop, int month, string? region, int irrigationTier = 0)
+    {
+        var baseDays = GrowthDays(crop, month, irrigationTier);
+        if (string.IsNullOrWhiteSpace(region)) return baseDays;
+        var reg = region.ToLowerInvariant();
+        if (reg is "u_chau" or "tinh_chau" or "luong_chau" && (month is >= 10 or <= 2))
+        {
+            return baseDays + 4;
+        }
+        if (reg is "giang_dong" or "kinh_chau" or "ich_chau" or "giao_chau" && (month is >= 3 and <= 8))
+        {
+            return Math.Max(5, baseDays - 2);
+        }
+        return baseDays;
+    }
+
+    public static int RegionalYield(int areaMu, CropSpec crop, int month, int soil, string? region, int irrigationTier = 0)
+    {
         var permille = (long)SeasonPermille(month) * SoilPermille(soil);
         var raw = (long)areaMu * crop.YieldPerMu * permille;
         var yieldBonusPermille = irrigationTier switch
@@ -110,6 +161,8 @@ internal static class CropCalendar
             _ => 1000L
         };
         raw = (raw * yieldBonusPermille) / 1000L;
+        var regionMult = RegionPermille(region, crop.Code, month);
+        raw = (raw * regionMult) / 1000L;
         return (int)((raw + 500_000L) / 1_000_000L);
     }
 }

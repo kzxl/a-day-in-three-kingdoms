@@ -449,4 +449,40 @@ public sealed class CultivationTests : IDisposable
 
     private static ICultivationEstate Guild(SimKernel kernel) =>
         kernel.Capabilities.Get<ICultivationEstate>(CapabilityIds.CultivationEstate);
+
+    [Fact]
+    public void Tenant_farmer_sharecropping_auto_harvests_and_replants_with_70_percent_landowner_share_and_regional_climate()
+    {
+        using var kernel = _host.Boot();
+        var cityId = Player(kernel).CurrentCityId;
+        var bag = Bag(kernel);
+        var plot = HomePlot(kernel);
+
+        Command(kernel, $"rent:{plot.Id}");
+        var grainBefore = bag.Quantity(cityId, GrainItem);
+
+        // Assign tenant farmer to auto-cultivate Rice (gao)
+        var tenantMsg = Command(kernel, $"tenant:{plot.Id}:gao");
+        Assert.Contains("Tá điền", tenantMsg);
+
+        var updatedPlot = Find(kernel, plot.Id);
+        Assert.Equal("gao", updatedPlot.TenantCropCode);
+        Assert.Equal("GROWING", updatedPlot.CropStatus);
+
+        var expectedFullYield = updatedPlot.YieldQuantity!.Value;
+        var expectedLandownerShare = Math.Max(1, (expectedFullYield * 70) / 100);
+
+        // Advance past growth duration -> tenant automatically harvests (70% to landowner) and replants next cycle!
+        var growthDays = CropCalendar.GrowthDays(CropSpec.Rice, kernel.Today.Month);
+        kernel.AdvanceDays(growthDays + 1);
+
+        Assert.Equal(grainBefore + expectedLandownerShare, bag.Quantity(cityId, GrainItem));
+        var replantedPlot = Find(kernel, plot.Id);
+        Assert.Equal("GROWING", replantedPlot.CropStatus);
+
+        // Verify regional climate differentiation: Northern winter (u_chau, month 12) vs Southern spring (giang_dong, month 4)
+        var northWinterYield = CropCalendar.RegionalYield(2, CropSpec.Rice, 12, 100, "u_chau");
+        var southSpringYield = CropCalendar.RegionalYield(2, CropSpec.Rice, 4, 100, "giang_dong");
+        Assert.True(southSpringYield > northWinterYield * 2);
+    }
 }

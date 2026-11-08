@@ -140,6 +140,20 @@ internal sealed class ProfessionScreen : IScreenContribution
                 commands.Add(new ScreenCommand("workshop:upgrade:0", $"Nâng lò cấp {workshop.FurnaceLevel + 1} ({workshop.FurnaceLevel * 80} Quan)"));
             }
 
+            var inputId = trade is not null ? ProfessionService.GetWorkshopInputItemId(trade.Code) : null;
+            var inputDesc = "Khai thác trực tiếp (Không cần nguyên liệu thô)";
+            var wsStatusVi = workshop.IsActive ? "Đang mở cửa" : "Đình chỉ";
+            if (inputId.HasValue)
+            {
+                var inputItem = _items.Find(inputId.Value);
+                var heldInput = _bag?.Quantity(cityId, inputId.Value) ?? 0;
+                inputDesc = $"Cần {workshop.HiredArtisans}x {inputItem?.NameVi ?? "Nguyên liệu"}/tháng (Trong túi: {heldInput})";
+                if (workshop.IsActive && workshop.HiredArtisans > 0 && heldInput < workshop.HiredArtisans)
+                {
+                    wsStatusVi = $"⚠️ Thiếu {inputItem?.NameVi}";
+                }
+            }
+
             workshopRows.Add(new ScreenRow(
                 [
                     workshop.NameVi,
@@ -147,14 +161,15 @@ internal sealed class ProfessionScreen : IScreenContribution
                     $"Cấp {workshop.FurnaceLevel}/5",
                     $"{workshop.HiredArtisans}/5 thợ (Lương {workshop.HiredArtisans * ProfessionService.ArtisanMonthlySalary} Quan/tháng)",
                     $"{workshop.MonthlyRent} Quan/tháng",
-                    workshop.IsActive ? "Đang mở cửa" : "Đình chỉ"
+                    wsStatusVi
                 ],
                 commands,
                 Title: workshop.NameVi,
                 Details:
                 [
-                    new ScreenDetail("Lò luyện", $"Cấp {workshop.FurnaceLevel} (+{workshop.FurnaceLevel * 5}% tỷ lệ Tuyệt phẩm)"),
+                    new ScreenDetail("Lò luyện", $"Cấp {workshop.FurnaceLevel} (+{workshop.FurnaceLevel * 5}% tỷ lệ Tuyệt phẩm, +{Math.Max(0, workshop.FurnaceLevel - 1)} sản lượng/thợ)"),
                     new ScreenDetail("Thợ phụ", $"{workshop.HiredArtisans} người tự động gia công hàng tháng"),
+                    new ScreenDetail("Nguyên liệu đầu vào", inputDesc),
                     new ScreenDetail("Tiền thuê", $"{workshop.MonthlyRent} Quan khấu trừ ngày đầu tháng")
                 ]));
         }

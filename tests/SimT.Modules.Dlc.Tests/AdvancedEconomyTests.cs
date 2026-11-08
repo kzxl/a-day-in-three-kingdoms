@@ -156,6 +156,42 @@ public sealed class AdvancedEconomyTests
     }
 
     [Fact]
+    public void MarketShockEngine_directly_impacts_market_quotes_and_automated_logistics_interacts_with_cartel_treaties_and_ui()
+    {
+        using var host = new DlcTestHost();
+        using var kernel = host.Boot();
+        var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
+        var shockEngine = new MarketShockEngine(kernel.Db);
+
+        var baseRiceQuote = trade.QuoteBuy(1, 1); // Rice (#1) at Luoyang (#1)
+
+        // Trigger a SIEGE shock in Luoyang (#1) active today
+        shockEngine.TriggerShock(1, MarketShockTypes.Siege, kernel.Today.DayIndex - 1, 20, 1500, "Vây thành Lạc Dương");
+
+        var siegeRiceQuote = trade.QuoteBuy(1, 1);
+        Assert.True(siegeRiceQuote >= baseRiceQuote * 2, $"Expected siege rice quote ({siegeRiceQuote}) >= 2x base ({baseRiceQuote})");
+
+        // Verify CaravanScreen exposes Cartel diplomacy & Auto-Route management commands
+        Assert.True(kernel.TryGetCommandHandler("caravan.routes", out var caravanHandler));
+        var giftMsg = caravanHandler!.Execute("cartel:gift:MI_SHI");
+        Assert.NotNull(giftMsg);
+        Assert.Contains("Từ Châu Mi Thị", giftMsg);
+
+        var allyMsg = caravanHandler.Execute("cartel:ally:MI_SHI");
+        Assert.NotNull(allyMsg);
+        Assert.Contains("Minh Ước", allyMsg);
+
+        var autoCreateMsg = caravanHandler.Execute("auto_route:create:2:1");
+        Assert.NotNull(autoCreateMsg);
+        Assert.Contains("tuyến buôn tự động", autoCreateMsg, StringComparison.OrdinalIgnoreCase);
+
+        var caravanScreen = kernel.Ui.Screens.First(s => s.ScreenId == "caravan.routes");
+        var model = caravanScreen.Render();
+        Assert.Contains(model.Sections, s => s.Heading.Contains("Tứ Đại Thương Bang"));
+        Assert.Contains(model.Sections, s => s.Heading.Contains("Tuyến Thương Mại Tự Động"));
+    }
+
+    [Fact]
     public void ScanArbitrageCorridors_matches_individual_quotes_and_renders_bank_screen_under_20ms()
     {
         using var host = new DlcTestHost();

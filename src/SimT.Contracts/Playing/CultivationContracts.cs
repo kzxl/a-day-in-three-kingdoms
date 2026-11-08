@@ -36,6 +36,8 @@ public interface ICultivationEstate
     FarmResult BuyTool(long cityId, string toolCode);
 
     FarmSupplyInventory GetSupplyInventory(long cityId);
+
+    FarmResult SetTenantCrop(long plotId, long cityId, string? cropCode);
 }
 
 public sealed record FarmSupplyInventory(
@@ -70,7 +72,8 @@ public sealed record PlotView(
     string? CropStatus,
     int? ReadyDayIndex,
     int? YieldQuantity,
-    int IrrigationLevel = 0);
+    int IrrigationLevel = 0,
+    string? TenantCropCode = null);
 
 public sealed record HarvestLogDef(
     long Id,

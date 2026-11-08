@@ -51,7 +51,7 @@ internal sealed class FarmService : ICultivationEstate
         _db.Query(
             """
             SELECT p.id, p.citadel_id, p.area_mu, p.monthly_rent, p.rented, p.soil,
-                   c.status, c.ready_day, c.yield_qty, p.irrigation_level
+                   c.status, c.ready_day, c.yield_qty, p.irrigation_level, p.tenant_crop_code
             FROM fm_plot p
             LEFT JOIN fm_crop c ON c.plot_id = p.id AND c.status IN ('GROWING', 'READY')
             ORDER BY p.citadel_id, p.id
@@ -59,6 +59,7 @@ internal sealed class FarmService : ICultivationEstate
             row =>
             {
                 var live = row.GetStringOrEmpty(6) is { Length: > 0 };
+                var tenantCrop = row.GetStringOrEmpty(10);
                 return new PlotView(
                     row.GetInt64(0),
                     row.GetInt64(1),
@@ -69,7 +70,8 @@ internal sealed class FarmService : ICultivationEstate
                     live ? row.GetString(6) : null,
                     live ? row.GetInt32(7) : null,
                     live ? row.GetInt32(8) : null,
-                    row.GetInt32(9));
+                    row.GetInt32(9),
+                    string.IsNullOrWhiteSpace(tenantCrop) ? null : tenantCrop);
             });
 
     public IBag Bag => _bag;
@@ -670,12 +672,155 @@ internal sealed class FarmService : ICultivationEstate
             HasWateringScoop: _bag.Quantity(cityId, FarmingSupplies.ScoopItemId) > 0);
     }
 
-    /// <summary>Daily flip: a crop becomes harvestable on its ready day, exactly once.</summary>
+    public FarmResult SetTenantCrop(long plotId, long cityId, string? cropCode)
+    {
+        var plot = FindPlot(plotId);
+        if (plot is null)
+        {
+            return FarmResult.Failure("Không có khu ruộng này.");
+        }
+
+        if (plot.CitadelId != cityId)
+        {
+            return FarmResult.Failure("Phải ở đúng thành mới giao khoán tá điền được.");
+        }
+
+        if (!plot.Rented)
+        {
+            return FarmResult.Failure("Chưa thuê khu ruộng này.");
+        }
+
+        if (string.IsNullOrWhiteSpace(cropCode) ||
+            cropCode.Equals("off", StringComparison.OrdinalIgnoreCase) ||
+            cropCode.Equals("none", StringComparison.OrdinalIgnoreCase))
+        {
+            _db.Execute("UPDATE fm_plot SET tenant_crop_code = NULL WHERE id = @id", DbArgs.One("@id", plotId));
+            return FarmResult.Success($"Đã thôi giao khoán tá điền tại khu ruộng {plotId}.");
+        }
+
+        var crop = CropSpec.Find(cropCode);
+        if (crop is null)
+        {
+            return FarmResult.Failure($"Không có giống '{cropCode}' để giao tá điền.");
+        }
+
+        _db.Execute(
+            "UPDATE fm_plot SET tenant_crop_code = @crop WHERE id = @id",
+            new DbArgs().Add("@crop", crop.Code).Add("@id", plotId));
+
+        if (plot.CropStatus is null)
+        {
+            TryTenantPlant(plot, crop, _clock.Today);
+        }
+
+        return FarmResult.Success(
+            $"Tá điền đã nhận khoán tự canh [{crop.SeedNameVi}] tại khu {plotId} (Chủ điền hưởng 70% sản lượng, tự động gặt & gieo vụ mới).");
+    }
+
+    private void TryTenantPlant(PlotView plot, CropSpec crop, GameDate today)
+    {
+        var requiredSeeds = plot.AreaMu;
+        var heldSeeds = _bag.Quantity(plot.CitadelId, crop.SeedItemId);
+        if (heldSeeds >= requiredSeeds)
+        {
+            _bag.Remove(plot.CitadelId, crop.SeedItemId, requiredSeeds);
+        }
+        else
+        {
+            var seedItem = _items.Find(crop.SeedItemId);
+            var unitPrice = seedItem?.BasePrice ?? SeedCostPerMu;
+            var neededToBuy = requiredSeeds - heldSeeds;
+            var buyCost = neededToBuy * unitPrice;
+            if (_wallet.Liquid < buyCost)
+            {
+                return;
+            }
+            if (heldSeeds > 0)
+            {
+                _bag.Remove(plot.CitadelId, crop.SeedItemId, heldSeeds);
+            }
+            _wallet.Charge(buyCost, JournalCodes.FarmSeed, $"Tá điền mua giống {crop.SeedNameVi} khu {plot.Id}");
+        }
+
+        var irrigationTier = GetFacilityTier(plot.CitadelId, FacilitySpecs.Irrigation);
+        var growth = CropCalendar.GrowthDays(crop, today.Month, irrigationTier);
+        var yieldQuantity = CropCalendar.Yield(plot.AreaMu, crop, today.Month, plot.Soil, irrigationTier);
+
+        _db.Execute(
+            """
+            INSERT INTO fm_crop(id, plot_id, item_id, planted_day, ready_day, yield_qty, status)
+            VALUES(@id, @plot, @item, @planted, @ready, @yield, 'GROWING')
+            """,
+            new DbArgs()
+                .Add("@id", _ids.Next("cultivation.crop"))
+                .Add("@plot", plot.Id)
+                .Add("@item", crop.OutputItemId)
+                .Add("@planted", today.DayIndex)
+                .Add("@ready", today.DayIndex + growth)
+                .Add("@yield", yieldQuantity));
+    }
+
+    /// <summary>Daily flip: a crop becomes harvestable on its ready day, and tenant farmers auto-harvest/replant.</summary>
     public void OnDay(GameDate date)
     {
         _db.Execute(
             "UPDATE fm_crop SET status = 'READY' WHERE status = 'GROWING' AND ready_day <= @day",
             DbArgs.One("@day", date.DayIndex));
+
+        var tenantPlots = Plots.Where(p => p.Rented && !string.IsNullOrWhiteSpace(p.TenantCropCode)).ToList();
+        foreach (var plot in tenantPlots)
+        {
+            var cropSpec = CropSpec.Find(plot.TenantCropCode);
+            if (cropSpec is null) continue;
+
+            if (plot.CropStatus == "READY")
+            {
+                var cropId = _db.ScalarLong(
+                    "SELECT id FROM fm_crop WHERE plot_id=@plot AND status = 'READY' ORDER BY id LIMIT 1",
+                    DbArgs.One("@plot", plot.Id));
+                if (cropId > 0)
+                {
+                    var fullYield = plot.YieldQuantity ?? 0;
+                    var landownerShare = Math.Max(1, (fullYield * 70) / 100);
+                    var soilAfter = Math.Max(0, plot.Soil - CropCalendar.SoilCostPerHarvest);
+
+                    // Auto-fertilize if soil drops below 40 and fertilizer is available in bag
+                    if (soilAfter < 40 && _bag.Quantity(plot.CitadelId, FarmingSupplies.FertilizerItemId) >= 1)
+                    {
+                        _bag.Remove(plot.CitadelId, FarmingSupplies.FertilizerItemId, 1);
+                        soilAfter = Math.Min(CropCalendar.SoilCeiling, soilAfter + CropCalendar.FertiliseGain);
+                    }
+
+                    _db.Execute("UPDATE fm_crop SET status = 'HARVESTED' WHERE id = @id", DbArgs.One("@id", cropId));
+                    _db.Execute("UPDATE fm_plot SET soil = @soil WHERE id = @id", new DbArgs().Add("@soil", soilAfter).Add("@id", plot.Id));
+                    _bag.Add(plot.CitadelId, cropSpec.OutputItemId, landownerShare);
+
+                    _db.Execute(
+                        """
+                        INSERT INTO fm_harvest_log(id, plot_id, citadel_id, crop_code, yield_qty, harvest_day, soil_after)
+                        VALUES(@id, @plot, @citadel, @crop, @yield, @day, @soil)
+                        """,
+                        new DbArgs()
+                            .Add("@id", _ids.Next("cultivation.harvest_log"))
+                            .Add("@plot", plot.Id)
+                            .Add("@citadel", plot.CitadelId)
+                            .Add("@crop", cropSpec.Code)
+                            .Add("@yield", landownerShare)
+                            .Add("@day", date.DayIndex)
+                            .Add("@soil", soilAfter));
+
+                    var refreshed = FindPlot(plot.Id);
+                    if (refreshed is not null && refreshed.CropStatus is null)
+                    {
+                        TryTenantPlant(refreshed, cropSpec, date);
+                    }
+                }
+            }
+            else if (plot.CropStatus is null)
+            {
+                TryTenantPlant(plot, cropSpec, date);
+            }
+        }
     }
 
     /// <summary>Monthly rent for every rented plot. Unaffordable months are logged, never free.</summary>

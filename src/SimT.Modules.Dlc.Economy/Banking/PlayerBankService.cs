@@ -41,6 +41,18 @@ public sealed record PlayerConvoyDef(
     string Status,
     GameDate CreatedDate);
 
+public sealed record FactionWarLoanDef(
+    long Id,
+    long BankId,
+    long FactionId,
+    string FactionNameVi,
+    long PrincipalAmount,
+    double MonthlyRatePct,
+    string PrivilegeCode,
+    string PrivilegeDescVi,
+    int IssuedDay,
+    string Status);
+
 public sealed record PlayerBankResult(bool Success, string MessageVi, long Amount = 0);
 
 /// <summary>
@@ -347,17 +359,129 @@ public sealed class PlayerBankService
         return new PlayerBankResult(true, $"Đoàn Tiêu Cục đã lên đường áp tải {amount:N0} Quan (Dự kiến đến sau {travelDays} ngày).", amount);
     }
 
-    public void SimulateMonthlyTurn(GameDate date)
+    public IReadOnlyList<FactionWarLoanDef> GetFactionLoans(long bankId)
     {
-        var banks = _db.Query(
-            "SELECT id, reputation, reserve_ratio_pct FROM bk_player_bank",
-            r => (Id: r.GetInt64(0), Rep: r.GetInt32(1), ReserveRatio: r.GetInt32(2)));
+        return _db.Query(
+            """
+            SELECT id, bank_id, faction_id, faction_name_vi, principal_amount, monthly_rate_pct,
+                   privilege_code, privilege_desc_vi, issued_day, status
+            FROM bk_faction_loan
+            WHERE bank_id = @bid
+            ORDER BY id DESC
+            """,
+            row => new FactionWarLoanDef(
+                row.GetInt64(0),
+                row.GetInt64(1),
+                row.GetInt64(2),
+                row.GetString(3),
+                row.GetInt64(4),
+                row.GetDouble(5),
+                row.GetString(6),
+                row.GetString(7),
+                row.GetInt32(8),
+                row.GetString(9)),
+            DbArgs.One("@bid", bankId));
+    }
 
+    public bool HasFactionPrivilege(string privilegeCode, long playerId = 1)
+    {
+        var bank = GetBank(playerId);
+        if (bank is null) return false;
+        return _db.ScalarLong(
+            "SELECT COUNT(*) FROM bk_faction_loan WHERE bank_id = @bid AND privilege_code = @code AND status = 'ACTIVE'",
+            new DbArgs().Add("@bid", bank.Id).Add("@code", privilegeCode)) > 0;
+    }
+
+    public PlayerBankResult IssueFactionWarLoan(long factionId, long principalAmount, long playerId = 1)
+    {
+        if (principalAmount < 1000)
+        {
+            return new PlayerBankResult(false, "Khoản cho vay Tín Dụng Quân Phí tối thiểu là 1.000 Quan Bạc.");
+        }
+
+        var bank = GetBank(playerId);
+        if (bank is null)
+        {
+            return new PlayerBankResult(false, "Bạn cần sáng lập Đại Tiền Trang trước khi tài trợ quân phí cho chư hầu.");
+        }
+
+        var hqBranch = GetBranch(bank.Id, bank.HeadquartersCitadelId) ?? GetBranches(bank.Id).FirstOrDefault();
+        if (hqBranch is null || hqBranch.VaultCash < principalAmount)
+        {
+            return new PlayerBankResult(false, $"Kim khố Hội sở không đủ bạc thỏi ({hqBranch?.VaultCash ?? 0:N0}/{principalAmount:N0} Quan) để giải ngân quân phí.");
+        }
+
+        var (factionName, ratePct, privCode, privDesc) = factionId switch
+        {
+            1 => ("Tào Ngụy (Trung Nguyên)", 6.0, "TAX_EXEMPT_NORTH", "Miễn thuế thông thương & Đặc quyền khai mỏ Trung Nguyên"),
+            2 => ("Thục Hán (Ích Châu)", 5.5, "BROCADE_MONOPOLY", "Độc quyền thu mua Gấm Thục & Dược thảo Tây Xuyên"),
+            3 => ("Đông Ngô (Giang Đông)", 6.0, "MARITIME_CHARTER", "Đặc quyền vận tải thủy lộ Trường Giang & Trầm Hương"),
+            _ => ($"Chư Hầu Thế Lực #{factionId}", 6.5, "WAR_BONDS", "Khế ước Quân Nhu Thế Lực & Bảo hộ thương đoàn")
+        };
+
+        _db.Transaction(() =>
+        {
+            _db.Execute(
+                "UPDATE bk_player_branch SET vault_cash = vault_cash - @amt WHERE id = @id",
+                new DbArgs().Add("@amt", principalAmount).Add("@id", hqBranch.Id));
+
+            _db.Execute(
+                "UPDATE bk_player_bank SET reputation = MIN(100, reputation + 10) WHERE id = @bid",
+                DbArgs.One("@bid", bank.Id));
+
+            _db.Execute(
+                """
+                INSERT INTO bk_faction_loan(bank_id, faction_id, faction_name_vi, principal_amount, monthly_rate_pct, privilege_code, privilege_desc_vi, issued_day, status)
+                VALUES(@bid, @fid, @fname, @amt, @rate, @pcode, @pdesc, @day, 'ACTIVE')
+                """,
+                new DbArgs()
+                    .Add("@bid", bank.Id)
+                    .Add("@fid", factionId)
+                    .Add("@fname", factionName)
+                    .Add("@amt", principalAmount)
+                    .Add("@rate", ratePct)
+                    .Add("@pcode", privCode)
+                    .Add("@pdesc", privDesc)
+                    .Add("@day", _clock.Today.DayIndex));
+        });
+
+        _log.Info($"Đại Tiền Trang giải ngân {principalAmount:N0} Quan Tín Dụng Quân Phí cho {factionName}, nhận đặc quyền [{privDesc}].");
+        return new PlayerBankResult(true, $"Đã giải ngân {principalAmount:N0} Quan Tín Dụng Quân Phí cho {factionName}! Hưởng lãi {ratePct}%/tháng và đặc quyền: {privDesc}.", principalAmount);
+    }
+
+    public PlayerBankResult RecallFactionWarLoan(long loanId, long playerId = 1)
+    {
+        var bank = GetBank(playerId);
+        if (bank is null) return new PlayerBankResult(false, "Chưa có Đại Tiền Trang.");
+
+        var loan = GetFactionLoans(bank.Id).FirstOrDefault(l => l.Id == loanId && l.Status == "ACTIVE");
+        if (loan is null) return new PlayerBankResult(false, "Không tìm thấy khế ước tín dụng quân phí đang hoạt động.");
+
+        var hqBranch = GetBranch(bank.Id, bank.HeadquartersCitadelId) ?? GetBranches(bank.Id).FirstOrDefault();
+        if (hqBranch is null) return new PlayerBankResult(false, "Không tìm thấy Hội sở nhận bạc.");
+
+        _db.Transaction(() =>
+        {
+            _db.Execute("UPDATE bk_faction_loan SET status = 'REPAID' WHERE id = @id", DbArgs.One("@id", loan.Id));
+            _db.Execute(
+                "UPDATE bk_player_branch SET vault_cash = vault_cash + @amt WHERE id = @id",
+                new DbArgs().Add("@amt", loan.PrincipalAmount).Add("@id", hqBranch.Id));
+        });
+
+        return new PlayerBankResult(true, $"Đã thu hồi {loan.PrincipalAmount:N0} Quan vốn gốc Tín Dụng Quân Phí từ {loan.FactionNameVi} về kim khố Hội sở.", loan.PrincipalAmount);
+    }
+
+    /// <summary>
+    /// Daily tick: delivers bullion convoys that have reached their destination ETA.
+    /// Does NOT compound monthly deposit/loan interest.
+    /// </summary>
+    public void StepDailyConvoys(GameDate date)
+    {
+        var banks = _db.Query("SELECT id FROM bk_player_bank", r => r.GetInt64(0));
         var currentDay = date.DayIndex;
 
-        foreach (var b in banks)
+        foreach (var bankId in banks)
         {
-            // 1. Deliver pending convoys
             var pendingConvoys = _db.Query(
                 """
                 SELECT id, dest_citadel_id, bullion_amount
@@ -365,16 +489,41 @@ public sealed class PlayerBankService
                 WHERE bank_id = @bid AND status = 'IN_TRANSIT' AND @day >= eta_day
                 """,
                 r => (Id: r.GetInt64(0), DestCity: r.GetInt64(1), Amount: r.GetInt64(2)),
-                new DbArgs().Add("@bid", b.Id).Add("@day", currentDay));
+                new DbArgs().Add("@bid", bankId).Add("@day", currentDay));
 
             foreach (var conv in pendingConvoys)
             {
                 _db.Execute(
                     "UPDATE bk_player_branch SET vault_cash = vault_cash + @amt WHERE bank_id = @bid AND citadel_id = @city",
-                    new DbArgs().Add("@amt", conv.Amount).Add("@bid", b.Id).Add("@city", conv.DestCity));
+                    new DbArgs().Add("@amt", conv.Amount).Add("@bid", bankId).Add("@city", conv.DestCity));
 
                 _db.Execute("UPDATE bk_player_convoy SET status = 'DELIVERED' WHERE id = @id",
                     DbArgs.One("@id", conv.Id));
+            }
+        }
+    }
+
+    public void SimulateMonthlyTurn(GameDate date)
+    {
+        StepDailyConvoys(date);
+
+        var banks = _db.Query(
+            "SELECT id, reputation, reserve_ratio_pct, headquarters_citadel_id FROM bk_player_bank",
+            r => (Id: r.GetInt64(0), Rep: r.GetInt32(1), ReserveRatio: r.GetInt32(2), HqCity: r.GetInt64(3)));
+
+        foreach (var b in banks)
+        {
+            // 1. Collect monthly sovereign war loan interest into HQ vault
+            var activeWarLoans = GetFactionLoans(b.Id).Where(l => l.Status == "ACTIVE").ToList();
+            if (activeWarLoans.Count > 0)
+            {
+                var totalSovereignInterest = activeWarLoans.Sum(l => (long)(l.PrincipalAmount * (l.MonthlyRatePct / 100.0)));
+                if (totalSovereignInterest > 0)
+                {
+                    _db.Execute(
+                        "UPDATE bk_player_branch SET vault_cash = vault_cash + @interest WHERE bank_id = @bid AND citadel_id = @hq",
+                        new DbArgs().Add("@interest", totalSovereignInterest).Add("@bid", b.Id).Add("@hq", b.HqCity));
+                }
             }
 
             // 2. Process branch earnings & interest
