@@ -1,6 +1,10 @@
 # Spec — Nâng cấp lấy cảm hứng từ dòng Tam Quốc Chí
 
-Nhánh chính: `feat/tam-quoc-upgrades` (tách từ `main` ở `0b1d20a`). Mỗi đợt làm trên nhánh con `feat/tq-NN-<tên>` trong worktree riêng, Claude nghiệm thu rồi gộp vào nhánh chính.
+Nhánh nghiệm thu: `feat/tam-quoc-upgrades`, tách từ `main` ở commit `0b1d20a`.
+
+- Mỗi đợt làm trên một nhánh con `feat/tq-NN-<tên>`, trong worktree riêng.
+- Claude nghiệm thu rồi gộp nhánh con vào nhánh nghiệm thu. Nhánh nào không đạt thì không gộp.
+- Không gộp vào `main`. `main` giữ nguyên các tính năng hiện có. Chỉ khi người chơi đã thử nhánh nghiệm thu và đồng ý thì mới mở PR vào `main`.
 
 Nguồn tham khảo: Tam Quốc Chí 8 Remake (2024), XIII, XIV. Chỉ lấy ý tưởng cách chơi. Hình, tên giao diện, bố cục là của game mình, không chép của Koei.
 
