@@ -1,5 +1,10 @@
 import { SimTBridge } from './bridge.js';
 
+// The historical event scene reuses the talk scene's stage, dock, paper and choice styles (scene.css)
+// so it reads as part of the same game; event-scene.css only adds the two-figure cast.
+
+const HAN_NUMERALS = ['壹', '貳', '參', '肆', '伍', '陸'];
+
 export function escapeEventHtml(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
@@ -18,210 +23,159 @@ export function splitEventSentences(narrative) {
   return parts.length > 0 ? parts : [raw];
 }
 
-export function computeEventLayout(winWidth, portraitCount) {
-  const clampedCount = Math.max(0, Math.min(2, Number(portraitCount) || 0));
-  const totalW = Math.min(1240, Math.max(320, Number(winWidth) || 1076));
-  const padX = 40;
-  const colW = clampedCount > 0 ? 185 : 0;
-  const gaps = clampedCount === 2 ? 28 : clampedCount === 1 ? 14 : 0;
-  const centerW = totalW - padX - colW * clampedCount - gaps;
-  return {
-    totalWidth: totalW,
-    portraitCount: clampedCount,
-    portraitWidth: colW,
-    centerWidth: centerW,
-    hasHorizontalOverflow: totalW > (Number(winWidth) || 1076) || centerW < 420
-  };
-}
+let keyHandler = null;
 
-let activeTimer = null;
-let activeKeyHandler = null;
-
-function clearEventTimers() {
-  if (activeTimer !== null) {
-    clearInterval(activeTimer);
-    activeTimer = null;
-  }
-  if (activeKeyHandler !== null && typeof window !== 'undefined') {
-    window.removeEventListener('keydown', activeKeyHandler);
-    activeKeyHandler = null;
+function unmountEventScene() {
+  if (keyHandler) {
+    window.removeEventListener('keydown', keyHandler);
+    keyHandler = null;
   }
 }
 
-function prefersReducedMotion() {
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  }
-  return false;
-}
-
-function renderPortraitCard(p) {
-  if (!p) return '';
+function figureHtml(p) {
   return `
-    <div class="tk-event-portrait-card">
-      <img class="tk-event-portrait-img" src="${escapeEventHtml(p.portraitPath)}" alt="${escapeEventHtml(p.nameVi)}" />
-      <div class="tk-event-portrait-caption">
-        <div class="tk-event-portrait-name">${escapeEventHtml(p.nameVi)}</div>
-        <div class="tk-event-portrait-role">${escapeEventHtml(p.roleVi || '')}</div>
+    <figure class="tk-event-figure">
+      <div class="tk-char-rig">
+        <div class="tk-char-breath">
+          <img class="tk-char-img" src="${escapeEventHtml(p.portraitPath)}" alt="${escapeEventHtml(p.nameVi)}" />
+        </div>
       </div>
-    </div>
+      <figcaption class="tk-event-nameplate">
+        <span class="tk-event-nameplate-name tk-one">${escapeEventHtml(p.nameVi)}</span>
+        <span class="tk-event-nameplate-role tk-one">${escapeEventHtml(p.roleVi || '')}</span>
+      </figcaption>
+    </figure>
   `;
 }
 
-function renderEventStage(container, scene, bridge) {
-  clearEventTimers();
+function renderEventScene(container, scene, bridge) {
+  unmountEventScene();
   if (!container || !scene) return;
 
+  const sentences = Array.isArray(scene.sentencesVi) && scene.sentencesVi.length > 0
+    ? scene.sentencesVi
+    : splitEventSentences(scene.narrativeVi);
   const portraits = Array.isArray(scene.portraits) ? scene.portraits.slice(0, 2) : [];
-  const sentences = splitEventSentences(scene.narrativeVi);
   const impacts = Array.isArray(scene.impactBadges) ? scene.impactBadges : [];
   const choices = Array.isArray(scene.choices) && scene.choices.length > 0
     ? scene.choices
-    : [{ id: 'continue', labelVi: 'Tiếp tục', subtitleVi: 'Khép lại trang sử' }];
+    : [{ id: 'continue', labelVi: 'Tiếp tục', hintVi: 'Khép lại trang sử' }];
+  // One page per sentence, then a last "Hệ quả" page, so the paper keeps one height throughout.
+  const pageCount = sentences.length + (impacts.length > 0 ? 1 : 0);
+  let page = 0;
+  // "Đổng Trác tiến kinh — Thâu tóm triều cương": the head is the name on the paper, the tail its subtitle.
+  const [titleHead, ...titleTail] = String(scene.titleVi || 'Thiên hạ đại biến').split(/\s+[—–-]\s+/);
+  const subtitle = [titleTail.join(' — '), `Sử biến · ${scene.locationLabelVi || ''}`].filter(Boolean).join(' · ');
 
-  const instantReveal = prefersReducedMotion() || Boolean(scene.isReplay) || sentences.length <= 1;
-  let revealedCount = instantReveal ? sentences.length : 1;
+  const choicesHtml = choices.map((c, idx) => `
+    <button type="button" class="tk-choice" data-choice-id="${escapeEventHtml(c.id)}" ${c.enabled === false ? 'disabled' : ''}>
+      <span class="tk-choice-num">${HAN_NUMERALS[idx] || idx + 1}</span>
+      <span class="tk-choice-label">${escapeEventHtml(c.labelVi)}</span>
+      ${c.hintVi ? `<span class="tk-choice-tag">${escapeEventHtml(c.hintVi)}</span>` : ''}
+    </button>
+  `).join('');
 
-  const layoutClass = portraits.length >= 2
-    ? 'is-two-portraits'
-    : portraits.length === 1
-      ? 'is-single-portrait'
-      : 'is-no-portrait';
-
-  const leftColHtml = portraits.length >= 1
-    ? `<aside class="tk-event-portrait-col">${renderPortraitCard(portraits[0])}</aside>`
-    : '';
-  const rightColHtml = portraits.length >= 2
-    ? `<aside class="tk-event-portrait-col">${renderPortraitCard(portraits[1])}</aside>`
-    : '';
-
-  const sentencesHtml = sentences
-    .map((line, idx) => `<p class="tk-event-sentence${idx >= revealedCount ? ' is-hidden' : ''}" data-sentence-idx="${idx}">${escapeEventHtml(line)}</p>`)
-    .join('');
-
-  const impactsHtml = impacts
-    .map((badge) => `<span class="tk-event-impact-pill">${escapeEventHtml(badge)}</span>`)
-    .join('');
-
-  const choicesHtml = choices
-    .map((ch) => {
-      const isCont = String(ch.id) === 'continue';
-      const subText = ch.hintVi || ch.subtitleVi || '';
-      const subHtml = subText
-        ? `<span class="tk-event-choice-sub">${escapeEventHtml(subText)}</span>`
-        : '';
-      return `
-        <button type="button" class="tk-event-choice-btn${isCont ? ' is-continue' : ''}" data-choice-id="${escapeEventHtml(ch.id)}">
-          <span class="tk-event-choice-label">${escapeEventHtml(ch.labelVi)}</span>
-          ${subHtml}
-        </button>
-      `;
-    })
-    .join('');
-
-  const replayBadgeHtml = scene.isReplay
-    ? `<span class="tk-event-replay-badge">ĐÃ XẢY RA · XEM LẠI</span>`
-    : '';
+  const effectsHtml = impacts.map((i) => `<li>${escapeEventHtml(i)}</li>`).join('');
 
   container.innerHTML = `
-    <div class="tk-event-backdrop" style="background-image: url('${escapeEventHtml(scene.backgroundArtPath || 'art/backgrounds/hall.webp')}')"></div>
-    <div class="tk-event-vignette"></div>
-    <div class="tk-event-layout ${layoutClass}">
-      ${leftColHtml}
-      <div class="tk-event-center">
-        <header class="tk-event-header">
-          <div class="tk-event-meta-row">
-            <span class="tk-event-era-badge">📜 ${escapeEventHtml(scene.eraLabelVi || '')}</span>
-            <span class="tk-event-location-badge">📍 ${escapeEventHtml(scene.locationLabelVi || 'Trung Nguyên')}</span>
-            ${replayBadgeHtml}
-          </div>
-          <h1 class="tk-event-title">${escapeEventHtml(scene.titleVi || 'Thiên hạ đại biến')}</h1>
-        </header>
-
-        <article class="tk-event-scroll" id="tk-event-scroll-box" title="Nhấp chuột hoặc nhấn Space để mở tiếp câu chuyện">
-          <div class="tk-event-sentences" id="tk-event-sentences-list">
-            ${sentencesHtml}
-          </div>
-          <footer class="tk-event-scroll-footer">
-            <div class="tk-event-impacts">${impactsHtml}</div>
-            <span id="tk-event-progress-hint">${revealedCount < sentences.length ? `Câu ${revealedCount}/${sentences.length} · Nhấp hoặc Space để đọc nhanh` : `Trọn vẹn ${sentences.length} câu sử ký`}</span>
-          </footer>
-        </article>
-
-        <nav class="tk-event-choices" aria-label="Quyết định trước sử biến">
-          ${choicesHtml}
-        </nav>
+    <div class="tk-talk-stage tk-event-stage">
+      <div class="tk-layer tk-talk-bg" style="background-image:url('${escapeEventHtml(scene.backgroundArtPath)}')"></div>
+      <div class="tk-layer tk-event-shade"></div>
+      <div class="tk-mist"></div>
+      <div class="tk-layer tk-event-cast tk-event-cast-${portraits.length}">
+        ${portraits.map(figureHtml).join('')}
       </div>
-      ${rightColHtml}
+      <div class="tk-vignette"></div>
+
+      <header class="tk-talk-topbar">
+        <div class="tk-loc-badge">
+          <span class="tk-loc-dot"></span>
+          <span class="tk-loc-vi tk-one">${escapeEventHtml(scene.locationLabelVi)}</span>
+          <span class="tk-loc-han">史變</span>
+        </div>
+        <div class="tk-topbar-right">
+          <span class="tk-event-era tk-one">${escapeEventHtml(scene.eraLabelVi)}</span>
+          ${scene.isReplay ? '<button type="button" class="tk-close-btn" id="tk-event-close">[ESC] Đóng</button>' : ''}
+        </div>
+      </header>
+
+      <footer class="tk-talk-dock">
+        <div class="tk-dialog-paper" id="tk-event-paper" title="Bấm hoặc nhấn Space để đọc tiếp">
+          <div class="tk-speaker-row">
+            <div class="tk-speaker-left">
+              <span class="tk-seal tk-seal-sm">史</span>
+              <div>
+                <div class="tk-speaker-name tk-one">${escapeEventHtml(titleHead)}</div>
+                <div class="tk-speaker-sub tk-one">${escapeEventHtml(subtitle)}</div>
+              </div>
+            </div>
+            ${scene.isReplay ? '<span class="tk-mood-pill tk-one">Xem lại</span>' : ''}
+          </div>
+          <div class="tk-dialog-line tk-event-line" id="tk-event-line"></div>
+          <div class="tk-dialog-foot">
+            <span class="tk-line-count tk-num" id="tk-event-count"></span>
+            <button type="button" class="tk-next-btn" id="tk-event-next"></button>
+          </div>
+        </div>
+        <div class="tk-choices-col tk-event-choices">${choicesHtml}</div>
+      </footer>
     </div>
   `;
 
-  const updateSentenceVisibility = () => {
-    const nodes = container.querySelectorAll('.tk-event-sentence');
-    nodes.forEach((node, idx) => {
-      if (idx < revealedCount) {
-        node.classList.remove('is-hidden');
-      }
-    });
-    const hint = container.querySelector('#tk-event-progress-hint');
-    if (hint) {
-      hint.textContent = revealedCount < sentences.length
-        ? `Câu ${revealedCount}/${sentences.length} · Nhấp hoặc Space để đọc nhanh`
-        : `Trọn vẹn ${sentences.length} câu sử ký`;
+  const lineEl = container.querySelector('#tk-event-line');
+  const countEl = container.querySelector('#tk-event-count');
+  const nextEl = container.querySelector('#tk-event-next');
+
+  const showPage = () => {
+    const onEffects = page >= sentences.length;
+    lineEl.classList.remove('is-in');
+    if (onEffects) {
+      lineEl.innerHTML = `<ul class="tk-event-effects">${effectsHtml}</ul>`;
+    } else {
+      lineEl.textContent = sentences[page];
     }
-    if (revealedCount >= sentences.length && activeTimer !== null) {
-      clearInterval(activeTimer);
-      activeTimer = null;
+    void lineEl.offsetWidth;
+    lineEl.classList.add('is-in');
+    countEl.textContent = onEffects ? 'Hệ quả' : `${page + 1} / ${sentences.length}`;
+    nextEl.textContent = page >= pageCount - 1 ? 'Chọn cách ứng xử ▸' : '[SPACE] Tiếp tục ▸';
+  };
+  const advance = () => {
+    if (page < pageCount - 1) {
+      page += 1;
+      showPage();
     }
   };
+  showPage();
 
-  const advanceNarrative = () => {
-    if (revealedCount < sentences.length) {
-      revealedCount = sentences.length;
-      updateSentenceVisibility();
-    }
-  };
-
-  const scrollBox = container.querySelector('#tk-event-scroll-box');
-  if (scrollBox) {
-    scrollBox.addEventListener('click', advanceNarrative);
-  }
-
-  if (!instantReveal && typeof setInterval === 'function') {
-    activeTimer = setInterval(() => {
-      if (revealedCount < sentences.length) {
-        revealedCount += 1;
-        updateSentenceVisibility();
-      } else {
-        clearEventTimers();
-      }
-    }, 850);
-  }
-
-  activeKeyHandler = (ev) => {
-    if (ev.code === 'Space' || ev.key === ' ') {
-      if (revealedCount < sentences.length) {
-        ev.preventDefault();
-        advanceNarrative();
-      }
-    }
-  };
-  if (typeof window !== 'undefined') {
-    window.addEventListener('keydown', activeKeyHandler);
-    window.SimTEventScene = { skipReveal: advanceNarrative };
-  }
-
-  const buttons = container.querySelectorAll('.tk-event-choice-btn');
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const choiceId = btn.getAttribute('data-choice-id') || 'continue';
-      clearEventTimers();
-      bridge.sendChoice(scene.sceneId, choiceId);
-    });
+  container.querySelector('#tk-event-paper').addEventListener('click', advance);
+  container.querySelectorAll('[data-choice-id]').forEach((btn) => {
+    btn.addEventListener('click', () => bridge.sendChoice(scene.sceneId, btn.getAttribute('data-choice-id')));
   });
+  const closeBtn = container.querySelector('#tk-event-close');
+  if (closeBtn) closeBtn.addEventListener('click', () => bridge.sendChoice(scene.sceneId, 'continue'));
+
+  keyHandler = (e) => {
+    if (bridge.getActiveKind() !== 'event') return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      advance();
+      return;
+    }
+    if (e.key === 'Escape' && scene.isReplay) {
+      e.preventDefault();
+      bridge.sendChoice(scene.sceneId, 'continue');
+      return;
+    }
+    const digit = parseInt(e.key, 10);
+    if (digit >= 1 && digit <= 6 && choices[digit - 1] && choices[digit - 1].enabled !== false) {
+      e.preventDefault();
+      bridge.sendChoice(scene.sceneId, choices[digit - 1].id);
+    }
+  };
+  window.addEventListener('keydown', keyHandler);
 }
 
 SimTBridge.registerStage('event', {
-  render: renderEventStage,
-  unmount: clearEventTimers
+  render: renderEventScene,
+  unmount: unmountEventScene
 });

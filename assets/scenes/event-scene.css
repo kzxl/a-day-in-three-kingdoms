@@ -1,289 +1,44 @@
-.tk-stage-event {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #120d08;
-  color: #f6ebd4;
-  font-family: "Segoe UI", "Noto Serif", Georgia, serif;
-  box-sizing: border-box;
-  user-select: none;
+/* Historical event scene: everything else comes from the talk scene styles in scene.css. */
+
+.tk-event-shade {
+  background: linear-gradient(180deg, rgba(20, 14, 10, 0.35) 0%, rgba(20, 14, 10, 0.15) 45%, rgba(20, 14, 10, 0.82) 100%);
 }
 
-.tk-event-backdrop {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-  filter: brightness(0.42) contrast(1.08) saturate(0.88);
-  transform: scale(1.02);
+.tk-event-cast {
+  inset: 0; top: 56px; bottom: 212px;
+  display: flex; align-items: flex-end; justify-content: center; gap: 12%;
+  transform: translate3d(calc(var(--mx) * 16px), calc(var(--my) * 8px), 0);
+}
+.tk-event-cast-2 { justify-content: space-between; padding: 0 9%; }
+.tk-event-figure { position: relative; margin: 0; display: flex; flex-direction: column; align-items: center; }
+/* A definite height (cast top 56 + dock 212 + nameplate ~42) so the width follows the art's aspect ratio. */
+.tk-event-figure .tk-char-img { height: calc(100vh - 310px); max-height: 640px; width: auto; }
+.tk-event-cast-2 .tk-event-figure:last-child .tk-char-rig { animation-delay: -3.5s; }
+
+.tk-event-nameplate {
+  position: relative; z-index: 1; margin-top: -12px; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  max-width: 220px; padding: 5px 12px;
+  background: rgba(24, 18, 13, 0.84); border: 1px solid rgba(196, 160, 98, 0.42); border-radius: 4px;
+}
+.tk-event-nameplate-name { font-family: var(--font-display); font-size: 13.5px; font-weight: 700; color: var(--ink); max-width: 100%; }
+.tk-event-nameplate-role { font-size: 11px; color: var(--muted); max-width: 100%; }
+
+.tk-event-era {
+  display: inline-flex; align-items: center; height: 34px; padding: 0 12px; max-width: 46vw;
+  background: rgba(24, 18, 13, 0.84); border: 1px solid rgba(196, 160, 98, 0.35); border-radius: 4px;
+  color: var(--muted); font-size: 11.5px;
 }
 
-.tk-event-vignette {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at center, rgba(18, 13, 8, 0.25) 0%, rgba(12, 8, 4, 0.86) 78%, rgba(8, 5, 2, 0.96) 100%),
-    linear-gradient(180deg, rgba(14, 9, 5, 0.78) 0%, rgba(14, 9, 5, 0.18) 28%, rgba(14, 9, 5, 0.88) 100%);
-  pointer-events: none;
+/* Room for four lines so the paper (and the cast above it) never jumps between pages. */
+.tk-event-line { min-height: 5.6em; }
+.tk-event-line.is-in { animation: tkEventLineIn 0.25s ease both; }
+@keyframes tkEventLineIn { from { opacity: 0.15; } to { opacity: 1; } }
+
+.tk-event-effects { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 14px; line-height: 1.35; }
+.tk-event-effects li { position: relative; padding-left: 14px; }
+.tk-event-effects li::before {
+  content: ''; position: absolute; left: 2px; top: 0.55em; width: 5px; height: 5px;
+  background: var(--vermilion); transform: rotate(45deg);
 }
 
-.tk-event-layout {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: minmax(140px, 185px) minmax(0, 1fr) minmax(140px, 185px);
-  grid-template-rows: minmax(0, 1fr);
-  gap: 12px;
-  width: 100%;
-  height: 100%;
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 12px 16px;
-  box-sizing: border-box;
-  align-items: stretch;
-}
-
-.tk-event-layout.is-single-portrait {
-  grid-template-columns: minmax(145px, 195px) minmax(0, 1fr);
-}
-
-.tk-event-layout.is-no-portrait {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.tk-event-portrait-col {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-width: 0;
-  min-height: 0;
-}
-
-.tk-event-portrait-card {
-  position: relative;
-  width: 100%;
-  max-width: 185px;
-  border: 1.5px solid rgba(212, 168, 83, 0.65);
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(32, 22, 13, 0.85) 0%, rgba(16, 11, 6, 0.95) 100%);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65);
-  overflow: hidden;
-}
-
-.tk-event-portrait-img {
-  display: block;
-  width: 100%;
-  height: 290px;
-  object-fit: cover;
-  object-position: top center;
-}
-
-.tk-event-portrait-caption {
-  padding: 7px 8px;
-  text-align: center;
-  background: rgba(15, 10, 6, 0.95);
-  border-top: 1px solid rgba(212, 168, 83, 0.35);
-}
-
-.tk-event-portrait-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #f8e5b8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tk-event-portrait-role {
-  font-size: 10.5px;
-  color: #cbb58b;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tk-event-center {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  gap: 8px;
-}
-
-.tk-event-header {
-  flex: 0 0 auto;
-  text-align: center;
-  padding: 8px 14px;
-  background: linear-gradient(180deg, rgba(38, 25, 14, 0.92) 0%, rgba(24, 16, 9, 0.88) 100%);
-  border: 1.5px solid rgba(218, 173, 86, 0.68);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-}
-
-.tk-event-meta-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.tk-event-era-badge {
-  display: inline-block;
-  padding: 2px 10px;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  color: #231507;
-  background: linear-gradient(90deg, #d8a74a 0%, #f1cf7a 50%, #d8a74a 100%);
-  border-radius: 999px;
-}
-
-.tk-event-location-badge {
-  display: inline-block;
-  padding: 2px 9px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #ebd5a7;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(218, 173, 86, 0.45);
-  border-radius: 999px;
-}
-
-.tk-event-replay-badge {
-  display: inline-block;
-  padding: 2px 9px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #f9e6d8;
-  background: rgba(168, 50, 31, 0.85);
-  border: 1px solid rgba(235, 130, 108, 0.65);
-  border-radius: 999px;
-}
-
-.tk-event-title {
-  margin: 0;
-  font-size: 19px;
-  font-weight: 800;
-  line-height: 1.22;
-  color: #fce8b2;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.75);
-}
-
-.tk-event-scroll {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: linear-gradient(180deg, rgba(245, 233, 204, 0.96) 0%, rgba(232, 214, 175, 0.96) 100%);
-  color: #2b1d0e;
-  border: 2px solid #b5853b;
-  border-radius: 10px;
-  box-shadow: inset 0 0 24px rgba(138, 94, 34, 0.25), 0 10px 26px rgba(0, 0, 0, 0.55);
-  cursor: pointer;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.tk-event-sentences {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.tk-event-sentence {
-  margin: 0;
-  font-size: 12.8px;
-  line-height: 1.36;
-  color: #26180a;
-  font-weight: 500;
-}
-
-.tk-event-sentence.is-hidden {
-  display: none;
-}
-
-.tk-event-scroll-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 6px;
-  padding-top: 5px;
-  border-top: 1px dashed rgba(120, 82, 32, 0.4);
-  font-size: 10.5px;
-  color: #5c3f1c;
-}
-
-.tk-event-impacts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.tk-event-impact-pill {
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: rgba(139, 38, 29, 0.12);
-  border: 1px solid rgba(139, 38, 29, 0.35);
-  color: #6e1c14;
-  font-size: 10.5px;
-  font-weight: 600;
-}
-
-.tk-event-choices {
-  flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
-  gap: 7px;
-}
-
-.tk-event-choice-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  width: 100%;
-  padding: 7px 10px;
-  background: linear-gradient(180deg, rgba(44, 30, 17, 0.95) 0%, rgba(26, 17, 9, 0.96) 100%);
-  color: #f7e6be;
-  border: 1px solid rgba(216, 169, 79, 0.65);
-  border-radius: 8px;
-  cursor: pointer;
-  text-align: left;
-  transition: background 120ms ease, border-color 120ms ease;
-}
-
-.tk-event-choice-btn:hover,
-.tk-event-choice-btn:focus-visible {
-  background: linear-gradient(180deg, rgba(68, 46, 24, 0.98) 0%, rgba(38, 25, 13, 0.98) 100%);
-  border-color: #f4cf7c;
-  outline: none;
-}
-
-.tk-event-choice-btn.is-continue {
-  background: linear-gradient(180deg, rgba(31, 24, 18, 0.92) 0%, rgba(19, 14, 10, 0.94) 100%);
-  border-color: rgba(180, 148, 92, 0.45);
-}
-
-.tk-event-choice-label {
-  font-size: 12.5px;
-  font-weight: 700;
-  line-height: 1.25;
-  color: #fbe8ba;
-}
-
-.tk-event-choice-sub {
-  font-size: 10.5px;
-  line-height: 1.2;
-  color: #ccb58a;
-  margin-top: 2px;
-}
+.tk-event-choices .tk-choice-label { flex: 1 1 auto; white-space: normal; line-height: 1.3; }

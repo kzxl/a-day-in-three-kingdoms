@@ -56,6 +56,13 @@ Thứ tự chạy:
 - Biên niên `so_journey_log` đã nhận các `event_kind`: `martial`, `commerce`, `governance`, `scholarly`, `travel`, `relationship`, `history`. Dùng các loại này, không dựng lại bảng.
 - Ảnh và file QA để ở `D:\Hung DATA\Tool\_tq_shots\NN\`, không commit vào repo.
 - Chữ trong game là tiếng Việt, tên người và thành dùng đúng dữ liệu hiện có.
+- **Giao diện:** cảnh và màn mới dùng lại các thành phần đã có trong `assets/scenes/scene.css`, gồm:
+  - khung cảnh trò chuyện `tk-talk-stage`;
+  - thanh trên `tk-loc-badge`;
+  - thẻ giấy `tk-dialog-paper` có ấn `tk-seal`;
+  - lựa chọn `tk-choice` đánh số 壹 貳 參.
+
+  CSS riêng chỉ để bố trí những gì thật sự mới. Không dùng emoji trong giao diện, không gradient tự chế, không pill/chip trang trí. Mẫu đúng: cảnh sử biến `event-scene.js` sau khi làm lại.
 - Cảnh WebView2 không cuộn ngang ở cửa sổ 1076, hiệu ứng tắt khi `prefers-reduced-motion`.
 - Nghiệm thu mỗi đợt: build Release sạch, `dotnet test SimT.sln -c Release` qua hết, `node tools/check-scenes.mjs`, `--smoke`, ảnh chụp các màn mới, báo cáo ngắn.
 

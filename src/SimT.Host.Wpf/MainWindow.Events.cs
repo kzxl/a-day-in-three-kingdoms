@@ -93,7 +93,7 @@ public partial class MainWindow
             .ToArray();
 
         var choices = evt.Choices
-            .Select(c => new SceneChoice(c.Key, c.LabelVi, c.HintVi))
+            .Select(c => SplitChoiceEffect(c.Key, c.LabelVi, c.HintVi))
             .ToList();
         if (choices.Count == 0 || !choices.Any(c => string.Equals(c.Id, "continue", StringComparison.OrdinalIgnoreCase)))
         {
@@ -114,6 +114,15 @@ public partial class MainWindow
             impacts,
             choices,
             isReplay || string.Equals(evt.Status, "viewed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Event data writes the effect in brackets ("Quyên 80 Quan … (+Uy danh)"); show it as the choice hint instead.
+    private static SceneChoice SplitChoiceEffect(string key, string label, string? hint)
+    {
+        var open = label.LastIndexOf(" (", StringComparison.Ordinal);
+        if (!string.IsNullOrWhiteSpace(hint) || open <= 0 || !label.EndsWith(')'))
+            return new SceneChoice(key, label, hint);
+        return new SceneChoice(key, label[..open], label[(open + 2)..^1]);
     }
 
     private void HandleEventSceneMessage(string type, string id, EventScene scene)
