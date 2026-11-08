@@ -25,6 +25,8 @@ Nguồn tham khảo: Tam Quốc Chí 8 Remake (2024), XIII, XIV. Chỉ lấy ý 
 | 11 | Chân dung nhiều biểu cảm | Codex | `prompts/23` | Xong (merge "batch 11") |
 | 12 | Võ tướng lục | agy | `prompts/24` | Xong (merge "batch 12") |
 
+| 13 | Chân dung riêng (40 nhân vật sử) và biến thể chân dung dùng chung | Codex (A, B), agy (C) | `prompts/26` | Xong (merge "portraits part A", "part B", "variants") |
+
 **Lượt kiểm tra cuối:** build Release 0 cảnh báo, 619 test, `check-scenes`, `--smoke`, hai golden replay (57 bất biến) đều qua. Chưa chơi thử trong game.
 
 Trạng thái: Chưa làm → Đang làm → Nghiệm thu → Xong (ghi commit gộp).
