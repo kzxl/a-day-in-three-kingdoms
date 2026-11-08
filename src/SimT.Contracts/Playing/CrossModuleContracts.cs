@@ -29,8 +29,13 @@ public static class CapabilityIds
     public const string CourtOffice = "politics.court";
     public const string NpcRegistry = "npc.registry";
     public const string NpcMarket = "market.npc_stalls";
+    public const string TavernRumors = "society.rumors";
+    public const string MarketRumorEvents = "market.rumor_events";
+    public const string HistoricalRumorEvents = "history.rumor_events";
     public const string SocietyChronicle = "society.chronicle";
     public const string SocialNetwork = "social.network";
+    public const string NpcTraits = "character.traits";
+    public const string Debate = "character.debate";
     public const string MilitaryCommand = "military.command";
     public const string PlayerDestiny = "player.destiny";
     public const string CityStroll = "world.stroll";
@@ -176,7 +181,8 @@ public sealed record NpcDef(
     CharacterAttributes Attributes,
     string? Personality,
     string? BioVi,
-    IReadOnlyList<NpcSkillDef>? Skills = null)
+    IReadOnlyList<NpcSkillDef>? Skills = null,
+    bool IsDeceasedFlag = false)
 {
     public IReadOnlyList<NpcSkillDef> Skills { get; init; } = Skills ?? Array.Empty<NpcSkillDef>();
 }
@@ -222,8 +228,12 @@ public interface IItemHubService
 /// <summary>NPC registry owned by <c>base.npc</c>.</summary>
 public interface INpcRegistry
 {
+    /// <summary>Characters present in this campaign year, including deceased historical records.</summary>
     IReadOnlyList<NpcDef> All { get; }
 
+    bool IsPresent(long npcId) => All.Any(n => n.Id == npcId);
+
+    /// <summary>Catalog lookup, also available for historical impacts on characters not yet present.</summary>
     NpcDef? Find(long npcId);
 
     NpcDef? FindByCode(string code);
@@ -232,6 +242,9 @@ public interface INpcRegistry
 
     /// <summary>Updates an NPC's current citadel location in registry and storage.</summary>
     void UpdateCitadel(long npcId, long newCitadelId);
+
+    /// <summary>Marks an NPC as deceased in registry and biography without deleting the database record.</summary>
+    void MarkDeceased(long npcId, string? noteVi = null) { }
 
     /// <summary>Registers a dynamically generated or procedural NPC into the registry and persistent storage.</summary>
     NpcDef RegisterDynamicNpc(

@@ -53,7 +53,7 @@ public enum TravelMode
 public sealed record TravelQuote(
     long FromCitadelId, long ToCitadelId, int BaseDays, int ActualDays, long TravelFee,
     int RationsNeeded, int FatigueExpected, IReadOnlyList<long> PathNodeIds,
-    string ModeNameVi, int CarryCapacity = TravelLuggage.WalkCapacity);
+    string ModeNameVi, int CarryCapacity = TravelLuggage.WalkCapacity, int Danger = 0, string BlockedReasonVi = "");
 
 /// <summary>Sublocation / Point of Interest owned by a citadel.</summary>
 public sealed record SublocationDef(long Id, long CitadelId, string Code, string NameVi, string Kind);
@@ -69,6 +69,9 @@ public interface IWorldMap
     IReadOnlyList<RouteLinkDef> Routes { get; }
     CitadelEcosystemDef GetEcosystem(long citadelId);
     TravelQuote QuoteTravel(long fromCitadelId, long toCitadelId, TravelMode mode);
+    void SetRouteHazard(long fromCitadelId, long toCitadelId, int dangerDelta, bool isBlocked, long expiresDayIndex, string? reasonVi = null) { }
+    bool IsRouteBlocked(long fromCitadelId, long toCitadelId) => false;
+    RouteStatus GetRouteStatus(long fromCitadelId, long toCitadelId) => new(0, "");
 }
 
 public enum StrollEventType
@@ -263,3 +266,5 @@ public static class TravelLuggage
         return string.Join(", ", parts);
     }
 }
+
+public sealed record RouteStatus(int Danger, string BlockedReasonVi);

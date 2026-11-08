@@ -11,7 +11,7 @@ public sealed class SocietyTests : IDisposable
     public void Dispose() => _host.Dispose();
 
     [Fact]
-    public void Society_initializes_all_300_npcs_with_activities_and_zero_deltas()
+    public void Society_initializes_present_npcs_with_activities_and_zero_deltas()
     {
         using var kernel = _host.Boot();
         var society = kernel.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle);
@@ -19,7 +19,6 @@ public sealed class SocietyTests : IDisposable
 
         var activities = society.AllActivities();
         Assert.Equal(registry.All.Count, activities.Count);
-        Assert.Equal(300, activities.Count);
 
         // Check Quan Vũ (historical martial general)
         var guanYu = registry.All.First(n => n.NameVi.Contains("Quan Vũ"));
@@ -180,7 +179,8 @@ public sealed class SocietyTests : IDisposable
         var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
 
         var baselineCount = registry.All.Count;
-        Assert.Equal(300, baselineCount);
+        Assert.InRange(baselineCount, 1, 299);
+        Assert.Equal(300, kernel.Db.ScalarLong("SELECT COUNT(*) FROM np_npc"));
 
         // Explicit procedural replenishment
         var spawned = society.ReplenishNpcs(kernel.Today, count: 2);

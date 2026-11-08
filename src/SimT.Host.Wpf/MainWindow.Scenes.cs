@@ -50,6 +50,11 @@ public partial class MainWindow
             new("map", "Xem bản đồ", "Hành trình liên thành")
         ];
 
+        if (customChoices is null && _kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice,out var court)
+            && court?.Factions.FirstOrDefault(f => f.Id == court.AllegianceFactionId) is { } faction
+            && faction.CapitalCityId == cityId)
+            choices = new[] { new SceneChoice("lord:audience","Bái kiến chúa công","Nhận và trình công vụ") }.Concat(choices).ToList();
+
         return new CityScene(
             $"city:{cityId}", cityId, cityName, "城", regionVi,
             GameDateCodec.ShortVi(_kernel.Today), seasonVi, weatherFx,
@@ -94,7 +99,7 @@ public partial class MainWindow
         _ => ("Mùa Đông", "snow")
     };
 
-    private static IReadOnlyList<CityHotspot> BuildCityHotspots(IReadOnlyList<SublocationDef> subs)
+    private IReadOnlyList<CityHotspot> BuildCityHotspots(IReadOnlyList<SublocationDef> subs)
     {
         string MatchSub(string fallback, params string[] keywords)
         {
@@ -107,7 +112,8 @@ public partial class MainWindow
 
         return
         [
-            new("social.network", "Quán trọ", MatchSub("Đàm đạo nhân duyên", "Tửu", "Quán", "Trà", "Viện"), "social.network", 15, 34),
+            TavernScene.Hotspot(subs, _kernel.Capabilities.IsProvided(CapabilityIds.TavernRumors))
+                ?? new("social.network", "Quán trọ", MatchSub("Đàm đạo nhân duyên", "Tửu", "Quán", "Trà", "Viện"), "social.network", 15, 34),
             new("market.stall", "Chợ", MatchSub("Mua bán hàng hóa", "Chợ", "Thương", "Thị"), "market.stall", 31, 44),
             new("market.warehouse", "Kho", MatchSub("Trữ hàng bảo quản", "Khố", "Kho", "Xưởng"), "market.warehouse", 38, 26),
             new("politics.court", "Quan phủ", MatchSub("Nhậm chức chính sự", "Cung", "Phủ", "Điện", "Đàn"), "politics.court", 52, 20),
@@ -225,12 +231,15 @@ public partial class MainWindow
         else if (activeScene is SocialScene social) HandleSocialSceneMessage(type, message.Id ?? string.Empty, social);
         else if (activeScene is MarketScene market) HandleMarketSceneMessage(type, message.Id ?? string.Empty, market);
         else if (activeScene is DossierScene dossier) HandleDossierSceneMessage(type, message.Id ?? string.Empty, dossier);
+        else if (activeScene is EventScene evtScene) HandleEventSceneMessage(type, message.Id ?? string.Empty, evtScene);
+        else if (activeScene is DebateScene debateScene) HandleDebateSceneMessage(type, message.Id ?? string.Empty, debateScene);
     }
 
     private void HandleCitySceneMessage(string type, string id, CityScene _)
     {
         if (type == "navigate")
         {
+            if (id == "society.tavern") { PresentTavern(false); return; }
             if (id.StartsWith("npc:", StringComparison.Ordinal) && long.TryParse(id["npc:".Length..], out var npcId))
             {
                 if (!TryOpenTalkScene(npcId)) MeetNpcFallback(npcId);
@@ -241,7 +250,11 @@ public partial class MainWindow
         }
 
         if (type != "choice") return;
-        if (id == "briefing") SelectScreen(CityHubScreenId);
+        if (id == "lord:audience" && _kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice,out var court)
+            && court?.Factions.FirstOrDefault(f => f.Id == court.AllegianceFactionId) is { } faction) TryOpenTalkScene(faction.LeaderNpcId);
+        else if (id == "tavern:listen") PresentTavern(true);
+        else if (id == "tavern:leave") TryOpenCityScene();
+        else if (id == "briefing") SelectScreen(CityHubScreenId);
         else if (id == "stroll") TriggerCityStroll();
         else if (id == "stroll:log")
         {
@@ -289,6 +302,12 @@ public partial class MainWindow
         _kernel.Save();
         UpdateHeader();
         InvalidateBadges(); RefreshBadges();
+
+        if (outcome.OpenDebate && outcome.DebateScene is not null)
+        {
+            SceneOverlay.ShowDebateScene(outcome.DebateScene);
+            return;
+        }
 
         if (outcome.OpenDuel)
         {
@@ -342,5 +361,37 @@ public partial class MainWindow
             }
             catch (Exception ex) { StatusText.Text = Describe(ex); }
         }
+    }
+
+    private void HandleDebateSceneMessage(string type, string id, DebateScene debateScene)
+    {
+        if (type != "choice") return;
+        if (id == "leave")
+        {
+            if (!TryOpenTalkScene(debateScene.NpcId, debateScene.ConsequenceVi))
+            {
+                SceneOverlay.HideScene();
+                RenderSelected();
+            }
+            return;
+        }
+
+        if (!_kernel.Capabilities.TryGet<IDebateService>(CapabilityIds.Debate, out var debate) || debate is null ||
+            !_kernel.Capabilities.TryGet<IDialogueModule>(CapabilityIds.Dialogue, out var dialogue) || dialogue is null)
+            return;
+
+        try
+        {
+            var session = id == "concede" ? debate.Concede() : debate.StepDebate(id);
+            _kernel.Save();
+            UpdateHeader();
+            InvalidateBadges(); RefreshBadges();
+            if (dialogue.BuildDebateScene(session) is { } nextScene)
+            {
+                SceneOverlay.ShowDebateScene(nextScene);
+                StatusText.Text = nextScene.ConsequenceVi ?? nextScene.LatestLineVi;
+            }
+        }
+        catch (Exception ex) { StatusText.Text = Describe(ex); }
     }
 }

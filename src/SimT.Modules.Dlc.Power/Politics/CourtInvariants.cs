@@ -53,9 +53,9 @@ internal static class CourtInvariants
         public string? Check(IInvariantContext context)
         {
             var count = context.Db.ScalarLong("SELECT COUNT(*) FROM po_faction");
-            if (count != 12)
+            if (count < 13)
             {
-                return $"expected 12 factions, found {count}";
+                return $"expected at least 13 historical factions, found {count}";
             }
 
             var invalid = context.Db.ScalarLong("SELECT COUNT(*) FROM po_faction WHERE troop_count < 0 OR treasury_copper < 0");

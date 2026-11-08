@@ -201,13 +201,7 @@ public partial class TitleWindow : Window
         if (_isEntering)
             return;
 
-        var name = string.IsNullOrWhiteSpace(NameBox.Text) ? "Lữ Khách" : NameBox.Text.Trim();
-        var state = LoadingProgressState.ForNewSave(name);
-        _ = RunLoadingFlowAsync(state, () =>
-        {
-            state.MarkStepDone(0);
-            return _saves.CreateAndOpen(name, state.OnKernelLog);
-        });
+        ShowScenarioPicker();
     }
 
     private void EmptyState_ActionClick(object sender, RoutedEventArgs e) =>
@@ -248,6 +242,16 @@ public partial class TitleWindow : Window
         if (_isEntering)
         {
             e.Handled = true;
+            return;
+        }
+
+        if (_scenarioPicker is not null)
+        {
+            if (e.Key == Key.Escape)
+            {
+                HideScenarioPicker();
+                e.Handled = true;
+            }
             return;
         }
 

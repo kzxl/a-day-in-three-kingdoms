@@ -4,7 +4,7 @@
   "apiVersion": "1",
   "kind": "dlc",
   "requires": ["base.world", "base.npc", "base.player", "base.content"],
-  "provides": ["social.network", "dlc.dialogue", "lineage.house"],
+  "provides": ["social.network", "character.traits", "character.debate", "dlc.dialogue", "lineage.house", "npc.bonds", "npc.wishes"],
   "consumes": [
     "world.map",
     "npc.registry",
@@ -14,7 +14,10 @@
     "player.attributes",
     "content.items",
     "market.trade",
-    "military.command"
+    "market.npc_stalls",
+    "politics.court",
+    "military.command",
+    "society.chronicle"
   ],
   "owns": {
     "tables": [
@@ -26,10 +29,18 @@
       "kz_letter",
       "dg_dialogue_line",
       "dg_dialogue_visit",
+      "dg_debate_cooldown",
+      "dg_debate_effect",
       "ln_spouse",
       "ln_child",
       "ln_shrine",
-      "ln_tutoring"
+      "ln_tutoring",
+      "kz_npc_bond",
+      "kz_bond_state",
+      "kz_npc_wish",
+      "kz_wish_state",
+      "kz_met_npc",
+      "kz_roster_milestone"
     ],
     "migrations": ["migrations"]
   },

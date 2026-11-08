@@ -178,30 +178,28 @@ public sealed class DialogueTests
         Assert.Equal("lady", SceneArtCatalog.ClassifyArchetype(caiYan));
 
         var caiYanScene = dialogue.BuildTalkScene(caiYan.Id);
-        Assert.Equal("art/portraits/lady/full.webp", caiYanScene.PortraitFull);
-        Assert.Equal("art/portraits/lady/face.webp", caiYanScene.PortraitFace);
+        Assert.Equal("art/portraits/lady_v2/full.webp", caiYanScene.PortraitFull);
+        Assert.Equal("art/portraits/lady_v2/face.webp", caiYanScene.PortraitFace);
 
         var npcScreen = kernel.Ui.Screens.Single(s => s.ScreenId == "npc.directory").Render();
         var localRows = npcScreen.Sections.First().Rows;
         var caiYanRow = localRows.Single(r => r.Cells[0].Contains("Thái Diễm", StringComparison.Ordinal));
         var huaXiongRow = localRows.Single(r => r.Cells[0].Contains("Hoa Hùng", StringComparison.Ordinal));
-        var simaYiRow = localRows.Single(r => r.Cells[0].Contains("Tư Mã Ý", StringComparison.Ordinal));
+        Assert.DoesNotContain(localRows, r => r.Cells[0].Contains("Tư Mã Ý", StringComparison.Ordinal)); // born 179, not yet 15
 
         Assert.Equal("art/portraits/lady/face.webp", SceneArtCatalog.ResolveRowNpcArt(caiYanRow).PortraitFace);
         Assert.Equal("art/portraits/general/face.webp", SceneArtCatalog.ResolveRowNpcArt(huaXiongRow).PortraitFace);
-        Assert.Equal("art/portraits/scholar/face.webp", SceneArtCatalog.ResolveRowNpcArt(simaYiRow).PortraitFace);
 
-        Assert.Equal("art/portraits/lady/face.webp", SceneArtCatalog.ResolveRowNpcArt(caiYanRow, npcs).PortraitFace);
-        Assert.Equal("art/portraits/general/face.webp", SceneArtCatalog.ResolveRowNpcArt(huaXiongRow, npcs).PortraitFace);
-        Assert.Equal("art/portraits/scholar/face.webp", SceneArtCatalog.ResolveRowNpcArt(simaYiRow, npcs).PortraitFace);
+        Assert.Equal("art/portraits/lady_v2/face.webp", SceneArtCatalog.ResolveRowNpcArt(caiYanRow, npcs).PortraitFace);
+        Assert.Equal("art/portraits/general_v3/face.webp", SceneArtCatalog.ResolveRowNpcArt(huaXiongRow, npcs).PortraitFace);
 
         var huaXiongScene = dialogue.BuildTalkScene(huaXiong.Id);
-        Assert.Equal("art/portraits/general/full.webp", huaXiongScene.PortraitFull);
+        Assert.Equal("art/portraits/general_v3/full.webp", huaXiongScene.PortraitFull);
         Assert.Equal("Dũng mãnh", huaXiongScene.PersonalityVi);
         Assert.DoesNotContain(huaXiongScene.Lines, l => l.Contains("Dân đen chúng tôi", StringComparison.Ordinal));
 
         var simaYiScene = dialogue.BuildTalkScene(simaYi.Id);
-        Assert.Equal("art/portraits/scholar/full.webp", simaYiScene.PortraitFull);
+        Assert.Equal("art/portraits/sima_yi/full.webp", simaYiScene.PortraitFull);
         Assert.Equal("Nho nhã", simaYiScene.PersonalityVi);
 
         Assert.Equal("Trung Nguyên", RoleTitleVi.FormatRegion("trung_nguyen"));

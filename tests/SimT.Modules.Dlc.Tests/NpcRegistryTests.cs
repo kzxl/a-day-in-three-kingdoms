@@ -14,18 +14,19 @@ public sealed class NpcRegistryTests : IDisposable
         kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
 
     [Fact]
-    public void NpcRegistry_contains_all_300_characters()
+    public void NpcRegistry_preserves_300_catalog_entries_and_filters_underage_roster()
     {
         using var kernel = _host.Boot();
         var registry = Registry(kernel);
 
-        Assert.Equal(300, registry.All.Count);
+        Assert.Equal(300, kernel.Db.ScalarLong("SELECT COUNT(*) FROM np_npc"));
+        Assert.InRange(registry.All.Count, 1, 299);
 
-        // All 15 citadels have exactly 20 baseline NPCs
+        // Availability follows verified ages rather than an artificial 20 per city quota.
         for (long cid = 1; cid <= 15; cid++)
         {
             var citNpcs = registry.FindByCitadel(cid);
-            Assert.Equal(20, citNpcs.Count);
+            Assert.All(citNpcs, npc => Assert.Contains(npc, registry.All));
         }
 
         // 2 baseline stub characters preserved
@@ -66,7 +67,8 @@ public sealed class NpcRegistryTests : IDisposable
         var registry = Registry(kernel);
 
         var initialCount = registry.All.Count;
-        Assert.Equal(300, initialCount);
+        Assert.InRange(initialCount, 1, 299);
+        var localCount = registry.FindByCitadel(1).Count;
 
         var newNpc = registry.RegisterDynamicNpc(
             "npc_custom_test",
@@ -78,7 +80,7 @@ public sealed class NpcRegistryTests : IDisposable
             "Một hiệp khách giang hồ.");
 
         Assert.NotNull(newNpc);
-        Assert.Equal(301, registry.All.Count);
+        Assert.Equal(initialCount + 1, registry.All.Count);
         Assert.Equal("Võ Sĩ Ẩn Danh", newNpc.NameVi);
         Assert.Equal("npc_custom_test", newNpc.Code);
         Assert.Equal(301, newNpc.Id);
@@ -88,7 +90,7 @@ public sealed class NpcRegistryTests : IDisposable
         Assert.Equal("Võ Sĩ Ẩn Danh", retrieved.NameVi);
 
         var cit1Npcs = registry.FindByCitadel(1);
-        Assert.Equal(21, cit1Npcs.Count);
+        Assert.Equal(localCount + 1, cit1Npcs.Count);
         Assert.Contains(cit1Npcs, n => n.Id == newNpc.Id);
     }
 

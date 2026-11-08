@@ -1,15 +1,16 @@
 using SimT.Contracts.Data;
 using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
+using SimT.Contracts.Time;
 
 namespace SimT.Modules.Base.World;
 
 /// <summary>base.world — settlements, roads, and sublocations, exposed as the <c>world.map</c> capability.</summary>
-public sealed class WorldModule : ISimModule
+public sealed partial class WorldModule : ISimModule
 {
     public void Start(ModuleContext context)
     {
-        var map = new WorldMap(context.Db);
+        var map = new WorldMap(context.Db, context.Clock);
         context.Capabilities.Provide(CapabilityIds.WorldMap, map);
         var stroll = new CityStrollService(map, context.Capabilities, context.Clock, context.Log);
         context.Capabilities.Provide(CapabilityIds.CityStroll, stroll);
@@ -18,8 +19,9 @@ public sealed class WorldModule : ISimModule
         context.Log.Info($"map ready with {map.Citadels.Count} citadels, CityStroll registered");
     }
 
-    private sealed class WorldMap : IWorldMap
+    private sealed partial class WorldMap : IWorldMap
     {
+        private readonly IGameClock? _clock;
         private readonly CitadelDef[] _citadels;
         private readonly Dictionary<long, CitadelDef> _byId;
         private readonly Dictionary<long, RouteStep[]> _routes;
@@ -28,9 +30,12 @@ public sealed class WorldModule : ISimModule
         private readonly Dictionary<long, SublocationDef[]> _sublocations;
         private readonly List<RouteLinkDef> _allRoutesList = new();
         private readonly Dictionary<long, CitadelEcosystemDef> _ecosystems = new();
+        private readonly Dictionary<(long A, long B), RouteHazardEntry> _routeHazards = new();
+        private readonly Dictionary<long, List<RouteHazardEntry>> _cityHazards = new();
 
-        public WorldMap(IDbSession db)
+        public WorldMap(IDbSession db, IGameClock? clock = null)
         {
+            _clock = clock;
             _citadels = db.Query(
                     "SELECT id, code, name_vi, name_en, region, price_factor_permille FROM wd_citadel ORDER BY id",
                     row => new CitadelDef(
@@ -154,13 +159,79 @@ public sealed class WorldModule : ISimModule
 
         public int TravelDays(long fromCitadelId, long toCitadelId)
         {
+            if (IsRouteBlocked(fromCitadelId, toCitadelId))
+            {
+                return 0;
+            }
+
             if (fromCitadelId >= 0 && fromCitadelId < _travelMatrix.GetLength(0) &&
                 toCitadelId >= 0 && toCitadelId < _travelMatrix.GetLength(1))
             {
-                return _travelMatrix[fromCitadelId, toCitadelId];
+                var baseDays = _travelMatrix[fromCitadelId, toCitadelId];
+                if (baseDays <= 0)
+                {
+                    return 0;
+                }
+
+                if (TryGetActiveRouteHazard(fromCitadelId, toCitadelId, out var hazard) &&
+                    string.Equals(hazard.HazardType, "route_danger", StringComparison.OrdinalIgnoreCase))
+                {
+                    var extra = Math.Max(1, baseDays * Math.Max(1000, hazard.SeverityPermille) / 1000 - baseDays);
+                    return baseDays + extra;
+                }
+
+                return baseDays;
             }
 
             return 0;
+        }
+
+        public void SetRouteHazard(
+            long fromCitadelId,
+            long toCitadelId,
+            string hazardType,
+            int startDay,
+            int durationDays,
+            int severityPermille,
+            string noteVi)
+        {
+            var entry = new RouteHazardEntry(hazardType, startDay, startDay + Math.Max(1, durationDays), severityPermille, noteVi);
+            if (fromCitadelId > 0 && toCitadelId > 0 && fromCitadelId != toCitadelId)
+            {
+                var key = (Math.Min(fromCitadelId, toCitadelId), Math.Max(fromCitadelId, toCitadelId));
+                _routeHazards[key] = entry;
+            }
+
+            foreach (var citId in new[] { fromCitadelId, toCitadelId })
+            {
+                if (citId <= 0) continue;
+                if (!_cityHazards.TryGetValue(citId, out var list))
+                {
+                    list = new List<RouteHazardEntry>();
+                    _cityHazards[citId] = list;
+                }
+                list.Add(entry);
+            }
+        }
+
+        public bool IsRouteBlocked(long fromCitadelId, long toCitadelId) =>
+            TryGetActiveRouteHazard(fromCitadelId, toCitadelId, out var hazard) &&
+            string.Equals(hazard.HazardType, "route_block", StringComparison.OrdinalIgnoreCase);
+
+        private bool TryGetActiveRouteHazard(long fromCitadelId, long toCitadelId, out RouteHazardEntry hazard)
+        {
+            var key = (Math.Min(fromCitadelId, toCitadelId), Math.Max(fromCitadelId, toCitadelId));
+            if (_routeHazards.TryGetValue(key, out hazard))
+            {
+                var today = (int)(_clock?.Today.DayIndex ?? 0);
+                if (today >= hazard.StartDay && today <= hazard.EndDay)
+                {
+                    return true;
+                }
+            }
+
+            hazard = default;
+            return false;
         }
 
         public IReadOnlyList<SublocationDef> Sublocations(long citadelId) =>
@@ -172,147 +243,46 @@ public sealed class WorldModule : ISimModule
 
         public CitadelEcosystemDef GetEcosystem(long citadelId)
         {
-            if (_ecosystems.TryGetValue(citadelId, out var eco))
-                return eco;
-
-            var cit = Find(citadelId);
-            return new CitadelEcosystemDef(
-                citadelId,
-                cit?.Region ?? "Đồng Bằng",
-                "Ôn đới",
-                "Vùng đồng bằng trù phú",
-                "Nông sản địa phương",
-                "Vật liệu chế tác",
-                1,
-                400,
-                300);
-        }
-
-        public TravelQuote QuoteTravel(long fromCitadelId, long toCitadelId, TravelMode mode)
-        {
-            if (fromCitadelId == toCitadelId)
+            if (!_ecosystems.TryGetValue(citadelId, out var eco))
             {
-                return new TravelQuote(fromCitadelId, toCitadelId, 0, 0, 0, 0, 0, new[] { fromCitadelId }, "Tại Chỗ");
+                var cit = Find(citadelId);
+                eco = new CitadelEcosystemDef(
+                    citadelId,
+                    cit?.Region ?? "Đồng Bằng",
+                    "Ôn đới",
+                    "Vùng đồng bằng trù phú",
+                    "Nông sản địa phương",
+                    "Vật liệu chế tác",
+                    1,
+                    400,
+                    300);
             }
 
-            var path = FindShortestPathNodes(fromCitadelId, toCitadelId);
-            var baseDays = CalculatePathDays(path);
-            if (baseDays <= 0)
+            if (_cityHazards.TryGetValue(citadelId, out var hazards))
             {
-                var directDays = TravelDays(fromCitadelId, toCitadelId);
-                baseDays = directDays > 0 ? directDays : 4;
-            }
-
-            int actualDays;
-            long fee;
-            int rations;
-            int fatigue;
-            string modeName;
-
-            switch (mode)
-            {
-                case TravelMode.Horse:
-                    actualDays = Math.Max(1, (int)Math.Ceiling(baseDays * 0.65));
-                    fee = baseDays * 15;
-                    rations = actualDays;
-                    fatigue = actualDays * 4;
-                    modeName = $"Dịch Mã (Cưỡi Ngựa · {TravelLuggage.HorseCapacity} đv)";
-                    break;
-
-                case TravelMode.Caravan:
-                    actualDays = baseDays;
-                    fee = baseDays * 25;
-                    rations = baseDays;
-                    fatigue = baseDays * 3;
-                    modeName = $"Tiêu Cục (Hộ Tiêu · {TravelLuggage.CaravanCapacity} đv)";
-                    break;
-
-                case TravelMode.Walk:
-                default:
-                    actualDays = baseDays;
-                    fee = 0;
-                    rations = baseDays;
-                    fatigue = baseDays * 7;
-                    modeName = $"Bộ Hành (Đi Bộ · {TravelLuggage.WalkCapacity} đv)";
-                    break;
-            }
-
-            return new TravelQuote(
-                fromCitadelId, toCitadelId, baseDays, actualDays, fee, rations, fatigue,
-                path, modeName, TravelLuggage.ForMode(mode));
-        }
-
-        private int CalculatePathDays(IReadOnlyList<long> path)
-        {
-            if (path.Count <= 1) return 0;
-            var total = 0;
-            for (var i = 0; i < path.Count - 1; i++)
-            {
-                var d = TravelDays(path[i], path[i + 1]);
-                total += (d > 0 ? d : 2);
-            }
-            return total;
-        }
-
-        private IReadOnlyList<long> FindShortestPathNodes(long fromId, long toId)
-        {
-            var dist = new Dictionary<long, int> { [fromId] = 0 };
-            var prev = new Dictionary<long, long>();
-            var visited = new HashSet<long>();
-
-            while (true)
-            {
-                long current = -1;
-                var bestDist = int.MaxValue;
-                foreach (var (node, d) in dist)
+                var today = (int)(_clock?.Today.DayIndex ?? 0);
+                var maxBoost = 0;
+                foreach (var h in hazards)
                 {
-                    if (!visited.Contains(node) && d < bestDist)
+                    if (today >= h.StartDay && today <= h.EndDay)
                     {
-                        bestDist = d;
-                        current = node;
+                        var boost = string.Equals(h.HazardType, "route_block", StringComparison.OrdinalIgnoreCase)
+                            ? 2
+                            : Math.Max(1, h.SeverityPermille / 600);
+                        if (boost > maxBoost) maxBoost = boost;
                     }
                 }
 
-                if (current < 0 || current == toId)
+                if (maxBoost > 0)
                 {
-                    break;
-                }
-
-                visited.Add(current);
-                if (!_routes.TryGetValue(current, out var steps))
-                {
-                    continue;
-                }
-
-                foreach (var step in steps)
-                {
-                    var w = Math.Max(1, step.Days);
-                    var candidate = bestDist + w;
-                    if (!dist.TryGetValue(step.To, out var existing) || candidate < existing)
-                    {
-                        dist[step.To] = candidate;
-                        prev[step.To] = current;
-                    }
+                    return eco with { DangerLevel = Math.Min(5, eco.DangerLevel + maxBoost) };
                 }
             }
 
-            if (!prev.ContainsKey(toId))
-            {
-                return new[] { fromId, toId };
-            }
-
-            var path = new List<long>();
-            var nodeStep = toId;
-            while (nodeStep != fromId)
-            {
-                path.Add(nodeStep);
-                nodeStep = prev[nodeStep];
-            }
-            path.Add(fromId);
-            path.Reverse();
-            return path;
+            return eco;
         }
 
         private readonly record struct RouteStep(long To, int Days);
+        private readonly record struct RouteHazardEntry(string HazardType, int StartDay, int EndDay, int SeverityPermille, string NoteVi);
     }
 }

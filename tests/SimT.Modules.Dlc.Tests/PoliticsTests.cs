@@ -171,12 +171,12 @@ public sealed class PoliticsTests : IDisposable
     }
 
     [Fact]
-    public void Twelve_warlord_factions_are_seeded_with_valid_capitals_and_armies()
+    public void Historical_factions_are_seeded_with_valid_capitals_and_armies()
     {
         using var kernel = _host.Boot();
         var court = Court(kernel);
 
-        Assert.Equal(12, court.Factions.Count);
+        Assert.Equal(19, court.Factions.Count);
         Assert.Contains(court.Factions, f => f.Code == "cao_wei" && f.TroopCount >= 50000);
         Assert.Contains(court.Factions, f => f.Code == "shu_han" && f.TroopCount >= 30000);
         Assert.Contains(court.Factions, f => f.Code == "dong_wu" && f.TroopCount >= 40000);
@@ -211,7 +211,7 @@ public sealed class PoliticsTests : IDisposable
         var joinMsg = Command(kernel, "join_faction:1");
         Assert.Contains("Quy thuận minh chủ", joinMsg);
         Assert.Equal(1, court.AllegianceFactionId);
-        Assert.Equal("Tào Ngụy", court.AllegianceFactionName);
+        Assert.Equal("Tào Tháo", court.AllegianceFactionName);
         Assert.Equal(balanceBefore + 100, kernel.Ledger.Balance);
 
         // Monthly advance pays 50 copper faction subsidy

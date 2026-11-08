@@ -8,7 +8,7 @@ using SimT.Contracts.Time;
 
 namespace SimT.Modules.Dlc.Character;
 
-internal sealed class SocialService : ISocialNetwork
+internal sealed partial class SocialService : ISocialNetwork
 {
     private readonly IDbSession _db;
     private readonly IGameClock _clock;
@@ -62,7 +62,7 @@ internal sealed class SocialService : ISocialNetwork
                 GameDateCodec.Parse(record.GetString(5))),
             DbArgs.One("@id", npcId));
 
-        return rel ?? new RelationshipDef(npcId, 0, 50, "Sơ giao", 0, _clock.Today);
+        return rel ?? InitialBondRelationship(npcId);
     }
 
     public IReadOnlyList<RelationshipDef> AllRelationships()
@@ -77,13 +77,6 @@ internal sealed class SocialService : ISocialNetwork
                 record.GetString(3),
                 record.GetInt32(4),
                 GameDateCodec.Parse(record.GetString(5))));
-    }
-
-    public bool HasMet(long npcId)
-    {
-        return _db.ScalarLong(
-            "SELECT COUNT(*) FROM kz_relationship WHERE npc_id = @id",
-            DbArgs.One("@id", npcId)) > 0;
     }
 
     public IReadOnlyList<MemoryEntry> GetMemories(long npcId, int limit = 20)
@@ -196,6 +189,8 @@ internal sealed class SocialService : ISocialNetwork
 
         var rel = GetRelationship(npcId);
         var playerFame = _attributes.Social.Fame;
+        if (HasCompletedWish(npcId)) signingFee = 0;
+        ApplyDebateRecruitModifier(npcId, ref reqAffinity, ref signingFee);
         var hasEnoughAffinity = rel.Affinity >= reqAffinity;
         var hasEnoughFame = playerFame >= reqFame;
         var hasEnoughCash = _wallet.Liquid >= signingFee;
@@ -238,6 +233,8 @@ internal sealed class SocialService : ISocialNetwork
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        RequirePresentNpc(npcId);
 
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
@@ -299,7 +296,9 @@ internal sealed class SocialService : ISocialNetwork
 
             _attributes.AddExp("DIP", 10);
             _attributes.AddExp("PRC", 5);
-            return $"{npc.NameVi} khẽ vuốt râu mỉm cười khách sáo: 'Tại hạ quân vụ bề bộn, thứ lỗi chưa tiện cùng các hạ đàm luận sâu.' (Uy danh < 300 đối với hào kiệt phẩm S: +1 Hảo cảm). Mối quan hệ: {brushAffinity}/100 ({brushImp}).";
+            var brushNoticeS = ApplyBondConsequences(npcId, brushAffinity - currentRel.Affinity, currentRel.Impression);
+            RecordMetNpc(npcId, today, npcCityId);
+            return $"{npc.NameVi} khẽ vuốt râu mỉm cười khách sáo: 'Tại hạ quân vụ bề bộn, thứ lỗi chưa tiện cùng các hạ đàm luận sâu.' (Uy danh < 300 đối với hào kiệt phẩm S: +1 Hảo cảm). Mối quan hệ: {brushAffinity}/100 ({brushImp})." + brushNoticeS;
         }
 
         if (rank == NpcRank.A && playerFame < 150)
@@ -336,7 +335,9 @@ internal sealed class SocialService : ISocialNetwork
 
             _attributes.AddExp("DIP", 10);
             _attributes.AddExp("PRC", 5);
-            return $"Đàm đạo cùng {npc.NameVi}: cuộc trò chuyện lịch thiệp nhưng đối phương còn giữ khoảng cách (+1 Hảo cảm). Mối quan hệ: {brushAffinity}/100 ({brushImp}).";
+            var brushNoticeA = ApplyBondConsequences(npcId, brushAffinity - currentRel.Affinity, currentRel.Impression);
+            RecordMetNpc(npcId, today, npcCityId);
+            return $"Đàm đạo cùng {npc.NameVi}: cuộc trò chuyện lịch thiệp nhưng đối phương còn giữ khoảng cách (+1 Hảo cảm). Mối quan hệ: {brushAffinity}/100 ({brushImp})." + brushNoticeA;
         }
 
         // Base gain scaled by rank and diminishing returns based on current affinity
@@ -477,13 +478,17 @@ internal sealed class SocialService : ISocialNetwork
         }
 
         var extraInfo = debateNotes.Count > 0 ? $" ({string.Join("; ", debateNotes)})" : "";
-        return $"Đàm đạo cùng {npc.NameVi} (Phẩm {rank}): +{gain} Hảo cảm{extraInfo}. Quan hệ hiện tại: {newAffinity}/100 ({newImpression}).{skillHint}";
+        var chatBondNotice = ApplyBondConsequences(npcId, newAffinity - currentRel.Affinity, currentRel.Impression);
+        RecordMetNpc(npcId, today, npcCityId);
+        return $"Đàm đạo cùng {npc.NameVi} (Phẩm {rank}): +{gain} Hảo cảm{extraInfo}. Quan hệ hiện tại: {newAffinity}/100 ({newImpression}).{skillHint}" + chatBondNotice;
     }
 
     public string GiftNpc(long npcId, long itemId)
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        RequirePresentNpc(npcId);
 
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
@@ -556,6 +561,8 @@ internal sealed class SocialService : ISocialNetwork
             preferenceMultiplier = 1.3;
         }
 
+        ApplyTraitGiftAdjustments(npcId, item, ref preferenceMultiplier, ref isFavorite, out var flatTraitBonus, out var traitFlavorVi);
+
         // Base price value factor
         var currentRel = GetRelationship(npcId);
         int gain;
@@ -593,14 +600,14 @@ internal sealed class SocialService : ISocialNetwork
             else if (currentRel.Affinity >= 50) gain = Math.Max(1, (int)(gain * 0.5));
         }
 
-        gain = Math.Max(1, gain);
+        gain = Math.Max(1, gain + flatTraitBonus);
 
         var newAffinity = Math.Clamp(currentRel.Affinity + gain, -100, 100);
         var newTrust = Math.Clamp(currentRel.Trust + 4, 0, 100);
         var newGifts = currentRel.GiftCount + 1;
         var newImpression = CalculateImpression(newAffinity);
 
-        var favText = isFavorite ? " rất tâm đắc món quà hợp ý này" : "";
+        var favText = (isFavorite ? " rất tâm đắc món quà hợp ý này" : "") + traitFlavorVi;
         _db.Transaction(() =>
         {
             _db.Execute(
@@ -627,14 +634,17 @@ internal sealed class SocialService : ISocialNetwork
         });
 
         _attributes.AddExp("DIP", 20);
-
-        return $"Đã biếu tặng {item.NameVi} cho {npc.NameVi} (Phẩm {rank}){favText}: +{gain} Hảo cảm. Mối quan hệ: {newAffinity}/100 ({newImpression}).";
+        var giftBondNotice = ApplyBondConsequences(npcId, newAffinity - currentRel.Affinity, currentRel.Impression);
+        RecordMetNpc(npcId, today, npcCityId);
+        return $"Đã biếu tặng {item.NameVi} cho {npc.NameVi} (Phẩm {rank}){favText}: +{gain} Hảo cảm. Mối quan hệ: {newAffinity}/100 ({newImpression})." + giftBondNotice;
     }
 
     public string RecruitRetainer(long npcId, string role, int stipend)
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        RequirePresentNpc(npcId);
 
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId)
@@ -663,6 +673,8 @@ internal sealed class SocialService : ISocialNetwork
             reqAffinity = Math.Max(20, reqAffinity - 15);
             reqFame = (int)(reqFame * 0.85);
         }
+        if (HasCompletedWish(npcId)) recruitmentFee = 0;
+        ApplyDebateRecruitModifier(npcId, ref reqAffinity, ref recruitmentFee);
         var rel = GetRelationship(npcId);
 
         if (rel.Affinity < reqAffinity)
@@ -735,7 +747,7 @@ internal sealed class SocialService : ISocialNetwork
 
         _db.Transaction(() =>
         {
-            _wallet.Charge(recruitmentFee, "social.recruit", $"Sính lễ chiêu mộ gia thần phẩm {rank}: {npc.NameVi}", $"recruit:{npcId}:{formattedDate}");
+            if (recruitmentFee > 0) _wallet.Charge(recruitmentFee, "social.recruit", $"Sính lễ chiêu mộ gia thần phẩm {rank}: {npc.NameVi}", $"recruit:{npcId}:{formattedDate}");
 
             _db.Execute(
                 "INSERT INTO kz_retainer (npc_id, role_assigned, monthly_stipend, loyalty, recruited_date) " +
@@ -770,6 +782,7 @@ internal sealed class SocialService : ISocialNetwork
         }
 
         _log.Info($"Recruited NPC {npc.NameVi} ({rank}) as {assignedRole} with stipend {finalStipend} and fee {recruitmentFee}.");
+        RecordMetNpc(npcId, today, npcCityId);
         return $"Đã chiêu mộ thành công {npc.NameVi} (Phẩm {rank}) làm {RoleTitleVi(assignedRole)}! (Sính lễ: {recruitmentFee:N0} Quan, Bổng lộc: {finalStipend} Quan/tháng, Lòng trung thành: {initialLoyalty}/100).";
     }
 
@@ -804,6 +817,8 @@ internal sealed class SocialService : ISocialNetwork
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        RequirePresentNpc(npcId);
 
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
@@ -905,13 +920,17 @@ internal sealed class SocialService : ISocialNetwork
         _attributes.AddExp(expAttr, 30);
 
         _log.Info($"Player learned skill {skill.Code} from NPC {npc.NameVi}.");
-        return $"[Thụ Nghiệp Thành Công] Dưới sự chỉ điểm tận tình của {npc.NameVi}, bạn đã giác ngộ và lĩnh hội thành công đặc kỹ [{skill.NameVi}] ({skill.EffectSummary})! (-{tuition} Quan, +5 Hảo cảm, +30 EXP {expAttr}). Tuyệt kỹ đã tự động kích hoạt vào ô trang bị.";
+        var learnBondNotice = ApplyBondConsequences(npcId, newAffinity - rel.Affinity, rel.Impression);
+        RecordMetNpc(npcId, today, npcCityId);
+        return $"[Thụ Nghiệp Thành Công] Dưới sự chỉ điểm tận tình của {npc.NameVi}, bạn đã giác ngộ và lĩnh hội thành công đặc kỹ [{skill.NameVi}] ({skill.EffectSummary})! (-{tuition} Quan, +5 Hảo cảm, +30 EXP {expAttr}). Tuyệt kỹ đã tự động kích hoạt vào ô trang bị." + learnBondNotice;
     }
 
     public string TrainSkillWithNpc(long npcId, string skillCode)
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("social.npc_not_found", $"Không tìm thấy nhân sĩ mã {npcId}.");
+
+        RequirePresentNpc(npcId);
 
         var npcCityId = npc.CurrentCitadelId(_capabilities);
         if (npcCityId != _player.CurrentCityId && GetRetainer(npcId) is null)
@@ -967,6 +986,8 @@ internal sealed class SocialService : ISocialNetwork
                     .Add("@date", formattedDate)
                     .Add("@summary", $"Luận đạo tu luyện: Cùng {npc.NameVi} nghiên cứu tuyệt kỹ [{skill.NameVi}], lĩnh hội thêm thuần thục."));
         });
+
+        RecordMetNpc(npcId, today, npcCityId);
 
         if (leveledUp)
         {
@@ -1577,11 +1598,14 @@ internal sealed class SocialService : ISocialNetwork
 
         _registry.UpdateCitadel(npcId, _player.CurrentCityId);
 
-        return $"Trời đất chứng giám! Bạn cùng {npc.NameVi} đã chính thức kết nghĩa huynh đệ kim lan ({bondTitle})! Tình nghĩa keo sơn, hoạn nạn có nhau.";
+        var bondNotice = ApplyBondConsequences(npcId, Math.Max(0, 100 - rel.Affinity), rel.Impression);
+        RecordMetNpc(npcId, today, _player.CurrentCityId);
+        return $"Trời đất chứng giám! Bạn cùng {npc.NameVi} đã chính thức kết nghĩa huynh đệ kim lan ({bondTitle})! Tình nghĩa keo sơn, hoạn nạn có nhau." + bondNotice;
     }
 
     public string HostBanquet()
     {
+        string bondNotices = "";
         const int banquetCost = 150;
         if (_wallet.Liquid < banquetCost)
         {
@@ -1639,6 +1663,7 @@ internal sealed class SocialService : ISocialNetwork
                         .Add("@npcId", npc.Id)
                         .Add("@date", formattedDate)
                         .Add("@summary", $"Dự đại yến do bạn chủ trì, cùng nâng chén thưởng nguyệt, đàm luận thế sự thiên hạ."));
+                bondNotices += ApplyBondConsequences(npc.Id, newAffinity - rel.Affinity, rel.Impression);
             }
 
             var summary = $"Đại yến quy tụ {localNpcs.Count} danh sĩ ({string.Join(", ", localNpcs.Select(n => n.NameVi))}). Hảo cảm đồng loạt gia tăng!";
@@ -1655,7 +1680,12 @@ internal sealed class SocialService : ISocialNetwork
                     .Add("@summary", summary));
         });
 
-        return $"Đại yến thành công rực rỡ! {localNpcs.Count} danh sĩ ({string.Join(", ", localNpcs.Select(n => n.NameVi))}) tề tựu nâng chén, hảo cảm đồng loạt tăng +12 và tín nhiệm +5!";
+        foreach (var npc in localNpcs)
+        {
+            RecordMetNpc(npc.Id, today, cityId);
+        }
+
+        return $"Đại yến thành công rực rỡ! {localNpcs.Count} danh sĩ ({string.Join(", ", localNpcs.Select(n => n.NameVi))}) tề tựu nâng chén, hảo cảm đồng loạt tăng +12 và tín nhiệm +5!" + bondNotices;
     }
 
     public NpcPsycheProfile GetPsycheProfile(long npcId)

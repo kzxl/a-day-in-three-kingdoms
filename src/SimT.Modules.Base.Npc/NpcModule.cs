@@ -7,11 +7,14 @@ namespace SimT.Modules.Base.Npc;
 /// <summary>
 /// base.npc — historical and local characters, exposed as the <c>npc.registry</c> capability.
 /// </summary>
-public sealed class NpcModule : ISimModule
+public sealed partial class NpcModule : ISimModule
 {
     public void Start(ModuleContext context)
     {
         var registry = new NpcRegistry(context.Db);
+        registry.InitializeLifetimes(context.Clock.Today.Year);
+        context.Capabilities.Provide(INpcLifetimes.CapabilityId, registry);
+        context.Events.Subscribe<SimT.Contracts.Time.DayAdvanced>(day => registry.AdvanceLifetimes(day.Date.Year));
         context.Capabilities.Provide(CapabilityIds.NpcRegistry, registry);
         context.Log.Info($"npc registry ready with {registry.All.Count} characters");
 
@@ -21,7 +24,7 @@ public sealed class NpcModule : ISimModule
         context.Ui.AddCommandHandler(new NpcCommandHandler(registry));
     }
 
-    private sealed class NpcRegistry : INpcRegistry
+    private sealed partial class NpcRegistry : INpcRegistry, INpcLifetimes
     {
         private readonly IDbSession _db;
         private readonly List<NpcDef> _all;
@@ -93,7 +96,8 @@ public sealed class NpcModule : ISimModule
                         row.GetInt32(18)),
                     row.GetStringOrNull(19),
                     row.GetStringOrNull(20),
-                    skillsByNpc.TryGetValue(row.GetInt64(0), out var sList) ? sList : Array.Empty<NpcSkillDef>()))
+                    skillsByNpc.TryGetValue(row.GetInt64(0), out var sList) ? sList : Array.Empty<NpcSkillDef>(),
+                    row.GetStringOrNull(20)?.Contains("Đã mất", StringComparison.OrdinalIgnoreCase) == true))
                 .ToList();
 
             _byId = new Dictionary<long, NpcDef>(_all.Count);
@@ -120,7 +124,7 @@ public sealed class NpcModule : ISimModule
             {
                 lock (_gate)
                 {
-                    return _all.ToArray();
+                    return _all.Where(IsAvailable).ToArray();
                 }
             }
         }
@@ -146,7 +150,7 @@ public sealed class NpcModule : ISimModule
             lock (_gate)
             {
                 return _byCitadel.TryGetValue(citadelId, out var list)
-                    ? list.ToArray()
+                    ? list.Where(IsAvailable).ToArray()
                     : Array.Empty<NpcDef>();
             }
         }
@@ -195,6 +199,54 @@ public sealed class NpcModule : ISimModule
                     _byCitadel[newCitadelId] = newList;
                 }
                 newList.Add(updated);
+            }
+        }
+
+        public void MarkDeceased(long npcId, string? noteVi = null)
+        {
+            lock (_gate)
+            {
+                if (!_byId.TryGetValue(npcId, out var existing))
+                {
+                    return;
+                }
+
+                var suffix = string.IsNullOrWhiteSpace(noteVi)
+                    ? " (Đã mất)"
+                    : $" (Đã mất — {noteVi})";
+                var currentBio = existing.BioVi ?? string.Empty;
+                var updatedBio = currentBio.Contains("Đã mất", StringComparison.OrdinalIgnoreCase)
+                    ? currentBio
+                    : string.Concat(currentBio.TrimEnd(), suffix).Trim();
+
+                var updated = existing with { BioVi = updatedBio, IsDeceasedFlag = true };
+                _byId[npcId] = updated;
+                _byCode[updated.Code] = updated;
+
+                for (var i = 0; i < _all.Count; i++)
+                {
+                    if (_all[i].Id == npcId)
+                    {
+                        _all[i] = updated;
+                        break;
+                    }
+                }
+
+                if (_byCitadel.TryGetValue(existing.CitadelId, out var citList))
+                {
+                    for (var i = 0; i < citList.Count; i++)
+                    {
+                        if (citList[i].Id == npcId)
+                        {
+                            citList[i] = updated;
+                            break;
+                        }
+                    }
+                }
+
+                _db.Execute(
+                    "UPDATE np_attribute SET bio_vi = @bio WHERE npc_id = @id",
+                    new DbArgs().Add("@bio", updatedBio).Add("@id", npcId));
             }
         }
 

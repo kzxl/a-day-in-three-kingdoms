@@ -247,7 +247,8 @@ public sealed class GameTable : Grid
         rowGrid.Children.Add(detailBtn);
 
         card.Child = rowGrid;
-        var item = new ListBoxItem { Content = card, DataContext = vm, Tag = vm };
+        var item = new ListBoxItem { Content = card, DataContext = vm, Tag = vm,
+            Opacity = vm.Row.IsMuted ? 0.45 : 1.0 };
 
         void SyncRowState()
         {

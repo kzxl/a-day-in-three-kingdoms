@@ -122,6 +122,14 @@ public interface INpcMarket
     IReadOnlyList<NpcMarketOffer> OffersByStall(long stallId);
 
     TradeResult BuyFromNpcOffer(long cityId, long offerId, int quantity);
+
+    long QuoteNpcOfferUnitPrice(long cityId, long npcId, long itemId, int discountPermille = 50);
+
+    long QuoteNpcBuyBidUnitPrice(long cityId, long npcId, long itemId, int bidMarkupPermille = 100);
+
+    int AdjustNpcOfferStock(long npcId, int baseQuantity);
+
+    TradeResult SellToNpcStall(long cityId, long stallId, long itemId, int quantity);
 }
 /// <summary>Economic value tier classification representing the closed macro-economic supply chain.</summary>
 public enum EconomicValueTier

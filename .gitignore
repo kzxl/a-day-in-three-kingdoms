@@ -24,3 +24,6 @@ dist/
 
 # Z-Plugin Local Project Directives
 .project-rule.md
+
+# Local acceptance capture scratch
+.qa-temp/

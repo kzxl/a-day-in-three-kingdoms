@@ -15,63 +15,7 @@ public partial class MainWindow
         _ => false
     };
 
-    public bool TryOpenMapScene(string? recommendation = null)
-    {
-        if (!SceneOverlay.IsAvailable ||
-            !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) || map is null ||
-            !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
-            return false;
-
-        var currentCityId = playerState.CurrentCityId;
-        var currentCityName = map.Find(currentCityId)?.NameVi ?? "Lạc Dương";
-        var fatigue = _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null ? attrs.Vitals.Fatigue : 0;
-        _kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var bag);
-        _kernel.Capabilities.TryGet<IItemCatalog>(CapabilityIds.ItemCatalog, out var items);
-
-        var cities = new List<MapCityView>(map.Citadels.Count);
-        foreach (var c in map.Citadels)
-        {
-            var eco = map.GetEcosystem(c.Id);
-            var quotes = new List<MapTravelQuoteView>();
-            if (c.Id != currentCityId)
-            {
-                var qWalk = map.QuoteTravel(currentCityId, c.Id, TravelMode.Walk);
-                var qHorse = map.QuoteTravel(currentCityId, c.Id, TravelMode.Horse);
-                var qCaravan = map.QuoteTravel(currentCityId, c.Id, TravelMode.Caravan);
-                quotes.Add(new MapTravelQuoteView("walk", "Bộ hành", $"Không tốn tiền · Mang {qWalk.CarryCapacity} đv", qWalk.BaseDays, qWalk.ActualDays, qWalk.TravelFee, qWalk.RationsNeeded, qWalk.FatigueExpected, qWalk.PathNodeIds, qWalk.CarryCapacity));
-                quotes.Add(new MapTravelQuoteView("horse", "Dịch mã", $"Nhanh nhất · Mang {qHorse.CarryCapacity} đv", qHorse.BaseDays, qHorse.ActualDays, qHorse.TravelFee, qHorse.RationsNeeded, qHorse.FatigueExpected, qHorse.PathNodeIds, qHorse.CarryCapacity));
-                quotes.Add(new MapTravelQuoteView("caravan", "Tiêu cục", $"Không gặp cướp · Mang {qCaravan.CarryCapacity} đv", qCaravan.BaseDays, qCaravan.ActualDays, qCaravan.TravelFee, qCaravan.RationsNeeded, qCaravan.FatigueExpected, qCaravan.PathNodeIds, qCaravan.CarryCapacity));
-            }
-            var storedVi = bag is not null
-                ? TravelLuggage.FormatItemQuantities(bag.Rows(c.Id).Select(r => (r.ItemId, r.Quantity)), items)
-                : string.Empty;
-            cities.Add(new MapCityView(
-                c.Id, c.Code, c.NameVi, RoleTitleVi.FormatRegion(c.Region),
-                eco.MapX, eco.MapY, c.PriceFactorPermille, eco.DangerLevel,
-                eco.BiomeNameVi, eco.ClimateVi, eco.TopographyVi,
-                eco.PrimarySpecialtyVi, eco.SecondarySpecialtyVi, quotes, storedVi));
-        }
-
-        var currentBag = bag is not null
-            ? bag.Rows(currentCityId)
-                .Where(r => r.Quantity > 0)
-                .Select(r =>
-                {
-                    var def = items?.Find(r.ItemId);
-                    return new MapBagItemView(r.ItemId, def?.NameVi ?? $"#{r.ItemId}", r.Quantity, def?.BasePrice ?? 1);
-                })
-                .OrderByDescending(x => x.BasePrice).ThenBy(x => x.ItemId).ToList()
-            : new List<MapBagItemView>();
-
-        var routes = map.Routes.Select(r => new MapRouteView(r.FromCitadelId, r.ToCitadelId, r.Days)).ToList();
-        var recText = recommendation ?? $"Từ {currentCityName}, bấm một thành trên bản đồ để xem lộ trình ngắn nhất, chi phí, hành lý và sản vật trước khi lên đường.";
-        return SceneOverlay.ShowMapScene(new MapScene(
-            currentCityId, currentCityName, GameDateCodec.ShortVi(_kernel.Today),
-            _kernel.Ledger.Liquid, fatigue, "art/map/thien_ha.webp",
-            SceneArtCatalog.PlayerPortraitFace, recText, cities, routes, currentBag));
-    }
-
-    public bool TryOpenSocialScene(string? recommendation = null, long selectedNpcId = 0)
+    public bool TryOpenSocialScene(string? recommendation = null, long selectedNpcId = 0, long worldNpcId = 0, string worldSearch = "")
     {
         if (!SceneOverlay.IsAvailable ||
             !_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) || social is null ||
@@ -187,7 +131,9 @@ public partial class MainWindow
             currentCityName, GameDateCodec.ShortVi(_kernel.Today),
             _kernel.Ledger.Liquid, rep?.Standing.Fame ?? 0, attrs?.Vitals.Fatigue ?? 0,
             SceneArtCatalog.PlayerPortraitFace, recText, selectedNpcId,
-            nodeViews, skillViews, letterViews, retainerViews, giftItems));
+            nodeViews, skillViews, letterViews, retainerViews, giftItems,
+            _kernel.Capabilities.TryGet<INpcBonds>(INpcBonds.CapabilityId, out var bonds) && bonds is not null
+                ? NpcBondScene.Build(bonds, reg, worldNpcId > 0 ? worldNpcId : selectedNpcId > 0 ? selectedNpcId : candidateNpcs[0].Id, worldSearch) : null));
     }
 
     public bool TryOpenMarketScene(string? recommendation = null, long selectedItemId = 0)
@@ -258,60 +204,21 @@ public partial class MainWindow
     public static string ItemHanziFor(string category, string nameVi) =>
         RoleTitleVi.FormatItemHanzi(category, nameVi);
 
-    private static readonly string[] FeaturedProfileCodes =
-        ["npc_0223", "npc_0205", "npc_0206", "npc_0207", "npc_0221", "npc_0222", "npc_0224", "npc_0225"];
+    private string? _nextDossierInitialMode;
 
-    public bool TryOpenDossierScene(string? recommendation = null, long selectedNpcId = 0)
+    public bool TryOpenDossierScene(string? recommendation = null, long selectedNpcId = 0, string? initialMode = null)
     {
-        if (!SceneOverlay.IsAvailable ||
-            !_kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var reg) || reg is null ||
-            !_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) || map is null ||
-            !_kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var playerState) || playerState is null)
+        if (!SceneOverlay.IsAvailable)
             return false;
 
-        var cityId = playerState.CurrentCityId;
-        var cityName = map.Find(cityId)?.NameVi ?? "Lạc Dương";
-        _kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social);
-        _kernel.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
-        _kernel.Capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs);
+        var mode = initialMode ?? _nextDossierInitialMode;
+        _nextDossierInitialMode = null;
 
-        var relMap = social?.AllRelationships().ToDictionary(r => r.NpcId) ?? new Dictionary<long, RelationshipDef>();
-        var ordered = new List<NpcDef>();
-        var seen = new HashSet<long>();
+        var scene = DossierSceneBuilder.Build(_kernel.Capabilities, recommendation, selectedNpcId, mode);
+        if (scene is null)
+            return false;
 
-        foreach (var code in FeaturedProfileCodes)
-            if (reg.FindByCode(code) is { } pNpc && seen.Add(pNpc.Id)) ordered.Add(pNpc);
-        foreach (var lNpc in reg.All.Where(n => n.CurrentCitadelId(society) == cityId))
-            if (seen.Add(lNpc.Id)) ordered.Add(lNpc);
-        foreach (var aNpc in reg.All)
-            if (seen.Add(aNpc.Id)) ordered.Add(aNpc);
-
-        var views = ordered.Select(npc =>
-        {
-            relMap.TryGetValue(npc.Id, out var rel);
-            var aff = rel?.Affinity ?? 0;
-            var (_, face, _) = SceneArtCatalog.ResolveNpcArt(npc);
-            var profile = SceneArtCatalog.ResolveProfileArt(npc);
-            var sk = npc.Skills.FirstOrDefault();
-            var a = npc.Attributes;
-            var tier = aff >= 80 ? "Tri kỷ" : aff >= 60 ? "Thân thiết" : aff >= 35 ? "Quen biết" : rel is not null ? "Đã gặp" : "Chưa gặp";
-            var npcCityId = npc.CurrentCitadelId(society);
-            var isRetainer = social?.GetRetainer(npc.Id) is not null;
-            var isLocal = npcCityId == cityId || isRetainer;
-            return new DossierNpcView(
-                npc.Id, npc.Code, npc.NameVi, npc.NameHan ?? string.Empty, npc.StyleNameVi ?? "—",
-                RoleTitleVi.FormatPersonality(npc.Personality), "Quần Hùng", RoleTitleVi.Format(npc.Role),
-                map.Find(npcCityId)?.NameVi ?? cityName, isLocal, rel is not null,
-                aff, tier, face, profile, sk?.NameVi ?? "Nội Chính Tinh Thông", "A",
-                sk?.EffectSummary ?? "Gia tăng hiệu suất công việc và uy vọng tại thành trì.",
-                string.IsNullOrWhiteSpace(npc.BioVi) ? "Nhân sĩ danh tiếng thời Tam Quốc, hành trạng được dân gian ca tụng." : npc.BioVi,
-                a.War, a.Ldr, a.Int, a.Pol, a.Dip, a.Com, a.Log, a.Cra);
-        }).ToList();
-
-        var prc = attrs?.EffectivePrc ?? 50;
-        var rec = recommendation ?? $"Đang tại {cityName}: chọn danh sĩ để xem ảnh chân dung riêng, biểu đồ bát diện năng lực, bái phỏng hoặc so tài.";
-        return SceneOverlay.ShowDossierScene(new DossierScene(
-            cityName, relMap.Count, reg.All.Count, $"{prc} điểm", rec, selectedNpcId, views));
+        return SceneOverlay.ShowDossierScene(scene);
     }
 
     private async void HandleMapSceneMessage(string type, string id, MapScene _)
@@ -329,6 +236,10 @@ public partial class MainWindow
             return;
         }
         if (type != "choice") return;
+        if (id.StartsWith("world:", StringComparison.Ordinal) && long.TryParse(id[6..], out var center))
+        { TryOpenSocialScene(worldNpcId: center); return; }
+        if (id.StartsWith("search:", StringComparison.Ordinal))
+        { TryOpenSocialScene(worldNpcId: _.World?.CenterId ?? 0, worldSearch: id[7..]); return; }
         await ExecuteScreenCommandAsync(id, "social.network");
         TryOpenSocialScene();
     }
@@ -375,6 +286,14 @@ public partial class MainWindow
             return;
         }
         if (type != "choice") return;
+        if (id.StartsWith("replay:", StringComparison.OrdinalIgnoreCase))
+        {
+            var evtCode = id["replay:".Length..].Trim();
+            _nextDossierInitialMode = "history";
+            if (!TryOpenHistoricalEventScene(evtCode, isReplay: true))
+                _nextDossierInitialMode = null;
+            return;
+        }
         if (id.StartsWith("visit:", StringComparison.Ordinal) && long.TryParse(id["visit:".Length..], out var visitId))
         {
             if (TryBlockRemoteDossierNpc(visitId)) return;

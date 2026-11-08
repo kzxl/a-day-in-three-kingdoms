@@ -57,9 +57,15 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             hasVongKhi = playerAttrs.IsSkillEquipped("vong_khi_thien_co");
         }
 
+        ISocietyChronicle? society = null;
+        if (_capabilities is not null && _capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var soc))
+        {
+            society = soc;
+        }
+
         var all = _registry.All;
-        var localNpcs = _registry.FindByCitadel(currentCityId);
-        var otherNpcs = all.Where(npc => npc.CitadelId != currentCityId).ToList();
+        var localNpcs = all.Where(npc => npc.CurrentCitadelId(society) == currentCityId && !npc.IsDeceased(society)).ToList();
+        var otherNpcs = all.Where(npc => npc.CurrentCitadelId(society) != currentCityId || npc.IsDeceased(society)).ToList();
 
         var distantMetNpcs = otherNpcs.Where(npc => metNpcIds.Contains(npc.Id)).ToList();
         var distantRenownedNpcs = otherNpcs
@@ -239,12 +245,17 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             }
         }
 
+        if (npc.IsDeceasedFlag)
+        {
+            statusNote = "Đã mất · Lưu danh sử sách";
+        }
+
         var details = new List<ScreenDetail>
         {
             new("Họ Tên", $"{npc.NameVi}{nameHan}"),
             new("Tên Tự", style),
             new("Thân Phận", SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role)),
-            new("Ngụ Cư", citadelName),
+            new("Ngụ Cư", npc.IsDeceasedFlag ? $"{citadelName} (Đã mất)" : citadelName),
             new("Tình Trạng", statusNote)
         };
 
@@ -298,16 +309,18 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
                 npc.NameVi,
                 $"{style}{nameHan}",
                 SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role),
-                citadelName,
+                npc.IsDeceasedFlag ? $"{citadelName} (Đã mất)" : citadelName,
                 warDisplay,
                 ldrDisplay,
                 intDisplay,
                 comDisplay
             ],
-            [
-                new ScreenCommand($"talk:npc:{npc.Id}", "Bái phỏng", CommandKind.Primary),
-                new ScreenCommand($"npc:modal:{npc.Id}", "Hồ Sơ", CommandKind.Secondary)
-            ],
+            npc.IsDeceasedFlag
+                ? [new ScreenCommand($"npc:modal:{npc.Id}", "Hồ Sơ", CommandKind.Secondary)]
+                : [
+                    new ScreenCommand($"talk:npc:{npc.Id}", "Bái phỏng", CommandKind.Primary),
+                    new ScreenCommand($"npc:modal:{npc.Id}", "Hồ Sơ", CommandKind.Secondary)
+                ],
             Title: $"{npc.NameVi} — {style}",
             Details: details);
     }
@@ -328,7 +341,7 @@ internal sealed class NpcCommandHandler : IScreenCommandHandler
             if (long.TryParse(commandId["npc:modal:".Length..], out var id))
             {
                 var npc = _registry.Find(id);
-                if (npc is not null)
+                if (npc is not null && _registry.IsPresent(id))
                 {
                     return $"Đang xem hồ sơ: {npc.NameVi} ({npc.StyleNameVi ?? SimT.Contracts.Scenes.RoleTitleVi.Format(npc.Role)})";
                 }

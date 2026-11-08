@@ -19,6 +19,7 @@ internal sealed class MilitaryService : IMilitaryCommand
     private readonly IItemCatalog _items;
     private readonly ILog _log;
     private readonly IPlayerEquipment? _equipment;
+    private readonly SimT.Contracts.Modules.ICapabilityBroker? _capabilities;
 
     public MilitaryService(
         IDbSession db,
@@ -31,7 +32,8 @@ internal sealed class MilitaryService : IMilitaryCommand
         IPlayerAttributes attributes,
         IItemCatalog items,
         ILog log,
-        IPlayerEquipment? equipment = null)
+        IPlayerEquipment? equipment = null,
+        SimT.Contracts.Modules.ICapabilityBroker? capabilities = null)
     {
         _db = db;
         _clock = clock;
@@ -44,6 +46,7 @@ internal sealed class MilitaryService : IMilitaryCommand
         _items = items;
         _log = log;
         _equipment = equipment;
+        _capabilities = capabilities;
     }
 
     public int GetCitadelSecurity(long citadelId)
@@ -170,8 +173,29 @@ internal sealed class MilitaryService : IMilitaryCommand
         var today = _clock.Today;
         var formattedDate = GameDateCodec.Format(today);
 
+        IReadOnlyList<NpcTraitDef>? opponentTraits = null;
+        ISocialNetwork? social = null;
+        if (_capabilities is not null)
+        {
+            _capabilities.TryGet(CapabilityIds.SocialNetwork, out social);
+            if (social is not null)
+                opponentTraits = social.GetTraits(npcId);
+        }
+
         // Run full multi-round tactical duel simulation
-        var duel = TacticalDuelEngine.SimulateDuel(_attributes, npc, playerBranch);
+        var duel = TacticalDuelEngine.SimulateDuel(_attributes, npc, playerBranch, opponentTraits: opponentTraits);
+
+        if (duel.Won && social is not null)
+        {
+            var meVoBonus = social.RecordDuelVictoryBonus(npcId);
+            if (meVoBonus > 0)
+            {
+                duel = duel with
+                {
+                    CombatSummaryVi = $"{duel.CombatSummaryVi} Đặc tính [Mê võ] khiến {npc.NameVi} nể phục bản lĩnh của bạn (+{meVoBonus} Hảo cảm)."
+                };
+            }
+        }
 
         _db.Transaction(() =>
         {

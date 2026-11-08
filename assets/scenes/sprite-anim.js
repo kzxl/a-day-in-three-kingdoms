@@ -335,6 +335,7 @@ export function stepCityWalkers(walkers, rawDt) {
 }
 
 export function createPortraitAnimator({ baseEl, blinkEl, talkEl, lineEl }) {
+  let framesEnabled = true;
   const st = {
     fullText: '',
     typed: 0,
@@ -347,14 +348,19 @@ export function createPortraitAnimator({ baseEl, blinkEl, talkEl, lineEl }) {
 
   function syncFrames() {
     if (!blinkEl || !talkEl || !baseEl) return;
-    const mouth = st.speaking && Math.floor(st.it / 0.11) % 2 === 0;
-    const isBlink = st.blink > 0;
+    const mouth = framesEnabled && st.speaking && Math.floor(st.it / 0.11) % 2 === 0;
+    const isBlink = framesEnabled && st.blink > 0;
     blinkEl.style.opacity = isBlink ? '1' : '0';
     talkEl.style.opacity = !isBlink && mouth ? '1' : '0';
     baseEl.style.opacity = isBlink || mouth ? '0' : '1';
   }
 
   return {
+    setFramesEnabled(enabled) {
+      framesEnabled = enabled;
+      st.blink = 0;
+      syncFrames();
+    },
     setLine(text) {
       st.fullText = String(text ?? '');
       st.typed = 0;

@@ -4,7 +4,7 @@ using SimT.Contracts.Ui;
 
 namespace SimT.Modules.Dlc.Society;
 
-internal sealed class SocietyChronicleScreen : IScreenContribution
+internal sealed partial class SocietyChronicleScreen : IScreenContribution
 {
     private static readonly string[] Columns = ["Ngày", "Nhân Sĩ", "Thành Trì", "Phân Loại", "Hành Trạng", "Biến Động"];
 
@@ -55,15 +55,19 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
             return RenderKarmaScreen(currentCityId, currentCitadelName);
         }
 
+        if (_filterKind == "rumors") return RenderRumors();
+
         var allEvents = _chronicle.RecentEvents(limit: 60);
         var localEvents = allEvents.Where(e => e.CitadelId == currentCityId).ToList();
 
         var displayedEvents = _filterKind switch
         {
             "local" => localEvents,
+            "history" => _chronicle.RecentEvents(limit: 60, category: "history").ToList(),
             "migration" => allEvents.Where(e => e.StatImpact != null && e.StatImpact.Contains("Di cư") || e.StatImpact != null && e.StatImpact.Contains("tị nạn") || e.StatImpact != null && e.StatImpact.Contains("Tránh giặc")).ToList(),
             "martial" => allEvents.Where(e => e.EventKind == "martial").ToList(),
             "commerce" => allEvents.Where(e => e.EventKind == "commerce").ToList(),
+            "relationship" => allEvents.Where(e => e.EventKind == "relationship").ToList(),
             "scholarly" => allEvents.Where(e => e.EventKind == "scholarly").ToList(),
             "governance" => allEvents.Where(e => e.EventKind == "governance").ToList(),
             "travel" => allEvents.Where(e => e.EventKind == "travel").ToList(),
@@ -92,9 +96,11 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
         var headerTitle = _filterKind switch
         {
             "local" => $"Sự kiện tại {currentCitadelName}",
+            "history" => "Sử biến thiên hạ · Đại cục Tam Quốc",
             "migration" => "Dòng di cư lánh loạn & tìm miền đất hứa",
             "martial" => "Phong vân võ nghiệp quần hùng",
             "commerce" => "Thương trường & đại lộ phú thương",
+            "relationship" => "Nhân duyên trong thiên hạ",
             "scholarly" => "Mưu thần & sĩ phu luận đàm",
             "governance" => "Chính sự châu quận & an dân",
             "travel" => "Hành trình vân du thiên hạ",
@@ -123,7 +129,10 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
+            new("filter:relationship", "Quan hệ", CommandKind.Secondary),
+            new("filter:rumors", "Tin đồn", CommandKind.Secondary),
             new("filter:all", "Tất Cả", _filterKind == "all" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:history", "🐉 Sử Biến", _filterKind == "history" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", _filterKind == "rivals" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:karma", "⚖️ Nhân Quả", _filterKind == "karma" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:migration", "🏃 Di Cư", _filterKind == "migration" ? CommandKind.Primary : CommandKind.Secondary),
@@ -225,6 +234,8 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
+            new("filter:relationship", "Quan hệ", CommandKind.Secondary),
+            new("filter:rumors", "Tin đồn", CommandKind.Secondary),
             new("filter:all", "Tất Cả", CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", CommandKind.Primary),
             new("filter:karma", "⚖️ Nhân Quả", CommandKind.Secondary),
@@ -372,6 +383,8 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
+            new("filter:relationship", "Quan hệ", CommandKind.Secondary),
+            new("filter:rumors", "Tin đồn", CommandKind.Secondary),
             new("filter:all", "Tất Cả", CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", CommandKind.Secondary),
             new("filter:karma", "⚖️ Nhân Quả", CommandKind.Primary),
@@ -399,13 +412,27 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
     {
         var kindVi = e.EventKind switch
         {
+            "history" => "🐉 Sử biến",
             "martial" => "⚔️ Võ nghiệp",
             "commerce" => "💰 Thương mại",
+            "relationship" => "Nhân duyên",
             "scholarly" => "📜 Mưu thần",
             "governance" => "🏛️ Chính sự",
             "travel" => "🗺️ Du hành",
             _ => "Giang hồ"
         };
+
+        var rowCommands = new List<ScreenCommand>();
+        if (e.EventKind == "history" && e.StatImpact is not null && e.StatImpact.StartsWith("evt:", StringComparison.Ordinal))
+        {
+            var endIdx = e.StatImpact.IndexOf(' ');
+            var evtCode = endIdx > 4 ? e.StatImpact[4..endIdx] : e.StatImpact[4..];
+            rowCommands.Add(new ScreenCommand($"history:view:{evtCode}", "Xem Cảnh 📜", CommandKind.Primary));
+        }
+        if (e.NpcId > 0)
+        {
+            rowCommands.Add(new ScreenCommand($"npc:modal:{e.NpcId}", "Hồ Sơ 🔍", rowCommands.Count == 0 ? CommandKind.Primary : CommandKind.Secondary));
+        }
 
         return new ScreenRow(
             [
@@ -416,9 +443,7 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
                 e.HeadlineVi,
                 e.StatImpact ?? "—"
             ],
-            [
-                new ScreenCommand($"npc:modal:{e.NpcId}", "Hồ Sơ 🔍", CommandKind.Primary)
-            ],
+            rowCommands,
             Title: $"{e.NpcNameVi} — {e.HeadlineVi}",
             Details:
             [
@@ -434,12 +459,14 @@ internal sealed class SocietyChronicleScreen : IScreenContribution
 
     private static string FilterLabel(string filter) => filter switch
     {
+        "history" => "Sử biến thiên hạ",
         "rivals" => "Bảng phú hào",
         "karma" => "Nhân quả báo ứng",
         "migration" => "Dòng di cư thiên hạ",
         "local" => "Đồng thành",
         "martial" => "Võ nghiệp",
         "commerce" => "Thương lộ",
+        "relationship" => "Quan hệ",
         "scholarly" => "Mưu lược",
         "governance" => "Chính sự",
         "travel" => "Du hành",
@@ -465,6 +492,15 @@ internal sealed class SocietyCommandHandler : IScreenCommandHandler
             var filter = commandId["filter:".Length..];
             _screen.SetFilter(filter);
             return $"Đã chuyển bộ lọc: {filter}";
+        }
+
+        if (commandId.StartsWith("history:view:"))
+        {
+            var code = commandId["history:view:".Length..];
+            var evt = _screen.Chronicle.FindHistoricalEvent(code);
+            return evt is not null
+                ? $"[Sử Biến] {evt.TitleVi} ({GameDateCodec.Format(evt.ScheduledDate)})"
+                : "Không tìm thấy sự biến lịch sử này.";
         }
 
         if (commandId.StartsWith("karma:resolve:"))

@@ -20,6 +20,10 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+export function formatCityNarrative(text) {
+  return String(text ?? '').split(/\n+/).map(escapeHtml).join('<br><br>');
+}
+
 function resolveWeatherModule(effectKey) {
   switch (String(effectKey || '').toLowerCase()) {
     case 'cherry-blossoms':
@@ -117,7 +121,7 @@ function renderCityScene(container, scene, bridge) {
         <span class="tk-event-title tk-one">${escapeHtml(ev.titleVi)}</span>
         <span class="tk-event-loc tk-one">${escapeHtml(ev.locationVi)}</span>
       </div>
-      <p class="tk-event-body tk-one">${escapeHtml(ev.narrativeVi)}</p>
+      <p class="tk-event-body">${formatCityNarrative(ev.narrativeVi)}</p>
       <div class="tk-event-reward tk-one">${escapeHtml(ev.rewardVi)}</div>
     </aside>
   ` : '';

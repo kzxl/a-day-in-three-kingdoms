@@ -40,9 +40,15 @@
 
 .dossier-head-meta {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 14px;
   font-size: 13px;
   color: #b9aa8c;
+}
+
+.dossier-head-meta span {
+  white-space: nowrap;
 }
 
 .dossier-head-meta b {
@@ -309,6 +315,10 @@
   white-space: nowrap;
 }
 
+/* Traits are dossier chips in gold; the native title shows the description. */
+.dossier-traits { display: flex; flex-wrap: wrap; gap: 6px; }
+.dossier-chip.is-trait { color: #c4a062; border-color: rgba(196, 160, 98, 0.45); cursor: help; }
+.dossier-chip.is-trait.is-hidden { color: #8c7b65; border-style: dashed; border-color: #5a4834; }
 .dossier-radar-row {
   display: flex;
   gap: clamp(10px, 1.2vw, 18px);
@@ -362,4 +372,309 @@
   font-size: 14.5px;
   line-height: 1.6;
   color: #eadfc6;
+}
+
+.dossier-head-left {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.dossier-mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dossier-tab-btn {
+  flex: none;
+  height: 34px;
+  padding: 0 14px;
+}
+
+.dossier-body[hidden],
+.dossier-vtl-view[hidden],
+.dossier-vtl-characters[hidden],
+.dossier-vtl-history[hidden] {
+  display: none !important;
+}
+
+.dossier-vtl-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dossier-vtl-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  flex: none;
+}
+
+.dossier-vtl-counter {
+  font-size: 13.5px;
+  color: #b9aa8c;
+  white-space: nowrap;
+}
+
+.dossier-vtl-counter b {
+  color: #e8b75c;
+}
+
+.dossier-vtl-characters {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dossier-vtl-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  flex: none;
+}
+
+.dossier-filter-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dossier-filter-lbl {
+  width: 74px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b9aa8c;
+  padding-top: 4px;
+}
+
+.dossier-filter-strip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  max-height: 56px;
+  overflow-y: auto;
+}
+
+.dossier-filter-btn {
+  cursor: pointer;
+  color: #eadfc6;
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+
+.dossier-filter-btn:hover {
+  border-color: #c4a062;
+}
+
+.dossier-filter-btn.active {
+  background: #2a1f16;
+  border-color: #e8b75c;
+  color: #e8b75c;
+  font-weight: 600;
+}
+
+.dossier-vtl-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+}
+
+.dossier-vtl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(106px, 1fr));
+  gap: 8px;
+}
+
+.dossier-vtl-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 6px;
+  background: #241a13;
+  border: 1px solid #3a2c20;
+  color: #eadfc6;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  text-align: center;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.dossier-vtl-cell.is-met {
+  cursor: pointer;
+}
+
+.dossier-vtl-cell.is-met:hover {
+  border-color: #e8b75c;
+  background: #2a1f16;
+}
+
+.dossier-vtl-cell.is-unmet {
+  cursor: default;
+  opacity: 0.88;
+}
+
+.dossier-vtl-avatar {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border: 1px solid #6a4f2e;
+  background: #140f0b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex: none;
+}
+
+.dossier-vtl-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dossier-vtl-img.is-silhouette {
+  filter: brightness(0);
+}
+
+.dossier-vtl-qmark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 24px 'Noto Serif', serif;
+  color: #c4a062;
+  pointer-events: none;
+}
+
+.dossier-vtl-name {
+  margin-top: 6px;
+  width: 100%;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f3e6cc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dossier-vtl-cell.is-unmet .dossier-vtl-name {
+  color: #8c7b65;
+}
+
+.dossier-vtl-sub {
+  margin-top: 2px;
+  width: 100%;
+  font-size: 11px;
+  color: #b9aa8c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dossier-vtl-history {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #1d1611;
+  border: 1px solid #3a2c20;
+  padding: 12px;
+}
+
+.dossier-vtl-history-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dossier-history-row {
+  height: 62px;
+  padding: 0 14px;
+  gap: 14px;
+}
+
+.dossier-history-row.is-viewed {
+  border-color: #6a4f2e;
+}
+
+.dossier-history-row.is-viewed:hover {
+  border-color: #e8b75c;
+  background: #2a1f16;
+}
+
+.dossier-history-row.is-missed {
+  opacity: 0.56;
+  cursor: default;
+}
+
+.dossier-history-row.is-pending {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.dossier-history-year {
+  width: 96px;
+  flex: none;
+  font: 700 14px 'Noto Serif', serif;
+  color: #e8b75c;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dossier-history-year small {
+  font: 400 11px 'Be Vietnam Pro', sans-serif;
+  color: #b9aa8c;
+}
+
+.dossier-row-tag.is-viewed {
+  border-color: #c4a062;
+  color: #f3e6cc;
+  background: #a8321f;
+}
+
+.dossier-row-tag.is-missed {
+  color: #9e8f75;
+  border-color: #3a2c20;
+}
+
+.dossier-row-tag.is-pending {
+  color: #8c7b65;
+  border-color: #3a2c20;
+}
+
+.dossier-history-empty {
+  padding: 24px;
+  text-align: center;
+  color: #b9aa8c;
+  font-size: 13.5px;
 }

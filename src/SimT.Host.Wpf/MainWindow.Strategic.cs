@@ -243,6 +243,7 @@ public partial class MainWindow
         briefing.RequestStroll += () => TriggerCityStroll(preferModalWhenOutsideScene: true);
         briefing.RequestTalkNpc += npcId => TryOpenTalkScene(npcId);
 
+        briefing.RequestWishDestination += OpenWishDestination;
         briefing.Bind(_kernel);
         ContentPanel.Children.Add(briefing);
     }
@@ -262,12 +263,12 @@ public partial class MainWindow
         TryOpenCityScene();
     }
 
-    private void RenderChronicle()
+    public void RenderChronicle(string? initialFilter = null)
     {
         SceneOverlay.HideScene();
         ScreenTitle.Text = "Thiên Hạ Biên Niên Sử";
         ScreenStatus.Text = "Kỷ yếu thời cuộc · Nắm bắt biến động thiên hạ và đưa ra quyết sách can thiệp";
-        UpdateRecommendationBanner("Theo dõi biến cố thiên hạ và chọn mục Chờ Quyết Sách để can thiệp kịp thời vào thời cuộc.");
+        UpdateRecommendationBanner("Theo dõi biến cố thiên hạ và chọn mục Sử biến hoặc Chờ Quyết Sách để xem lại trang sử và can thiệp thời cuộc.");
         KpiStrip.Children.Clear();
         AlertFeed.ItemsSource = null;
         GlobalCommands.Children.Clear();
@@ -281,7 +282,15 @@ public partial class MainWindow
             UpdateHeader();
             ShowNotification("Đã thực thi quyết sách dã sử thành công!");
         };
+        chronicleView.HistoricalEventReplayRequested += eventCode =>
+        {
+            TryOpenHistoricalEventScene(eventCode, isReplay: true);
+        };
         chronicleView.Bind(_kernel);
+        if (!string.IsNullOrWhiteSpace(initialFilter))
+        {
+            chronicleView.SetFilter(initialFilter);
+        }
         ContentPanel.Children.Add(chronicleView);
     }
 

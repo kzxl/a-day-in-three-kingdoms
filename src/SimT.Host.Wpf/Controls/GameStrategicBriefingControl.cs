@@ -15,7 +15,7 @@ namespace SimT.Host.Wpf.Controls;
 /// hot arbitrage trade intelligence, local notable figures, and living world chronicle stream.
 /// Eliminates raw ERP spreadsheet feel with rich visual card matrices.
 /// </summary>
-public sealed class GameStrategicBriefingControl : Border
+public sealed partial class GameStrategicBriefingControl : Border
 {
     private static readonly Brush SurfaceBg = Freeze(new SolidColorBrush(Color.FromRgb(0x14, 0x10, 0x0C)));
     private static readonly Brush BannerBg = Freeze(new SolidColorBrush(Color.FromRgb(0x1B, 0x14, 0x0E)));
@@ -93,6 +93,9 @@ public sealed class GameStrategicBriefingControl : Border
         {
             _rootContent.Children.Add(starterCard);
         }
+
+        AddWishJournal(kernel);
+        AddLordTaskJournal(kernel);
 
         // 2. Main 2-Column Strategic Arena
         var arenaGrid = new Grid { Margin = new Thickness(0, 14, 0, 0) };

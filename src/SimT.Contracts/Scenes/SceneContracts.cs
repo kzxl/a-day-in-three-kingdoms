@@ -12,7 +12,12 @@ public sealed record TalkScene(
     string PortraitFull, string PortraitFace, string BackgroundPath, IReadOnlyList<string> Lines,
     IReadOnlyList<SceneChoice> Choices, IReadOnlyList<SceneNpcThumb> NearbyNpcs,
     string? FeedbackVi = null, string? BlinkPath = null, string? TalkPath = null,
-    string? ArchetypeCode = null, string? ArchetypeBadgeVi = null);
+    string? ArchetypeCode = null, string? ArchetypeBadgeVi = null,
+    IReadOnlyList<NpcTraitView>? Traits = null)
+{
+    public IReadOnlyList<string> LineExpressions { get; init; } = Array.Empty<string>();
+    public IReadOnlyDictionary<string, string> ExpressionPaths { get; init; } = new Dictionary<string, string>();
+}
 
 public sealed record DuelFighterView(
     string NameVi, string SubVi, string FacePath, string SpritePath, TroopBranch Branch,
@@ -38,10 +43,58 @@ public sealed record CityScene(
     IReadOnlyList<CityHotspot> Hotspots, IReadOnlyList<CityNpcSprite> Npcs,
     CityEventCard? EventCard, IReadOnlyList<SceneChoice> Choices);
 
+public sealed record EventPortraitView(
+    long NpcId, string NpcCode, string NameVi, string RoleVi, string PortraitPath)
+{
+    public IReadOnlyList<string> LineExpressions { get; init; } = Array.Empty<string>();
+    public IReadOnlyDictionary<string, string> ExpressionPaths { get; init; } = new Dictionary<string, string>();
+}
+
+public sealed record EventScene(
+    string SceneId, string EventCode, string DateVi, string EraLabelVi,
+    string LocationLabelVi, string TitleVi, string NarrativeVi,
+    IReadOnlyList<string> SentencesVi, string BackgroundArtPath,
+    IReadOnlyList<EventPortraitView> Portraits, IReadOnlyList<string> ImpactBadges,
+    IReadOnlyList<SceneChoice> Choices, bool IsReplay = false);
+
+public sealed record DebateScene(
+    string SceneId,
+    long NpcId,
+    string NpcCode,
+    string NpcNameVi,
+    string? NpcNameHan,
+    string? StyleNameVi,
+    string RoleVi,
+    string? PersonalityVi,
+    string LocationNameVi,
+    string LocationHan,
+    string Topic,
+    string TopicTitleVi,
+    string PortraitFull,
+    string PortraitFace,
+    string BackgroundPath,
+    int Persuasion,
+    int Turn,
+    int MaxTurns,
+    bool IsFinished,
+    string OutcomeCode,
+    string? OutcomeTitleVi,
+    string LatestSpeakerVi,
+    string LatestLineVi,
+    string? PlayerLastLineVi,
+    string? ConsequenceVi,
+    IReadOnlyList<NpcTraitView> Traits,
+    IReadOnlyList<SceneChoice> Choices,
+    string? BlinkPath = null,
+    string? TalkPath = null,
+    string? ArchetypeCode = null,
+    string? ArchetypeBadgeVi = null);
+
 public sealed record SceneClientMessage(string Type, string? SceneId = null, string? Id = null);
 
 public sealed record TalkChoiceOutcome(
-    bool Ok, string MessageVi, bool OpenDuel = false, bool CloseScene = false, TalkScene? UpdatedScene = null);
+    bool Ok, string MessageVi, bool OpenDuel = false, bool CloseScene = false, TalkScene? UpdatedScene = null,
+    bool OpenDebate = false, DebateScene? DebateScene = null);
 
 /// <summary>
 /// Capability exposed by <c>dlc.dialogue</c> (<see cref="CapabilityIds.Dialogue"/>).
@@ -53,6 +106,8 @@ public interface IDialogueModule
     TalkChoiceOutcome HandleChoice(long npcId, string choiceId);
 
     IReadOnlyList<string> GetLinesForNpc(long npcId, string relationTierKey);
+
+    DebateScene? BuildDebateScene(DebateSessionView? session);
 }
 
 /// <summary>
@@ -248,6 +303,8 @@ public static class SceneTrustGuard
         TalkScene talk => talk.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         DuelScene duel => duel.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         CityScene city => city.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
+        EventScene evt => evt.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
+        DebateScene debate => debate.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         MapScene map => IsValidMapChoice(id, map),
         SocialScene social => IsValidSocialChoice(id, social),
         MarketScene market => IsValidMarketChoice(id, market),
@@ -284,6 +341,9 @@ public static class SceneTrustGuard
 
     private static bool IsValidSocialChoice(string id, SocialScene social)
     {
+        if (social.World is not null && id.StartsWith("search:", StringComparison.Ordinal) && id.Length <= 87) return true;
+        if (social.World is not null && id.StartsWith("world:", StringComparison.Ordinal) && long.TryParse(id[6..],out var center))
+            return social.World.Nodes.Concat(social.World.SearchResults).Any(n => n.NpcId == center);
         if (id == "host_banquet")
             return true;
         var parts = id.Split(':');

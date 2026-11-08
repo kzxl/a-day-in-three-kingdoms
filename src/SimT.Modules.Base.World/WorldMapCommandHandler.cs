@@ -94,6 +94,8 @@ internal sealed class WorldMapCommandHandler(
             return "Bạn đang quá kiệt sức (Mệt mỏi 95%+). Hãy nghỉ ngơi trước khi lên đường viễn hành!";
 
         var quote = _map.QuoteTravel(fromCityId, targetId, mode);
+        if (!string.IsNullOrEmpty(quote.BlockedReasonVi))
+            return quote.BlockedReasonVi;
         if (quote.ActualDays <= 0)
             return "Không có đường bộ thông thương đến thành này.";
 

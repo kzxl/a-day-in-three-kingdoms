@@ -77,13 +77,46 @@ public static class TacticalDuelEngine
     }
 
     /// <summary>
+    /// Computes the attack and incoming-damage multipliers for an NPC's character traits in a duel.
+    /// - Nóng nảy: higher attack, lower defense (takes more incoming damage).
+    /// - Điềm tĩnh: lower attack, higher defense (takes less incoming damage).
+    /// </summary>
+    public static (double AttackMultiplier, double IncomingDamageMultiplier) ResolveTraitCombatModifiers(
+        IReadOnlyList<NpcTraitDef>? opponentTraits)
+    {
+        var atkMult = 1.0;
+        var incomingDmgMult = 1.0;
+
+        if (opponentTraits is null)
+            return (atkMult, incomingDmgMult);
+
+        for (var i = 0; i < opponentTraits.Count; i++)
+        {
+            var code = opponentTraits[i].Code;
+            if (string.Equals(code, NpcTraitCodes.NongNay, StringComparison.OrdinalIgnoreCase))
+            {
+                atkMult *= NpcTraitRules.NongNayAttackMultiplier;
+                incomingDmgMult *= NpcTraitRules.NongNayIncomingDamageMultiplier;
+            }
+            else if (string.Equals(code, NpcTraitCodes.DiemTinh, StringComparison.OrdinalIgnoreCase))
+            {
+                atkMult *= NpcTraitRules.DiemTinhAttackMultiplier;
+                incomingDmgMult *= NpcTraitRules.DiemTinhIncomingDamageMultiplier;
+            }
+        }
+
+        return (atkMult, incomingDmgMult);
+    }
+
+    /// <summary>
     /// Runs a full simulated tactical duel and produces round-by-round clash logs.
     /// </summary>
     public static DuelResult SimulateDuel(
         IPlayerAttributes playerAttrs,
         NpcDef opponent,
         TroopBranch playerBranch,
-        int? seed = null)
+        int? seed = null,
+        IReadOnlyList<NpcTraitDef>? opponentTraits = null)
     {
         var rng = seed.HasValue ? new Random(seed.Value) : new Random();
         var opponentBranch = ResolveNpcBranch(opponent);
@@ -164,6 +197,18 @@ public static class TacticalDuelEngine
 
         var nBranchAtk = TroopBranchHelper.Counters(opponentBranch, playerBranch) ? 1.25 : 1.0;
         var nBranchDef = TroopBranchHelper.Counters(opponentBranch, playerBranch) ? 0.85 : 1.0;
+
+        var (traitAtkMult, traitIncomingMult) = ResolveTraitCombatModifiers(opponentTraits);
+        nBranchAtk *= traitAtkMult;
+        nBranchDef *= traitIncomingMult;
+
+        if (opponentTraits is not null)
+        {
+            if (opponentTraits.Any(t => string.Equals(t.Code, NpcTraitCodes.NongNay, StringComparison.OrdinalIgnoreCase)))
+                skillNotes.Add("Đối thủ [Nóng nảy] (Công +15%, Thủ -15%)");
+            if (opponentTraits.Any(t => string.Equals(t.Code, NpcTraitCodes.DiemTinh, StringComparison.OrdinalIgnoreCase)))
+                skillNotes.Add("Đối thủ [Điềm tĩnh] (Công -10%, Thủ +15%)");
+        }
 
         int round = 1;
         while (round <= maxRounds && playerHp > 0 && opponentHp > 0)

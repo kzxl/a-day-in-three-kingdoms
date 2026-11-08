@@ -1,0 +1,100 @@
+/* Debate scene (Đợt 9 — Biện luận): everything else comes from the talk scene styles in scene.css. */
+
+.tk-debate-topic {
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 12px;
+  max-width: 44vw;
+  background: rgba(24, 18, 13, 0.84);
+  border: 1px solid rgba(196, 160, 98, 0.35);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.tk-debate-line {
+  margin: 8px 0 6px;
+  font-size: 15.5px;
+  line-height: 1.38;
+}
+
+.tk-debate-consequence {
+  margin: 0 0 8px;
+  padding: 5px 9px;
+  border-left: 3px solid var(--jade);
+  background: rgba(63, 107, 85, 0.10);
+  color: var(--paper-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.tk-debate-consequence.is-loss {
+  border-left-color: var(--vermilion);
+  background: rgba(168, 50, 31, 0.10);
+}
+
+.tk-debate-meter {
+  margin: 6px 0 8px;
+}
+
+.tk-debate-meter-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--paper-sub);
+  margin-bottom: 4px;
+}
+
+.tk-debate-bar {
+  position: relative;
+  height: 8px;
+  display: flex;
+  border: 1px solid #8c734b;
+  border-radius: 2px;
+  background: var(--silk-deep);
+}
+
+.tk-debate-fill-player {
+  height: 100%;
+  background: var(--jade);
+  transition: width 0.18s ease;
+}
+
+.tk-debate-fill-opponent {
+  height: 100%;
+  background: var(--vermilion);
+  transition: width 0.18s ease;
+}
+
+.tk-debate-tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--paper-ink);
+  pointer-events: none;
+}
+
+.tk-debate-tick-20 {
+  left: 20%;
+}
+
+.tk-debate-tick-80 {
+  left: 80%;
+}
+
+.tk-debate-status {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--paper-sub);
+}
+
+.tk-debate-choices .tk-choice-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.3;
+}

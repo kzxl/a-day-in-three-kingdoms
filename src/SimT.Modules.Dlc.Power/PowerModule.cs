@@ -23,7 +23,10 @@ public sealed class PowerModule : ISimModule
         var equipment = context.Capabilities.TryGet<IPlayerEquipment>(CapabilityIds.PlayerEquipment, out var pe) ? pe : null;
 
         // 1. Politics / Court Service
-        var courtService = new CourtService(context.Db, context.Clock, wallet, context.Log, attributes);
+        var courtService = new CourtService(context.Db, context.Clock, wallet, context.Log, attributes)
+        {
+            Capabilities = context.Capabilities
+        };
         _ = courtService.Reputation;
         _ = courtService.AllegianceFactionId;
 
@@ -44,11 +47,19 @@ public sealed class PowerModule : ISimModule
             attributes!,
             items,
             context.Log,
-            equipment);
+            equipment,
+            context.Capabilities);
 
         context.Capabilities.Provide(CapabilityIds.MilitaryCommand, militaryService);
         context.Ui.AddScreen(new MilitaryScreen(militaryService, registry, map, player, attributes!, bag, items, context.Clock));
         context.Ui.AddCommandHandler(new MilitaryCommandHandler(militaryService));
+
+        var lordTasks = new LordTaskService(context, courtService);
+        courtService.LordTasks = lordTasks;
+        context.Capabilities.Provide(ILordTasks.CapabilityId, lordTasks);
+        context.Events.Subscribe<MonthClosed>(closed => lordTasks.AssignMonth(closed.Date));
+        context.Events.Subscribe<DayAdvanced>(_ => lordTasks.Tick());
+        lordTasks.Tick();
 
         // Invariants
         foreach (var invariant in PowerInvariants.All())

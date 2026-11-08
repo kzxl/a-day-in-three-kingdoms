@@ -13,7 +13,7 @@ public sealed record RowNpcMetadata(
 /// <summary>
 /// Single canonical classifier and art path resolver shared by WebView2 scenes and WPF controls.
 /// </summary>
-public static class SceneArtCatalog
+public static partial class SceneArtCatalog
 {
     public const string PlayerPortraitFace = "art/portraits/player/face.webp";
     public const string PlayerPortraitFull = "art/portraits/player/full.webp";
@@ -31,7 +31,7 @@ public static class SceneArtCatalog
         var code = NormalizeNpcCode(npcCode, nameVi);
         switch (code)
         {
-            case "npc_0001" or "npc_0002" or "npc_0003" or "npc_0022" or "npc_0057": return "general";
+            case "npc_0001" or "npc_0002" or "npc_0003" or "npc_0014" or "npc_0018" or "npc_0022" or "npc_0023" or "npc_0056" or "npc_0057": return "general";
             case "npc_0025": return "scholar";
             case "npc_0140": return "lady";
         }
@@ -98,7 +98,7 @@ public static class SceneArtCatalog
             return ($"art/portraits/{direct.Portrait}/full.webp", $"art/portraits/{direct.Portrait}/face.webp", $"art/sprites/{direct.Sprite}.png");
 
         var archetype = ClassifyArchetype(normCode, rawRole, attributes, nameVi, personality);
-        var (portraitKey, spriteKey) = ResolveArchetypeKeys(archetype);
+        var (portraitKey, spriteKey) = ResolveArchetypeKeys(archetype, normCode ?? npcCode);
         if (!string.IsNullOrEmpty(normCode) && manifest.Profile.TryGetValue(normCode, out var profRel))
         {
             var profPath = profRel.StartsWith("art/", StringComparison.OrdinalIgnoreCase) ? profRel : $"art/{profRel}";
@@ -151,12 +151,14 @@ public static class SceneArtCatalog
         return (null, null);
     }
 
-    public static (string PortraitKey, string SpriteKey) ResolveArchetypeKeys(string? rawRoleOrArchetype)
+    public static (string PortraitKey, string SpriteKey) ResolveArchetypeKeys(string? rawRoleOrArchetype, string? npcCode = null)
     {
+        if (string.Equals(rawRoleOrArchetype?.Trim(), "player", StringComparison.OrdinalIgnoreCase)) return ("player", "traveler");
         var manifest = Manifest.Value;
         var archetype = ClassifyArchetype(npcCode: null, rawRole: rawRoleOrArchetype);
-        return manifest.Archetype.TryGetValue(archetype, out var entry) ? entry
+        var (portraitKey, spriteKey) = manifest.Archetype.TryGetValue(archetype, out var entry) ? entry
             : manifest.Archetype.TryGetValue("commoner", out var fallback) ? fallback : ("commoner", "civ_commoner");
+        return (ResolveArchetypeVariantKey(portraitKey, npcCode), spriteKey);
     }
 
     public static (string PortraitFull, string PortraitFace, string SpritePath) ResolveRowNpcArt(ScreenRow row, INpcRegistry? registry = null)

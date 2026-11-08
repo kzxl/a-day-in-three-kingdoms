@@ -54,15 +54,15 @@ public sealed class LoadingProgressState
     public bool IsMoving { get; set; }
     public bool Ready { get; set; }
 
-    public static LoadingProgressState ForNewSave(string campaignName)
+    public static LoadingProgressState ForNewSave(string campaignName, SimT.Contracts.Products.StartingScenario? scenario = null)
     {
         var state = new LoadingProgressState();
-        var startDate = new GameDate(184, 5, 2);
+        var startDate = scenario?.StartDate ?? new GameDate(184, 5, 2);
         state.SetHeader(
             string.IsNullOrWhiteSpace(campaignName) ? "Lữ Khách" : campaignName.Trim(),
             turn: 1,
-            cityNameVi: "Lạc Dương",
-            cityCode: "lac_duong",
+            cityNameVi: scenario?.SuggestedCityVi ?? "Lạc Dương",
+            cityCode: scenario?.SuggestedCityCode ?? "lac_duong",
             regionNameVi: "Trung Nguyên",
             date: startDate);
         return state;

@@ -646,7 +646,8 @@ public sealed class ProfessionTests : IDisposable
         // Advance 30 days to trigger MonthClosed and dynamic NPC orders
         kernel.AdvanceDays(31);
 
-        var orders = guild.AvailableOrders(1);
+        // The available roster changes which cities receive orders; search the whole map.
+        var orders = Enumerable.Range(1, 20).SelectMany(city => guild.AvailableOrders(city)).ToArray();
         Assert.NotEmpty(orders);
 
         var order = orders.First();
@@ -849,8 +850,9 @@ public sealed class ProfessionTests : IDisposable
         var bag = Bag(kernel);
         var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
 
-        // 1. Verify all 6 new support skills exist in NPC skill registry
-        var allNpcSkillCodes = registry.All.SelectMany(n => n.Skills).Select(s => s.Code).ToHashSet();
+        // 1. Verify all 6 new support skills exist in the NPC skill catalog. Read the table, not
+        //    registry.All: starting scenarios hide holders still under 15 (Bàng Thống is 5 in 184).
+        var allNpcSkillCodes = kernel.Db.Query("SELECT code FROM np_skill", r => r.GetString(0)).ToHashSet();
         Assert.Contains("master_forging", allNpcSkillCodes);
         Assert.Contains("weapon_maintenance", allNpcSkillCodes);
         Assert.Contains("vein_divining", allNpcSkillCodes);

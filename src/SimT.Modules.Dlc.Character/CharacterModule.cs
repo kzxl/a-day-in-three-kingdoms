@@ -22,6 +22,11 @@ public sealed class CharacterModule : ISimModule
         var bag = context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
         var items = context.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
 
+        var bonds = new NpcBondService(context);
+        bonds.Initialize();
+        context.Capabilities.Provide(INpcBonds.CapabilityId, bonds);
+        context.Events.Subscribe<MonthClosed>(month => bonds.OnMonthClosed(month.Date));
+
         // 1. Social Service
         var socialService = new SocialService(
             context.Db,
@@ -35,14 +40,19 @@ public sealed class CharacterModule : ISimModule
             items,
             context.Log,
             context.Capabilities);
+        socialService.SetCampaignSeed(context.Campaign.Seed);
         context.Capabilities.Provide(CapabilityIds.SocialNetwork, socialService);
+        context.Capabilities.Provide(CapabilityIds.NpcTraits, socialService);
 
         var socialScreen = new SocialScreen(socialService, registry, map, player, bag, items, context.Clock, attributes);
         context.Ui.AddScreen(socialScreen);
         context.Ui.AddCommandHandler(new SocialCommandHandler(socialService, bag, player, items, attributes));
         context.Events.Subscribe<MonthClosed>(month => socialService.OnMonthClosed(month.Date));
 
-        // 2. Dialogue Service
+        // 2. Dialogue & Debate Services
+        var debateService = new DebateService(context, socialService);
+        context.Capabilities.Provide(CapabilityIds.Debate, debateService);
+
         var dialogueService = new DialogueService(context);
         context.Capabilities.Provide(CapabilityIds.Dialogue, dialogueService);
 
@@ -53,6 +63,18 @@ public sealed class CharacterModule : ISimModule
         context.Ui.AddScreen(new FamilyScreen(lineageService));
         context.Ui.AddCommandHandler(new FamilyCommandHandler(lineageService));
         context.Events.Subscribe<MonthClosed>(closed => lineageService.ChargeMonthly(closed.Date));
+
+        var wishes = new NpcWishService(context);
+        wishes.Initialize();
+        context.Capabilities.Provide(INpcWishes.CapabilityId, wishes);
+        context.Events.Subscribe<MonthClosed>(month => wishes.OnMonthClosed(month.Date));
+        context.Events.Subscribe<DayAdvanced>(day => wishes.Refresh(day.Date));
+        context.Events.Subscribe<SimT.Contracts.Events.DuelCompletedEvent>(duel =>
+        {
+            wishes.OnDuel(duel.NpcId, duel.PlayerWon, duel.Date);
+            if (duel.PlayerWon)
+                socialService.RecordDuelVictoryBonus(duel.NpcId);
+        });
 
         // Invariants
         foreach (var invariant in CharacterInvariants.All())

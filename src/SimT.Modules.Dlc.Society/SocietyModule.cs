@@ -26,6 +26,16 @@ public sealed class SocietyModule : ISimModule
             context.Log,
             context.Capabilities);
 
+        service.SetRumorContext(context.Rng, context.ActionTime);
+        context.Capabilities.Provide(CapabilityIds.TavernRumors, (ITavernRumors)service);
+        context.Capabilities.Provide(CapabilityIds.HistoricalRumorEvents, (IEventRumorSource)service);
+        context.Events.Subscribe<SimT.Contracts.Events.PlayerRelocatedEvent>(e => service.VerifyRumors(e.ToCityId));
+        context.Events.Subscribe<DayAdvanced>(day =>
+        {
+            service.OnDayAdvanced(day.Date);
+            service.VerifyRumors();
+        });
+        context.Events.Subscribe<SimT.Contracts.Events.KarmaEventTriggeredEvent>(_ => service.VerifyRumors());
         context.Capabilities.Provide(CapabilityIds.SocietyChronicle, service);
         context.Capabilities.Provide(CapabilityIds.MerchantRivalry, (IMerchantRivalry)service);
         context.Capabilities.Provide(CapabilityIds.KarmaEngine, (IKarmaEngine)service);

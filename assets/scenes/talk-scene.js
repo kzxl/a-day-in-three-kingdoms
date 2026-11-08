@@ -1,5 +1,6 @@
 import { SimTBridge } from './bridge.js';
 import { createPortraitAnimator } from './sprite-anim.js';
+import { createPortraitSwapper, portraitForLine } from './portrait-expressions.js';
 
 const HAN_NUMERALS = ['壹', '貳', '參', '肆', '伍', '陸'];
 
@@ -9,6 +10,8 @@ let keyHandler = null;
 let moveHandler = null;
 let rafId = null;
 let portraitAnim = null;
+let portraitSwapper = null;
+const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -28,12 +31,21 @@ function advanceLine(container) {
   }
   currentLineIdx = (currentLineIdx + 1) % currentScene.lines.length;
   const countEl = container.querySelector('#tk-talk-count');
+  updatePortrait(currentLineIdx);
   if (portraitAnim) {
     portraitAnim.setLine(currentScene.lines[currentLineIdx]);
+    if (prefersReducedMotion()) portraitAnim.completeLine();
   }
   if (countEl) {
     countEl.textContent = `${currentLineIdx + 1} / ${currentScene.lines.length}`;
   }
+}
+
+function updatePortrait(index) {
+  if (!currentScene) return;
+  const path = portraitForLine(currentScene, index, currentScene.portraitFull);
+  portraitAnim?.setFramesEnabled(path === currentScene.portraitFull);
+  portraitSwapper?.set(path, currentScene.portraitFull);
 }
 
 function renderTalkScene(container, scene, bridge) {
@@ -81,6 +93,17 @@ function renderTalkScene(container, scene, bridge) {
   const portraitFramesHtml = hasFrames ? `
     <img class="tk-char-img tk-char-frame" id="tk-char-blink" src="${escapeHtml(scene.blinkPath)}" alt="" />
     <img class="tk-char-img tk-char-frame" id="tk-char-talk" src="${escapeHtml(scene.talkPath)}" alt="" />
+  ` : '';
+
+  const traits = Array.isArray(scene.traits) ? scene.traits : [];
+  const traitsHtml = traits.length > 0 ? `
+    <div class="tk-trait-row" aria-label="Đặc tính nhân vật">
+      ${traits.map((t) => `
+        <span class="tk-mood-pill ${t.hidden ? 'is-hidden' : ''}"
+              title="${escapeHtml(t.descriptionVi || '')}"
+              data-trait-code="${escapeHtml(t.code || '')}">${escapeHtml(t.nameVi || '???')}</span>
+      `).join('')}
+    </div>
   ` : '';
 
   container.innerHTML = `
@@ -151,6 +174,7 @@ function renderTalkScene(container, scene, bridge) {
               <span class="tk-affinity-tier">· ${escapeHtml(scene.relationTierVi)}</span>
             </div>
           </div>
+          ${traitsHtml}
 
           <p class="tk-dialog-line" id="tk-talk-line">“${escapeHtml(lines[0])}”</p>
 
@@ -174,21 +198,27 @@ function renderTalkScene(container, scene, bridge) {
     talkEl: container.querySelector('#tk-char-talk'),
     lineEl
   });
+  portraitSwapper = createPortraitSwapper(container.querySelector('#tk-char-base'));
+  updatePortrait(0);
   portraitAnim.setLine(lines[0]);
+  if (prefersReducedMotion()) portraitAnim.completeLine();
 
   let prev = performance.now();
   const tick = (now) => {
     if (currentScene !== scene) return;
     const dt = Math.min(0.05, (now - prev) / 1000);
     prev = now;
-    if (portraitAnim) portraitAnim.step(dt);
+    if (portraitAnim) {
+      if (prefersReducedMotion()) portraitAnim.completeLine();
+      else portraitAnim.step(dt);
+    }
     rafId = requestAnimationFrame(tick);
   };
   rafId = requestAnimationFrame(tick);
 
   const stageEl = container.querySelector('#tk-talk-stage');
   moveHandler = (e) => {
-    if (!stageEl) return;
+    if (!stageEl || prefersReducedMotion()) return;
     const rect = stageEl.getBoundingClientRect();
     const mx = ((e.clientX - rect.left) / Math.max(1, rect.width)) - 0.5;
     const my = ((e.clientY - rect.top) / Math.max(1, rect.height)) - 0.5;
@@ -250,6 +280,8 @@ function unmountTalkScene() {
     window.removeEventListener('mousemove', moveHandler);
     moveHandler = null;
   }
+  portraitSwapper?.dispose();
+  portraitSwapper = null;
   portraitAnim = null;
   currentScene = null;
 }

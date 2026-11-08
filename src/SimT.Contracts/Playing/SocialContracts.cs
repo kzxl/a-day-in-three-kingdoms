@@ -112,14 +112,54 @@ public sealed record LetterDef(
     bool IsClaimed);
 
 /// <summary>
+/// First-meeting record for an NPC in Võ tướng lục.
+/// </summary>
+public sealed record MetNpcRecord(
+    long NpcId,
+    GameDate FirstMetDate,
+    long MetCitadelId);
+
+/// <summary>
+/// Claimed collection milestone in Võ tướng lục.
+/// </summary>
+public sealed record RosterMilestoneRecord(
+    string MilestoneKey,
+    GameDate ClaimedDate,
+    int FameAwarded);
+
+/// <summary>
 /// Social network, relationship matrix, and retainer management surface owned by <c>dlc.social</c>.
 /// </summary>
 public interface ISocialNetwork
 {
     RelationshipDef GetRelationship(long npcId);
 
+    /// <summary>Gets the first-meeting record for an NPC if the player has met them.</summary>
+    MetNpcRecord? GetMetNpc(long npcId) => null;
+
+    /// <summary>Gets all met NPC records in Võ tướng lục.</summary>
+    IReadOnlyList<MetNpcRecord> GetAllMetNpcs() => Array.Empty<MetNpcRecord>();
+
+    /// <summary>Records the player's first meeting with an NPC if not already recorded, and evaluates collection milestones.</summary>
+    void RecordMetNpc(long npcId, GameDate? date = null, long? citadelId = null) { }
+
+    /// <summary>Gets all claimed Võ tướng lục collection milestones.</summary>
+    IReadOnlyList<RosterMilestoneRecord> GetClaimedRosterMilestones() => Array.Empty<RosterMilestoneRecord>();
+
+    /// <summary>Evaluates and awards any newly reached Võ tướng lục collection milestones (10, 50, 100 met NPCs, all historical events witnessed).</summary>
+    IReadOnlyList<RosterMilestoneRecord> CheckAndAwardRosterMilestones() => Array.Empty<RosterMilestoneRecord>();
+
     /// <summary>Gets the psychological archetype and personality profile of an NPC.</summary>
     NpcPsycheProfile GetPsycheProfile(long npcId);
+
+    /// <summary>Gets the full canonical or seed-determined traits (1–3) of an NPC.</summary>
+    IReadOnlyList<NpcTraitDef> GetTraits(long npcId);
+
+    /// <summary>Gets the UI-visible traits of an NPC, masking secondary traits as "???" when affinity is low.</summary>
+    IReadOnlyList<NpcTraitView> GetVisibleTraits(long npcId);
+
+    /// <summary>Awards bonus affinity after the player wins a martial duel against an NPC with the Mê võ trait.</summary>
+    int RecordDuelVictoryBonus(long npcId);
 
     IReadOnlyList<RelationshipDef> AllRelationships();
 

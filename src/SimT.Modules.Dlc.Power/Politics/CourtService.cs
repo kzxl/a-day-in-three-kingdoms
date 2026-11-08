@@ -12,7 +12,7 @@ namespace SimT.Modules.Dlc.Power;
 /// reputation unlocks 9-rank officialdom, and an office pays monthly stipend.
 /// Players can align with warlords and enact regional civil policies.
 /// </summary>
-internal sealed class CourtService : IPoliticalCourt
+internal sealed partial class CourtService : IPoliticalCourt
 {
     public const int ServiceDays = 4;
     public const int ServiceReputation = 3;
@@ -48,7 +48,7 @@ internal sealed class CourtService : IPoliticalCourt
     public long AllegianceFactionId => State("allegiance_faction_id");
 
     public string? AllegianceFactionName =>
-        _db.ScalarString("SELECT name_vi FROM po_faction WHERE id=@id", DbArgs.One("@id", AllegianceFactionId));
+        Factions.FirstOrDefault(f => f.Id == AllegianceFactionId)?.NameVi;
 
     public IReadOnlyList<OfficeView> Offices =>
         _db.Query(
@@ -65,22 +65,7 @@ internal sealed class CourtService : IPoliticalCourt
                 row.GetInt64(5),
                 row.GetInt32(6)));
 
-    public IReadOnlyList<FactionView> Factions =>
-        _db.Query(
-            """
-            SELECT id, code, name_vi, leader_npc_id, capital_city_id, ideal_vi, troop_count, treasury_copper, color_hex
-            FROM po_faction ORDER BY id ASC
-            """,
-            row => new FactionView(
-                row.GetInt64(0),
-                row.GetString(1),
-                row.GetString(2),
-                row.GetInt64(3),
-                row.GetInt64(4),
-                row.GetString(5),
-                row.GetInt32(6),
-                row.GetInt32(7),
-                row.GetString(8)));
+    public IReadOnlyList<FactionView> Factions => ReadFactionsForYear();
 
     public IReadOnlyList<CityGovernanceView> Governances =>
         _db.Query(
@@ -94,7 +79,31 @@ internal sealed class CourtService : IPoliticalCourt
                 row.GetInt64(2),
                 row.GetInt32(3),
                 row.GetInt32(4),
-                row.GetInt32(5)));
+                ApplyDebateTaxRelief(row.GetInt64(0), row.GetInt32(5))));
+
+    public void SetCityOwner(long citadelId, long factionId, long? governorNpcId = null)
+    {
+        if (governorNpcId.HasValue && governorNpcId.Value > 0)
+        {
+            _db.Execute(
+                """
+                INSERT INTO po_city_governance(citadel_id, faction_id, governor_npc_id, unrest_level, defense_strength, tax_rate_percent)
+                VALUES(@citId, @facId, @govId, 20, 100, 10)
+                ON CONFLICT(citadel_id) DO UPDATE SET faction_id = excluded.faction_id, governor_npc_id = excluded.governor_npc_id
+                """,
+                new DbArgs().Add("@citId", citadelId).Add("@facId", factionId).Add("@govId", governorNpcId.Value));
+        }
+        else
+        {
+            _db.Execute(
+                """
+                INSERT INTO po_city_governance(citadel_id, faction_id, governor_npc_id, unrest_level, defense_strength, tax_rate_percent)
+                VALUES(@citId, @facId, 0, 20, 100, 10)
+                ON CONFLICT(citadel_id) DO UPDATE SET faction_id = excluded.faction_id
+                """,
+                new DbArgs().Add("@citId", citadelId).Add("@facId", factionId));
+        }
+    }
 
     public IReadOnlyList<DecreeLogView> RecentDecrees(int limit = 10) =>
         _db.Query(
@@ -224,6 +233,7 @@ internal sealed class CourtService : IPoliticalCourt
 
         _db.Transaction(() =>
         {
+            CancelLordTask();
             SetState("allegiance_faction_id", factionId);
             _wallet.Pay(100, JournalCodes.CourtStipend, $"Bổng lộc kết nạp quân kỳ {faction.NameVi}");
         });
@@ -242,6 +252,7 @@ internal sealed class CourtService : IPoliticalCourt
         var prevName = AllegianceFactionName ?? "chư hầu";
         _db.Transaction(() =>
         {
+            CancelLordTask();
             SetState("allegiance_faction_id", 0);
             var rep = Math.Max(0, Reputation - 5);
             SetState("reputation", rep);

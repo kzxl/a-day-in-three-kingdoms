@@ -7,7 +7,7 @@ using SimT.Contracts.Time;
 
 namespace SimT.Modules.Dlc.Character;
 
-internal sealed class DialogueService(ModuleContext context) : IDialogueModule
+internal sealed partial class DialogueService(ModuleContext context) : IDialogueModule
 {
     private readonly ModuleContext _context = context;
 
@@ -23,11 +23,13 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
         if (lines.Count == 0)
             lines = QueryLines("role", "commoner", "stranger");
 
-        return lines.Select(ClampLine90).ToList();
+        var result = lines.Select(ClampLine90).ToList();
+        AppendTraitLinesForNpc(npc.Id, tier, result);
+        return result;
     }
 
     public TalkScene BuildTalkScene(long npcId, string? feedbackVi = null) =>
-        BuildTalkSceneCore(npcId, feedbackVi, customChoices: null);
+        DecorateLordScene(BuildTalkSceneCore(npcId, feedbackVi, customChoices: null), feedbackVi);
 
     private TalkScene BuildTalkSceneCore(long npcId, string? feedbackVi, IReadOnlyList<SceneChoice>? customChoices)
     {
@@ -67,6 +69,9 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
 
         _context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var socialService);
         var psyche = socialService?.GetPsycheProfile(npc.Id);
+        var introduction = socialService?.GetMemories(npc.Id,100).FirstOrDefault(m => m.Topic == "introduction")?.SummaryVi
+            ?? socialService?.GetRelationship(npc.Id).Impression;
+        if (introduction?.StartsWith("Bạn của ", StringComparison.Ordinal) == true) lines.Insert(0, introduction);
 
         return new TalkScene(
             SceneId: $"talk:{npc.Id}", NpcId: npc.Id, NpcCode: npc.Code,
@@ -80,7 +85,11 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
             FeedbackVi: string.IsNullOrWhiteSpace(feedbackVi) ? null : ClampLine90(feedbackVi!),
             BlinkPath: blinkPath, TalkPath: talkPath,
             ArchetypeCode: psyche?.Archetype.ToString().ToLowerInvariant(),
-            ArchetypeBadgeVi: psyche?.BadgeVi);
+            ArchetypeBadgeVi: psyche?.BadgeVi,
+            Traits: socialService?.GetVisibleTraits(npc.Id))
+        {
+            ExpressionPaths = SceneArtCatalog.ResolvePortraitExpressions(portraitFull)
+        };
     }
 
     public TalkChoiceOutcome HandleChoice(long npcId, string choiceId)
@@ -89,6 +98,20 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
         var npc = npcs.Find(npcId);
         if (npc is null)
             return new TalkChoiceOutcome(false, "Không tìm thấy nhân vật.", CloseScene: true);
+
+        var outcome = HandleChoiceCore(npc, choiceId);
+        if (_context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+            social.RecordMetNpc(npc.Id, _context.Clock.Today, npc.CurrentCitadelId(_context.Capabilities));
+        return outcome;
+    }
+
+    private TalkChoiceOutcome HandleChoiceCore(NpcDef npc, string choiceId)
+    {
+        if (choiceId.StartsWith("lord:", StringComparison.Ordinal)) return HandleLordChoice(npc, choiceId);
+
+        if (choiceId.StartsWith("wish:", StringComparison.Ordinal)) return HandleWishChoice(npc, choiceId);
+
+        if (choiceId.StartsWith("debate:", StringComparison.OrdinalIgnoreCase)) return HandleDebateChoice(npc, choiceId);
 
         RecordVisit(npc.Id);
         var normalized = choiceId.Trim().ToLowerInvariant();
@@ -109,6 +132,7 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
             case "chat":
             {
                 string msg;
+                var beforeAffinity = ResolveRelationship(npc.Id).Affinity;
                 if (_context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
                 {
                     try
@@ -126,7 +150,8 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
                     msg = $"{npc.NameVi} mỉm cười trò chuyện cùng bạn về phong tục bản địa.";
                 }
 
-                var updated = BuildTalkScene(npc.Id, msg);
+                var expression = ResolveRelationship(npc.Id).Affinity > beforeAffinity ? "happy" : "normal";
+                var updated = WithFeedbackExpression(BuildTalkScene(npc.Id, msg), expression);
                 return new TalkChoiceOutcome(true, msg, UpdatedScene: updated);
             }
 
@@ -180,18 +205,22 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
 
         string msg;
         var ok = true;
+        var expression = "normal";
+        var beforeAffinity = social.GetRelationship(npc.Id).Affinity;
         try
         {
             var raw = social.GiftNpc(npc.Id, itemId);
             msg = SummarizeFeedback(raw, $"{npc.NameVi} vui vẻ nhận lễ vật bạn trao tặng.");
+            expression = social.GetRelationship(npc.Id).Affinity >= beforeAffinity ? "happy" : "angry";
         }
         catch (SimException ex)
         {
             msg = ClampLine90(ex.Message);
             ok = false;
+            if (ex.Code == "social.gift_rejected") expression = "angry";
         }
 
-        return new TalkChoiceOutcome(ok, msg, UpdatedScene: BuildTalkScene(npc.Id, msg));
+        return new TalkChoiceOutcome(ok, msg, UpdatedScene: WithFeedbackExpression(BuildTalkScene(npc.Id, msg), expression));
     }
 
     private IReadOnlyList<SceneChoice> BuildGiftChoices(long currentCityId)
@@ -247,6 +276,8 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
             list.Add(new SceneChoice("duel", "Đấu tay đôi", $"Võ lực {npc.Attributes.War}"));
         }
 
+        AddWishChoices(npc, list);
+        AddDebateChoices(npc, currentCityId, list);
         list.Add(new SceneChoice("bye", "Tạm biệt", "Rời cuộc trò chuyện"));
         return list;
     }

@@ -1,0 +1,44 @@
+/* Historical event scene: everything else comes from the talk scene styles in scene.css. */
+
+.tk-event-shade {
+  background: linear-gradient(180deg, rgba(20, 14, 10, 0.35) 0%, rgba(20, 14, 10, 0.15) 45%, rgba(20, 14, 10, 0.82) 100%);
+}
+
+.tk-event-cast {
+  inset: 0; top: 56px; bottom: 212px;
+  display: flex; align-items: flex-end; justify-content: center; gap: 12%;
+  transform: translate3d(calc(var(--mx) * 16px), calc(var(--my) * 8px), 0);
+}
+.tk-event-cast-2 { justify-content: space-between; padding: 0 9%; }
+.tk-event-figure { position: relative; margin: 0; display: flex; flex-direction: column; align-items: center; }
+/* A definite height (cast top 56 + dock 212 + nameplate ~42) so the width follows the art's aspect ratio. */
+.tk-event-figure .tk-char-img { height: calc(100vh - 310px); max-height: 640px; width: auto; }
+.tk-event-cast-2 .tk-event-figure:last-child .tk-char-rig { animation-delay: -3.5s; }
+
+.tk-event-nameplate {
+  position: relative; z-index: 1; margin-top: -12px; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  max-width: 220px; padding: 5px 12px;
+  background: rgba(24, 18, 13, 0.84); border: 1px solid rgba(196, 160, 98, 0.42); border-radius: 4px;
+}
+.tk-event-nameplate-name { font-family: var(--font-display); font-size: 13.5px; font-weight: 700; color: var(--ink); max-width: 100%; }
+.tk-event-nameplate-role { font-size: 11px; color: var(--muted); max-width: 100%; }
+
+.tk-event-era {
+  display: inline-flex; align-items: center; height: 34px; padding: 0 12px; max-width: 46vw;
+  background: rgba(24, 18, 13, 0.84); border: 1px solid rgba(196, 160, 98, 0.35); border-radius: 4px;
+  color: var(--muted); font-size: 11.5px;
+}
+
+/* Room for four lines so the paper (and the cast above it) never jumps between pages. */
+.tk-event-line { min-height: 5.6em; }
+.tk-event-line.is-in { animation: tkEventLineIn 0.25s ease both; }
+@keyframes tkEventLineIn { from { opacity: 0.15; } to { opacity: 1; } }
+
+.tk-event-effects { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 14px; line-height: 1.35; }
+.tk-event-effects li { position: relative; padding-left: 14px; }
+.tk-event-effects li::before {
+  content: ''; position: absolute; left: 2px; top: 0.55em; width: 5px; height: 5px;
+  background: var(--vermilion); transform: rotate(45deg);
+}
+
+.tk-event-choices .tk-choice-label { flex: 1 1 auto; white-space: normal; line-height: 1.3; }

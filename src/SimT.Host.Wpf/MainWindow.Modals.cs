@@ -164,6 +164,15 @@ public partial class MainWindow
                 TryOpenFarmsteadDetailModal(plotId);
             }
         });
+
+        _kernel.Ui.RegisterModalPresenter("history:view:", commandId =>
+        {
+            var code = commandId["history:view:".Length..].Trim();
+            if (!string.IsNullOrEmpty(code))
+            {
+                TryOpenHistoricalEventScene(code, isReplay: true);
+            }
+        });
     }
 
 
@@ -386,7 +395,7 @@ public partial class MainWindow
         }
 
         var npc = registry.Find(npcId);
-        if (npc is null)
+        if (npc is null || !registry.IsPresent(npcId))
         {
             StatusText.Text = $"Không tìm thấy nhân sĩ mã {npcId}.";
             return;
@@ -524,7 +533,7 @@ public partial class MainWindow
         }
 
         var npc = registry.Find(npcId);
-        if (npc is null)
+        if (npc is null || !registry.IsPresent(npcId))
         {
             StatusText.Text = $"Không tìm thấy võ sĩ mã {npcId}.";
             return;

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { inflateSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 globalThis.window = globalThis.window || {
@@ -20,7 +21,15 @@ const scenesDir = path.join(rootDir, 'assets', 'scenes');
 const { createFrame, clearFrame, createFx, composite } = await import('../assets/scenes/vendor/pixelfx/src/core/index.js');
 const { buildEffectOptions, safeCreateFx, splitNarrativeSentences } = await import('../assets/scenes/duel-scene.js');
 const { STEP_DUEL, STEP_CITY, SCALE_DUEL, SCALE_CITY, computeWalkFrame, createDuelFighterState, stepDuelState, stepCityWalkers } = await import('../assets/scenes/sprite-anim.js');
-const { LABEL_POS, computeDefaultMapLuggage } = await import('../assets/scenes/map-scene.js');
+const {
+  LABEL_POS,
+  SEASON_MAX_PARTICLES,
+  computeDefaultMapLuggage,
+  computeFactionGrid,
+  paintFactionCanvas,
+  computeMapLayoutBoxes,
+  createSeasonParticles
+} = await import('../assets/scenes/map-scene.js');
 const { MIN_NODE_RADIUS_PCT, ringRadiusPct, computeSocialNodePos } = await import('../assets/scenes/social-scene.js');
 const { shortDossierName } = await import('../assets/scenes/dossier-scene.js');
 
@@ -75,9 +84,55 @@ for (const entry of effects) {
   }
 }
 
-// Verify manifest.json asset references exist on disk
+// Verify manifest.json asset references exist on disk and portrait dimensions match spec
+function readWebpDimensions(filePath) {
+  const buf = fs.readFileSync(filePath);
+  assert.equal(buf.toString('ascii', 0, 4), 'RIFF', `Expected RIFF header in ${filePath}`);
+  assert.equal(buf.toString('ascii', 8, 12), 'WEBP', `Expected WEBP header in ${filePath}`);
+  const chunk = buf.toString('ascii', 12, 16);
+  if (chunk === 'VP8X') return { width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) };
+  if (chunk === 'VP8 ') return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff };
+  if (chunk === 'VP8L') {
+    const bits = buf.readUInt32LE(21);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+  }
+  throw new Error(`Unsupported WEBP chunk ${chunk} in ${filePath}`);
+}
+
+function assertPortraitDir(portraitKey, isVariant = false) {
+  const fullPath = path.join(scenesDir, 'art', 'portraits', portraitKey, 'full.webp');
+  const facePath = path.join(scenesDir, 'art', 'portraits', portraitKey, 'face.webp');
+  assert.ok(fs.existsSync(fullPath), `Missing portrait full for ${portraitKey}: ${fullPath}`);
+  assert.ok(fs.existsSync(facePath), `Missing portrait face for ${portraitKey}: ${facePath}`);
+  const fullDim = readWebpDimensions(fullPath);
+  const faceDim = readWebpDimensions(facePath);
+  assert.equal(fullDim.height, 900, `Expected full.webp height 900 for ${portraitKey}, got ${fullDim.width}x${fullDim.height}`);
+  if (isVariant) {
+    assert.ok(fullDim.width >= 520 && fullDim.width <= 640, `Expected variant ${portraitKey} full.webp width 520..640, got ${fullDim.width}`);
+  }
+  assert.equal(faceDim.width, 160, `Expected face.webp width 160 for ${portraitKey}, got ${faceDim.width}x${faceDim.height}`);
+  assert.equal(faceDim.height, 160, `Expected face.webp height 160 for ${portraitKey}, got ${faceDim.width}x${faceDim.height}`);
+}
+
 const manifestPath = path.join(scenesDir, 'art', 'manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+if (manifest.player) {
+  assertPortraitDir(manifest.player.portrait);
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', 'sprites', `${manifest.player.sprite}.png`)), `Missing player sprite ${manifest.player.sprite}`);
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', manifest.player.anim)), `Missing player anim ${manifest.player.anim}`);
+}
+for (const [code, entry] of Object.entries(manifest.npc || {})) {
+  assertPortraitDir(entry.portrait);
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', 'sprites', `${entry.sprite}.png`)), `Missing NPC sprite for ${code}: ${entry.sprite}`);
+}
+for (const [arch, entry] of Object.entries(manifest.archetype || {})) {
+  assertPortraitDir(entry.portrait);
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', 'sprites', `${entry.sprite}.png`)), `Missing archetype sprite for ${arch}: ${entry.sprite}`);
+  assert.ok(Array.isArray(entry.variants) && entry.variants.length === 3, `Expected 3 portrait variants on archetype ${arch}`);
+  for (const vKey of entry.variants) {
+    assertPortraitDir(vKey, vKey !== entry.portrait);
+  }
+}
 for (const [k, rel] of Object.entries(manifest.backgrounds || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing background ${k}: ${rel}`);
 }
@@ -88,6 +143,15 @@ for (const [k, obj] of Object.entries(manifest.portraits || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.full)), `Missing portrait full ${k}: ${obj.full}`);
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.face)), `Missing portrait face ${k}: ${obj.face}`);
 }
+for (const [key, variants] of Object.entries(manifest.portraitExpressions || {})) {
+  for (const [expression, rel] of Object.entries(variants)) {
+    assert.ok(['happy', 'angry', 'sad'].includes(expression), `Unknown portrait expression ${expression}`);
+    assert.equal(rel, `portraits/${key}/full_${expression}.webp`);
+    assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing expression ${key}/${expression}: ${rel}`);
+    const exprDim = readWebpDimensions(path.join(scenesDir, 'art', rel));
+    assert.equal(exprDim.height, 900, `Expected expression ${rel} height 900, got ${exprDim.height}`);
+  }
+}
 for (const [k, rel] of Object.entries(manifest.anim || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing anim strip ${k}: ${rel}`);
 }
@@ -97,6 +161,9 @@ for (const [k, rel] of Object.entries(manifest.profile || {})) {
 for (const [k, obj] of Object.entries(manifest.portraitFrames || {})) {
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.blink)), `Missing portrait blink ${k}: ${obj.blink}`);
   assert.ok(fs.existsSync(path.join(scenesDir, 'art', obj.talk)), `Missing portrait talk ${k}: ${obj.talk}`);
+}
+for (const [k, rel] of Object.entries(manifest.map || {})) {
+  assert.ok(fs.existsSync(path.join(scenesDir, 'art', rel)), `Missing map asset ${k}: ${rel}`);
 }
 
 assert.equal(SCALE_DUEL, 2.85, 'Expected SCALE_DUEL = 2.85');
@@ -263,4 +330,284 @@ const horseLug = computeDefaultMapLuggage(bagSample, 2, 20);
 assert.equal(horseLug.selected.get(3), 20, 'Horse default (cap 20) should take 20 Lụa');
 assert.equal(horseLug.selected.get(1), 0, 'Horse default (cap 20) should take 0 Gạo');
 
-console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label layout (1076 & 1440), social layout, luggage defaults, and manifest assets OK.`);
+// Verify faction territory canvas painting on sample payload & 1076px legend non-overlap
+const sampleFactionCities = MAP_CITIES.map((c, idx) => ({
+  ...c,
+  factionId: (idx % 3) + 1,
+  factionNameVi: ['Tào Ngụy', 'Thục Hán', 'Đông Ngô'][idx % 3],
+  factionColor: ['#ef4444', '#22c55e', '#3b82f6'][idx % 3],
+  governorNameVi: 'Thái thú'
+}));
+
+let canvasPutCount = 0;
+const mockFactionCanvas = {
+  width: 800,
+  height: 640,
+  dataset: {},
+  getContext() {
+    return {
+      imageSmoothingEnabled: false,
+      imageSmoothingQuality: 'low',
+      clearRect() {},
+      putImageData(img) {
+        if (img && img.data && img.data.some((v) => v > 0)) canvasPutCount += 1;
+      },
+      drawImage() {
+        canvasPutCount += 1;
+      }
+    };
+  }
+};
+
+const paintedGrid = paintFactionCanvas(mockFactionCanvas, sampleFactionCities, true);
+assert.ok(paintedGrid.paintedCount > 500, 'Expected sample faction payload to paint territory cells');
+assert.ok(paintedGrid.borderCount > 20, 'Expected adjacent faction territories to draw border cells');
+assert.ok(canvasPutCount >= 1, 'Expected faction canvas 2D context to be drawn');
+assert.equal(mockFactionCanvas.dataset.visible, '1');
+assert.ok(
+  paintedGrid.paintedCount < paintedGrid.gridW * paintedGrid.gridH * 0.75,
+  'Expected distant sea and wilderness outside radius limit to remain unpainted'
+);
+
+const emptyGrid = computeFactionGrid(MAP_CITIES.map((c) => ({ ...c, factionId: 0, factionColor: '' })));
+assert.equal(emptyGrid.paintedCount, 0, 'Expected cities without faction to leave territory canvas unpainted');
+
+const layout1076 = computeMapLayoutBoxes(1076, 12);
+assert.ok(
+  !rectsOverlap(layout1076.factionLegendBox, layout1076.rightPanelBox),
+  'Faction legend must not overlap city panel at 1076px'
+);
+assert.ok(
+  !rectsOverlap(layout1076.factionLegendBox, layout1076.goButtonBox),
+  'Faction legend must not overlap Go (Lên đường) button at 1076px'
+);
+
+for (const sKey of ['spring', 'autumn', 'winter']) {
+  const pts = createSeasonParticles(sKey);
+  assert.ok(pts.length > 0 && pts.length <= SEASON_MAX_PARTICLES, `Expected 1..60 particles for ${sKey}`);
+}
+assert.equal(createSeasonParticles('summer').length, 0, 'Expected 0 particles in summer');
+
+// Event cards must show all three tavern rumors, escaping player-facing source text.
+const { formatCityNarrative } = await import('../assets/scenes/city-scene.js');
+assert.equal(formatCityNarrative('One\n\nTwo\nThree'), 'One<br><br>Two<br><br>Three');
+assert.equal(formatCityNarrative('<script>'), '&lt;script&gt;');
+
+const { splitEventSentences } = await import('../assets/scenes/event-scene.js');
+const eventSentences = splitEventSentences('Thiên Công Tướng Quân Trương Giác phất cờ Thái Bình Đạo tại Quảng Tông. Hàng chục vạn nông dân đội khăn vàng nổi dậy khắp Ký Châu. Bắc Quân Trung Lang Tướng Lư Thực vây hãm thành Quảng Tông suốt nhiều tháng ròng.');
+assert.equal(eventSentences.length, 3, 'Expected 3 chronicle sentences');
+
+const { clampPersuasion, formatTurnCounter, renderDebateScene } = await import('../assets/scenes/debate-scene.js');
+assert.equal(clampPersuasion(50), 50);
+assert.equal(clampPersuasion(120), 100);
+assert.equal(clampPersuasion(-15), 0);
+assert.equal(formatTurnCounter(2, 5), 'Lượt 2 / 5');
+
+const mockDebateContainer = {
+  innerHTML: '',
+  querySelector() { return null; },
+  querySelectorAll() { return []; }
+};
+renderDebateScene(mockDebateContainer, {
+  sceneId: 'debate:1:haggle',
+  npcId: 1,
+  npcNameVi: 'Trương Lão Bản',
+  npcNameHan: '張',
+  roleVi: 'Thương nhân',
+  locationNameVi: 'Lạc Dương',
+  locationHan: '洛',
+  topicTitleVi: 'Mặc cả lô hàng',
+  persuasion: 68,
+  turn: 2,
+  maxTurns: 5,
+  isFinished: false,
+  latestSpeakerVi: 'Trương Lão Bản',
+  latestLineVi: 'Lụa Thục năm nay vận chuyển qua bao ải, bớt thế sao đặng.',
+  traits: [
+    { code: 'greedy', nameVi: 'Tham tài', hintVi: 'Lợi ×1.5', revealed: true },
+    { code: 'hidden_1', nameVi: '???', hintVi: 'Đặc tính ẩn', revealed: false }
+  ],
+  choices: [
+    { id: 'arg:Reason', labelVi: 'Lụa Thục năm nay được mùa, giá ấy đã quá cao.', hintVi: 'Lý · Mưu trí', enabled: true },
+    { id: 'arg:Profit', labelVi: 'Ta đặt cọc thêm tiền mặt tại bàn, đôi bên cùng lợi.', hintVi: 'Lợi · 36 quan', enabled: true },
+    { id: 'arg:Prestige', labelVi: 'Uy tín của ta khắp thành đều rõ, xin chớ câu nệ.', hintVi: 'Uy · Danh vọng', enabled: true },
+    { id: 'concede', labelVi: 'Nhượng bộ', hintVi: 'Hòa nhẹ', enabled: true }
+  ]
+}, null);
+assert.ok(mockDebateContainer.innerHTML.includes('tk-talk-stage') && mockDebateContainer.innerHTML.includes('tk-dialog-paper'), 'debate-scene must reuse tk-talk-stage and tk-dialog-paper');
+assert.ok(mockDebateContainer.innerHTML.includes('tk-trait-row') && mockDebateContainer.innerHTML.includes('tk-mood-pill'), 'debate-scene must reuse tk-trait-row and tk-mood-pill');
+assert.ok(mockDebateContainer.innerHTML.includes('Lượt 2 / 5'), 'debate-scene must render turn counter');
+
+// Verify Batch 5 character trait pills in dossier-scene & talk-scene
+const dossierJs = fs.readFileSync(path.join(scenesDir, 'dossier-scene.js'), 'utf8');
+const dossierCss = fs.readFileSync(path.join(scenesDir, 'dossier-scene.css'), 'utf8');
+const talkJs = fs.readFileSync(path.join(scenesDir, 'talk-scene.js'), 'utf8');
+const sceneCss = fs.readFileSync(path.join(scenesDir, 'scene.css'), 'utf8');
+const debateCss = fs.readFileSync(path.join(scenesDir, 'debate-scene.css'), 'utf8');
+const indexHtml = fs.readFileSync(path.join(scenesDir, 'index.html'), 'utf8');
+const bridgeJs = fs.readFileSync(path.join(scenesDir, 'bridge.js'), 'utf8');
+assert.ok(dossierJs.includes('dossier-chip is-trait') && dossierJs.includes('title='), 'dossier-scene.js must render traits as dossier chips with a title');
+assert.ok(dossierCss.includes('.dossier-traits') && dossierCss.includes('flex-wrap: wrap'), 'dossier-scene.css must wrap trait pills to prevent 1076px overflow');
+assert.ok(!dossierCss.includes('gradient('), 'dossier-scene.css must not use custom gradients');
+assert.ok(dossierCss.includes('.dossier-vtl-img.is-silhouette') && dossierCss.includes('filter: brightness(0)'), 'dossier-scene.css must render unmet NPC silhouette with filter: brightness(0)');
+assert.ok(dossierJs.includes('Võ tướng lục') && dossierJs.includes('Nhân vật') && dossierJs.includes('Sử biến'), 'dossier-scene.js must include Võ tướng lục tabs');
+assert.ok(dossierJs.includes('loading="lazy"') && dossierJs.includes('data-src='), 'dossier-scene.js must lazy-load 300 portraits');
+assert.ok(dossierJs.includes('Không có mặt') && dossierJs.includes('replay:'), 'dossier-scene.js must distinguish missed historical events and support replay');
+assert.ok(talkJs.includes('tk-trait-row') && talkJs.includes('tk-mood-pill'), 'talk-scene.js must render traits as paper mood pills');
+assert.ok(sceneCss.includes('.tk-trait-row') && sceneCss.includes('flex-wrap: wrap'), 'scene.css must wrap talk trait pills to prevent 1076px overflow');
+assert.ok(!debateCss.includes('gradient('), 'debate-scene.css must not use custom gradients');
+assert.ok(indexHtml.includes('debate-scene.css') && indexHtml.includes('debate-scene.js') && indexHtml.includes('stage-debate'), 'index.html must wire debate scene');
+assert.ok(bridgeJs.includes("case 'scene:debate':"), 'bridge.js must handle scene:debate');
+
+console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, historical event scene, character trait pills, and manifest assets OK.`);
+
+
+// Travellers use connected roads, distinct SVG silhouettes, and stay around saved progress.
+const { travellerPath, travellerPosition, TRAVELLER_ROWS, createTravellerMarker, placeTravellers, travellerBox } = await import('../assets/scenes/map-travellers.js');
+const travellerCities = [{ id: 1, nameVi: 'A', x: 0, y: 0 }, { id: 2, nameVi: 'B', x: 100, y: 0 }, { id: 3, nameVi: 'C', x: 100, y: 100 }];
+const travellerRoutes = [{ fromId: 1, toId: 3, days: 1, blockedReasonVi: 'Phong tỏa' }, { fromId: 1, toId: 2, days: 2 }, { fromId: 2, toId: 3, days: 2 }];
+const traveller = { id: 'rival:1', kind: 'rival', fromId: 1, toId: 3, progress: .5, labelVi: 'Thương nhân' };
+assert.deepEqual(travellerPath(traveller, travellerCities, travellerRoutes).map(c => c.id), [1, 2, 3]);
+assert.deepEqual(travellerPath({ ...traveller, kind: 'army' }, travellerCities, travellerRoutes).map(c => c.id), [1, 3]);
+assert.deepEqual(travellerPosition(travellerCities, .75), { x: 100, y: 50, t: .5, seg: '2-3', dx: 0, dy: 1 });
+// Same kind on the same segment shares one marker with a count.
+const grouped = placeTravellers([{ path: travellerCities, progress: .75, kind: 'rival' }, { path: travellerCities, progress: .8, kind: 'rival' }, { path: travellerCities, progress: .75, kind: 'npc' }]);
+assert.equal(grouped[0].count, 2); assert.equal(grouped[1], null);
+assert.equal(new Set(Object.values(TRAVELLER_ROWS)).size, 4);
+const originalCreateNS = document.createElementNS;
+document.createElementNS = (_, tag) => ({ tag, attributes: {}, children: [], setAttribute(k, v) { this.attributes[k] = v; }, append(...nodes) { this.children.push(...nodes); }, addEventListener() {} });
+const marker = createTravellerMarker(traveller, 'A → B → C');
+assert.equal(marker.attributes['data-kind'], 'rival');
+assert.ok(marker.children.some(n => n.tag === 'svg' && n.children.some(c => c.tag === 'image' && c.attributes.href === 'art/map/travellers.png')));
+assert.ok(marker.children.some(n => n.tag === 'title' && n.textContent.includes('A → B → C')));
+document.createElementNS = originalCreateNS;
+for (const width of [1076, 1440]) {
+  const boxes = computeMapLayoutBoxes(width, 12);
+  assert.ok(!rectsOverlap(boxes.factionLegendBox, boxes.rightPanelBox));
+  assert.ok(!rectsOverlap(boxes.factionLegendBox, boxes.goButtonBox));
+  assert.ok(boxes.factionLegendBox.top >= boxes.viewportBox.top);
+}
+// Decode the final RGBA PNGs, including PNG row filters, without an external dependency.
+function readTravellerPng(rel) {
+  const buf = fs.readFileSync(path.join(scenesDir, 'art', rel));
+  assert.equal(buf.subarray(1, 4).toString(), 'PNG');
+  assert.equal(buf.readUInt32BE(16), 192);
+  assert.equal(buf.readUInt32BE(20), 256);
+  assert.equal(buf[24], 8); assert.equal(buf[25], 6); assert.equal(buf[28], 0);
+  const chunks = [];
+  for (let p = 8; p < buf.length;) {
+    const len = buf.readUInt32BE(p);
+    if (buf.toString('ascii', p + 4, p + 8) === 'IDAT') chunks.push(buf.subarray(p + 8, p + 8 + len));
+    p += len + 12;
+  }
+  const raw = inflateSync(Buffer.concat(chunks)), out = Buffer.alloc(192 * 256 * 4), stride = 192 * 4;
+  for (let y = 0; y < 256; y++) {
+    const filter = raw[y * (stride + 1)];
+    for (let x = 0; x < stride; x++) {
+      const i = y * stride + x, a = x >= 4 ? out[i - 4] : 0, b = y ? out[i - stride] : 0;
+      const c = y && x >= 4 ? out[i - stride - 4] : 0;
+      const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+      const predictor = [0, a, b, Math.floor((a + b) / 2), pa <= pb && pa <= pc ? a : pb <= pc ? b : c][filter];
+      assert.ok(predictor !== undefined);
+      out[i] = (raw[y * (stride + 1) + x + 1] + predictor) & 255;
+    }
+  }
+  return out;
+}
+for (const key of ['travellers', 'travellers_army_flag']) {
+  assert.ok(manifest.map[key], `Missing map manifest ${key}`);
+  const pixels = readTravellerPng(manifest.map[key]);
+  for (let i = 0; i < pixels.length; i += 4) {
+    assert.ok(!pixels[i + 3] || !(pixels[i] - pixels[i + 1] > 40 && pixels[i + 2] - pixels[i + 1] > 40), 'Magenta fringe remains');
+  }
+  for (let row = key === 'travellers' ? 0 : 3; row < 4; row++) {
+    for (let col = 0; col < 2; col++) {
+      const occupied = [];
+      for (let y = row * 64; y < (row + 1) * 64; y++) for (let x = col * 96; x < (col + 1) * 96; x++) {
+        if (pixels[(y * 192 + x) * 4 + 3]) occupied.push({ x, y });
+      }
+      assert.ok(occupied.length > 10, 'Empty sprite or flag frame');
+      if (key === 'travellers') assert.equal(Math.max(...occupied.map(p => p.y)) % 64, 59, 'Frames must share ground baseline');
+    }
+  }
+}
+for (const progress of [0, .01, .49, .5, .51, .99, 1]) {
+  const p = travellerPosition(travellerCities, progress);
+  assert.ok(p.t >= .14 && p.t <= .86, 'Traveller entered city endpoint margin');
+}
+const road = [{ x: 100, y: 180 }, { x: 650, y: 180 }];
+const obstacles = [{ left: 350, right: 400, top: 145, bottom: 185 }];
+const placements = placeTravellers(Array.from({ length: 8 }, () => ({ path: road, progress: .5 })), obstacles);
+// A crowded road shows what fits and hides the rest; nothing may drift more than one lane off its road.
+assert.ok(placements.filter(Boolean).length >= 4, 'A crowded road should still show several travellers');
+placements.filter(Boolean).forEach(p => assert.ok(Math.abs(p.y - 180) <= 10.5, 'Traveller drifted off its road'));
+placements.filter(Boolean).forEach((p, i, shown) => {
+  assert.ok(!obstacles.some(b => rectsOverlap(travellerBox(p, 54), b)));
+  shown.slice(0, i).forEach(q => {
+    assert.ok(Math.hypot(p.x - q.x, p.y - q.y) >= 24);
+    assert.ok(!rectsOverlap(travellerBox(p, 54), travellerBox(q, 54)));
+  });
+});
+console.log('check-scenes: sprite dimensions, alpha/fringe, frames, connected roads, endpoint margins and collision separation OK.');
+
+// Portrait expressions follow the current line and fall back for sparse/unknown values.
+const { expressionForLine, portraitForLine, createPortraitSwapper } = await import('../assets/scenes/portrait-expressions.js');
+const expressionScene = { lineExpressions: ['happy', '', 'angry', 'unknown'], expressionPaths: { happy: 'happy.webp' } };
+assert.equal(expressionForLine(expressionScene, 0), 'happy');
+assert.equal(expressionForLine(expressionScene, 1), 'normal');
+assert.equal(expressionForLine(expressionScene, 3), 'normal');
+assert.equal(portraitForLine(expressionScene, 0, 'full.webp'), 'happy.webp');
+assert.equal(portraitForLine(expressionScene, 2, 'full.webp'), 'full.webp');
+assert.equal(portraitForLine({}, 20, 'full.webp'), 'full.webp');
+const { createPortraitAnimator } = await import('../assets/scenes/sprite-anim.js');
+const base = { style: {} }, blink = { style: {} }, mouth = { style: {} }, line = {};
+const animator = createPortraitAnimator({ baseEl: base, blinkEl: blink, talkEl: mouth, lineEl: line });
+animator.setFramesEnabled(false);
+animator.setLine('Tin dữ từ Kinh Châu.');
+for (let i = 0; i < 120; i++) animator.step(.05);
+assert.equal(base.style.opacity, '1');
+assert.equal(blink.style.opacity, '0');
+assert.equal(mouth.style.opacity, '0');
+assert.equal(line.textContent, '“Tin dữ từ Kinh Châu.”');
+animator.setFramesEnabled(true);
+animator.setLine('Xin chào.');
+assert.equal(mouth.style.opacity, '1');
+
+// Late image loads must not overwrite a newer line or mutate an unmounted scene.
+const originalImage = globalThis.Image;
+const originalMatchMedia = window.matchMedia;
+let reducedMotion = false;
+window.matchMedia = () => ({ matches: reducedMotion });
+const pendingImages = [];
+globalThis.Image = class { constructor() { pendingImages.push(this); } };
+const overlays = [];
+const swapBase = {
+  src: 'normal.webp',
+  getAttribute() { return this.src; },
+  cloneNode() { return { style: {}, classList: { add() {} }, removeAttribute() {}, setAttribute() {}, remove() { this.removed = true; } }; },
+  parentElement: { appendChild(n) { overlays.push(n); } }
+};
+const swapper = createPortraitSwapper(swapBase);
+swapper.set('happy.webp', 'normal.webp');
+swapper.set('sad.webp', 'normal.webp');
+pendingImages[0].onload();
+assert.equal(swapBase.src, 'normal.webp');
+pendingImages[1].onload();
+assert.equal(swapBase.src, 'sad.webp');
+assert.equal(overlays.length, 1);
+swapper.set('angry.webp', 'normal.webp');
+assert.equal(overlays[0].removed, true);
+reducedMotion = true;
+pendingImages[2].onload();
+assert.equal(swapBase.src, 'angry.webp');
+assert.equal(overlays.length, 1, 'Reduced motion must swap without an animated overlay');
+swapper.set('missing.webp', 'normal.webp');
+pendingImages[3].onerror();
+assert.equal(swapBase.src, 'normal.webp');
+swapper.set('late.webp');
+swapper.dispose();
+pendingImages[4].onload();
+assert.equal(swapBase.src, 'normal.webp');
+globalThis.Image = originalImage;
+window.matchMedia = originalMatchMedia;
+console.log('check-scenes: expression fallback, normal-only mouth/blink, image-load races, unmount and reduced motion OK.');

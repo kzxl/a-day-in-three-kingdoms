@@ -3,8 +3,17 @@
   "version": "1.0.0",
   "apiVersion": "1",
   "kind": "dlc",
-  "requires": ["base.world", "base.player", "base.npc", "base.content"],
-  "provides": ["politics.court", "military.command"],
+  "requires": [
+    "base.world",
+    "base.player",
+    "base.npc",
+    "base.content"
+  ],
+  "provides": [
+    "politics.court",
+    "military.command",
+    "politics.lord-tasks"
+  ],
   "consumes": [
     "world.map",
     "player.wallet",
@@ -12,7 +21,10 @@
     "npc.registry",
     "player.bag",
     "player.attributes",
-    "content.items"
+    "content.items",
+    "social.network",
+    "character.traits",
+    "character.debate"
   ],
   "owns": {
     "tables": [
@@ -21,11 +33,19 @@
       "po_faction",
       "po_city_governance",
       "po_decree_log",
+      "po_lord_task",
+      "po_lord_trust",
       "ml_stronghold",
       "ml_duel_log",
-      "ml_supply_requisition"
+      "ml_supply_requisition",
+      "po_faction_name"
     ],
-    "migrations": ["migrations"]
+    "migrations": [
+      "migrations"
+    ]
   },
-  "screens": ["politics.court", "military.arena"]
+  "screens": [
+    "politics.court",
+    "military.arena"
+  ]
 }

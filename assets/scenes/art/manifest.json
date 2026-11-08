@@ -32,47 +32,257 @@
     "npc_0140": {
       "portrait": "lady",
       "sprite": "civ_lady"
+    },
+    "npc_0024": {
+      "portrait": "zhao_yun",
+      "sprite": "han_officer"
+    },
+    "npc_0028": {
+      "portrait": "huang_zhong",
+      "sprite": "han_officer"
+    },
+    "npc_0017": {
+      "portrait": "zhou_yu",
+      "sprite": "han_officer"
+    },
+    "npc_0026": {
+      "portrait": "pang_tong",
+      "sprite": "civ_scholar"
+    },
+    "npc_0019": {
+      "portrait": "sun_quan",
+      "sprite": "civ_scholar"
+    },
+    "npc_0037": {
+      "portrait": "guo_jia",
+      "sprite": "civ_scholar"
+    },
+    "npc_0048": {
+      "portrait": "sun_ce",
+      "sprite": "han_officer"
+    },
+    "npc_0035": {
+      "portrait": "xun_yu",
+      "sprite": "civ_scholar"
+    },
+    "npc_0014": {
+      "portrait": "sun_jian",
+      "sprite": "han_officer"
+    },
+    "npc_0040": {
+      "portrait": "zhang_liao",
+      "sprite": "han_officer"
+    },
+    "npc_0039": {
+      "portrait": "sima_yi",
+      "sprite": "civ_scholar"
+    },
+    "npc_0043": {
+      "portrait": "xiahou_dun",
+      "sprite": "han_officer"
+    },
+    "npc_0018": {
+      "portrait": "yuan_shao",
+      "sprite": "han_officer"
+    },
+    "npc_0042": {
+      "portrait": "dian_wei",
+      "sprite": "han_officer"
+    },
+    "npc_0023": {
+      "portrait": "dong_zhuo",
+      "sprite": "han_officer"
+    },
+    "npc_0041": {
+      "portrait": "xu_chu",
+      "sprite": "han_officer"
+    },
+    "npc_0029": {
+      "portrait": "ma_chao",
+      "sprite": "han_officer"
+    },
+    "npc_0051": {
+      "portrait": "lu_xun",
+      "sprite": "han_officer"
+    },
+    "npc_0050": {
+      "portrait": "lu_meng",
+      "sprite": "civ_scholar"
+    },
+    "npc_0053": {
+      "portrait": "gan_ning",
+      "sprite": "han_officer"
+    },
+    "npc_0054": {
+      "portrait": "taishi_ci",
+      "sprite": "han_officer"
+    },
+    "npc_0049": {
+      "portrait": "lu_su",
+      "sprite": "civ_scholar"
+    },
+    "npc_0052": {
+      "portrait": "huang_gai",
+      "sprite": "han_officer"
+    },
+    "npc_0038": {
+      "portrait": "jia_xu",
+      "sprite": "civ_scholar"
+    },
+    "npc_0036": {
+      "portrait": "xun_you",
+      "sprite": "civ_scholar"
+    },
+    "npc_0044": {
+      "portrait": "xiahou_yuan",
+      "sprite": "han_officer"
+    },
+    "npc_0045": {
+      "portrait": "cao_ren",
+      "sprite": "han_officer"
+    },
+    "npc_0046": {
+      "portrait": "zhang_he",
+      "sprite": "han_officer"
+    },
+    "npc_0047": {
+      "portrait": "xu_huang",
+      "sprite": "han_officer"
+    },
+    "npc_0030": {
+      "portrait": "wei_yan",
+      "sprite": "han_officer"
+    },
+    "npc_0031": {
+      "portrait": "jiang_wei",
+      "sprite": "han_officer"
+    },
+    "npc_0058": {
+      "portrait": "chen_gong",
+      "sprite": "civ_scholar"
+    },
+    "npc_0059": {
+      "portrait": "yuan_shu",
+      "sprite": "han_officer"
+    },
+    "npc_0060": {
+      "portrait": "gongsun_zan",
+      "sprite": "han_officer"
+    },
+    "npc_0061": {
+      "portrait": "hua_tuo",
+      "sprite": "civ_merchant"
+    },
+    "npc_0004": {
+      "portrait": "zhang_jiao",
+      "sprite": "yellow_turban"
+    },
+    "npc_0073": {
+      "portrait": "cao_pi",
+      "sprite": "civ_scholar"
+    },
+    "npc_0087": {
+      "portrait": "sun_shangxiang",
+      "sprite": "female_warrior"
+    },
+    "npc_0088": {
+      "portrait": "da_qiao",
+      "sprite": "civ_lady"
+    },
+    "npc_0089": {
+      "portrait": "xiao_qiao",
+      "sprite": "civ_lady"
     }
   },
   "archetype": {
     "general": {
       "portrait": "general",
+      "variants": [
+        "general",
+        "general_v2",
+        "general_v3"
+      ],
       "sprite": "han_officer"
     },
     "scholar": {
       "portrait": "scholar",
+      "variants": [
+        "scholar",
+        "scholar_v2",
+        "scholar_v3"
+      ],
       "sprite": "civ_scholar"
     },
     "merchant": {
       "portrait": "merchant",
+      "variants": [
+        "merchant",
+        "merchant_v2",
+        "merchant_v3"
+      ],
       "sprite": "civ_merchant"
     },
     "elder": {
       "portrait": "elder",
+      "variants": [
+        "elder",
+        "elder_v2",
+        "elder_v3"
+      ],
       "sprite": "civ_elder"
     },
     "commoner": {
       "portrait": "commoner",
+      "variants": [
+        "commoner",
+        "commoner_v2",
+        "commoner_v3"
+      ],
       "sprite": "civ_commoner"
     },
     "lady": {
       "portrait": "lady",
+      "variants": [
+        "lady",
+        "lady_v2",
+        "lady_v3"
+      ],
       "sprite": "civ_lady"
     },
     "swordswoman": {
       "portrait": "swordswoman",
+      "variants": [
+        "swordswoman",
+        "swordswoman_v2",
+        "swordswoman_v3"
+      ],
       "sprite": "female_warrior"
     },
     "archer": {
       "portrait": "general",
+      "variants": [
+        "general",
+        "general_v2",
+        "general_v3"
+      ],
       "sprite": "han_archer"
     },
     "rebel": {
       "portrait": "commoner",
+      "variants": [
+        "commoner",
+        "commoner_v2",
+        "commoner_v3"
+      ],
       "sprite": "yellow_turban"
     },
     "farmer_woman": {
       "portrait": "farmer_woman",
+      "variants": [
+        "farmer_woman",
+        "farmer_woman_v2",
+        "farmer_woman_v3"
+      ],
       "sprite": "civ_farmer_woman"
     }
   },
@@ -117,6 +327,85 @@
     "npc_0225": "profiles/npc_0225.webp"
   },
   "map": {
-    "thien_ha": "map/thien_ha.webp"
+    "thien_ha": "map/thien_ha.webp",
+    "travellers": "map/travellers.png",
+    "travellers_army_flag": "map/travellers_army_flag.png"
+  },
+  "portraitExpressions": {
+    "cao_cao": {
+      "happy": "portraits/cao_cao/full_happy.webp",
+      "angry": "portraits/cao_cao/full_angry.webp",
+      "sad": "portraits/cao_cao/full_sad.webp"
+    },
+    "commoner": {
+      "happy": "portraits/commoner/full_happy.webp",
+      "angry": "portraits/commoner/full_angry.webp",
+      "sad": "portraits/commoner/full_sad.webp"
+    },
+    "elder": {
+      "happy": "portraits/elder/full_happy.webp",
+      "angry": "portraits/elder/full_angry.webp",
+      "sad": "portraits/elder/full_sad.webp"
+    },
+    "farmer_woman": {
+      "happy": "portraits/farmer_woman/full_happy.webp",
+      "angry": "portraits/farmer_woman/full_angry.webp",
+      "sad": "portraits/farmer_woman/full_sad.webp"
+    },
+    "general": {
+      "happy": "portraits/general/full_happy.webp",
+      "angry": "portraits/general/full_angry.webp",
+      "sad": "portraits/general/full_sad.webp"
+    },
+    "guan_yu": {
+      "happy": "portraits/guan_yu/full_happy.webp",
+      "angry": "portraits/guan_yu/full_angry.webp",
+      "sad": "portraits/guan_yu/full_sad.webp"
+    },
+    "lady": {
+      "happy": "portraits/lady/full_happy.webp",
+      "angry": "portraits/lady/full_angry.webp",
+      "sad": "portraits/lady/full_sad.webp"
+    },
+    "liu_bei": {
+      "happy": "portraits/liu_bei/full_happy.webp",
+      "angry": "portraits/liu_bei/full_angry.webp",
+      "sad": "portraits/liu_bei/full_sad.webp"
+    },
+    "lu_bu": {
+      "happy": "portraits/lu_bu/full_happy.webp",
+      "angry": "portraits/lu_bu/full_angry.webp",
+      "sad": "portraits/lu_bu/full_sad.webp"
+    },
+    "merchant": {
+      "happy": "portraits/merchant/full_happy.webp",
+      "angry": "portraits/merchant/full_angry.webp",
+      "sad": "portraits/merchant/full_sad.webp"
+    },
+    "player": {
+      "happy": "portraits/player/full_happy.webp",
+      "angry": "portraits/player/full_angry.webp",
+      "sad": "portraits/player/full_sad.webp"
+    },
+    "scholar": {
+      "happy": "portraits/scholar/full_happy.webp",
+      "angry": "portraits/scholar/full_angry.webp",
+      "sad": "portraits/scholar/full_sad.webp"
+    },
+    "swordswoman": {
+      "happy": "portraits/swordswoman/full_happy.webp",
+      "angry": "portraits/swordswoman/full_angry.webp",
+      "sad": "portraits/swordswoman/full_sad.webp"
+    },
+    "zhang_fei": {
+      "happy": "portraits/zhang_fei/full_happy.webp",
+      "angry": "portraits/zhang_fei/full_angry.webp",
+      "sad": "portraits/zhang_fei/full_sad.webp"
+    },
+    "zhuge_liang": {
+      "happy": "portraits/zhuge_liang/full_happy.webp",
+      "angry": "portraits/zhuge_liang/full_angry.webp",
+      "sad": "portraits/zhuge_liang/full_sad.webp"
+    }
   }
 }
