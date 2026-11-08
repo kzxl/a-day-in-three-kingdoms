@@ -31,7 +31,7 @@ public static class SceneArtCatalog
         var code = NormalizeNpcCode(npcCode, nameVi);
         switch (code)
         {
-            case "npc_0001" or "npc_0002" or "npc_0003" or "npc_0022" or "npc_0057": return "general";
+            case "npc_0001" or "npc_0002" or "npc_0003" or "npc_0014" or "npc_0018" or "npc_0022" or "npc_0023" or "npc_0056" or "npc_0057": return "general";
             case "npc_0025": return "scholar";
             case "npc_0140": return "lady";
         }

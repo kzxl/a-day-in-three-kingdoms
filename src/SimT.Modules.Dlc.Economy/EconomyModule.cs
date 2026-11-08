@@ -29,8 +29,11 @@ public sealed class EconomyModule : ISimModule
         var social = context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var sn) ? sn : null;
         var chronicle = context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var sc) ? sc : null;
 
-        // 1. Market Service
-        var marketService = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log, npcs);
+        // 1. Shocks & Market Service
+        var shockEngine = new MarketShockEngine(context.Db);
+        context.Capabilities.Provide(CapabilityIds.MarketRumorEvents, (IEventRumorSource)shockEngine);
+
+        var marketService = new MarketService(context.Db, context.Clock, context.ActionTime, wallet, bag, items, map, context.Log, npcs, shockEngine);
         marketService.EnsureListings(items, map);
         context.Capabilities.Provide(CapabilityIds.MarketTrade, marketService);
         context.Capabilities.Provide(CapabilityIds.MarketPortfolio, marketService);
@@ -52,10 +55,6 @@ public sealed class EconomyModule : ISimModule
         farmService.ValidateCrops();
         farmService.EnsurePlots(map);
         context.Capabilities.Provide(CapabilityIds.CultivationEstate, farmService);
-
-        // 2b. Shocks & Arbitrage Engine
-        var shockEngine = new MarketShockEngine(context.Db);
-        context.Capabilities.Provide(CapabilityIds.MarketRumorEvents, (IEventRumorSource)shockEngine);
 
         // 2c. Banking Service
         var bankingService = new BankingService(context.Db, context.Clock, wallet, context.Log);

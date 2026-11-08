@@ -334,4 +334,10 @@ const { formatCityNarrative } = await import('../assets/scenes/city-scene.js');
 assert.equal(formatCityNarrative('One\n\nTwo\nThree'), 'One<br><br>Two<br><br>Three');
 assert.equal(formatCityNarrative('<script>'), '&lt;script&gt;');
 
-console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, and manifest assets OK.`);
+const { splitEventSentences, computeEventLayout } = await import('../assets/scenes/event-scene.js');
+const eventSentences = splitEventSentences('Thiên Công Tướng Quân Trương Giác phất cờ Thái Bình Đạo tại Quảng Tông. Hàng chục vạn nông dân đội khăn vàng nổi dậy khắp Ký Châu. Bắc Quân Trung Lang Tướng Lư Thực vây hãm thành Quảng Tông suốt nhiều tháng ròng.');
+assert.equal(eventSentences.length, 3, 'Expected 3 chronicle sentences');
+const eventLayout1076 = computeEventLayout(1076, 2);
+assert.equal(eventLayout1076.hasHorizontalOverflow, false, 'Event scene must not overflow horizontally at 1076px');
+
+console.log(`check-scenes: verified ${effects.length} pixelfx effects, map dot/label/faction layout (1076 & 1440), social layout, luggage defaults, tavern rumor cards, historical event scene, and manifest assets OK.`);

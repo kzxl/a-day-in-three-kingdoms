@@ -1,6 +1,7 @@
 using SimT.Contracts.Data;
 using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
+using SimT.Contracts.Time;
 
 namespace SimT.Modules.Base.World;
 
@@ -9,7 +10,7 @@ public sealed class WorldModule : ISimModule
 {
     public void Start(ModuleContext context)
     {
-        var map = new WorldMap(context.Db);
+        var map = new WorldMap(context.Db, context.Clock);
         context.Capabilities.Provide(CapabilityIds.WorldMap, map);
         var stroll = new CityStrollService(map, context.Capabilities, context.Clock, context.Log);
         context.Capabilities.Provide(CapabilityIds.CityStroll, stroll);
@@ -20,6 +21,7 @@ public sealed class WorldModule : ISimModule
 
     private sealed class WorldMap : IWorldMap
     {
+        private readonly IGameClock? _clock;
         private readonly CitadelDef[] _citadels;
         private readonly Dictionary<long, CitadelDef> _byId;
         private readonly Dictionary<long, RouteStep[]> _routes;
@@ -28,9 +30,12 @@ public sealed class WorldModule : ISimModule
         private readonly Dictionary<long, SublocationDef[]> _sublocations;
         private readonly List<RouteLinkDef> _allRoutesList = new();
         private readonly Dictionary<long, CitadelEcosystemDef> _ecosystems = new();
+        private readonly Dictionary<(long A, long B), RouteHazardEntry> _routeHazards = new();
+        private readonly Dictionary<long, List<RouteHazardEntry>> _cityHazards = new();
 
-        public WorldMap(IDbSession db)
+        public WorldMap(IDbSession db, IGameClock? clock = null)
         {
+            _clock = clock;
             _citadels = db.Query(
                     "SELECT id, code, name_vi, name_en, region, price_factor_permille FROM wd_citadel ORDER BY id",
                     row => new CitadelDef(
@@ -154,13 +159,79 @@ public sealed class WorldModule : ISimModule
 
         public int TravelDays(long fromCitadelId, long toCitadelId)
         {
+            if (IsRouteBlocked(fromCitadelId, toCitadelId))
+            {
+                return 0;
+            }
+
             if (fromCitadelId >= 0 && fromCitadelId < _travelMatrix.GetLength(0) &&
                 toCitadelId >= 0 && toCitadelId < _travelMatrix.GetLength(1))
             {
-                return _travelMatrix[fromCitadelId, toCitadelId];
+                var baseDays = _travelMatrix[fromCitadelId, toCitadelId];
+                if (baseDays <= 0)
+                {
+                    return 0;
+                }
+
+                if (TryGetActiveRouteHazard(fromCitadelId, toCitadelId, out var hazard) &&
+                    string.Equals(hazard.HazardType, "route_danger", StringComparison.OrdinalIgnoreCase))
+                {
+                    var extra = Math.Max(1, baseDays * Math.Max(1000, hazard.SeverityPermille) / 1000 - baseDays);
+                    return baseDays + extra;
+                }
+
+                return baseDays;
             }
 
             return 0;
+        }
+
+        public void SetRouteHazard(
+            long fromCitadelId,
+            long toCitadelId,
+            string hazardType,
+            int startDay,
+            int durationDays,
+            int severityPermille,
+            string noteVi)
+        {
+            var entry = new RouteHazardEntry(hazardType, startDay, startDay + Math.Max(1, durationDays), severityPermille, noteVi);
+            if (fromCitadelId > 0 && toCitadelId > 0 && fromCitadelId != toCitadelId)
+            {
+                var key = (Math.Min(fromCitadelId, toCitadelId), Math.Max(fromCitadelId, toCitadelId));
+                _routeHazards[key] = entry;
+            }
+
+            foreach (var citId in new[] { fromCitadelId, toCitadelId })
+            {
+                if (citId <= 0) continue;
+                if (!_cityHazards.TryGetValue(citId, out var list))
+                {
+                    list = new List<RouteHazardEntry>();
+                    _cityHazards[citId] = list;
+                }
+                list.Add(entry);
+            }
+        }
+
+        public bool IsRouteBlocked(long fromCitadelId, long toCitadelId) =>
+            TryGetActiveRouteHazard(fromCitadelId, toCitadelId, out var hazard) &&
+            string.Equals(hazard.HazardType, "route_block", StringComparison.OrdinalIgnoreCase);
+
+        private bool TryGetActiveRouteHazard(long fromCitadelId, long toCitadelId, out RouteHazardEntry hazard)
+        {
+            var key = (Math.Min(fromCitadelId, toCitadelId), Math.Max(fromCitadelId, toCitadelId));
+            if (_routeHazards.TryGetValue(key, out hazard))
+            {
+                var today = (int)(_clock?.Today.DayIndex ?? 0);
+                if (today >= hazard.StartDay && today <= hazard.EndDay)
+                {
+                    return true;
+                }
+            }
+
+            hazard = default;
+            return false;
         }
 
         public IReadOnlyList<SublocationDef> Sublocations(long citadelId) =>
@@ -172,20 +243,43 @@ public sealed class WorldModule : ISimModule
 
         public CitadelEcosystemDef GetEcosystem(long citadelId)
         {
-            if (_ecosystems.TryGetValue(citadelId, out var eco))
-                return eco;
+            if (!_ecosystems.TryGetValue(citadelId, out var eco))
+            {
+                var cit = Find(citadelId);
+                eco = new CitadelEcosystemDef(
+                    citadelId,
+                    cit?.Region ?? "Đồng Bằng",
+                    "Ôn đới",
+                    "Vùng đồng bằng trù phú",
+                    "Nông sản địa phương",
+                    "Vật liệu chế tác",
+                    1,
+                    400,
+                    300);
+            }
 
-            var cit = Find(citadelId);
-            return new CitadelEcosystemDef(
-                citadelId,
-                cit?.Region ?? "Đồng Bằng",
-                "Ôn đới",
-                "Vùng đồng bằng trù phú",
-                "Nông sản địa phương",
-                "Vật liệu chế tác",
-                1,
-                400,
-                300);
+            if (_cityHazards.TryGetValue(citadelId, out var hazards))
+            {
+                var today = (int)(_clock?.Today.DayIndex ?? 0);
+                var maxBoost = 0;
+                foreach (var h in hazards)
+                {
+                    if (today >= h.StartDay && today <= h.EndDay)
+                    {
+                        var boost = string.Equals(h.HazardType, "route_block", StringComparison.OrdinalIgnoreCase)
+                            ? 2
+                            : Math.Max(1, h.SeverityPermille / 600);
+                        if (boost > maxBoost) maxBoost = boost;
+                    }
+                }
+
+                if (maxBoost > 0)
+                {
+                    return eco with { DangerLevel = Math.Min(5, eco.DangerLevel + maxBoost) };
+                }
+            }
+
+            return eco;
         }
 
         public TravelQuote QuoteTravel(long fromCitadelId, long toCitadelId, TravelMode mode)
@@ -286,7 +380,12 @@ public sealed class WorldModule : ISimModule
 
                 foreach (var step in steps)
                 {
-                    var w = Math.Max(1, step.Days);
+                    if (IsRouteBlocked(current, step.To))
+                    {
+                        continue;
+                    }
+
+                    var w = Math.Max(1, TravelDays(current, step.To));
                     var candidate = bestDist + w;
                     if (!dist.TryGetValue(step.To, out var existing) || candidate < existing)
                     {
@@ -314,5 +413,6 @@ public sealed class WorldModule : ISimModule
         }
 
         private readonly record struct RouteStep(long To, int Days);
+        private readonly record struct RouteHazardEntry(string HazardType, int StartDay, int EndDay, int SeverityPermille, string NoteVi);
     }
 }

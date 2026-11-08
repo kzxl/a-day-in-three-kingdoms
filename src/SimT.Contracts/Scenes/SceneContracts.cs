@@ -38,6 +38,16 @@ public sealed record CityScene(
     IReadOnlyList<CityHotspot> Hotspots, IReadOnlyList<CityNpcSprite> Npcs,
     CityEventCard? EventCard, IReadOnlyList<SceneChoice> Choices);
 
+public sealed record EventPortraitView(
+    long NpcId, string NpcCode, string NameVi, string RoleVi, string PortraitPath);
+
+public sealed record EventScene(
+    string SceneId, string EventCode, string DateVi, string EraLabelVi,
+    string LocationLabelVi, string TitleVi, string NarrativeVi,
+    IReadOnlyList<string> SentencesVi, string BackgroundArtPath,
+    IReadOnlyList<EventPortraitView> Portraits, IReadOnlyList<string> ImpactBadges,
+    IReadOnlyList<SceneChoice> Choices, bool IsReplay = false);
+
 public sealed record SceneClientMessage(string Type, string? SceneId = null, string? Id = null);
 
 public sealed record TalkChoiceOutcome(
@@ -248,6 +258,7 @@ public static class SceneTrustGuard
         TalkScene talk => talk.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         DuelScene duel => duel.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         CityScene city => city.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
+        EventScene evt => evt.Choices.Any(c => c.Enabled && string.Equals(c.Id, id, StringComparison.Ordinal)),
         MapScene map => IsValidMapChoice(id, map),
         SocialScene social => IsValidSocialChoice(id, social),
         MarketScene market => IsValidMarketChoice(id, market),

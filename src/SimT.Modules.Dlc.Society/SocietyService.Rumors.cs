@@ -36,7 +36,14 @@ internal sealed partial class SocietyService : ITavernRumors
         var selected = new List<RumorView>();
         while (groups.Count > 0 && selected.Count < TavernRules.BatchSize)
         {
-            var index = selected.Count == 0 && groups[0].Key == "price" ? 0 : rng.Next(0, groups.Count);
+            var histIdx = selected.Count == 1
+                ? groups.FindIndex(g => g.Key == "event" && g.First().EventKey?.StartsWith("evt_", StringComparison.Ordinal) == true)
+                : -1;
+            var index = selected.Count == 0 && groups[0].Key == "price"
+                ? 0
+                : histIdx >= 0
+                    ? histIdx
+                    : rng.Next(0, groups.Count);
             var choices = groups[index].ToArray();
             selected.Add(choices[0]);
             groups.RemoveAt(index);

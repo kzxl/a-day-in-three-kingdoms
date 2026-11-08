@@ -226,6 +226,7 @@ public partial class MainWindow
         else if (activeScene is SocialScene social) HandleSocialSceneMessage(type, message.Id ?? string.Empty, social);
         else if (activeScene is MarketScene market) HandleMarketSceneMessage(type, message.Id ?? string.Empty, market);
         else if (activeScene is DossierScene dossier) HandleDossierSceneMessage(type, message.Id ?? string.Empty, dossier);
+        else if (activeScene is EventScene evtScene) HandleEventSceneMessage(type, message.Id ?? string.Empty, evtScene);
     }
 
     private void HandleCitySceneMessage(string type, string id, CityScene _)

@@ -69,6 +69,8 @@ public interface IWorldMap
     IReadOnlyList<RouteLinkDef> Routes { get; }
     CitadelEcosystemDef GetEcosystem(long citadelId);
     TravelQuote QuoteTravel(long fromCitadelId, long toCitadelId, TravelMode mode);
+    void SetRouteHazard(long fromCitadelId, long toCitadelId, int dangerDelta, bool isBlocked, long expiresDayIndex, string? reasonVi = null) { }
+    bool IsRouteBlocked(long fromCitadelId, long toCitadelId) => false;
 }
 
 public enum StrollEventType

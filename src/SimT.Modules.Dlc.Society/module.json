@@ -4,7 +4,7 @@
   "apiVersion": "1",
   "kind": "dlc",
   "requires": ["base.world", "base.npc", "base.player"],
-  "provides": ["society.chronicle", "society.merchant_rivalry", "society.karma", "society.rumors"],
+  "provides": ["society.chronicle", "society.merchant_rivalry", "society.karma", "society.rumors", "history.rumor_events"],
   "consumes": ["world.map", "npc.registry", "player.state"],
   "owns": {
     "tables": [
@@ -15,7 +15,8 @@
       "so_merchant_rival",
       "so_karma_seed",
       "so_karma_history",
-      "so_rumor"
+      "so_rumor",
+      "so_historical_event"
     ],
     "migrations": ["migrations"]
   },

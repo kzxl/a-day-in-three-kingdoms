@@ -238,17 +238,26 @@ public partial class MainWindow
             var profile = SceneArtCatalog.ResolveProfileArt(npc);
             var sk = npc.Skills.FirstOrDefault();
             var a = npc.Attributes;
-            var tier = aff >= 80 ? "Tri kỷ" : aff >= 60 ? "Thân thiết" : aff >= 35 ? "Quen biết" : rel is not null ? "Đã gặp" : "Chưa gặp";
+            var isDeceased = npc.IsDeceased(society);
+            var tier = isDeceased
+                ? "Đã mất"
+                : aff >= 80 ? "Tri kỷ" : aff >= 60 ? "Thân thiết" : aff >= 35 ? "Quen biết" : rel is not null ? "Đã gặp" : "Chưa gặp";
             var npcCityId = npc.CurrentCitadelId(society);
             var isRetainer = social?.GetRetainer(npc.Id) is not null;
-            var isLocal = npcCityId == cityId || isRetainer;
+            var isLocal = !isDeceased && (npcCityId == cityId || isRetainer);
+            var bioText = string.IsNullOrWhiteSpace(npc.BioVi)
+                ? "Nhân sĩ danh tiếng thời Tam Quốc, hành trạng được dân gian ca tụng."
+                : npc.BioVi;
+            if (isDeceased && !bioText.Contains("Đã mất", StringComparison.OrdinalIgnoreCase))
+                bioText = $"[Đã mất] {bioText}";
             return new DossierNpcView(
                 npc.Id, npc.Code, npc.NameVi, npc.NameHan ?? string.Empty, npc.StyleNameVi ?? "—",
                 RoleTitleVi.FormatPersonality(npc.Personality), "Quần Hùng", RoleTitleVi.Format(npc.Role),
-                map.Find(npcCityId)?.NameVi ?? cityName, isLocal, rel is not null,
+                isDeceased ? $"{map.Find(npcCityId)?.NameVi ?? cityName} (Đã mất)" : map.Find(npcCityId)?.NameVi ?? cityName,
+                isLocal, rel is not null,
                 aff, tier, face, profile, sk?.NameVi ?? "Nội Chính Tinh Thông", "A",
                 sk?.EffectSummary ?? "Gia tăng hiệu suất công việc và uy vọng tại thành trì.",
-                string.IsNullOrWhiteSpace(npc.BioVi) ? "Nhân sĩ danh tiếng thời Tam Quốc, hành trạng được dân gian ca tụng." : npc.BioVi,
+                bioText,
                 a.War, a.Ldr, a.Int, a.Pol, a.Dip, a.Com, a.Log, a.Cra);
         }).ToList();
 

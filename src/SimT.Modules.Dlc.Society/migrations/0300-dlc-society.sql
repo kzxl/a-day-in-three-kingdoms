@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS so_journey_log (
     npc_name_vi       TEXT    NOT NULL,
     citadel_id        INTEGER NOT NULL,
     citadel_name_vi   TEXT    NOT NULL,
-    event_kind        TEXT    NOT NULL CHECK (event_kind IN ('martial', 'commerce', 'governance', 'scholarly', 'travel')),
+    event_kind        TEXT    NOT NULL CHECK (event_kind IN ('martial', 'commerce', 'governance', 'scholarly', 'travel', 'history')),
     headline_vi       TEXT    NOT NULL,
     detail_vi         TEXT    NOT NULL,
     stat_impact       TEXT,

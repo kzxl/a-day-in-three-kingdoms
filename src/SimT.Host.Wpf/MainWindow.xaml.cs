@@ -289,7 +289,7 @@ public partial class MainWindow : Window
             .First();
 
         if (index < 0) return false;
-        if (NavList.SelectedIndex == index && string.Equals(_screenId, screenId, StringComparison.Ordinal) && SceneOverlay.ActiveScene is not (TalkScene or DuelScene))
+        if (NavList.SelectedIndex == index && string.Equals(_screenId, screenId, StringComparison.Ordinal) && SceneOverlay.ActiveScene is not (TalkScene or DuelScene or EventScene))
             return true;
 
         _isNavigating = true;
@@ -365,7 +365,7 @@ public partial class MainWindow : Window
                 break;
             case System.Windows.Input.Key.Escape:
                 if (SceneOverlay.ActiveScene is MapScene or SocialScene or MarketScene or DossierScene) SelectScreen(CitySceneScreenId);
-                else if (SceneOverlay.ActiveScene is TalkScene or DuelScene) { SceneOverlay.HideScene(); RenderSelected(); }
+                else if (SceneOverlay.ActiveScene is TalkScene or DuelScene or EventScene) { SceneOverlay.HideScene(); RenderSelected(); }
                 else CloseInspector();
                 e.Handled = true; break;
             case >= System.Windows.Input.Key.D1 and <= System.Windows.Input.Key.D9:
