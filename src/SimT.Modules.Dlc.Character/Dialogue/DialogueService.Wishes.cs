@@ -9,7 +9,7 @@ internal sealed partial class DialogueService
         var row=wishes?.ForNpc(npc.Id);
         if (row is null) return;
         if (row.Wish.State=="revealed") choices.Insert(0,new("wish:ask","Có điều gì muốn nhờ?","Lắng nghe ước nguyện"));
-        else choices.Insert(0,new("wish:give","Trao",row.Ready?"Đã đủ điều kiện":row.ProgressVi));
+        else choices.Insert(0,new("wish:give",row.Wish.Template=="mentor"?"Giới thiệu thầy":row.Wish.Template=="home"?"Trả lộ phí":"Trao",row.Ready?"Đã đủ điều kiện":row.ProgressVi));
     }
     private TalkChoiceOutcome HandleWishChoice(NpcDef npc,string choice)
     {
@@ -22,6 +22,17 @@ internal sealed partial class DialogueService
             var prompt=row.RequestVi + " Hạn: " + SimT.Contracts.Time.GameDateCodec.ShortVi(row.Wish.Deadline);
             return new(true,prompt,UpdatedScene:BuildTalkSceneCore(npc.Id,prompt,
                 [new("wish:accept","Nhận lời","Ghi vào sổ nhiệm vụ"),new("wish:decline","Từ chối","Để dịp khác")]));
+        }
+        if (choice=="wish:give" && row.Wish.Template=="mentor")
+        {
+            var choices=wishes.MentorCandidates(npc.Id).Select(n=>new SceneChoice($"wish:teacher:{n.Id}",n.NameVi,"Giới thiệu làm thầy")).ToList();
+            choices.Add(new("wish:cancel","Thôi","Để dịp khác"));
+            return new(true,row.RequestVi,UpdatedScene:BuildTalkSceneCore(npc.Id,row.RequestVi,choices));
+        }
+        if (choice.StartsWith("wish:teacher:") && long.TryParse(choice[13..],out var teacherId))
+        {
+            var result=wishes.Introduce(npc.Id,teacherId);
+            return new(true,result,UpdatedScene:BuildTalkScene(npc.Id,result));
         }
         string message=choice switch
         {

@@ -16,9 +16,9 @@ internal sealed partial class NpcWishService(ModuleContext context) : INpcWishes
     private IWallet Wallet => context.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
     private IBag Bag => context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
     private IReadOnlyList<NpcWish> All() => context.Db.Query(
-        "SELECT id,npc_id,template,item_id,quantity,city_id,target_npc_id,opened,deadline,state,evidence FROM kz_npc_wish ORDER BY id",
+        "SELECT id,npc_id,template,item_id,quantity,city_id,target_npc_id,opened,deadline,state,evidence,skill_code FROM kz_npc_wish ORDER BY id",
         r => new NpcWish(r.GetInt64(0),r.GetInt64(1),r.GetString(2),r.GetInt64(3),r.GetInt32(4),r.GetInt64(5),r.GetInt64(6),
-            GameDateCodec.Parse(r.GetString(7)),GameDateCodec.Parse(r.GetString(8)),r.GetString(9),r.GetInt32(10)!=0));
+            GameDateCodec.Parse(r.GetString(7)),GameDateCodec.Parse(r.GetString(8)),r.GetString(9),r.GetInt32(10)!=0,r.GetString(11)));
     private static bool Open(NpcWish w) => w.State is "hidden" or "revealed" or "accepted";
     private DbArgs Args(NpcWish w) => new DbArgs().Add("@id",w.Id).Add("@npc",w.NpcId).Add("@d",GameDateCodec.Format(context.Clock.Today));
 
@@ -73,25 +73,35 @@ internal sealed partial class NpcWishService(ModuleContext context) : INpcWishes
                 var rival = Registry.Find(bond.Other(npc.Id));
                 if (rival is not null && rival.Attributes.War>=30) candidates.Add(("revenge",0,0,rival.Id));
             }
-            var mentor = Registry.All.Where(n=>n.Id!=npc.Id && n.Skills.Any(s=>s.Level > (npc.Skills.FirstOrDefault(x=>x.Code==s.Code)?.Level ?? 0)))
-                .OrderBy(n=>n.Id).FirstOrDefault();
-            if (mentor is not null) candidates.Add(("mentor",0,0,mentor.Id));
+            var mentorSkills=Registry.All.SelectMany(n=>n.Skills).DistinctBy(s=>s.Code).OrderBy(s=>s.Code)
+                .Where(s=>EligibleTeachers(npc,s.Code).Any()).ToArray();
+            if (mentorSkills.Length>0) candidates.Add(("mentor",0,0,0));
+            if (city!=npc.CitadelId) candidates.Add(("home",0,0,0));
             if (candidates.Count==0) continue;
             var chosen = candidates[context.Rng.Next(0,candidates.Count)];
-            context.Db.Execute("INSERT INTO kz_npc_wish(npc_id,template,item_id,quantity,city_id,target_npc_id,opened,deadline,state) VALUES (@n,@t,@i,@q,@c,@target,@d,@end,'hidden')",
-                new DbArgs().Add("@n",npc.Id).Add("@t",chosen.Kind).Add("@i",chosen.Item).Add("@q",chosen.Quantity).Add("@c",city)
-                    .Add("@target",chosen.Target).Add("@d",GameDateCodec.Format(date)).Add("@end",GameDateCodec.Format(date.AddDays(90))));
+            string skillCode = chosen.Kind=="mentor" ? mentorSkills[context.Rng.Next(0,mentorSkills.Length)].Code : "";
+            context.Db.Execute("INSERT INTO kz_npc_wish(npc_id,template,item_id,quantity,city_id,target_npc_id,opened,deadline,state,skill_code) VALUES (@n,@t,@i,@q,@c,@target,@d,@end,'hidden',@skill)",
+                new DbArgs().Add("@n",npc.Id).Add("@t",chosen.Kind).Add("@i",chosen.Item).Add("@q",chosen.Quantity).Add("@c",chosen.Kind=="home"?npc.CitadelId:city)
+                    .Add("@skill",skillCode).Add("@target",chosen.Target).Add("@d",GameDateCodec.Format(date)).Add("@end",GameDateCodec.Format(date.AddDays(90))));
             slots--;
         }
     }
 
     public void Refresh(GameDate date)
     {
+        foreach (var old in All().Where(w=>Open(w) && w.Template=="mentor" && w.SkillCode==""))
+        {
+            var npc=Registry.Find(old.NpcId)!;
+            var skill=Registry.All.SelectMany(n=>n.Skills).OrderBy(s=>s.Code).FirstOrDefault(s=>EligibleTeachers(npc,s.Code).Any());
+            context.Db.Execute("UPDATE kz_npc_wish SET skill_code=@skill,target_npc_id=0,state=@state WHERE id=@id",
+                new DbArgs().Add("@skill",skill?.Code??"").Add("@state",skill is null?"expired":old.State).Add("@id",old.Id));
+        }
         foreach (var wish in All().Where(Open))
         {
             if (date > wish.Deadline)
             {
                 bool self = context.Rng.Next(0,100)<35;
+                if (self && wish.Template=="home") ReturnHome(wish);
                 context.Db.Execute("UPDATE kz_npc_wish SET state=@s WHERE id=@id",new DbArgs().Add("@s",self?"self_completed":"expired").Add("@id",wish.Id));
                 string message = self ? $"{Registry.Find(wish.NpcId)?.NameVi} tự hoàn thành ước nguyện sau khi quá hạn." : $"Ước nguyện của {Registry.Find(wish.NpcId)?.NameVi} quá hạn.";
                 if (wish.State=="accepted")
@@ -100,6 +110,10 @@ internal sealed partial class NpcWishService(ModuleContext context) : INpcWishes
                     ChangeAffinity(wish,-NpcWishRules.ExpiryPenalty,message,date);
                 }
                 Record(wish,message,date);
+            }
+            else if (wish.Template=="home" && wish.State=="accepted" && HomeReached(wish))
+            {
+                Complete(Progress(wish));
             }
             else if (wish.State=="hidden" && Social.GetRelationship(wish.NpcId).Affinity>=NpcWishRules.RevealAffinity)
                 context.Db.Execute("UPDATE kz_npc_wish SET state='revealed' WHERE id=@id",DbArgs.One("@id",wish.Id));
@@ -128,7 +142,8 @@ internal sealed partial class NpcWishService(ModuleContext context) : INpcWishes
             "shop" => $"Ta muốn mở tiệm, mong được góp {w.Quantity} quan.",
             "rare" => $"Ta đang tìm {w.Quantity} {Items.Find(w.ItemId)?.NameVi}.",
             "revenge" => $"Xin giúp ta thắng {target} trên lôi đài.",
-            _ => $"Ta muốn được giới thiệu theo học {target}."
+            "home" => $"Ta muốn về quê ở {context.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap).Find(npc.CitadelId)?.NameVi}. Bạn có thể đưa ta về hoặc giúp {NpcWishRules.HomeFare} quan lộ phí.",
+            _ => $"Ta muốn tìm một bậc thầy về {SkillName(w.SkillCode)}."
         };
         bool ready = Nearby(w.NpcId);
         string progress;
@@ -143,10 +158,14 @@ internal sealed partial class NpcWishService(ModuleContext context) : INpcWishes
                 ready &= w.Evidence; progress=w.Evidence?"Đã thắng đối thủ — về báo tin":"Chưa thắng đối thủ";
                 if (!w.Evidence && Registry.Find(w.TargetNpcId) is {} rival) destination=rival.CurrentCitadelId(context.Capabilities);
                 break;
+            case "home":
+                destination=npc.CitadelId;
+                ready &= Wallet.Liquid>=NpcWishRules.HomeFare;
+                progress=$"Lộ phí: {Wallet.Liquid}/{NpcWishRules.HomeFare} quan; hoặc cùng gia thần tới quê";
+                break;
             default:
-                bool met=Social.HasMet(w.TargetNpcId);
-                ready &= met; progress=met?"Đã quen thầy — có thể giới thiệu":"Hãy gặp người thầy trước";
-                if (!met && Registry.Find(w.TargetNpcId) is {} teacher) destination=teacher.CurrentCitadelId(context.Capabilities);
+                bool met=MentorCandidates(w.NpcId).Count>0;
+                ready &= met; progress=met?"Đã quen người đủ điều kiện — hãy chọn thầy":"Hãy làm quen người có kỹ năng cao hơn, phẩm không thấp hơn";
                 break;
         }
         return new(w,npc.NameVi,request,progress,destination,ready);

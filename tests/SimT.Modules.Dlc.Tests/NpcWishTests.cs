@@ -175,14 +175,130 @@ public sealed class NpcWishTests : IDisposable
     public void Mentor_introduction_requires_contact_and_creates_directed_bond()
     {
         using var k=host.Boot();
-        long target=Registry(k).All.First(n=>n.CitadelId!=1).Id;
-        long id=Fixture(k,"mentor",target:target);
+        long id=Fixture(k,"mentor");
+        var npc=Registry(k).Find(id)!;
+        var social=k.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var teacher=Registry(k).All.First(n=>n.Id!=id && social.GetNpcRank(n.Id)<=social.GetNpcRank(id) && n.Skills.Any(s=>s.Level>(npc.Skills.FirstOrDefault(x=>x.Code==s.Code)?.Level??0)));
+        var skill=teacher.Skills.First(s=>s.Level>(npc.Skills.FirstOrDefault(x=>x.Code==s.Code)?.Level??0));
+        k.Db.Execute("UPDATE kz_npc_wish SET skill_code=@s",DbArgs.One("@s",skill.Code));
         Wishes(k).Accept(id);
-        Assert.False(Assert.Single(Wishes(k).Journal()).Ready);
-        Friend(k,target);
+        Assert.Contains(skill.NameVi,Wishes(k).ForNpc(id)!.RequestVi);
+        Assert.DoesNotContain(teacher.NameVi,Wishes(k).ForNpc(id)!.RequestVi);
+        Assert.DoesNotContain("Đã giúp",Wishes(k).Introduce(id,teacher.Id));
+        Friend(k,teacher.Id);
         Assert.True(Assert.Single(Wishes(k).Journal()).Ready);
-        Wishes(k).Give(id);
-        Assert.Contains(k.Capabilities.Get<INpcBonds>(INpcBonds.CapabilityId).ForNpc(id),b=>b.Kind=="mentor" && b.NpcA==target && b.NpcB==id);
+        var dialogue=k.Capabilities.Get<IDialogueModule>(CapabilityIds.Dialogue);
+        var choices=dialogue.HandleChoice(id,"wish:give").UpdatedScene!.Choices;
+        Assert.InRange(choices.Count,2,6);
+        Assert.Contains(choices,c=>c.Id=="wish:cancel" && c.LabelVi=="Thôi");
+        Assert.Contains("Đã giúp",dialogue.HandleChoice(id,$"wish:teacher:{teacher.Id}").MessageVi);
+        Assert.Contains(k.Capabilities.Get<INpcBonds>(INpcBonds.CapabilityId).ForNpc(id),b=>b.Kind=="mentor" && b.NpcA==teacher.Id && b.NpcB==id);
+    }
+
+    [Fact]
+    public void Mentor_rejects_every_lower_rank_or_non_superior_skill_even_when_met()
+    {
+        using var k=host.Boot();
+        var reg=Registry(k); var social=k.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        foreach(var n in reg.All) Friend(k,n.Id);
+        int lowerRank=0, nonSuperior=0;
+        foreach(var npc in reg.All.Where(n=>n.CitadelId==1))
+        foreach(var skill in reg.All.SelectMany(n=>n.Skills).DistinctBy(s=>s.Code))
+        {
+            Fixture(k,"mentor",state:"accepted");
+            k.Db.Execute("UPDATE kz_npc_wish SET npc_id=@n,skill_code=@s",new DbArgs().Add("@n",npc.Id).Add("@s",skill.Code));
+            var candidates=Wishes(k).MentorCandidates(npc.Id);
+            Assert.InRange(candidates.Count,0,5);
+            foreach(var teacher in reg.All.GroupBy(n=>(Self:n.Id==npc.Id,Lower:social.GetNpcRank(n.Id)>social.GetNpcRank(npc.Id),Superior:n.Skills.Any(s=>s.Code==skill.Code && s.Level>(npc.Skills.FirstOrDefault(x=>x.Code==skill.Code)?.Level??0)))).Select(g=>g.First()))
+            {
+                bool lower=social.GetNpcRank(teacher.Id)>social.GetNpcRank(npc.Id);
+                bool superior=teacher.Skills.Any(s=>s.Code==skill.Code && s.Level>(npc.Skills.FirstOrDefault(s=>s.Code==skill.Code)?.Level??0));
+                if (teacher.Id!=npc.Id && !lower && superior) continue;
+                if(lower && superior) lowerRank++;
+                if(!superior) nonSuperior++;
+                Assert.DoesNotContain(candidates,n=>n.Id==teacher.Id);
+                Assert.DoesNotContain("Đã giúp",Wishes(k).Introduce(npc.Id,teacher.Id));
+                Assert.Equal("accepted",k.Db.Query("SELECT state FROM kz_npc_wish",r=>r.GetString(0)).Single());
+            }
+        }
+        Assert.True(lowerRank>0); Assert.True(nonSuperior>0);
+    }
+
+    [Fact]
+    public void Generated_mentors_always_have_a_real_skill_and_eligible_teacher()
+    {
+        using var k=host.Boot(); var reg=Registry(k);
+        var social=k.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        for(int i=1;i<=12;i++) Events(k).Publish(new MonthClosed(k.Today.AddDays(i*30),k.Today));
+        var rows=k.Db.Query("SELECT npc_id,skill_code,target_npc_id FROM kz_npc_wish WHERE template='mentor'",r=>(Npc:r.GetInt64(0),Skill:r.GetString(1),Target:r.GetInt64(2)));
+        Assert.NotEmpty(rows);
+        foreach(var row in rows)
+        {
+            var npc=reg.Find(row.Npc)!;
+            Assert.Equal(0,row.Target);
+            Assert.Contains(reg.All.SelectMany(n=>n.Skills),s=>s.Code==row.Skill);
+            Assert.Contains(reg.All,n=>n.Id!=npc.Id && social.GetNpcRank(n.Id)<=social.GetNpcRank(npc.Id) && n.Skills.Any(s=>s.Code==row.Skill && s.Level>(npc.Skills.FirstOrDefault(x=>x.Code==s.Code)?.Level??0)));
+        }
+    }
+
+    [Fact]
+    public void Home_is_only_generated_away_from_registry_hometown()
+    {
+        using var k=host.Boot();
+        Assert.Equal(0,k.Db.ScalarLong("SELECT COUNT(*) FROM kz_npc_wish WHERE template='home'"));
+        k.Db.Execute("DELETE FROM kz_npc_wish; UPDATE so_npc_activity SET current_citadel_id=CASE WHEN current_citadel_id=1 THEN 2 ELSE 1 END");
+        bool generated=false;
+        for(int i=1;i<=15;i++)
+        {
+            k.Db.Execute("DELETE FROM kz_npc_wish");
+            Events(k).Publish(new MonthClosed(k.Today.AddDays(i*30),k.Today));
+            foreach(var row in k.Db.Query("SELECT npc_id,city_id FROM kz_npc_wish WHERE template='home'",r=>(Npc:r.GetInt64(0),City:r.GetInt64(1))))
+            {
+                generated=true; var npc=Registry(k).Find(row.Npc)!;
+                Assert.Equal(npc.CitadelId,row.City);
+                Assert.NotEqual(npc.CitadelId,npc.CurrentCitadelId(k.Capabilities));
+            }
+        }
+        Assert.True(generated);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Home_completes_once_by_fare_or_retainer_escort(bool escort)
+    {
+        using var k=host.Boot(); long id=Fixture(k,"home");
+        k.Db.Execute("UPDATE so_npc_activity SET current_citadel_id=2 WHERE npc_id=@n",DbArgs.One("@n",id));
+        var player=k.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        player.MoveTo(2,k.Today); Wishes(k).Accept(id);
+        var wallet=k.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet); long before=wallet.Liquid;
+        Assert.Single(Wishes(k).Journal()); Assert.Equal(before,wallet.Liquid);
+        if(escort)
+        {
+            k.Db.Execute("INSERT INTO kz_retainer(npc_id,role_assigned,monthly_stipend,loyalty,recruited_date) VALUES (@n,'accountant',50,70,@d)",new DbArgs().Add("@n",id).Add("@d",GameDateCodec.Format(k.Today)));
+            Events(k).Publish(new DayAdvanced(k.Today));
+            Assert.Single(Wishes(k).Journal());
+            player.MoveTo(1,k.Today);
+            Events(k).Publish(new DayAdvanced(k.Today));
+        }
+        else
+        {
+            player.MoveTo(3,k.Today);
+            Assert.DoesNotContain("Đã giúp",Wishes(k).PayHomeFare(id));
+            Assert.Equal(before,wallet.Liquid);
+            player.MoveTo(2,k.Today);
+            wallet.Charge(wallet.Liquid-NpcWishRules.HomeFare+1,"qa","Thiếu một quan");
+            long poor=wallet.Liquid;
+            Assert.DoesNotContain("Đã giúp",Wishes(k).PayHomeFare(id)); Assert.Equal(poor,wallet.Liquid);
+            wallet.Pay(before-poor,"qa","Hoàn tiền QA");
+            Assert.Contains("Đã giúp",Wishes(k).PayHomeFare(id));
+        }
+        Assert.Empty(Wishes(k).Journal());
+        Assert.Equal(1,Registry(k).Find(id)!.CurrentCitadelId(k.Capabilities));
+        Assert.Equal(before-(escort?0:NpcWishRules.HomeFare),wallet.Liquid);
+        Wishes(k).PayHomeFare(id); Events(k).Publish(new DayAdvanced(k.Today));
+        Assert.Equal(before-(escort?0:NpcWishRules.HomeFare),wallet.Liquid);
+        Assert.Equal(85,k.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork).GetRelationship(id).Affinity);
     }
 
     [Fact]
@@ -190,7 +306,7 @@ public sealed class NpcWishTests : IDisposable
     {
         using(var k=host.Boot())
         {
-            k.Db.Execute("DROP TABLE kz_npc_wish; DROP TABLE kz_wish_state; DELETE FROM core_migration WHERE migration_id LIKE '%0404-npc-wishes%'"); k.Save();
+            k.Db.Execute("DROP TABLE kz_npc_wish; DROP TABLE kz_wish_state; DELETE FROM core_migration WHERE (migration_id LIKE '%0404-npc-wishes%' OR migration_id LIKE '%0405-wish-home-mentor%')"); k.Save();
         }
         string[] before;
         using(var k=host.Boot())
@@ -205,6 +321,25 @@ public sealed class NpcWishTests : IDisposable
             before=Snapshot(k); k.Db.Execute(migration); k.Db.Execute(migration); Assert.Equal(before,Snapshot(k)); k.Save();
         }
         using var reopened=host.Boot(); Assert.Equal(before,Snapshot(reopened)); Assert.Single(Wishes(reopened).Journal());
+    }
+
+    [Fact]
+    public void Upgrade_preserves_accepted_legacy_mentor_and_replaces_fixed_target_with_skill()
+    {
+        long id;
+        using(var k=host.Boot())
+        {
+            id=Fixture(k,"mentor",state:"accepted",target:Registry(k).All.Last().Id);
+            k.Db.Execute("ALTER TABLE kz_npc_wish DROP COLUMN skill_code; DELETE FROM core_migration WHERE migration_id LIKE '%0405-wish-home-mentor%'");
+            k.Save();
+        }
+        using var upgraded=host.Boot();
+        var row=Wishes(upgraded).ForNpc(id)!;
+        Assert.Equal("accepted",row.Wish.State);
+        Assert.NotEmpty(row.Wish.SkillCode);
+        Assert.Equal(0,row.Wish.TargetNpcId);
+        Assert.Contains("Ta muốn tìm một bậc thầy về",row.RequestVi);
+        Assert.Equal(1,upgraded.Db.ScalarLong("SELECT COUNT(*) FROM kz_npc_wish"));
     }
 
     [Fact]
@@ -238,12 +373,16 @@ public sealed class NpcWishTests : IDisposable
         foreach(var id in ids) Friend(k,id);
         var rows=ids.Select(id=>Wishes(k).ForNpc(id)!).ToArray();
         File.WriteAllText(Path.Combine(qa,"new-campaign-examples.json"),JsonSerializer.Serialize(rows,new JsonSerializerOptions { WriteIndented=true }));
-        var npc=rows[0].Wish.NpcId;
+        var npc=rows.First(r=>r.Wish.Template=="mentor").Wish.NpcId;
         // QA travels to the actual NPC; no wish parameters are fabricated.
         k.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState).MoveTo(Registry(k).Find(npc)!.CurrentCitadelId(k.Capabilities),k.Today);
         var scene=k.Capabilities.Get<IDialogueModule>(CapabilityIds.Dialogue).HandleChoice(npc,"wish:ask").UpdatedScene;
         File.WriteAllText(Path.Combine(qa,"talk.json"),JsonSerializer.Serialize(scene,new JsonSerializerOptions { PropertyNamingPolicy=JsonNamingPolicy.CamelCase }));
-        Wishes(k).Accept(npc); k.Save();
+        Wishes(k).Accept(npc);
+        foreach(var candidate in Registry(k).All) Friend(k,candidate.Id);
+        var picker=k.Capabilities.Get<IDialogueModule>(CapabilityIds.Dialogue).HandleChoice(npc,"wish:give").UpdatedScene;
+        File.WriteAllText(Path.Combine(qa,"teacher-picker.json"),JsonSerializer.Serialize(picker,new JsonSerializerOptions { PropertyNamingPolicy=JsonNamingPolicy.CamelCase }));
+        k.Save();
         k.Db.Execute("PRAGMA wal_checkpoint(FULL)");
         File.Copy(host.DatabasePath,Path.Combine(qa,"campaign.db"),true);
     }

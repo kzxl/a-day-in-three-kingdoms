@@ -56,6 +56,9 @@ public sealed record NpcStatDelta(
 /// </summary>
 public interface ISocietyChronicle
 {
+    /// <summary>Returns an NPC to its registry hometown using the living world's location state.</summary>
+    void ReturnNpcHome(long npcId, GameDate date) { }
+
     void RecordRelationshipEvent(GameDate date, long npcId, string headlineVi) { }
 
     /// <summary>Chronicle feed of recent events across the realm or at a specific citadel.</summary>
