@@ -12,20 +12,37 @@ Nguồn tham khảo: Tam Quốc Chí 8 Remake (2024), XIII, XIV. Chỉ lấy ý 
 
 | Đợt | Nội dung | Người làm | Đề bài | Trạng thái |
 | --- | --- | --- | --- | --- |
-| 1 | Bản đồ thế lực và mùa | agy | `prompts/13` | Chưa làm |
-| 2 | Tin đồn tửu quán | Codex | `prompts/14` | Chưa làm |
+| 1 | Bản đồ thế lực và mùa | agy | `prompts/13` | Đang làm |
+| 2 | Tin đồn tửu quán | Codex | `prompts/14` | Xong (`231b25b`) |
 | 3 | Sử biến theo lịch | agy | `prompts/15` | Chưa làm |
-| 4 | Lưới quan hệ thiên hạ | Codex | `prompts/16` | Chưa làm |
-| 5 | Đặc tính và Võ tướng lục | agy | `prompts/17` | Chưa làm |
+| 4 | Lưới quan hệ thiên hạ | Codex | `prompts/16` | Đang làm |
+| 5 | Đặc tính nhân vật | agy | `prompts/17` | Chưa làm |
 | 6 | Ước nguyện NPC | Codex | `prompts/18` | Chưa làm |
 | 7 | Đầu quân chúa công | agy | `prompts/19` | Chưa làm |
 | 8 | Người đi trên bản đồ | Codex | `prompts/20` | Chưa làm |
 | 9 | Biện luận | agy | `prompts/21` | Chưa làm |
 | 10 | Kịch bản khởi đầu | Codex | `prompts/22` | Chưa làm |
+| 11 | Chân dung nhiều biểu cảm | Codex | `prompts/23` | Chưa làm |
+| 12 | Võ tướng lục | agy | `prompts/24` | Chưa làm |
 
 Trạng thái: Chưa làm → Đang làm → Nghiệm thu → Xong (ghi commit gộp).
 
-Hai đợt cùng hàng (1–2, 3–4, …) chạy song song vì đụng ít file chung. Đợt sau dùng kết quả đợt trước khi cần: 3 dùng tin đồn của 2, 5 dùng sử biến của 3, 6 dùng quan hệ của 4, 8 dùng bản đồ của 1, 9 dùng đặc tính của 5, 10 dùng sử biến và thế lực.
+Thứ tự chạy:
+- Hai đợt cùng hàng (1–2, 3–4, …, 11–12) chạy song song, vì đụng ít file chung.
+- Đợt 4 không cần chờ ai, nên chạy sớm ngay khi Codex rảnh.
+
+Đợt sau dùng kết quả đợt trước khi cần:
+
+| Đợt | Dùng kết quả của |
+| --- | --- |
+| 3 | 2 (tin đồn) |
+| 5 | 3 (sử biến) |
+| 6 | 4 (quan hệ) |
+| 8 | 1 (bản đồ) |
+| 9 | 5 (đặc tính) |
+| 10 | 3 (sử biến) và 1 (thế lực) |
+| 11 | 3 (cảnh sử biến dùng chân dung) |
+| 12 | 3 (sử biến) và 5 (đặc tính) |
 
 ## Luật chung cho mọi đợt
 
@@ -103,7 +120,7 @@ Hai đợt cùng hàng (1–2, 3–4, …) chạy song song vì đụng ít file
   - Kết thân với kẻ thù của bạn thân thì bạn thân giảm thiện cảm.
 - **Xong khi:** test dữ liệu sử, test giới thiệu; ảnh chế độ Thiên hạ.
 
-## Đợt 5 — Đặc tính và Võ tướng lục
+## Đợt 5 — Đặc tính nhân vật
 
 **Mục tiêu:** mỗi người có cá tính thấy được, và cá tính ảnh hưởng cách chơi.
 
@@ -115,8 +132,7 @@ Hai đợt cùng hàng (1–2, 3–4, …) chạy song song vì đụng ít file
   - lời thoại;
   - đấu võ, ví dụ Nóng nảy đánh mạnh nhưng hở thủ.
 - Hiện thành nhãn trong hồ sơ và cảnh trò chuyện. Chưa đủ thân thì hiện "???".
-- Võ tướng lục: sổ những người đã gặp và sử biến đã chứng kiến, có lọc theo thế lực và thành, và tỉ lệ sưu tầm. Mở từ hồ sơ Danh sĩ.
-- **Xong khi:** test đặc tính ổn định theo seed và đổi giá đúng chiều; ảnh nhãn, ảnh Võ tướng lục.
+- **Xong khi:** test đặc tính ổn định theo seed và đổi giá đúng chiều; ảnh nhãn trong hồ sơ và cảnh trò chuyện.
 
 ## Đợt 6 — Ước nguyện NPC
 
@@ -191,7 +207,36 @@ Hai đợt cùng hàng (1–2, 3–4, …) chạy song song vì đụng ít file
 - Save cũ coi như kịch bản hiện tại, không đổi gì.
 - **Xong khi:** test mỗi kịch bản khởi tạo đúng thế lực và ngày, test save cũ; ảnh màn chọn kịch bản.
 
+## Đợt 11 — Chân dung nhiều biểu cảm
+
+**Mục tiêu:** nhân vật đổi nét mặt theo lời nói, cảnh trò chuyện và sử biến có cảm xúc.
+
+- **Vẽ:** Codex tự vẽ bằng công cụ tạo ảnh.
+  - Ai: các nhân vật sử đang có chân dung riêng trong `assets/scenes/art/portraits/`, cùng các kiểu dân phố.
+  - Vẽ gì: thêm 3 nét mặt cho mỗi người: vui, giận, buồn hoặc lo.
+  - Yêu cầu: cùng phong cách, cùng khung, cùng ánh sáng với `face.webp` và `full.webp` hiện có. Đổi nét mặt, không đổi người, không đổi trang phục.
+- **Dữ liệu:** thêm biểu cảm vào `manifest.json`. Thiếu biểu cảm nào thì dùng ảnh thường.
+- **Lời thoại:** mỗi dòng có thể kèm biểu cảm.
+  - Đặt theo ngữ cảnh: thiện cảm tăng thì vui, bị từ chối hoặc khiêu khích thì giận, tin dữ thì buồn.
+  - Cảnh trò chuyện và cảnh sử biến đổi chân dung theo dòng, có chuyển mờ ngắn.
+- **Xong khi:** đủ ảnh cho các nhân vật trên, đã soát bằng mắt, không lệch người; ảnh cảnh trò chuyện ở ba nét mặt.
+
+## Đợt 12 — Võ tướng lục
+
+**Mục tiêu:** có sổ sưu tầm, cho người chơi lý do đi gặp người và chứng kiến sử.
+
+- Ghi lại người đã gặp, tức đã trò chuyện ít nhất một lần, và sử biến đã chứng kiến. Lưu trong module sở hữu, save cũ suy ra từ dữ liệu quan hệ đang có.
+- Sổ mở từ hồ sơ Danh sĩ, có hai tab.
+  - **Nhân vật:**
+    - lưới chân dung, chưa gặp thì là bóng đen kèm "?";
+    - lọc theo thế lực, thành, loại người;
+    - tỉ lệ sưu tầm.
+  - **Sử biến:**
+    - các biến cố đã chứng kiến, bấm vào thì xem lại cảnh;
+    - biến cố chưa xảy ra hoặc lỡ mất thì hiện mờ.
+- Mốc sưu tầm (10, 50, 100 người, đủ 12 biến cố) cho danh vọng và ghi biên niên.
+- **Xong khi:** test ghi nhận khi gặp, test save cũ, test mốc; ảnh hai tab.
+
 ## Ngoài phạm vi (để sau)
 
-- Chân dung nhiều biểu cảm (giận, cười) cho nhân vật sử: cần vẽ thêm. Làm sau đợt 3 nếu cảnh sử biến cần.
 - Chơi nhiều nhân vật cùng lúc, chơi nhiều người.
