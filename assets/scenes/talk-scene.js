@@ -101,6 +101,7 @@ function renderTalkScene(container, scene, bridge) {
       <div class="tk-mist"></div>
       <div class="tk-layer tk-talk-char-layer">
         <div class="tk-char-rig">
+          ${scene.archetypeCode ? `<div class="tk-char-halo tk-halo-${escapeHtml(scene.archetypeCode)}"></div>` : ''}
           <div class="tk-char-breath">
             <img class="tk-char-img" id="tk-char-base" src="${escapeHtml(scene.portraitFull)}" alt="${escapeHtml(scene.nameVi)}" />
             ${portraitFramesHtml}
@@ -143,6 +144,7 @@ function renderTalkScene(container, scene, bridge) {
                 <div class="tk-speaker-sub tk-one">${escapeHtml(stylePart + scene.roleVi)}</div>
               </div>
               <span class="tk-mood-pill tk-one">${escapeHtml(scene.personalityVi || 'Trầm ổn')}</span>
+              ${scene.archetypeBadgeVi ? `<span class="tk-archetype-pill tk-one tk-archetype-${escapeHtml(scene.archetypeCode || '')}">${escapeHtml(scene.archetypeBadgeVi)}</span>` : ''}
             </div>
             <div class="tk-affinity-badge tk-num">
               <span>Hảo cảm ${escapeHtml(sign)}</span>

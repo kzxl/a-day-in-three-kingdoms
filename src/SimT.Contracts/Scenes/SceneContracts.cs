@@ -11,7 +11,8 @@ public sealed record TalkScene(
     string RoleVi, string? PersonalityVi, string LocationNameVi, string LocationHan, int Affinity, string RelationTierVi,
     string PortraitFull, string PortraitFace, string BackgroundPath, IReadOnlyList<string> Lines,
     IReadOnlyList<SceneChoice> Choices, IReadOnlyList<SceneNpcThumb> NearbyNpcs,
-    string? FeedbackVi = null, string? BlinkPath = null, string? TalkPath = null);
+    string? FeedbackVi = null, string? BlinkPath = null, string? TalkPath = null,
+    string? ArchetypeCode = null, string? ArchetypeBadgeVi = null);
 
 public sealed record DuelFighterView(
     string NameVi, string SubVi, string FacePath, string SpritePath, TroopBranch Branch,

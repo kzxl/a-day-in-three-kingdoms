@@ -65,6 +65,9 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
                 n.Id == npc.Id))
             .ToList();
 
+        _context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var socialService);
+        var psyche = socialService?.GetPsycheProfile(npc.Id);
+
         return new TalkScene(
             SceneId: $"talk:{npc.Id}", NpcId: npc.Id, NpcCode: npc.Code,
             NameVi: npc.NameVi, NameHan: string.IsNullOrWhiteSpace(npc.NameHan) ? "漢" : npc.NameHan,
@@ -75,7 +78,9 @@ internal sealed class DialogueService(ModuleContext context) : IDialogueModule
             PortraitFull: portraitFull, PortraitFace: portraitFace, BackgroundPath: bgPath,
             Lines: lines, Choices: choices, NearbyNpcs: nearby,
             FeedbackVi: string.IsNullOrWhiteSpace(feedbackVi) ? null : ClampLine90(feedbackVi!),
-            BlinkPath: blinkPath, TalkPath: talkPath);
+            BlinkPath: blinkPath, TalkPath: talkPath,
+            ArchetypeCode: psyche?.Archetype.ToString().ToLowerInvariant(),
+            ArchetypeBadgeVi: psyche?.BadgeVi);
     }
 
     public TalkChoiceOutcome HandleChoice(long npcId, string choiceId)

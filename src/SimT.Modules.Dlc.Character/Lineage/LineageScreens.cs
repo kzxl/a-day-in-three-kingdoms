@@ -73,12 +73,57 @@ internal sealed class FamilyScreen : IScreenContribution
             alerts.Add(new ScreenAlert("Đã có con nhưng chưa lập người kế vị.", AlertLevel.Warning));
         }
 
-        var sections = new List<ScreenSection>
-        {
-            new("Gia phả", Columns, rows)
-        };
-
         var children = _service.Children;
+        var sections = new List<ScreenSection>();
+
+        if (_service.IsMarried)
+        {
+            var treeCols = new[] { "Thế Hệ", "Danh Xưng & Thân Tộc", "Tình Trạng", "Huyết Thống / Kế Thừa", "Định Hướng" };
+            var treeRows = new List<ScreenRow>
+            {
+                new(
+                    [
+                        "Đời Thứ Nhất",
+                        $"🏛️ Gia Chủ & Chính Thất [{_service.SpouseName}]",
+                        "Chủ Hộ Gia Tộc",
+                        $"Gia uy {_service.ClanPrestige} điểm",
+                        "Bình an hưng thịnh"
+                    ],
+                    Array.Empty<ScreenCommand>(),
+                    Title: "Gia Chủ & Chính Thất")
+            };
+
+            for (int i = 0; i < children.Count; i++)
+            {
+                var ch = children[i];
+                var branch = i == children.Count - 1 ? "└── " : "├── ";
+                var heirTag = ch.IsHeir ? "★ ĐÍCH TỬ KẾ THỪA" : "Thứ tử";
+                var ageTag = ch.IsAdult ? $"{ch.Age} tuổi (Đã nhược quán)" : $"{ch.Age} tuổi (Thiếu niên)";
+                var mentorDesc = ch.MentorName != null ? $"{ch.MentorName} (+{ch.StatBonus} {ch.FocusStat})" : "Chưa bái sư";
+
+                treeRows.Add(new(
+                    [
+                        "Đời Thứ Hai",
+                        $"{branch}👦 {ch.NameVi}",
+                        ageTag,
+                        $"{heirTag} · Sư phụ: {mentorDesc}",
+                        ch.IsAdult ? "Có thể gánh vác gia nghiệp" : "Đang được dưỡng dục"
+                    ],
+                    ch.IsHeir ? Array.Empty<ScreenCommand>() : new[] { new ScreenCommand($"heir:{ch.Id}", "Lập Kế Vị") },
+                    Title: $"{ch.NameVi} ({heirTag})",
+                    Details:
+                    [
+                        new ScreenDetail("Thân Tộc", $"Đời thứ hai · Con của {_service.SpouseName}"),
+                        new ScreenDetail("Tuổi & Trạng Thái", ageTag),
+                        new ScreenDetail("Kế Thừa", heirTag),
+                        new ScreenDetail("Gia Sư Bồi Dưỡng", mentorDesc)
+                    ]));
+            }
+
+            sections.Add(new ScreenSection("🌿 Cây Phả Hệ Gia Tộc (Gia Tộc Tương Truyền)", treeCols, treeRows));
+        }
+
+        sections.Add(new("Gia phả", Columns, rows));
         if (children.Count > 0)
         {
             var childCols = new[] { "Tử Tức", "Tuổi Tác", "Kế Vị", "Danh Sư Giáo Dưỡng", "Thiên Hướng", "Chỉ Số Tăng Thêm" };

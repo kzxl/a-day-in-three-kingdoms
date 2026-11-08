@@ -259,6 +259,30 @@ public sealed class LineageTests : IDisposable
         Assert.True(childGrown.IsAdult);
     }
 
+    [Fact]
+    public void Dynasty_family_tree_renders_generational_nodes_and_succession()
+    {
+        using var kernel = _host.Boot();
+        Command(kernel, "marry");
+        Command(kernel, "beget");
+
+        var screen = kernel.Ui.Screens.First(s => s.ScreenId == "lineage.family");
+        var model = screen.Render();
+
+        var treeSection = model.Sections.First(s => s.Heading.Contains("Cây Phả Hệ Gia Tộc"));
+        Assert.NotEmpty(treeSection.Rows);
+
+        // Generation 1 row
+        var gen1 = treeSection.Rows[0];
+        Assert.Equal("Đời Thứ Nhất", gen1.Cells[0]);
+        Assert.Contains("Gia Chủ & Chính Thất", gen1.Cells[1]);
+
+        // Generation 2 row
+        var gen2 = treeSection.Rows[1];
+        Assert.Equal("Đời Thứ Hai", gen2.Cells[0]);
+        Assert.Contains("👦", gen2.Cells[1]);
+    }
+
     private static string MarryAndReadSpouse(TestHost host)
     {
         using var kernel = host.Boot();
