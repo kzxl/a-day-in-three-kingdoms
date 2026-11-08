@@ -117,42 +117,92 @@
   "archetype": {
     "general": {
       "portrait": "general",
+      "variants": [
+        "general",
+        "general_v2",
+        "general_v3"
+      ],
       "sprite": "han_officer"
     },
     "scholar": {
       "portrait": "scholar",
+      "variants": [
+        "scholar",
+        "scholar_v2",
+        "scholar_v3"
+      ],
       "sprite": "civ_scholar"
     },
     "merchant": {
       "portrait": "merchant",
+      "variants": [
+        "merchant",
+        "merchant_v2",
+        "merchant_v3"
+      ],
       "sprite": "civ_merchant"
     },
     "elder": {
       "portrait": "elder",
+      "variants": [
+        "elder",
+        "elder_v2",
+        "elder_v3"
+      ],
       "sprite": "civ_elder"
     },
     "commoner": {
       "portrait": "commoner",
+      "variants": [
+        "commoner",
+        "commoner_v2",
+        "commoner_v3"
+      ],
       "sprite": "civ_commoner"
     },
     "lady": {
       "portrait": "lady",
+      "variants": [
+        "lady",
+        "lady_v2",
+        "lady_v3"
+      ],
       "sprite": "civ_lady"
     },
     "swordswoman": {
       "portrait": "swordswoman",
+      "variants": [
+        "swordswoman",
+        "swordswoman_v2",
+        "swordswoman_v3"
+      ],
       "sprite": "female_warrior"
     },
     "archer": {
       "portrait": "general",
+      "variants": [
+        "general",
+        "general_v2",
+        "general_v3"
+      ],
       "sprite": "han_archer"
     },
     "rebel": {
       "portrait": "commoner",
+      "variants": [
+        "commoner",
+        "commoner_v2",
+        "commoner_v3"
+      ],
       "sprite": "yellow_turban"
     },
     "farmer_woman": {
       "portrait": "farmer_woman",
+      "variants": [
+        "farmer_woman",
+        "farmer_woman_v2",
+        "farmer_woman_v3"
+      ],
       "sprite": "civ_farmer_woman"
     }
   },

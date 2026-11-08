@@ -98,7 +98,7 @@ public static partial class SceneArtCatalog
             return ($"art/portraits/{direct.Portrait}/full.webp", $"art/portraits/{direct.Portrait}/face.webp", $"art/sprites/{direct.Sprite}.png");
 
         var archetype = ClassifyArchetype(normCode, rawRole, attributes, nameVi, personality);
-        var (portraitKey, spriteKey) = ResolveArchetypeKeys(archetype);
+        var (portraitKey, spriteKey) = ResolveArchetypeKeys(archetype, normCode ?? npcCode);
         if (!string.IsNullOrEmpty(normCode) && manifest.Profile.TryGetValue(normCode, out var profRel))
         {
             var profPath = profRel.StartsWith("art/", StringComparison.OrdinalIgnoreCase) ? profRel : $"art/{profRel}";
@@ -151,12 +151,14 @@ public static partial class SceneArtCatalog
         return (null, null);
     }
 
-    public static (string PortraitKey, string SpriteKey) ResolveArchetypeKeys(string? rawRoleOrArchetype)
+    public static (string PortraitKey, string SpriteKey) ResolveArchetypeKeys(string? rawRoleOrArchetype, string? npcCode = null)
     {
+        if (string.Equals(rawRoleOrArchetype?.Trim(), "player", StringComparison.OrdinalIgnoreCase)) return ("player", "traveler");
         var manifest = Manifest.Value;
         var archetype = ClassifyArchetype(npcCode: null, rawRole: rawRoleOrArchetype);
-        return manifest.Archetype.TryGetValue(archetype, out var entry) ? entry
+        var (portraitKey, spriteKey) = manifest.Archetype.TryGetValue(archetype, out var entry) ? entry
             : manifest.Archetype.TryGetValue("commoner", out var fallback) ? fallback : ("commoner", "civ_commoner");
+        return (ResolveArchetypeVariantKey(portraitKey, npcCode), spriteKey);
     }
 
     public static (string PortraitFull, string PortraitFace, string SpritePath) ResolveRowNpcArt(ScreenRow row, INpcRegistry? registry = null)
