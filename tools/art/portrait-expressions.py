@@ -103,11 +103,14 @@ def main():
                 generated = Image.open(raw).convert('RGBA')
                 aligned, matrix, inliers = align(original, generated)
                 final = composite(original, aligned, box, config['feather'])
-                # Lossy re-encoding would alter the body. exact preserves hidden RGB too.
-                final.save(dest, 'WEBP', lossless=True, exact=True, method=6)
+                # The body is checked pixel-exact on the composite; the file is then lossy q92
+                # (about 4x smaller than lossless, mean visible change ~1.5/255, alpha untouched).
+                outside, inside = verify(original, final, box)
+                final.save(dest, 'WEBP', quality=92, exact=True, method=6)
                 metadata = {'alignment': matrix, 'inliers': inliers}
-            final = Image.open(dest).convert('RGBA')
-            outside, inside = verify(original, final, box)
+            else:
+                final = Image.open(dest).convert('RGBA')
+                outside, inside = verify(original, final, box)
             report.append({'character': key, 'expression': mood, 'outside_head_pixels': outside,
                            'inside_head_pixels': inside, 'bytes': dest.stat().st_size,
                            'original_bytes': (ART/key/'full.webp').stat().st_size, **metadata})
