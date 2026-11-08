@@ -74,7 +74,8 @@
       "cv_cartel_reputation",
       "bk_player_bank",
       "bk_player_branch",
-      "bk_player_convoy"
+      "bk_player_convoy",
+      "pf_hegemony_enactment"
     ],
     "migrations": [
       "migrations"
