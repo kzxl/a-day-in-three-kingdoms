@@ -104,7 +104,7 @@ public partial class MainWindow
             choices.Add(new SceneChoice("continue", "Tiếp tục", "Khép lại trang sử"));
         }
 
-        return new EventScene(
+        return Audio.GameAudio.ConfigureEvent(new EventScene(
             $"event:{evt.Code}",
             evt.Code,
             GameDateCodec.Format(evt.ScheduledDate),
@@ -117,7 +117,8 @@ public partial class MainWindow
             portraits,
             impacts,
             choices,
-            isReplay || string.Equals(evt.Status, "viewed", StringComparison.OrdinalIgnoreCase));
+            isReplay || string.Equals(evt.Status, "viewed", StringComparison.OrdinalIgnoreCase)),
+            evt.Impacts.Any(i => i.Kind is "route_danger" or "route_block" || i.ShockType == "SIEGE"));
     }
 
     // Event data writes the effect in brackets ("Quyên 80 Quan … (+Uy danh)"); show it as the choice hint instead.

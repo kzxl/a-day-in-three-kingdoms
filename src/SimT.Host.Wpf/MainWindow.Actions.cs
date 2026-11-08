@@ -97,6 +97,7 @@ public partial class MainWindow
         try
         {
             SetAdvancingState(true);
+            Audio.GameAudio.Engine.PlaySfx("ui.turn");
             var from = _kernel.Today;
             var prevBalance = _kernel.Ledger.Balance;
 
@@ -224,7 +225,9 @@ public partial class MainWindow
         string? resultMsg;
         try
         {
+            var cashBefore = _kernel.Ledger.Balance;
             resultMsg = handler.Execute(commandId) ?? "Xong.";
+            PlayCommandAudio(commandId, cashBefore);
             ShowNotification(resultMsg);
         }
         catch (Exception error)

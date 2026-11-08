@@ -37,6 +37,7 @@ public partial class DlcSettingsWindow : Window
         _kernel = kernel;
         InitializeComponent();
         DarkTitleBar.Apply(this);
+        InitializeAudioOptions();
 
         PopulateDlcList();
         PopulateEngineInfo();

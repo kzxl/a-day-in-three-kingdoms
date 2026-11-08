@@ -601,7 +601,7 @@ public partial class MainWindow
             Owner = this
         };
 
-        duelWindow.ShowDialog();
+        ShowDuelWithAudio(duelWindow);
 
         _kernel.Save();
         UpdateHeader();

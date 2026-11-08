@@ -32,6 +32,7 @@ public partial class MainWindow
             _selectedSectionTab = 0;
         }
 
+        PlayScreenNavigationAudio(entry.ScreenId);
         _screenId = entry.ScreenId;
         _firstGrid = null;
         _firstSection = null;
