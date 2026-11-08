@@ -265,7 +265,88 @@ public static class ItemValueChain
             "Cung điện, Thiền viện & Tế lễ",
             "Trầm tự nhiên từ rừng sâu phương Nam, xua tan uế khí, lễ vật tiến cống thiên tử.",
             [],
-            [])
+            []),
+
+        // === EXOTIC RAW & LUXURY MATERIALS (0103) ===
+        ["black_iron"] = new(
+            EconomicValueTier.Tier2_Processed,
+            "Khoáng Sản Hiếm",
+            "⬛ [Bậc 2: Tinh Khoáng]",
+            "Quặng kim khí tuyệt phẩm",
+            "Đại sư rèn đúc & Xưởng thần binh",
+            "Huyền thiết khai thác từ mạch sâu Thái Hành Sơn, dùng đúc trọng kiếm và đại tu tăng giới hạn độ bền.",
+            ["than_da"],
+            []),
+
+        ["ironwood"] = new(
+            EconomicValueTier.Tier1_Raw,
+            "Lâm Sản Quý",
+            "🪵 [Bậc 1: Thiết Mộc]",
+            "Gỗ cứng ngàn năm",
+            "Xưởng cung nỗ & Đóng chiến thuyền",
+            "Gỗ lim đá cứng như sắt từ rừng sâu Kiếm Các, chuyên chế tác đại cung và trục chiến xa.",
+            [],
+            []),
+
+        ["warhorse_hide"] = new(
+            EconomicValueTier.Tier2_Processed,
+            "Vật Liệu Sơ Chế",
+            "🛡️ [Bậc 2: Thuộc Da]",
+            "Da thú chiến trận",
+            "Phường may hộ giáp & Kỵ binh",
+            "Da chiến mã và tê ngưu thuộc kỹ, dẻo dai chịu lực chém, nguyên liệu cốt lõi của trọng giáp.",
+            ["muoi"],
+            []),
+
+        ["celestial_silk"] = new(
+            EconomicValueTier.Tier4_Luxury_EndSink,
+            "Thượng Phẩm Xa Xỉ",
+            "✨ [Bậc 4: Thiên Tằm]",
+            "Tơ lụa tuyệt phẩm",
+            "Vương hầu & Giáp nội hộ tâm",
+            "Tơ của loài thiên tằm vùng đất Thục, đao thương khó phạm, dùng may Thiên Tằm Bảo Giáp.",
+            ["hat_giong_dau_tam"],
+            ["gam"]),
+
+        ["lantian_jade"] = new(
+            EconomicValueTier.Tier4_Luxury_EndSink,
+            "Thượng Phẩm Xa Xỉ",
+            "💎 [Bậc 4: Bảo Ngọc]",
+            "Ngọc quý Quan Trung",
+            "Triều đình, Danh gia & Khảm bảo khí",
+            "Ngọc bích Lam Điền ôn nhuận phát sáng, dùng tạc ấn tín truyền quốc và khảm chuôi thần binh.",
+            [],
+            []),
+
+        ["south_sea_pearl"] = new(
+            EconomicValueTier.Tier4_Luxury_EndSink,
+            "Thượng Phẩm Xa Xỉ",
+            "🦪 [Bậc 4: Minh Châu]",
+            "Châu báu phương Nam",
+            "Hoàng cung, Luyện đan & Ngoại giao",
+            "Ngọc trai biển Nam Hải ánh sáng dịu dàng, vừa là bảo vật tiến cống vừa nghiền bột luyện linh đan.",
+            [],
+            ["thuoc"]),
+
+        ["cinnabar_ore"] = new(
+            EconomicValueTier.Tier2_Processed,
+            "Đan Dược Khoáng",
+            "🧪 [Bậc 2: Đan Thạch]",
+            "Khoáng chất luyện đan",
+            "Đạo quán, Y sư & Lò luyện đan",
+            "Chu sa đỏ thẫm khai thác tại núi Lộc Môn, nguyên liệu chủ chốt để luyện Cửu Chuyển Hoàn Đan.",
+            [],
+            ["thuoc"]),
+
+        ["tiger_tendon"] = new(
+            EconomicValueTier.Tier2_Processed,
+            "Thú Liệp Quý",
+            "🐅 [Bậc 2: Hổ Cân]",
+            "Dược liệu & Dây cung",
+            "Thợ làm cung & Võ tướng",
+            "Gân mãnh hổ dẻo dai vạn cân không đứt, dùng bện dây cung thần lực hoặc ngâm rượu tráng cốt.",
+            [],
+            ["ruou"])
     };
 
     private static readonly ValueChainProfile FallbackProfile = new(

@@ -739,9 +739,11 @@ public sealed class ProfessionTests : IDisposable
         var screen = kernel.Ui.Screens.First(s => s.ScreenId == "professions.trades");
         var model = screen.Render();
         var equipSection = model.Sections.First(s => s.Heading == "Khí Cụ Trong Thành");
-        var craftedRow = equipSection.Rows.FirstOrDefault(r => r.Cells[0].Contains(crafted.LotCode));
+        var craftedRow = equipSection.Rows.LastOrDefault(r => r.Cells[0].Contains("Binh Đao"));
         Assert.NotNull(craftedRow);
-        Assert.Contains(craftedRow.Details!, d => d.Label == "Mã Lô Định Danh (ERP Lot)" && d.Value == crafted.LotCode);
+        Assert.DoesNotContain(crafted.LotCode, craftedRow.Cells[0]);
+        Assert.Contains(craftedRow.Details!, d => d.Label == "Nghệ Nhân Chế Tác" && d.Value == player.Name);
+        Assert.Contains(craftedRow.Details!, d => d.Label == "Trạng Thái Độ Bền");
     }
 
     [Fact]
@@ -781,15 +783,15 @@ public sealed class ProfessionTests : IDisposable
         var player = Player(kernel);
         var bag = Bag(kernel);
 
-        // Move to Thượng Đảng (18) — Thượng Đảng Mỏ Sắt (Iron #5 + Coal #15)
+        // Move to Thượng Đảng (18) — Thượng Đảng Mỏ Sắt (Iron #5 + Black Iron #25)
         player.MoveTo(18, kernel.Today);
         var ironBefore = bag.Quantity(18, 5);
-        var coalBefore = bag.Quantity(18, 15);
+        var blackIronBefore = bag.Quantity(18, 25);
 
         var msg = Command(kernel, "wild:mine");
         Assert.Contains("Thượng Đảng Mỏ Sắt", msg);
         Assert.True(bag.Quantity(18, 5) > ironBefore);
-        Assert.True(bag.Quantity(18, 15) > coalBefore);
+        Assert.True(bag.Quantity(18, 25) > blackIronBefore);
 
         // Move to Tây Lương (19) — Mỏ Đồng Kỳ Liên (Bronze #16)
         player.MoveTo(19, kernel.Today);
@@ -804,6 +806,77 @@ public sealed class ProfessionTests : IDisposable
         var msgForage = Command(kernel, "wild:forage");
         Assert.Contains("Trầm Hương", msgForage);
         Assert.True(bag.Quantity(20, 14) > agarBefore);
+    }
+
+    [Fact]
+    public void Equipment_durability_degrades_bonus_and_black_iron_repair_reinforces_max_durability()
+    {
+        using var kernel = _host.Boot();
+        var eqService = kernel.Capabilities.Get<IPlayerEquipment>(CapabilityIds.PlayerEquipment);
+        var guild = Guild(kernel);
+        var bag = Bag(kernel);
+
+        // Equip weapon 1 (Đao Sắt Thao Diễn, +3 WAR, 100/100 durability)
+        Command(kernel, "equip:1");
+        Assert.Equal(3, eqService.GetTotalBonus("WAR"));
+
+        // Degrade by 60 -> 40/100 (< 50% max durability => chipped blade, 50% bonus = +1 WAR)
+        eqService.DegradeEquipped("WEAPON", 60);
+        Assert.Equal(1, eqService.GetTotalBonus("WAR"));
+
+        // Degrade by 40 -> 0/100 (broken => +0 WAR)
+        eqService.DegradeEquipped("WEAPON", 40);
+        Assert.Equal(0, eqService.GetTotalBonus("WAR"));
+
+        // Supply 1 black_iron (#25) and repair weapon 1 -> restores durability and reinforces MaxDurability +5 (105/105)
+        bag.Add(1, 25, 1);
+        var repairMsg = Command(kernel, "repair:1");
+        Assert.Contains("Đại tu bằng Huyền Thiết", repairMsg);
+        Assert.Contains("105/105", repairMsg);
+
+        var repaired = guild.Equipments(1).First(e => e.Id == 1);
+        Assert.Equal(105, repaired.MaxDurability);
+        Assert.Equal(105, repaired.Durability);
+        Assert.Equal(3, eqService.GetTotalBonus("WAR"));
+    }
+
+    [Fact]
+    public void Support_skills_and_new_mastery_perks_boost_forging_repair_mining_and_appraisal()
+    {
+        using var kernel = _host.Boot();
+        var attrs = kernel.Capabilities.Get<IPlayerAttributes>(CapabilityIds.PlayerAttributes);
+        var guild = Guild(kernel);
+        var bag = Bag(kernel);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+
+        // 1. Verify all 6 new support skills exist in NPC skill registry
+        var allNpcSkillCodes = registry.All.SelectMany(n => n.Skills).Select(s => s.Code).ToHashSet();
+        Assert.Contains("master_forging", allNpcSkillCodes);
+        Assert.Contains("weapon_maintenance", allNpcSkillCodes);
+        Assert.Contains("vein_divining", allNpcSkillCodes);
+        Assert.Contains("furnace_mastery", allNpcSkillCodes);
+        Assert.Contains("jade_appraisal", allNpcSkillCodes);
+        Assert.Contains("exotic_husbandry", allNpcSkillCodes);
+
+        // 2. Verify all 8 Guild Mastery Perks exist
+        Assert.Equal(8, guild.Perks.Count);
+        Assert.Contains(guild.Perks, p => p.Code == "eternal_edge");
+        Assert.Contains(guild.Perks, p => p.Code == "earth_vein_sight");
+        Assert.Contains(guild.Perks, p => p.Code == "grandmaster_seal");
+
+        // 3. Equip jade_appraisal and weapon_maintenance and verify effects
+        var basePrc = attrs.EffectivePrc;
+        var eq2 = guild.Equipments(1).First(e => e.Id == 2); // Cuốc Sắt Khai Điền (80/100 dura)
+        var baseSellVal = guild.CalculateEquipmentSellValue(eq2);
+        var baseRepairCost = guild.CalculateRepairCost(1, eq2);
+
+        attrs.LearnSkill("jade_appraisal");
+        attrs.LearnSkill("weapon_maintenance");
+        attrs.TrainSkill("weapon_maintenance", 500); // Raise level to Lv.3+
+
+        Assert.True(attrs.EffectivePrc > basePrc);
+        Assert.True(guild.CalculateEquipmentSellValue(eq2) > baseSellVal);
+        Assert.True(guild.CalculateRepairCost(1, eq2) < baseRepairCost);
     }
 
 }

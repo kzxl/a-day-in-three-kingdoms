@@ -72,6 +72,8 @@ public interface IProfessionGuild
 
     WorkResult Craft(long cityId, long recipeId);
 
+    long CalculateRepairCost(long cityId, EquipmentDef equipment);
+
     WorkResult Repair(long cityId, long equipmentId);
 
     // Workshop features

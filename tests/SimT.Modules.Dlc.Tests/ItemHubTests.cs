@@ -68,12 +68,12 @@ public sealed class ItemHubTests : IDisposable
     }
 
     [Theory]
-    [InlineData("all", 24)]
+    [InlineData("all", 32)]
     [InlineData("tool", 3)]
     [InlineData("grain", 3)]
-    [InlineData("medicine", 2)]
-    [InlineData("material", 5)]
-    [InlineData("luxury", 4)]
+    [InlineData("medicine", 4)]
+    [InlineData("material", 8)]
+    [InlineData("luxury", 7)]
     public void Category_filtering_yields_expected_subsets(string categoryKey, int expectedCount)
     {
         using var kernel = _host.Boot();
@@ -131,7 +131,7 @@ public sealed class ItemHubTests : IDisposable
         var model = screen.Render();
         Assert.NotEmpty(model.Headline);
         Assert.Single(model.Sections);
-        Assert.Equal(24, model.Sections[0].Rows.Count);
+        Assert.Equal(32, model.Sections[0].Rows.Count);
 
         // Verify row details have modal command
         var firstRow = model.Sections[0].Rows[0];

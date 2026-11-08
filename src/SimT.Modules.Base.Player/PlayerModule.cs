@@ -547,6 +547,12 @@ public sealed class PlayerModule : ISimModule
                     bonus += 40 + (vongKhiLvl - 1) * 5;
                 }
 
+                var jadeAppraisalLvl = GetEquippedSkillLevel("jade_appraisal");
+                if (jadeAppraisalLvl > 0)
+                {
+                    bonus += 15 + (jadeAppraisalLvl - 1) * 3;
+                }
+
                 return Math.Clamp(basePrc + bonus, 1, 150);
             }
         }
@@ -809,6 +815,12 @@ public sealed class PlayerModule : ISimModule
             "nong_canh" => ("CON", "WIL"),   // Thể chất chịu sương gió, kiên trì vụ mùa
             "sinh_ton" => ("CON", "WIL"),    // Thể chất dẻo dai, ý chí sinh tồn
             "ngu_ma" => ("WAR", "CON"),      // Võ lực kềm cương, thể chất yên ngựa
+            "master_forging" => ("CRA", "PRC"),     // Công xảo đúc rèn, nhãn lực nhìn phôi thép
+            "weapon_maintenance" => ("CRA", "WIL"), // Công xảo mài giũa, kiên nhẫn bảo dưỡng
+            "vein_divining" => ("PRC", "CON"),      // Nhãn lực dò long mạch, thể lực đào mỏ
+            "furnace_mastery" => ("CRA", "INT"),    // Công xảo khống hỏa, trí lực điều nhiệt
+            "jade_appraisal" => ("PRC", "COM"),     // Nhãn lực giám bảo, thương tài định giá
+            "exotic_husbandry" => ("PRC", "WIL"),   // Nhãn lực tầm bảo, kiên nhẫn thuần dưỡng
             _ => ("WAR", "INT")
         };
 

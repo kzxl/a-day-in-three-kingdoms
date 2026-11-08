@@ -101,15 +101,15 @@ public sealed class ValueChainTests : IDisposable
         Assert.Single(shangdangNodes);
         Assert.Equal("MINE", shangdangNodes[0].NodeType);
         Assert.Equal(5, shangdangNodes[0].PrimaryItemId); // sat
-        Assert.Equal(15, shangdangNodes[0].SecondaryItemId); // than_da
+        Assert.Equal(25, shangdangNodes[0].SecondaryItemId); // black_iron
 
         var ironBefore = trade.StallStock(18, 5);
-        var coalBefore = trade.StallStock(18, 15);
+        var blackIronBefore = trade.StallStock(18, 25);
 
         var extracted = valueChain.SimulateRegionalExtraction(18);
         Assert.True(extracted > 0);
         Assert.True(trade.StallStock(18, 5) > ironBefore);
-        Assert.True(trade.StallStock(18, 15) > coalBefore);
+        Assert.True(trade.StallStock(18, 25) > blackIronBefore);
 
         var stallScreen = kernel.Ui.Screens.First(s => s.ScreenId == "market.stall");
         var model = stallScreen.Render();
