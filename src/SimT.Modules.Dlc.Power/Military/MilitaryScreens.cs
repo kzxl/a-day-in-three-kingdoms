@@ -96,7 +96,7 @@ internal sealed class MilitaryScreen : IScreenContribution
                 ]);
         }).ToList();
 
-        sections.Add(new ScreenSection($"🥋 Lôi Đài Tỷ Võ · {currentCitadelName} ({localWarriors.Count} danh sĩ)", arenaColumns, arenaRows));
+        sections.Add(new ScreenSection($"🥋 Lôi Đài Tỷ Võ · {currentCitadelName} ({localWarriors.Count} danh sĩ)", arenaColumns, arenaRows, SectionViewMode.TacticalWarCamp));
 
         // 2. Strongholds Section
         var shColumns = new[] { "Cứ Điểm Ngoại Thành", "Thế Lực Thổ Phỉ", "Binh Chủng Trấn Thủ", "Độ Nguy Hiểm", "Bạc Thu Hoạch", "Vật Phẩm", "Đã Phạt" };
@@ -134,7 +134,7 @@ internal sealed class MilitaryScreen : IScreenContribution
                 ]);
         }).ToList();
 
-        sections.Add(new ScreenSection($"⛰️ Cứ Điểm Sơn Tặc Ngoại Thành ({strongholds.Count})", shColumns, shRows));
+        sections.Add(new ScreenSection($"⛰️ Cứ Điểm Sơn Tặc Ngoại Thành ({strongholds.Count})", shColumns, shRows, SectionViewMode.TacticalWarCamp));
 
         // 3. Military Supply Requisitions
         if (requisitions.Count > 0)
@@ -169,7 +169,7 @@ internal sealed class MilitaryScreen : IScreenContribution
                     ]);
             }).ToList();
 
-            sections.Add(new ScreenSection($"🌾 Lệnh Tiếp Tế Quân Lương Doanh ({requisitions.Count})", reqColumns, reqRows));
+            sections.Add(new ScreenSection($"🌾 Lệnh Tiếp Tế Quân Lương Doanh ({requisitions.Count})", reqColumns, reqRows, SectionViewMode.TacticalWarCamp));
         }
 
         var pAttr = _attributes.Attributes;
