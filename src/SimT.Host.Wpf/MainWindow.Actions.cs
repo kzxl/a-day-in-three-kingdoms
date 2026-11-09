@@ -191,6 +191,13 @@ public partial class MainWindow
             Margin = new Thickness(0, 0, 0, 14),
             Child = card
         });
+
+        if (from.Month != to.Month)
+        {
+            var net = income - spend;
+            var sign = net >= 0 ? "+" : "";
+            ShowGameToast("TỔNG KẾT TÀI CHÍNH THÁNG", $"Tháng {from.Month} khép lại: Thu {income.ToString("N0", Vietnamese)} · Chi {spend.ToString("N0", Vietnamese)} · Ròng {sign}{net.ToString("N0", Vietnamese)} quan", "💰", (Brush)FindResource(net >= 0 ? "Gain" : "Loss"));
+        }
     }
 
     private async void RowCommand_Click(object sender, RoutedEventArgs e)
@@ -264,6 +271,12 @@ public partial class MainWindow
 
     private string ScreenForCommand() =>
         NavList.SelectedItem is NavEntry entry ? entry.ScreenId : _screenId;
+
+    private void Ambitions_Click(object sender, RoutedEventArgs e)
+    {
+        var ambitionsWindow = new VictoryAmbitionsModalWindow(_kernel) { Owner = this };
+        ambitionsWindow.ShowDialog();
+    }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
     {

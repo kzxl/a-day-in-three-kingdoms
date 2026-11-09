@@ -115,6 +115,11 @@ public sealed partial class GameStrategicBriefingControl : Border
 
         // LEFT COLUMN: Daily Imperatives & Hot Trade Opportunities
         leftCol.Children.Add(BuildDailyAgendaCard(today, attrs));
+        var monthlyCard = BuildMonthlyFinancialDigestCard(kernel, today);
+        if (monthlyCard is not null)
+        {
+            leftCol.Children.Add(monthlyCard);
+        }
         leftCol.Children.Add(BuildHotTradeCard(cityId, map, trade, catalog));
 
         // RIGHT COLUMN: Notable Figures & Living World Chronicle Feed
@@ -933,4 +938,86 @@ public sealed partial class GameStrategicBriefingControl : Border
         border.Child = dock;
         return border;
     }
+    private UIElement? BuildMonthlyFinancialDigestCard(SimKernel kernel, GameDate today)
+    {
+        var fromDay = Math.Max(1, today.DayIndex - 30);
+        var lines = kernel.Ledger.Query(GameDate.FromDayIndex(fromDay), today, limit: 300);
+        if (lines.Count == 0) return null;
+
+        var income = lines.Where(l => l.Direction == SimT.Contracts.Ledger.LedgerDirection.In).Sum(l => l.Amount);
+        var spend = lines.Where(l => l.Direction == SimT.Contracts.Ledger.LedgerDirection.Out).Sum(l => l.Amount);
+        var net = income - spend;
+
+        var card = new Border
+        {
+            Background = ItemRowBg,
+            BorderBrush = ItemRowBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 12, 14, 12),
+            Margin = new Thickness(0, 0, 0, 14)
+        };
+
+        var stack = new StackPanel();
+
+        // Header
+        var headerGrid = new Grid();
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var titleBlock = new TextBlock
+        {
+            Text = "TỔNG KẾT TÀI CHÍNH (30 NGÀY QUA)",
+            FontSize = 10.5,
+            FontWeight = FontWeights.Bold,
+            Foreground = AccentGold
+        };
+        Grid.SetColumn(titleBlock, 0);
+        headerGrid.Children.Add(titleBlock);
+
+        var netBlock = new TextBlock
+        {
+            Text = $"{(net >= 0 ? "+" : "")}{net:N0} quan",
+            FontSize = 12,
+            FontWeight = FontWeights.Bold,
+            Foreground = net >= 0 ? new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80)) : new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71))
+        };
+        Grid.SetColumn(netBlock, 1);
+        headerGrid.Children.Add(netBlock);
+        stack.Children.Add(headerGrid);
+
+        // Subtitle / Quick Summary Row
+        var subText = new TextBlock
+        {
+            Text = $"Thu: {income:N0} quan · Chi: {spend:N0} quan · Số dư: {kernel.Ledger.Balance:N0} quan",
+            FontSize = 11,
+            Foreground = TextMuted,
+            Margin = new Thickness(0, 4, 0, 8)
+        };
+        stack.Children.Add(subText);
+
+        // Top Expenses Breakdown
+        var topExpenses = lines
+            .Where(l => l.Direction == SimT.Contracts.Ledger.LedgerDirection.Out)
+            .GroupBy(l => l.JournalCode)
+            .OrderByDescending(g => g.Sum(l => l.Amount))
+            .Take(3)
+            .Select(g => $"{g.Key}: {g.Sum(l => l.Amount):N0}")
+            .ToList();
+
+        if (topExpenses.Count > 0)
+        {
+            var expText = new TextBlock
+            {
+                Text = "Khoản lớn: " + string.Join(" · ", topExpenses),
+                FontSize = 10.5,
+                Foreground = TextMuted
+            };
+            stack.Children.Add(expText);
+        }
+
+        card.Child = stack;
+        return card;
+    }
+
 }

@@ -60,6 +60,7 @@ public sealed class PlayerModule : ISimModule
         var attributes = new PlayerAttributesStore(context.Db, player.Id, reputation, context.Capabilities, context.Clock);
 
         var destiny = new PlayerDestinyService(context.Db, player.Id, context.Capabilities, context.Clock, context.Log);
+        var ambitions = new EndgameAmbitionService(context.Capabilities, context.Ledger);
 
         context.Capabilities.Provide(CapabilityIds.PlayerWallet, wallet);
 
@@ -72,6 +73,8 @@ public sealed class PlayerModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.PlayerReputation, reputation);
 
         context.Capabilities.Provide(CapabilityIds.PlayerDestiny, destiny);
+
+        context.Capabilities.Provide(CapabilityIds.EndgameAmbitions, ambitions);
 
         context.Ui.AddScreen(new PlayerReputationScreen(reputation));
 

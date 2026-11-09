@@ -123,7 +123,7 @@ public sealed class AudioTests : IDisposable
     [Fact]
     public void Audio_packages_are_declared_only_by_the_host()
     {
-        foreach (var project in Directory.EnumerateFiles(Path.Combine(RepoLayout.Root, "src"), "*.csproj", SearchOption.AllDirectories))
+        foreach (var project in RepoLayout.Sources(".csproj").Where(p => !p.Contains("_wpftmp", StringComparison.OrdinalIgnoreCase)))
         {
             var source = File.ReadAllText(project);
             if (Path.GetFileName(project) == "SimT.Host.Wpf.csproj")

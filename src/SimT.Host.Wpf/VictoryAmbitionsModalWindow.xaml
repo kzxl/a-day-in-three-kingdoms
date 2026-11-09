@@ -1,0 +1,146 @@
+<local:HubModalWindowBase x:Class="SimT.Host.Wpf.VictoryAmbitionsModalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SimT.Host.Wpf"
+        xmlns:controls="clr-namespace:SimT.Host.Wpf.Controls"
+        Title="Đại Nghiệp Tam Quốc · 5 Con Đường Vinh Quang &amp; Kết Cục Sử Sách"
+        Height="740" Width="1060"
+        MinHeight="660" MinWidth="920"
+        Background="{StaticResource Bg}"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= ROW 0: GAME HUB HEADER ================= -->
+        <controls:GameHubHeader Grid.Row="0" x:Name="HubHeader" />
+
+        <!-- ================= ROW 1: AMBITIONS PANELS ================= -->
+        <Grid Grid.Row="1" Margin="0,12,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="410" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== LEFT COLUMN: 5 AMBITION BRANCHES LIST ===== -->
+            <Border Grid.Column="0" Background="{StaticResource Surface}"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="8" Padding="14,12" Margin="0,0,12,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="NĂM ĐẠI CHÍ HƯỚNG THIÊN HẠ"
+                               Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="2,0,0,10" />
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="BranchesListPanel" />
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- ===== RIGHT COLUMN: SELECTED AMBITION DETAILS & EPILOGUE ===== -->
+            <Border Grid.Column="1" Background="{StaticResource Surface}"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="8" Padding="18,16">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="DetailPanel">
+                        <!-- Header of Selected Ambition -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="8" Padding="16,14" Margin="0,0,0,14">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Width="56" Height="56"
+                                        Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}"
+                                        BorderThickness="2" CornerRadius="8" Margin="0,0,14,0"
+                                        VerticalAlignment="Center">
+                                    <TextBlock x:Name="SelectedGlyphText" Text="👑" FontSize="28"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="SelectedTitleText" Text="Phò Tá Đế Vương"
+                                               FontSize="18" FontWeight="Bold" Foreground="{StaticResource Text}" />
+                                    <TextBlock x:Name="SelectedSubtitleText" Text="Phò tá một thế lực chư hầu lập nên vương triều, chấp chính triều đình"
+                                               Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                </StackPanel>
+
+                                <Border Grid.Column="2" x:Name="SelectedStatusPill"
+                                        Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+                                        BorderThickness="1" CornerRadius="12" Padding="12,6" VerticalAlignment="Center">
+                                    <TextBlock x:Name="SelectedStatusText" Text="65% HOÀN THÀNH"
+                                               FontSize="11" FontWeight="Bold" Foreground="{StaticResource Accent}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Overall Progress Bar -->
+                        <Grid Margin="0,0,0,16">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" Margin="0,0,0,4">
+                                <TextBlock Text="TIẾN ĐỘ THỰC HIỆN ĐẠI NGHIỆP" Style="{StaticResource Overline}" Foreground="{StaticResource Muted}" HorizontalAlignment="Left" />
+                                <TextBlock x:Name="SelectedPercentText" Text="65%" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Accent}" HorizontalAlignment="Right" />
+                            </Grid>
+                            <ProgressBar Grid.Row="1" x:Name="SelectedProgressBar" Height="8" Minimum="0" Maximum="100" Value="65"
+                                         Foreground="{StaticResource Accent}" Background="{StaticResource SurfaceAlt}" BorderThickness="0" />
+                        </Grid>
+
+                        <!-- Checklist Header -->
+                        <TextBlock Text="ĐIỀU KIỆN ĐẠT THÀNH ĐẠI NGHIỆP (CẦN ĐẠT TẤT CẢ)"
+                                   Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="0,0,0,8" />
+
+                        <!-- Requirements Checklist Rows -->
+                        <StackPanel x:Name="RequirementsStackPanel" Margin="0,0,0,16" />
+
+                        <!-- Epilogue Narrative Section -->
+                        <Border x:Name="EpilogueBox" Background="{StaticResource SurfaceAlt}"
+                                BorderBrush="{StaticResource Accent}" BorderThickness="1.5"
+                                CornerRadius="8" Padding="16,14" Margin="0,0,0,10">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <TextBlock Text="📜 KẾT CỤC THIÊN THU · SỬ SÁCH LƯU DANH"
+                                               Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" HorizontalAlignment="Left" />
+                                    <TextBlock x:Name="EpilogueBadge" Text="HOÀN THÀNH"
+                                               FontSize="10" FontWeight="Bold" Foreground="{StaticResource Gain}" HorizontalAlignment="Right" />
+                                </Grid>
+                                <TextBlock x:Name="EpilogueTitleText" Text="Khai Quốc Công Thần · Nhất Đại Thừa Tướng"
+                                           FontSize="15" FontWeight="Bold" Foreground="{StaticResource Accent}" Margin="0,0,0,6" />
+                                <TextBlock x:Name="EpilogueNarrativeText"
+                                           Text="Giang sơn trải qua muôn vàn khói lửa loạn lạc, dưới tài mưu lược kinh bang tế thế..."
+                                           Foreground="{StaticResource Text}"
+                                           TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,12" />
+
+                                <controls:GameButton x:Name="ChronicleRecordButton" Label="Khắc Bia Sử Sách (Ghi Nhận Biên Niên Sử)"
+                                                     Variant="Primary" Click="ChronicleRecord_Click" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- ================= ROW 2: FOOTER BUTTONS ================= -->
+        <Grid Grid.Row="2" Margin="0,4,0,0">
+            <TextBlock Text="💡 Phím tắt nhanh: [V] Mở Đại Nghiệp | [M] Bản đồ | [C] Chợ phố | [R] Nghỉ ngơi | [O] Cài đặt | [Space] Qua ngày"
+                       Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" VerticalAlignment="Center" HorizontalAlignment="Left" />
+
+            <controls:GameButton Label="Đóng [Esc]" Variant="Secondary" IsCompact="True"
+                                 Click="Close_Click" HorizontalAlignment="Right" VerticalAlignment="Center" />
+        </Grid>
+    </Grid>
+</local:HubModalWindowBase>

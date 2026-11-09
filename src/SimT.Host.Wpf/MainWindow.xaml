@@ -126,10 +126,14 @@
                                VerticalAlignment="Center" Margin="0,0,10,0" TextTrimming="CharacterEllipsis" MaxWidth="150" />
                     <TextBlock x:Name="VersionText" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}"
                                FontSize="10" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <controls:GameButton x:Name="AmbitionsButton" Label="Đại Nghiệp" Variant="Secondary" IsCompact="True" Margin="0,0,6,0"
+                                         IconPathData="M12,2 L15,8 L21,9 L16.5,14 L18,20 L12,17 L6,20 L7.5,14 L3,9 L9,8 Z"
+                                         Click="Ambitions_Click" VerticalAlignment="Center"
+                                         ToolTip="Mục tiêu chí hướng &amp; Kết cục đại nghiệp (5 Con đường vinh quang) [V]" />
                     <controls:GameButton x:Name="SettingsButton" Label="Cài đặt" Variant="Secondary" IsCompact="True"
                                          IconPathData="M12,8 A4,4 0 1,0 12,16 A4,4 0 1,0 12,8 M12,2 L12,5 M12,19 L12,22 M2,12 L5,12 M19,12 L22,12 M4.9,4.9 L7,7 M17,17 L19.1,19.1 M19.1,4.9 L17,7 M7,17 L4.9,19.1"
                                          Click="Settings_Click" VerticalAlignment="Center"
-                                         ToolTip="Quản lý DLC Tam Quốc, kiểm tra toàn vẹn Invariants &amp; tùy chọn game" />
+                                         ToolTip="Quản lý DLC Tam Quốc, kiểm tra toàn vẹn Invariants &amp; tùy chọn game [O]" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -173,7 +177,7 @@
                                                  SealLabel="QUA NGÀY" SubLabel="+1 Ngày"
                                                  HorizontalAlignment="Center" Margin="0,0,0,6"
                                                  Click="Advance_Click"
-                                                 ToolTip="Bấm để thúc đẩy thời gian sang ngày tiếp theo (Phím Space / Enter)" />
+                                                 ToolTip="Bấm để thúc đẩy thời gian sang ngày tiếp theo [Space]" />
 
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -184,11 +188,11 @@
                             <controls:GameButton x:Name="RestButton" Grid.Column="0" Label="Nghỉ ngơi" Variant="Secondary"
                                                  IconPathData="M18,14 A7,7 0 0,1 10,6 A7,7 0 1,0 18,14 Z"
                                                  Click="Rest_Click" HorizontalContentAlignment="Center" IsCompact="True"
-                                                 ToolTip="Nghỉ ngơi tĩnh dưỡng 1 ngày (hồi phục thể lực và giảm mệt mỏi)" />
+                                                 ToolTip="Nghỉ ngơi tĩnh dưỡng 1 ngày (hồi phục thể lực và giảm mệt mỏi) [R]" />
                             <controls:GameButton x:Name="AdvanceWeekButton" Grid.Column="2" Label="Tuần +7" Variant="Secondary"
                                                  IconPathData="M5,6 L12,12 L5,18 M12,6 L19,12 L12,18"
                                                  Click="AdvanceWeek_Click" HorizontalContentAlignment="Center" IsCompact="True"
-                                                 ToolTip="Thúc đẩy 1 tuần (+7 ngày)" />
+                                                 ToolTip="Thúc đẩy 1 tuần (+7 ngày) [W]" />
                         </Grid>
 
                         <controls:GameButton x:Name="StrollButton" Visibility="Collapsed" Click="Stroll_Click" />

@@ -395,6 +395,16 @@ public partial class MainWindow : Window
                 _ = AdvanceAsync(1); e.Handled = true; break;
             case System.Windows.Input.Key.W:
                 _ = AdvanceAsync(7); e.Handled = true; break;
+            case System.Windows.Input.Key.M:
+                SelectScreen("world.map"); e.Handled = true; break;
+            case System.Windows.Input.Key.C:
+                SelectScreen("market.stall"); e.Handled = true; break;
+            case System.Windows.Input.Key.R:
+                Rest_Click(this, new RoutedEventArgs()); e.Handled = true; break;
+            case System.Windows.Input.Key.O:
+                Settings_Click(this, new RoutedEventArgs()); e.Handled = true; break;
+            case System.Windows.Input.Key.V:
+                Ambitions_Click(this, new RoutedEventArgs()); e.Handled = true; break;
             case System.Windows.Input.Key.Enter:
                 if (_firstGrid?.SelectedRowVm is RowVm selectedRow)
                 {
