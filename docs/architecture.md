@@ -201,3 +201,25 @@ Interactive visual scenes (`CityScene` for "Trong thành", `TalkScene` for 2.5D 
 - **Offline Local Mapping**: `SetVirtualHostNameToFolderMapping("simt.scene", "assets/scenes", DenyCors)` serves HTML/CSS/JS, packaged `.woff2` fonts (`Noto Serif`, `Be Vietnam Pro`, `Ma Shan Zheng`), art (`assets/scenes/art/`), and vendored `pixelfx` (`assets/scenes/vendor/pixelfx/`) with zero network calls and user data in `%LOCALAPPDATA%\SimT\webview`.
 - **Determinism & Trust Boundary**: C# computes all outcomes (`TacticalDuelEngine.SimulateDuel`, `IDialogueModule.HandleChoice`, `ICityStroll.Stroll`, `IWorldMap.QuoteTravel`, `ISocialNetwork`, `IMarketTrade`) and sends read-only scene payloads via `PostWebMessageAsJson`. JavaScript only replays/renders the scene and sends `ready`, `choice`, `navigate`, or `close` messages validated against the active scene by `SceneTrustGuard`.
 - **Graceful Fallback**: If the WebView2 runtime is absent or `--smoke` is active, the game runs normally and falls back to WPF screens and `DuelBattleWindow`.
+
+## 12. Strategic Systems & Modal Hubs
+
+To enrich gameplay depth and player agency without breaking architectural boundaries, strategic systems are integrated through contracts and modal hubs inheriting `HubModalWindowBase`:
+
+### 12.1 Weather & 24 Solar Terms System (`IWeatherSystem`)
+- **Deterministic Climate**: Maps the calendar date to one of 24 traditional Solar Terms (Tiết Khí) and generates deterministic regional weather across 5 macro-regions (Trung Nguyên, Hà Bắc, Tây Bắc, Giang Đông, Kinh Ích).
+- **8 Climate States**: Clear, Cloudy, Rain, Torrential, Gale, Snow, Blizzard, Drought.
+- **Resonance**: Dynamic 5-day forecasts alter commodity market prices (e.g. food surges during blizzards/droughts) and regulate agricultural soil moisture and yield bonuses on farmstead plots.
+
+### 12.2 Trade Arbitrage Compass (`TradeCompassModalWindow`)
+- **Macroscopic Price Radar**: Instantaneous price spread scanning across all 20 historical citadels and 32 catalog commodities (hotkey `B`).
+- **Optimal Route Optimization**: Calculates transit days (`IWorldMap.TravelDays`) and ranks Top 3 trading corridors with profit forecasts tailored for standard 40-unit caravan pack runs.
+- **Regional Heatmap**: 20 citadels grouped by macro-region with visual price status badges (`GAIN`, `LOSS`, `BALANCED`).
+
+### 12.3 Endgame Ambitions & Epilogues (`IEndgameAmbitions`)
+- **5 Historical Branches**: Kingmaker (Triều Đình), Merchant Sovereign (Phú Khả Địch Quốc), Dynasty Patriarch (Thế Gia Trọng Tộc), Grand Martial Master (Võ Lâm Chí Tôn), and Renowned Sage (Nhất Đại Danh Sĩ).
+- **Progress Tracking**: Real-time evaluation of quantitative requirements (0–100% completion) and epilogue chronicle triggers upon achieving victory.
+
+### 12.4 Bilingual Localization (`LanguageSettings`)
+- **In-Session Switching**: Runtime language selection between Vietnamese and English in the Settings modal (`Key.O`).
+- **Dictionary Bridge**: UI keys, item catalogs, role titles, and scene labels localized seamlessly without requiring game restart.

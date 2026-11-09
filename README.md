@@ -1,6 +1,6 @@
 # A Day in the Three Kingdoms (Một Ngày Ở Tam Quốc · SimT)
 
-[![Build & Test](https://img.shields.io/badge/Tests-640%2B%20Passed-emerald.svg)](tests/)
+[![Build & Test](https://img.shields.io/badge/Tests-712%20Passed-emerald.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%204%20DLC%20Pillars%20Monolith-blueviolet.svg)](docs/module-authoring.md)
 [![Platform](https://img.shields.io/badge/Platform-.NET%208%20%7C%20WPF%20%7C%20SQLite%20WAL-blue.svg)](src/SimT.Host.Wpf/)
 [![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
@@ -140,18 +140,42 @@ Legacy saves containing historical records from individual micro-modules (`dlc.m
 - **Full-Body Sprite Animation & Interactive WebView2 Scenes**:
   - **Sprite Animation Runner (`assets/scenes/sprite-anim.js`)**: Renders 24-frame horizontal strips (`traveler.png`, `han_officer.png`, `guan_yu.png`, `zhang_fei.png`) and expressive static sprites across Duel (`duel`), City (`city`), and Talk (`talk`) stages.
   - **Interactive Feature Scenes**: World Map (`world.map` with auto-fit 20-citadel view, Dijkstra routes, and travel animation), Social Network (`social.network` with concentric affinity rings, 6 skill slots, letters, and retainers), Market Stall (`market.stall` with 10-day price history and top-3 city arbitrage), and Character Dossier (`npc.directory` with custom portraits, 8-axis radar chart, special skills, and biography).
+- **Bilingual Internationalization (i18n)**:
+  - Full English and Vietnamese localization for all UI surfaces, menus, commodities, and dialogs.
+  - Seamless, in-session language switching via the Settings modal (`Key.O`) without requiring application restart.
+- **Endgame Ambitions & Legacy Epilogues**:
+  - 5 grand historical paths: Kingmaker (Triều Đình), Merchant Sovereign (Phú Khả Địch Quốc), Dynasty Patriarch (Thế Gia Trọng Tộc), Grand Martial Master (Võ Lâm Chí Tôn), and Renowned Sage (Nhất Đại Danh Sĩ).
+  - Dedicated progress tracker (`Key.V`) featuring 0–100% milestone completion and unique narrative epilogues upon victory.
+- **Regional Weather & 24 Solar Terms (Tiết Khí)**:
+  - Deterministic 8-weather state engine (Clear, Cloudy, Rain, Torrential, Gale, Snow, Blizzard, Drought) mapped across 24 solar terms and 5 historical macro-climatic regions.
+  - 5-day weather forecast influencing market supply/demand price fluctuations and farmstead soil moisture/yield resonance.
+- **Trade Arbitrage Compass & Regional Price Heatmap**:
+  - Commodity arbitrage radar (`Key.B`) providing real-time minimum purchase and maximum sale prices across all 20 historical citadels.
+  - Top 3 optimal trading corridors with transit day calculations and profit projections for 40-unit caravan packs.
+  - 20-citadel regional price heatmap grouped into 5 macro-regions with visual status badges (`GAIN`, `LOSS`, `BALANCED`).
+- **Comprehensive Desktop Hotkey Navigation**:
+  - `Space` / `W`: Advance 1 day / 7 days
+  - `M`: World Map (`world.map`)
+  - `C`: NPC Directory & Characters (`npc.directory`)
+  - `K`: Citadel Market & Bazaar (`market.stall`)
+  - `T`: City Stroll & Reconnaissance
+  - `V`: Endgame Ambitions Modal
+  - `B`: Trade Arbitrage Compass Modal
+  - `O`: Game Settings & Language Selection Modal
+  - `F3`: Debug Metrics Overlay
 
 ## Verification snapshot
 
 | Gate | Count | Command |
 | --- | --- | --- |
-| Architecture rules | 31 | `dotnet test tests/SimT.Architecture.Tests` |
-| Kernel primitives, contracts and hardening | 163 | `dotnet test tests/SimT.Core.Tests` |
-| Consolidated DLC Pillars behavior | 442 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| Architecture rules | 44 | `dotnet test tests/SimT.Architecture.Tests` |
+| Kernel primitives, contracts and hardening | 164 | `dotnet test tests/SimT.Core.Tests` |
+| Consolidated DLC Pillars behavior | 450 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| Commodity market mechanics | 46 | `dotnet test tests/SimT.Modules.Market.Tests` |
 | WPF Desktop Host component tests | 8 | `dotnet test tests/SimT.Host.Wpf.Tests` |
-| **Total test suite** | **640+** | `dotnet test SimT.sln` |
+| **Total test suite** | **712** | `dotnet test SimT.sln` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
-| Invariants at end of every replay | 26 | printed by `SimT.Cli` |
+| Invariants at end of every replay | 60 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |
 
 ## Documents
