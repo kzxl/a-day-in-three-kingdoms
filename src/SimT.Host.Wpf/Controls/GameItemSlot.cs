@@ -45,8 +45,22 @@ public sealed class GameItemSlot : Border
     private static readonly Brush QtyBg = Freeze(new SolidColorBrush(Color.FromArgb(0xDD, 0x15, 0x11, 0x0D)));
     private static readonly Brush NameFg = Freeze(new SolidColorBrush(Color.FromRgb(0xEA, 0xDF, 0xC6)));
     private static readonly FontFamily MonoFont = new("Consolas");
+    private readonly Brush _border;
+    private readonly Brush _accent;
+    private bool _isSelected;
 
     public event Action? Clicked;
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            _isSelected = value;
+            BorderBrush = _isSelected ? LegendaryAccent : (IsMouseOver ? _accent : _border);
+            BorderThickness = _isSelected ? new Thickness(2) : new Thickness(1.5);
+        }
+    }
 
     public GameItemSlot(
         string nameVi,
@@ -58,6 +72,8 @@ public sealed class GameItemSlot : Border
         string? iconPathData = null)
     {
         var (bg, border, accent) = PaletteFor(rarity);
+        _border = border;
+        _accent = accent;
 
         Width = 74;
         Height = 74;
@@ -156,8 +172,8 @@ public sealed class GameItemSlot : Border
         var subtitle = string.IsNullOrWhiteSpace(categoryVi) ? rarityName : $"{rarityName} · {categoryVi}";
         ToolTip = new GameRichTooltip(nameVi, subtitle, stats, description);
 
-        MouseEnter += (_, _) => BorderBrush = accent;
-        MouseLeave += (_, _) => BorderBrush = border;
+        MouseEnter += (_, _) => { if (!_isSelected) BorderBrush = _accent; };
+        MouseLeave += (_, _) => { if (!_isSelected) BorderBrush = _border; };
         MouseLeftButtonUp += (_, e) =>
         {
             e.Handled = true;

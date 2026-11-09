@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using SimT.Contracts.Ledger;
+using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 using SimT.Host.Wpf.Controls;
@@ -302,23 +303,90 @@ public partial class MainWindow
     private Border BuildCard(ScreenSection section, int wideColumn = -1)
     {
         var bodyStack = new StackPanel();
+        var prefKey = $"{_screenId}:{section.Heading}";
+        var isTablePreferred = _sectionTableViewPreferences.TryGetValue(prefKey, out var pref) && pref;
 
-        var portraitStrip = TryBuildPortraitStrip(section);
-        if (portraitStrip is not null)
-            bodyStack.Children.Add(portraitStrip);
+        var headerRight = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        headerRight.Children.Add(new GameBadge($"{section.Rows.Count} mục", BadgeVariant.Default));
 
-        var slotStrip = TryBuildItemSlotStrip(section);
-        if (slotStrip is not null)
-            bodyStack.Children.Add(slotStrip);
+        if (section.ViewMode != SectionViewMode.DefaultTable)
+        {
+            var toggleBtn = new GameButton(
+                isTablePreferred ? "🎨 Trực Quan" : "📋 Bảng Biểu",
+                GameButtonVariant.Secondary,
+                isCompact: true)
+            {
+                Margin = new Thickness(8, 0, 0, 0),
+                ToolTip = isTablePreferred ? "Chuyển sang giao diện trực quan chuyên biệt" : "Chuyển sang dạng bảng số liệu chuẩn (DataGrid)"
+            };
+            toggleBtn.Click += (_, _) =>
+            {
+                _sectionTableViewPreferences[prefKey] = !isTablePreferred;
+                RenderSelected();
+            };
+            headerRight.Children.Add(toggleBtn);
+        }
 
-        bodyStack.Children.Add(BuildGrid(section, wideColumn));
+        if (!isTablePreferred && section.ViewMode == SectionViewMode.BazaarTradingDeck)
+        {
+            bodyStack.Children.Add(new GameBazaarDeckControl(
+                section,
+                cmd => _ = ExecuteScreenCommandAsync(cmd),
+                (sec, row) => ShowInspector(sec, row),
+                GetPriceHistoryForRow));
+        }
+        else
+        {
+            var portraitStrip = TryBuildPortraitStrip(section);
+            if (portraitStrip is not null)
+                bodyStack.Children.Add(portraitStrip);
+
+            var slotStrip = TryBuildItemSlotStrip(section);
+            if (slotStrip is not null)
+                bodyStack.Children.Add(slotStrip);
+
+            bodyStack.Children.Add(BuildGrid(section, wideColumn));
+        }
 
         return new GameSectionCard
         {
             Heading = section.Heading,
-            HeaderRight = new GameBadge($"{section.Rows.Count} dòng", BadgeVariant.Default),
+            HeaderRight = headerRight,
             CardBody = bodyStack
         };
+    }
+
+    private IReadOnlyList<long> GetPriceHistoryForRow(ScreenRow row)
+    {
+        if (_kernel.Capabilities.TryGet<IMarketTrade>(CapabilityIds.MarketTrade, out var trade) && trade is not null &&
+            _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
+        {
+            long? tradeItemId = null;
+            foreach (var cmd in row.Commands)
+            {
+                var uri = CommandUri.Parse(cmd.Id);
+                if ((uri.Action == "buy" || uri.Action == "sell" || uri.Action == "store" || uri.Action == "take") && (uri.TryGetTargetLong(out var tradeId) || uri.TryGetParamLong(out tradeId)))
+                {
+                    tradeItemId = tradeId;
+                    break;
+                }
+            }
+
+            if (!tradeItemId.HasValue && _kernel.Capabilities.TryGet<IItemCatalog>(CapabilityIds.ItemCatalog, out var catalog) && catalog is not null)
+            {
+                var title = row.Title ?? (row.Cells.Count > 0 ? row.Cells[0] : string.Empty);
+                var candidate = catalog.All.FirstOrDefault(i =>
+                    string.Equals(i.NameVi, title, StringComparison.OrdinalIgnoreCase) ||
+                    (row.Cells.Count > 0 && row.Cells[0].StartsWith(i.NameVi, StringComparison.OrdinalIgnoreCase)));
+                if (candidate is not null) tradeItemId = candidate.Id;
+            }
+
+            if (tradeItemId.HasValue)
+            {
+                return trade.PriceHistory(player.CurrentCityId, tradeItemId.Value, 15);
+            }
+        }
+        return Array.Empty<long>();
     }
 
     private UIElement BuildGrid(ScreenSection section, int wideColumn)

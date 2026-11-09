@@ -41,6 +41,7 @@ public partial class MainWindow : Window
     private GameTable? _firstGrid;
     private ScreenSection? _firstSection;
     private string _filter = string.Empty;
+    private readonly Dictionary<string, bool> _sectionTableViewPreferences = new(StringComparer.Ordinal);
 
     public MainWindow(
         SimKernel kernel,

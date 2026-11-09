@@ -170,7 +170,8 @@ internal sealed class StallScreen : IScreenContribution
             .Select(pair => new ScreenSection(
                 categoryMap.TryGetValue(pair.Key, out var meta) ? meta.Title : SimT.Contracts.Scenes.RoleTitleVi.FormatItemCategory(pair.Key),
                 Columns,
-                pair.Value))
+                pair.Value,
+                SectionViewMode.BazaarTradingDeck))
             .ToList();
 
         var npcOffers = _npcMarket.OffersAt(city.Id);
@@ -222,7 +223,7 @@ internal sealed class StallScreen : IScreenContribution
                     ]));
             }
 
-            sections.Insert(0, new ScreenSection("🎪 Sạp Chuyên Doanh & Hàng NPC Giảm Giá", npcColumns, npcRows));
+            sections.Insert(0, new ScreenSection("🎪 Sạp Chuyên Doanh & Hàng NPC Giảm Giá", npcColumns, npcRows, SectionViewMode.BazaarTradingDeck));
         }
 
         if (_valueChain is not null)
@@ -546,12 +547,12 @@ internal sealed class WarehouseScreen : IScreenContribution
 
         var sections = new List<ScreenSection>
         {
-            new ScreenSection($"Tồn Kho Thương Điếm ({rows.Count} mặt hàng)", Columns, rows)
+            new ScreenSection($"Tồn Kho Thương Điếm ({rows.Count} mặt hàng)", Columns, rows, SectionViewMode.BazaarTradingDeck)
         };
 
         if (bagRows.Count > 0)
         {
-            sections.Add(new ScreenSection($"Hành Trang Sở Tại ({bagRows.Count} mặt hàng đang mang theo)", Columns, bagRows));
+            sections.Add(new ScreenSection($"Hành Trang Sở Tại ({bagRows.Count} mặt hàng đang mang theo)", Columns, bagRows, SectionViewMode.BazaarTradingDeck));
         }
 
         var warehouseRec = atRisk > 0
@@ -758,8 +759,8 @@ internal sealed class PlayerStallScreen : IScreenContribution
 
         var sections = new List<ScreenSection>
         {
-            new("Hàng đang bày trên quầy", ShelfColumns, shelfRows),
-            new("Hàng trong túi có thể bày bán", BagColumns, bagRows)
+            new("Hàng đang bày trên quầy", ShelfColumns, shelfRows, SectionViewMode.BazaarTradingDeck),
+            new("Hàng trong túi có thể bày bán", BagColumns, bagRows, SectionViewMode.BazaarTradingDeck)
         };
 
         var metrics = new List<ScreenMetric>

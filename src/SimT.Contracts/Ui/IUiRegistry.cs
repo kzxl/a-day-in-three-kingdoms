@@ -110,10 +110,24 @@ public sealed record ScreenModel(
     public IReadOnlyList<ScreenAlert> Attention => Alerts ?? Array.Empty<ScreenAlert>();
 }
 
+public enum SectionViewMode
+{
+    DefaultTable = 0,
+    BazaarTradingDeck,
+    CaravanDispatchBoard,
+    ArtisanWorkbench,
+    TacticalWarCamp,
+    ImperialCourtChamber,
+    DossierGrid,
+    TreasuryVault
+}
+
 public sealed record ScreenSection(
     string Heading,
     IReadOnlyList<string> Columns,
-    IReadOnlyList<ScreenRow> Rows);
+    IReadOnlyList<ScreenRow> Rows,
+    SectionViewMode ViewMode = SectionViewMode.DefaultTable,
+    object? ViewPayload = null);
 
 /// <summary>
 /// A row owns its buttons and, optionally, the detail lines the inspector shows when it is
