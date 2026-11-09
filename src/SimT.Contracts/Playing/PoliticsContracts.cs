@@ -5,6 +5,12 @@ public interface IPoliticalCourt
 {
     int Reputation { get; }
 
+    int Merits => 0;
+
+    long GovernorCityId => 0;
+
+    FiefStatusView? PlayerFief => null;
+
     long OfficeId { get; }
 
     string? OfficeName { get; }
@@ -23,9 +29,33 @@ public interface IPoliticalCourt
 
     IReadOnlyList<DecreeLogView> RecentDecrees(int limit = 10);
 
+    IReadOnlyList<CareerLogView> RecentCareerLogs(int limit = 10) => [];
+
+    IReadOnlyList<CourtMemorialView> RecentMemorials(int limit = 10) => [];
+
+    CourtResult AppointGovernor(long citadelId) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult ResignGovernor() => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult DevelopFief(string domainCode) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    QuarterlyEvalResult? EvaluateQuarterlyGovernance() => null;
+
+    CourtResult SubmitMemorial(string category, string proposalVi) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult RequestPromotion() => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult DemoteOffice(string reasonVi) => CourtResult.Failure("Chưa được hỗ trợ.");
+
     CourtResult JoinFaction(long factionId);
 
     CourtResult LeaveFaction();
+
+    CourtResult Serve() => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult Apply(long officeId) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult Resign() => CourtResult.Failure("Chưa được hỗ trợ.");
 
     CourtResult EnactPolicy(string policyCode, long citadelId);
 
@@ -115,3 +145,44 @@ public readonly record struct CourtResult(bool Ok, string Message)
     public static CourtResult Success(string message) => new(true, message);
     public static CourtResult Failure(string message) => new(false, message);
 }
+
+public sealed record FiefStatusView(
+    long CitadelId,
+    string CitadelNameVi,
+    int Agriculture,
+    int Commerce,
+    int Fortification,
+    int PublicOrder,
+    long LocalTreasury,
+    int AppointedDay);
+
+public sealed record QuarterlyEvalResult(
+    long CitadelId,
+    string CitadelNameVi,
+    string Grade,
+    int MeritChange,
+    long BonusStipend,
+    string RankAction,
+    string NarrativeVi);
+
+public sealed record CareerLogView(
+    long Id,
+    long DayIndex,
+    long OldOfficeId,
+    string OldOfficeNameVi,
+    long NewOfficeId,
+    string NewOfficeNameVi,
+    string ChangeType,
+    string ReasonVi,
+    int MeritsDelta);
+
+public sealed record CourtMemorialView(
+    long Id,
+    long DayIndex,
+    string Category,
+    string TitleVi,
+    string ProposalVi,
+    string Outcome,
+    int MeritAwarded,
+    string ImpactNarrativeVi);
+

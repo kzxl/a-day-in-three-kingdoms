@@ -47,7 +47,10 @@
       "po_faction_name",
       "ml_citadel_armory",
       "po_faction_conflict",
-      "po_city_demographics"
+      "po_city_demographics",
+      "po_governor_fief",
+      "po_court_memorial",
+      "po_career_log"
     ],
     "migrations": [
       "migrations"

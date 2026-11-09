@@ -10,6 +10,9 @@ internal sealed class CourtScreen : IScreenContribution
     private static readonly string[] OfficeColumns = ["Chức vụ", "Phẩm", "Bổng/tháng", "Uy tín cần", "Trạng thái"];
     private static readonly string[] FactionColumns = ["Thế Lực / Minh Chủ", "Thủ Phủ", "Lý Tưởng Cát Cứ", "Binh Lực", "Quốc Khố", "Quan Hệ"];
     private static readonly string[] CityColumns = ["Thành Trì", "Thế Lực Chiếm Giữ", "Bất Ổn", "Phòng Thủ", "Thuế Suất", "Hành Chính Địa Phương"];
+    private static readonly string[] FiefColumns = ["Phong Ấp Châu Quận", "Nông Khẩn", "Thương Nghiệp", "Thành Phòng", "Trị An", "Ngân Khố Nha Môn"];
+    private static readonly string[] MemorialColumns = ["Ngày", "Thể Loại", "Sớ Thượng Tấu", "Kết Quả", "Công Trạng", "Hồi Âm Triều Đình"];
+    private static readonly string[] CareerColumns = ["Ngày", "Biến Chuyển", "Chức Vị Cũ", "Chức Vị Mới", "Công Trạng", "Chiếu Chỉ Minh Chủ"];
     private static readonly string[] LogColumns = ["Ngày", "Thành", "Chính Sách", "Chi Phí", "Uy Tín", "Bất Ổn", "Tường Trình"];
 
     private readonly CourtService _service;
@@ -47,12 +50,52 @@ internal sealed class CourtScreen : IScreenContribution
                     $"Phẩm {office.Rank}",
                     $"{office.MonthlyStipend} Quan",
                     office.ReputationRequired.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    holding ? "Đang tại chức" : eligible ? "Đủ điều kiện" : "Chưa đủ uy tín"
+                    holding ? "★ Đang tại chức" : eligible ? "Đủ điều kiện" : "Chưa đủ uy tín"
                 ],
                 eligible ? [new ScreenCommand($"apply:{office.Id}", "Nhậm chức")] : Array.Empty<ScreenCommand>()));
         }
 
-        // Section 2: Factions
+        // Section 2: Fiefdom (Thái Thú Phủ)
+        var fiefRows = new List<ScreenRow>();
+        var fief = _service.PlayerFief;
+        if (fief is not null)
+        {
+            fiefRows.Add(new ScreenRow(
+                [
+                    $"🏛️ {fief.CitadelNameVi} (Trấn nhậm)",
+                    $"{fief.Agriculture}/100",
+                    $"{fief.Commerce}/100",
+                    $"{fief.Fortification}/100",
+                    $"{fief.PublicOrder}/100",
+                    $"{fief.LocalTreasury} Quan"
+                ],
+                [
+                    new ScreenCommand("develop_fief:agriculture", "Khuyến Nông (65q)"),
+                    new ScreenCommand("develop_fief:commerce", "Mở Thị (65q)"),
+                    new ScreenCommand("develop_fief:defense", "Cố Thủ (65q)"),
+                    new ScreenCommand("develop_fief:order", "Tuần Phòng (65q)"),
+                    new ScreenCommand("eval_governance", "Khảo Hạch Quý 📜", CommandKind.Primary),
+                    new ScreenCommand("resign_governor", "Bàn Giao Ấn", CommandKind.Danger)
+                ]));
+        }
+
+        // Section 3: Memorials (Triều Hội Thượng Tấu)
+        var memorialRows = new List<ScreenRow>();
+        foreach (var mem in _service.RecentMemorials(5))
+        {
+            memorialRows.Add(new ScreenRow(
+                [
+                    $"Ngày {mem.DayIndex}",
+                    mem.Category,
+                    mem.TitleVi,
+                    mem.Outcome == "ACCEPTED" ? "✅ Chuẩn Y" : "❌ Bác Bỏ",
+                    $"+{mem.MeritAwarded}",
+                    mem.ImpactNarrativeVi
+                ],
+                Array.Empty<ScreenCommand>()));
+        }
+
+        // Section 4: Factions
         var factionRows = new List<ScreenRow>();
         foreach (var faction in _service.Factions)
         {
@@ -78,16 +121,18 @@ internal sealed class CourtScreen : IScreenContribution
                 cmdList));
         }
 
-        // Section 3: Regional Governance
+        // Section 5: Regional Governance
         var govRows = new List<ScreenRow>();
         foreach (var gov in _service.Governances)
         {
             var cityName = citadelNames.TryGetValue(gov.CitadelId, out var cn) ? cn : $"Thành #{gov.CitadelId}";
             var facName = factionMap.TryGetValue(gov.FactionId, out var f) ? f.NameVi : "Vô chủ";
             var isCurrentCity = gov.CitadelId == _player.CurrentCityId;
+            var isMyFief = _service.GovernorCityId == gov.CitadelId;
 
             var actionCmds = new List<ScreenCommand>();
             actionCmds.Add(new ScreenCommand($"citadel:inspect:{gov.CitadelId}", "Khảo Sát 🏰"));
+
             if (isCurrentCity)
             {
                 actionCmds.Add(new ScreenCommand($"policy:relief:{gov.CitadelId}", "An Dân (-15% loạn)"));
@@ -103,21 +148,50 @@ internal sealed class CourtScreen : IScreenContribution
                 {
                     actionCmds.Add(new ScreenCommand($"policy:pacify:{gov.CitadelId}", "Dẹp Loạn (-25% loạn)", CommandKind.Danger));
                 }
+
+                var rank = _service.Offices.FirstOrDefault(o => o.Id == _service.OfficeId)?.Rank ?? 0;
+                if (rank >= 3 && _service.GovernorCityId == 0 && gov.FactionId == _service.AllegianceFactionId)
+                {
+                    actionCmds.Add(new ScreenCommand($"appoint_governor:{gov.CitadelId}", "Tiếp Quản Thái Thú", CommandKind.Primary));
+                }
             }
 
             govRows.Add(new ScreenRow(
                 [
-                    isCurrentCity ? $"📍 {cityName} (Hiện tại)" : cityName,
+                    isMyFief ? $"👑 {cityName} (Phong ấp)" : isCurrentCity ? $"📍 {cityName} (Hiện tại)" : cityName,
                     facName,
                     $"{gov.UnrestLevel}%",
                     $"{gov.DefenseStrength} điểm",
                     $"{gov.TaxRatePercent}%",
-                    isCurrentCity ? "Đang quản trị" : "Xa xôi"
+                    isMyFief ? "Thái thú cai quản" : isCurrentCity ? "Đang quản trị" : "Xa xôi"
                 ],
                 actionCmds));
         }
 
-        // Section 4: Decree Logs
+        // Section 6: Career Logs
+        var careerRows = new List<ScreenRow>();
+        foreach (var car in _service.RecentCareerLogs(6))
+        {
+            careerRows.Add(new ScreenRow(
+                [
+                    $"Ngày {car.DayIndex}",
+                    car.ChangeType switch
+                    {
+                        "PROMOTION" => "🎉 Thăng Quan",
+                        "DEMOTION" => "⚠️ Giáng Cấp",
+                        "APPOINTMENT" => "📜 Bổ Nhiệm",
+                        "DISMISSAL" => "🚪 Từ Nhiệm",
+                        _ => car.ChangeType
+                    },
+                    car.OldOfficeNameVi,
+                    car.NewOfficeNameVi,
+                    car.MeritsDelta >= 0 ? $"+{car.MeritsDelta}" : $"{car.MeritsDelta}",
+                    car.ReasonVi
+                ],
+                Array.Empty<ScreenCommand>()));
+        }
+
+        // Section 7: Decree Logs
         var logRows = new List<ScreenRow>();
         foreach (var log in _service.RecentDecrees(6))
         {
@@ -151,6 +225,7 @@ internal sealed class CourtScreen : IScreenContribution
 
         if (_service.OfficeId != 0)
         {
+            commands.Add(new ScreenCommand("promote", "Thăng Quan [Cầu Phong]", CommandKind.Primary));
             commands.Add(new ScreenCommand("resign", "Từ quan", CommandKind.Danger));
         }
 
@@ -159,12 +234,14 @@ internal sealed class CourtScreen : IScreenContribution
             var leader = _service.Factions.First(f => f.Id == _service.AllegianceFactionId).LeaderNpcId;
             commands.Add(new ScreenCommand($"talk:npc:{leader}", "Bái kiến chúa công"));
             commands.Add(new ScreenCommand("lord_report", "Trình lên"));
+            commands.Add(new ScreenCommand("memorial:reform:khuyen_nong", "Thượng Tấu Canh Tân"));
+            commands.Add(new ScreenCommand("memorial:military:diet_phi", "Thượng Tấu Binh Cơ"));
             commands.Add(new ScreenCommand("leave_faction", "Rời chư hầu", CommandKind.Secondary));
         }
 
         var status = _service.OfficeId == 0
-            ? $"Uy tín {_service.Reputation} · Chưa tại chức · Minh chủ: {_service.AllegianceFactionName ?? "Tự do"}"
-            : $"Uy tín {_service.Reputation} · {_service.OfficeName} · Bổng {_service.MonthlyStipend} Quan/tháng · Minh chủ: {_service.AllegianceFactionName ?? "Tự do"}";
+            ? $"Uy tín {_service.Reputation} · Công trạng {_service.Merits} · Chưa tại chức · Minh chủ: {_service.AllegianceFactionName ?? "Tự do"}"
+            : $"Uy tín {_service.Reputation} · Công trạng {_service.Merits} · {_service.OfficeName} · Bổng {_service.MonthlyStipend} Quan/tháng · Minh chủ: {_service.AllegianceFactionName ?? "Tự do"}";
 
         var alerts = new List<ScreenAlert>();
         if (_service.LordTasks is { } tasks)
@@ -173,25 +250,37 @@ internal sealed class CourtScreen : IScreenContribution
                 alerts.Add(new ScreenAlert($"Tín nhiệm {tasks.Trust}/100 · Trượt liên tiếp {tasks.ConsecutiveFailures}/3", AlertLevel.Info));
             if (!string.IsNullOrWhiteSpace(tasks.Notice)) alerts.Add(new ScreenAlert(tasks.Notice, AlertLevel.Info));
         }
-        if (_service.OfficeId == 0)
+
+        var next = _service.Offices.FirstOrDefault(office => office.ReputationRequired > _service.Reputation);
+        if (next is not null && _service.OfficeId == 0)
         {
-            var next = _service.Offices.FirstOrDefault(office => office.ReputationRequired > _service.Reputation);
-            if (next is not null)
-            {
-                alerts.Add(new ScreenAlert(
-                    $"Cần thêm {next.ReputationRequired - _service.Reputation} uy tín để nhận {next.NameVi}.",
-                    AlertLevel.Info));
-            }
+            alerts.Add(new ScreenAlert($"Cần thêm {next.ReputationRequired - _service.Reputation} uy tín để nhận {next.NameVi}.", AlertLevel.Info));
         }
 
         var totalStipend = _service.MonthlyStipend + (_service.AllegianceFactionId > 0 ? CourtService.FactionStipendBonus : 0);
 
         var sections = new List<ScreenSection>
         {
-            new("Cửu Phẩm Quan Chế Triều Đình", OfficeColumns, officeRows, SectionViewMode.ImperialCourtChamber),
-            new("Thế Lực Chư Hầu Tam Quốc (12 Lộ)", FactionColumns, factionRows, SectionViewMode.ImperialCourtChamber),
-            new($"Chính Sự & Trị An Châu Quận ({govRows.Count} Thành)", CityColumns, govRows, SectionViewMode.ImperialCourtChamber)
+            new("Cửu Phẩm Quan Chế Triều Đình", OfficeColumns, officeRows, SectionViewMode.ImperialCourtChamber)
         };
+
+        if (fiefRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Thái Thú Phủ & Phong Ấp Châu Quận", FiefColumns, fiefRows, SectionViewMode.ImperialCourtChamber));
+        }
+
+        if (memorialRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Triều Hội Nghị Sự & Thượng Tấu", MemorialColumns, memorialRows));
+        }
+
+        sections.Add(new ScreenSection("Thế Lực Chư Hầu Tam Quốc (12 Lộ)", FactionColumns, factionRows, SectionViewMode.ImperialCourtChamber));
+        sections.Add(new ScreenSection($"Chính Sự & Trị An Châu Quận ({govRows.Count} Thành)", CityColumns, govRows, SectionViewMode.ImperialCourtChamber));
+
+        if (careerRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Biên Niên Tiến Thoái Quan Trường (Thăng Quan & Giáng Cấp)", CareerColumns, careerRows));
+        }
 
         if (logRows.Count > 0)
         {
@@ -206,9 +295,13 @@ internal sealed class CourtScreen : IScreenContribution
             commands,
             [
                 new ScreenMetric("Uy Tín", Fmt(_service.Reputation), "điểm"),
+                new ScreenMetric("Công Trạng", Fmt(_service.Merits), "huân công", MetricTone.Positive),
                 new ScreenMetric("Tại Chức", _service.OfficeName ?? "—",
                     _service.OfficeId == 0 ? "Chưa nhận chức" : $"Bổng {_service.MonthlyStipend} quan/tháng",
                     _service.OfficeId == 0 ? MetricTone.Neutral : MetricTone.Positive),
+                new ScreenMetric("Phong Ấp", fief?.CitadelNameVi ?? "Chưa có",
+                    fief is null ? "Chưa phong đất" : "Trấn nhậm thái thú",
+                    fief is null ? MetricTone.Neutral : MetricTone.Positive),
                 new ScreenMetric("Minh Chủ", _service.AllegianceFactionName ?? "Tự do",
                     _service.AllegianceFactionId == 0 ? "Chưa quy thuận" : "Quân kỳ bảo hộ",
                     _service.AllegianceFactionId == 0 ? MetricTone.Neutral : MetricTone.Positive),
@@ -216,8 +309,8 @@ internal sealed class CourtScreen : IScreenContribution
             ],
             alerts,
             _service.OfficeId == 0
-                ? "Tích lũy uy tín qua việc nghĩa và dẹp loạn để ứng tuyển chức quan đầu tiên và lĩnh bổng lộc."
-                : "Thực hiện công vụ châu quận để tăng trị an, nâng uy tín và thăng tiến lên phẩm hàm cao hơn.");
+                ? "Tích lũy uy tín và công trạng qua việc nghĩa, dẹp loạn để ứng tuyển chức quan đầu tiên và lĩnh bổng lộc."
+                : "Thực hiện công vụ châu quận, dâng sớ thượng tấu và cai quản phong ấp để thăng quan tiến chức; giữ trị an để tránh bị giáng chức.");
     }
 }
 
@@ -232,23 +325,22 @@ internal sealed class CourtCommandHandler : IScreenCommandHandler
     public string? Execute(string commandId)
     {
         if (commandId == "lord_report") return _service.LordTasks?.Report();
-        if (commandId == "serve")
+        if (commandId == "serve") return _service.Serve().Message;
+        if (commandId == "promote") return _service.RequestPromotion().Message;
+        if (commandId == "demote") return _service.DemoteOffice("Bị minh chủ hạ chiếu khiển trách, giáng bớt phẩm hàm.").Message;
+        if (commandId == "resign") return _service.Resign().Message;
+        if (commandId == "resign_governor") return _service.ResignGovernor().Message;
+        if (commandId == "leave_faction") return _service.LeaveFaction().Message;
+        if (commandId == "eval_governance")
         {
-            return _service.Serve().Message;
-        }
-
-        if (commandId == "resign")
-        {
-            return _service.Resign().Message;
-        }
-
-        if (commandId == "leave_faction")
-        {
-            return _service.LeaveFaction().Message;
+            var eval = _service.EvaluateQuarterlyGovernance();
+            return eval is null
+                ? "Chưa cai quản phong ấp nào để tiến hành khảo hạch."
+                : $"{eval.Grade} · {eval.RankAction}: {eval.NarrativeVi} (Công trạng: {(eval.MeritChange >= 0 ? "+" : "")}{eval.MeritChange}, Thưởng: {eval.BonusStipend} Quan)";
         }
 
         var parts = commandId.Split(':');
-        if (parts.Length == 2)
+        if (parts.Length >= 2)
         {
             if (parts[0] == "apply" && long.TryParse(parts[1], out var officeId))
             {
@@ -259,8 +351,26 @@ internal sealed class CourtCommandHandler : IScreenCommandHandler
             {
                 return _service.JoinFaction(factionId).Message;
             }
+
+            if (parts[0] == "appoint_governor" && long.TryParse(parts[1], out var govCitId))
+            {
+                return _service.AppointGovernor(govCitId).Message;
+            }
+
+            if (parts[0] == "develop_fief")
+            {
+                return _service.DevelopFief(parts[1]).Message;
+            }
+
+            if (parts[0] == "memorial")
+            {
+                var category = parts[1];
+                var proposal = parts.Length > 2 ? parts[2] : "Hiến sách an bang định quốc";
+                return _service.SubmitMemorial(category, proposal).Message;
+            }
         }
-        else if (parts.Length == 3 && parts[0] == "policy" && long.TryParse(parts[2], out var citId))
+
+        if (parts.Length == 3 && parts[0] == "policy" && long.TryParse(parts[2], out var citId))
         {
             return _service.EnactPolicy(parts[1], citId).Message;
         }

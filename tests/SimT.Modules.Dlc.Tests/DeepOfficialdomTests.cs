@@ -1,0 +1,156 @@
+using SimT.Contracts.Data;
+using SimT.Contracts.Playing;
+using SimT.Core.Kernel;
+using Xunit;
+
+namespace SimT.Modules.Dlc.Tests;
+
+public sealed class DeepOfficialdomTests : IDisposable
+{
+    private readonly DlcTestHost _host = new();
+
+    public void Dispose() => _host.Dispose();
+
+    [Fact]
+    public void Promotion_and_demotion_mechanics_modify_office_and_log_career_transitions()
+    {
+        using var kernel = _host.Boot();
+        var court = kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+        Assert.NotNull(court);
+
+        // Initially player has no office
+        Assert.Equal(0, court.OfficeId);
+
+        // Join a faction first
+        var faction = court.Factions[0];
+        var joinRes = court.JoinFaction(faction.Id);
+        Assert.True(joinRes.Ok || court.Reputation < 5);
+
+        // Raise reputation to unlock first office
+        var serveRes = court.Serve();
+        Assert.True(serveRes.Ok);
+        Assert.True(court.Reputation > 0);
+
+        // Apply for lowest rank office (Phẩm 1)
+        var office1 = court.Offices.OrderBy(o => o.Rank).First();
+        var applyRes = court.Apply(office1.Id);
+        if (!applyRes.Ok && court.Reputation < office1.ReputationRequired)
+        {
+            // Give reputation if needed
+            while (court.Reputation < office1.ReputationRequired)
+            {
+                court.Serve();
+            }
+            applyRes = court.Apply(office1.Id);
+        }
+        Assert.True(applyRes.Ok);
+        Assert.Equal(office1.Id, court.OfficeId);
+
+        // Test Promotion
+        var promoteRes = court.RequestPromotion();
+        // Even if merits are insufficient initially, the failure message informs the player
+        if (!promoteRes.Ok)
+        {
+            Assert.Contains("Công Trạng", promoteRes.Message);
+        }
+
+        // Test Demotion
+        var demoteRes = court.DemoteOffice("Khảo hạch yếu kém tại bản hạt");
+        Assert.True(demoteRes.Ok);
+        Assert.Contains("KHIỂN TRÁCH", demoteRes.Message);
+
+        // Career logs must record the demotion
+        var logs = court.RecentCareerLogs(5);
+        Assert.NotEmpty(logs);
+        Assert.Contains(logs, l => l.ChangeType == "DEMOTION");
+    }
+
+    [Fact]
+    public void Governor_fiefdom_appointment_and_domain_development()
+    {
+        using var kernel = _host.Boot();
+        var court = kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+        Assert.NotNull(court);
+
+        // Initially no fiefdom
+        Assert.Null(court.PlayerFief);
+        Assert.Equal(0, court.GovernorCityId);
+
+        // Join faction that controls cities
+        var targetGov = court.Governances.First(g => g.FactionId > 0);
+        var faction = court.Factions.First(f => f.Id == targetGov.FactionId);
+        while (court.Reputation < 5) court.Serve();
+        court.JoinFaction(faction.Id);
+
+        // Apply for a governor-eligible rank (Phẩm 3+)
+        var office3 = court.Offices.FirstOrDefault(o => o.Rank >= 3) ?? court.Offices[court.Offices.Count - 1];
+        while (court.Reputation < office3.ReputationRequired) court.Serve();
+        var apply = court.Apply(office3.Id);
+        Assert.True(apply.Ok, apply.Message);
+
+        // Appoint governor of faction's controlled city
+        var appointRes = court.AppointGovernor(targetGov.CitadelId);
+        Assert.True(appointRes.Ok, appointRes.Message);
+        Assert.Equal(targetGov.CitadelId, court.GovernorCityId);
+
+        var fief = court.PlayerFief;
+        Assert.NotNull(fief);
+        Assert.Equal(targetGov.CitadelId, fief.CitadelId);
+        Assert.Equal(50, fief.Agriculture);
+        Assert.Equal(50, fief.Commerce);
+        Assert.Equal(50, fief.Fortification);
+        Assert.Equal(50, fief.PublicOrder);
+
+        // Develop fief: Agriculture
+        var initDay = kernel.Today.DayIndex;
+        var devAgri = court.DevelopFief("agriculture");
+        Assert.True(devAgri.Ok);
+        Assert.True(kernel.Today.DayIndex > initDay);
+
+        var updatedFief = court.PlayerFief;
+        Assert.NotNull(updatedFief);
+        Assert.Equal(62, updatedFief.Agriculture);
+
+        // Evaluate Quarterly Governance
+        var eval = court.EvaluateQuarterlyGovernance();
+        Assert.NotNull(eval);
+        Assert.False(string.IsNullOrWhiteSpace(eval.Grade));
+        Assert.False(string.IsNullOrWhiteSpace(eval.RankAction));
+        Assert.False(string.IsNullOrWhiteSpace(eval.NarrativeVi));
+
+        // Resign governor
+        var resignRes = court.ResignGovernor();
+        Assert.True(resignRes.Ok);
+        Assert.Null(court.PlayerFief);
+    }
+
+    [Fact]
+    public void Imperial_council_memorials_can_be_submitted()
+    {
+        using var kernel = _host.Boot();
+        var court = kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+        Assert.NotNull(court);
+
+        // Without faction allegiance, memorial fails
+        var failRes = court.SubmitMemorial("reform", "Kế sách khai hoang đồn điền");
+        Assert.False(failRes.Ok);
+        Assert.Contains("thế lực chư hầu", failRes.Message);
+
+        // Join faction and reach rank 3
+        var faction = court.Factions[0];
+        while (court.Reputation < 5) court.Serve();
+        court.JoinFaction(faction.Id);
+
+        var office3 = court.Offices.FirstOrDefault(o => o.Rank >= 3) ?? court.Offices[court.Offices.Count - 1];
+        while (court.Reputation < office3.ReputationRequired) court.Serve();
+        court.Apply(office3.Id);
+
+        // Submit memorial
+        var memRes = court.SubmitMemorial("reform", "Kế sách phát chẩn khuyến nông");
+        Assert.False(string.IsNullOrWhiteSpace(memRes.Message));
+
+        var memorials = court.RecentMemorials(5);
+        Assert.NotEmpty(memorials);
+        Assert.Contains(memorials, m => m.Category == "reform");
+    }
+}

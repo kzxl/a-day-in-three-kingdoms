@@ -7,11 +7,18 @@ internal sealed partial class CourtService
     internal string RewardLordTask(int merit)
     {
         SetState("reputation", Reputation + merit);
+        AddMerits(merit * 5);
+        var oldId = OfficeId;
         var rank = Offices.FirstOrDefault(o => o.Id == OfficeId)?.Rank ?? 0;
         var next = Offices.FirstOrDefault(o => o.Rank > rank);
         if (next is null || Reputation < next.ReputationRequired) return "";
         SetState("office_id", next.Id);
+        LogCareerChange(oldId, next.Id, "PROMOTION", $"Hoàn tất công vụ xuất sắc, chúa công hạ chiếu thăng nhậm {next.NameVi}!", merit * 5);
         return $" Chúa công thăng chức {next.NameVi} (phẩm {next.Rank})!";
     }
-    internal void AddLordMerit(int merit) => SetState("reputation", Reputation + merit);
+    internal void AddLordMerit(int merit)
+    {
+        SetState("reputation", Reputation + merit);
+        AddMerits(merit * 5);
+    }
 }

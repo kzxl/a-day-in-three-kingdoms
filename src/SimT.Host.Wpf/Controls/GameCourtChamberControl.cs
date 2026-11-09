@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using SimT.Contracts.Ui;
@@ -44,6 +45,11 @@ public sealed class GameCourtChamberControl : Grid
             heading.Contains("Chức vụ", StringComparison.OrdinalIgnoreCase))
         {
             BuildNineRankOfficesView();
+        }
+        else if (heading.Contains("Phong Ấp", StringComparison.OrdinalIgnoreCase) ||
+                 heading.Contains("Thái Thú", StringComparison.OrdinalIgnoreCase))
+        {
+            BuildGovernorFiefView();
         }
         else if (heading.Contains("Thế Lực", StringComparison.OrdinalIgnoreCase) ||
                  heading.Contains("Chư Hầu", StringComparison.OrdinalIgnoreCase))
@@ -384,6 +390,150 @@ public sealed class GameCourtChamberControl : Grid
 
             wrap.Children.Add(card);
         }
+    }
+
+    #endregion
+
+    #region Governor Fiefdom View (Thái Thú Phủ & Quản Trị Phong Ấp)
+
+    private void BuildGovernorFiefView()
+    {
+        var mainStack = new StackPanel();
+        Children.Add(mainStack);
+
+        var banner = new Border
+        {
+            Background = Freeze(new SolidColorBrush(Color.FromArgb(0x40, 0xD4, 0xAF, 0x37))),
+            BorderBrush = GoldBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(12, 8, 12, 8),
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        var bannerDock = new DockPanel();
+        var bannerTitle = new TextBlock
+        {
+            Text = "🏛️ THÁI THÚ PHỦ · QUẢN TRỊ PHONG ẤP & TRẤN NHẬM CHÂU QUẬN",
+            FontWeight = FontWeights.Bold,
+            FontSize = 13,
+            Foreground = GoldBrush
+        };
+        DockPanel.SetDock(bannerTitle, Dock.Left);
+        bannerDock.Children.Add(bannerTitle);
+
+        var subText = new TextBlock
+        {
+            Text = "Được minh chủ ủy thác quyền cai quản quân lương, thương nông và thành phòng",
+            FontSize = 11,
+            Foreground = TextMutedBrush,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        DockPanel.SetDock(subText, Dock.Right);
+        bannerDock.Children.Add(subText);
+        banner.Child = bannerDock;
+        mainStack.Children.Add(banner);
+
+        foreach (var row in _section.Rows)
+        {
+            var card = new Border
+            {
+                Background = ActiveOfficeBg,
+                BorderBrush = GoldBrush,
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(16),
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+
+            var root = new StackPanel();
+            card.Child = root;
+
+            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
+            var cityName = row.Cells.Count > 0 ? row.Cells[0] : "Phong Ấp";
+            var cityTitle = new TextBlock
+            {
+                Text = cityName,
+                FontWeight = FontWeights.Bold,
+                FontSize = 15,
+                Foreground = GoldBrush
+            };
+            DockPanel.SetDock(cityTitle, Dock.Left);
+            head.Children.Add(cityTitle);
+
+            var treasury = row.Cells.Count > 5 ? row.Cells[5] : "500 Quan";
+            var treasuryBadge = new GameBadge($"Ngân Khố Nha Môn: {treasury}", BadgeVariant.Gain);
+            DockPanel.SetDock(treasuryBadge, Dock.Right);
+            head.Children.Add(treasuryBadge);
+            root.Children.Add(head);
+
+            var grid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 12) };
+
+            var agri = row.Cells.Count > 1 ? row.Cells[1] : "50/100";
+            var comm = row.Cells.Count > 2 ? row.Cells[2] : "50/100";
+            var def = row.Cells.Count > 3 ? row.Cells[3] : "50/100";
+            var ord = row.Cells.Count > 4 ? row.Cells[4] : "50/100";
+
+            grid.Children.Add(BuildStatPill("🌾 Nông Khẩn", agri, TextSuccessBrush));
+            grid.Children.Add(BuildStatPill("🏮 Thương Nghiệp", comm, GoldBrush));
+            grid.Children.Add(BuildStatPill("🛡️ Thành Phòng", def, TextPrimaryBrush));
+            grid.Children.Add(BuildStatPill("⚖️ Trị An Dân Tâm", ord, TextWarningBrush));
+            root.Children.Add(grid);
+
+            if (row.Commands.Count > 0)
+            {
+                var cmdPanel = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+                foreach (var cmd in row.Commands)
+                {
+                    var variant = cmd.Kind switch
+                    {
+                        CommandKind.Primary => GameButtonVariant.Primary,
+                        CommandKind.Danger => GameButtonVariant.Danger,
+                        _ => GameButtonVariant.Secondary
+                    };
+
+                    var btn = new GameButton(cmd.Label, variant, isCompact: false)
+                    {
+                        Margin = new Thickness(0, 0, 8, 8)
+                    };
+                    var cid = cmd.Id;
+                    btn.Click += (_, _) => _onCommand(cid);
+                    cmdPanel.Children.Add(btn);
+                }
+                root.Children.Add(cmdPanel);
+            }
+
+            mainStack.Children.Add(card);
+        }
+    }
+
+    private static Border BuildStatPill(string label, string val, Brush accent)
+    {
+        var pill = new Border
+        {
+            Background = Freeze(new SolidColorBrush(Color.FromArgb(0x40, 0x1A, 0x14, 0x10))),
+            BorderBrush = PanelBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(4)
+        };
+        var sp = new StackPanel();
+        sp.Children.Add(new TextBlock
+        {
+            Text = label,
+            FontSize = 11,
+            Foreground = TextMutedBrush,
+            Margin = new Thickness(0, 0, 0, 4)
+        });
+        sp.Children.Add(new TextBlock
+        {
+            Text = val,
+            FontSize = 13.5,
+            FontWeight = FontWeights.Bold,
+            Foreground = accent
+        });
+        pill.Child = sp;
+        return pill;
     }
 
     #endregion
