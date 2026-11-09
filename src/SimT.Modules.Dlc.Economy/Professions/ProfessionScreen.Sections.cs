@@ -181,9 +181,9 @@ internal sealed partial class ProfessionScreen
         }
 
         return (
-            new ScreenSection("Trang Bị Cá Nhân & Chỉ Số Cộng", SlotColumns, slotRows),
-            new ScreenSection("Khí Cụ Trong Thành", EquipmentColumns, equipRows),
-            new ScreenSection("Bản Vẽ Chế Tác Khí Cụ", RecipeColumns, recipeRows),
+            new ScreenSection("Trang Bị Cá Nhân & Chỉ Số Cộng", SlotColumns, slotRows, SectionViewMode.ArtisanWorkbench),
+            new ScreenSection("Khí Cụ Trong Thành", EquipmentColumns, equipRows, SectionViewMode.ArtisanWorkbench),
+            new ScreenSection("Bản Vẽ Chế Tác Khí Cụ", RecipeColumns, recipeRows, SectionViewMode.ArtisanWorkbench),
             equipments.Count);
     }
 

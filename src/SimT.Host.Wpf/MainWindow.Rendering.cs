@@ -347,6 +347,13 @@ public partial class MainWindow
                 (sec, row) => ShowInspector(sec, row),
                 currentCityName));
         }
+        else if (!isTablePreferred && section.ViewMode == SectionViewMode.ArtisanWorkbench)
+        {
+            bodyStack.Children.Add(new GameArtisanWorkbenchControl(
+                section,
+                cmd => _ = ExecuteScreenCommandAsync(cmd),
+                (sec, row) => ShowInspector(sec, row)));
+        }
         else
         {
             var portraitStrip = TryBuildPortraitStrip(section);
