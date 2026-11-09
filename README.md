@@ -1,6 +1,6 @@
 # A Day in the Three Kingdoms (Một Ngày Ở Tam Quốc · SimT)
 
-[![Build & Test](https://img.shields.io/badge/Tests-712%20Passed-emerald.svg)](tests/)
+[![Build & Test](https://img.shields.io/badge/Tests-715%20Passed-emerald.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%204%20DLC%20Pillars%20Monolith-blueviolet.svg)](docs/module-authoring.md)
 [![Platform](https://img.shields.io/badge/Platform-.NET%208%20%7C%20WPF%20%7C%20SQLite%20WAL-blue.svg)](src/SimT.Host.Wpf/)
 [![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
@@ -153,6 +153,11 @@ Legacy saves containing historical records from individual micro-modules (`dlc.m
   - Commodity arbitrage radar (`Key.B`) providing real-time minimum purchase and maximum sale prices across all 20 historical citadels.
   - Top 3 optimal trading corridors with transit day calculations and profit projections for 40-unit caravan packs.
   - 20-citadel regional price heatmap grouped into 5 macro-regions with visual status badges (`GAIN`, `LOSS`, `BALANCED`).
+- **Deep Officialdom, Governor Fiefdom & Promotion/Demotion**:
+  - Full Nine-Rank career progression with quantitative Merits (Huân Công) and active promotion petitions (`RequestPromotion`).
+  - Strict ministerial demotion and censure (`DemoteOffice`) when failing consecutive lord tasks or mismanaging local famine/unrest.
+  - Governor's Manor (Thái Thú Phủ) for Rank 3+ ministers: administer agricultural reclamation, commerce markets, fortification defense, and public order with local treasury accounts and quarterly evaluations.
+  - Imperial Council Memorials (Triều Hội Thượng Tấu) to petition warlords for economic reforms, military campaigns, personnel appointments, or disaster relief.
 - **Comprehensive Desktop Hotkey Navigation**:
   - `Space` / `W`: Advance 1 day / 7 days
   - `M`: World Map (`world.map`)
@@ -170,10 +175,10 @@ Legacy saves containing historical records from individual micro-modules (`dlc.m
 | --- | --- | --- |
 | Architecture rules | 44 | `dotnet test tests/SimT.Architecture.Tests` |
 | Kernel primitives, contracts and hardening | 164 | `dotnet test tests/SimT.Core.Tests` |
-| Consolidated DLC Pillars behavior | 450 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| Consolidated DLC Pillars behavior | 453 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
 | Commodity market mechanics | 46 | `dotnet test tests/SimT.Modules.Market.Tests` |
 | WPF Desktop Host component tests | 8 | `dotnet test tests/SimT.Host.Wpf.Tests` |
-| **Total test suite** | **712** | `dotnet test SimT.sln` |
+| **Total test suite** | **715** | `dotnet test SimT.sln` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
 | Invariants at end of every replay | 60 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |

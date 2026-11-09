@@ -223,3 +223,8 @@ To enrich gameplay depth and player agency without breaking architectural bounda
 ### 12.4 Bilingual Localization (`LanguageSettings`)
 - **In-Session Switching**: Runtime language selection between Vietnamese and English in the Settings modal (`Key.O`).
 - **Dictionary Bridge**: UI keys, item catalogs, role titles, and scene labels localized seamlessly without requiring game restart.
+
+### 12.5 Deep Officialdom, Fiefdom Governance & Imperial Memorials (`IPoliticalCourt`)
+- **Promotion & Demotion Engine**: Tracks ministerial Merits (`Merits`), evaluating quantitative petitions for promotion (`RequestPromotion`) and penalizing bureaucratic delinquency or regional famine through ministerial demotion (`DemoteOffice`).
+- **Governor's Fiefdom Administration (`FiefStatusView`)**: Ministers of Rank 3+ can be appointed governors over allied citadels (`AppointGovernor`), managing 4 developmental pillars (Agriculture, Commerce, Fortification, Public Order) funded via municipal treasuries.
+- **Imperial Council Memorials (`CourtMemorialView`)**: Court officials can submit formal memorials to warlords (`SubmitMemorial`), debating policy reforms across economy, military expeditions, personnel recommendations, and famine relief.
