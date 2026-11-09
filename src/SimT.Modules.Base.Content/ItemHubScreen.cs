@@ -153,7 +153,7 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
             Title,
             status,
             [
-                new ScreenSection($"Bách Vật Đồ Giám — Danh Mục {activeFilterLabel}", HubColumns, rows)
+                new ScreenSection($"Bách Vật Đồ Giám — Danh Mục {activeFilterLabel}", HubColumns, rows, SectionViewMode.ItemCodexShowcase)
             ],
             navCommands,
             metrics,

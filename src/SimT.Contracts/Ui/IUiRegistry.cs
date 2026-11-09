@@ -119,7 +119,11 @@ public enum SectionViewMode
     TacticalWarCamp,
     ImperialCourtChamber,
     DossierGrid,
-    TreasuryVault
+    TreasuryVault,
+    ItemCodexShowcase,
+    NpcDirectoryDeck,
+    EstatePouchGrid,
+    ReputationHallOfFame
 }
 
 public sealed record ScreenSection(
