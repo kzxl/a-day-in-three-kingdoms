@@ -24,7 +24,9 @@ public sealed class SocietyModule : ISimModule
             map,
             player,
             context.Log,
-            context.Capabilities);
+            context.Capabilities,
+            context.Rng,
+            context.Campaign?.Seed ?? 0);
 
         service.SetRumorContext(context.Rng, context.ActionTime);
         context.Capabilities.Provide(CapabilityIds.TavernRumors, (ITavernRumors)service);

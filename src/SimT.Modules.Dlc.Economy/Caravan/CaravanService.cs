@@ -29,6 +29,7 @@ internal sealed class CaravanService : ICaravanGuild
     private readonly IActionTime _actionTime;
     private readonly long _freightPerUnit;
     private readonly INpcRegistry? _npcRegistry;
+    private readonly SimT.Contracts.Modules.ICapabilityBroker? _capabilities;
 
     public CaravanService(
         IDbSession db,
@@ -42,7 +43,8 @@ internal sealed class CaravanService : ICaravanGuild
         ILog log,
         IActionTime actionTime,
         long freightPerUnit = DefaultFreightPerUnit,
-        INpcRegistry? npcRegistry = null)
+        INpcRegistry? npcRegistry = null,
+        SimT.Contracts.Modules.ICapabilityBroker? capabilities = null)
     {
         _db = db;
         _clock = clock;
@@ -58,7 +60,11 @@ internal sealed class CaravanService : ICaravanGuild
             ? freightPerUnit
             : throw new SimException("caravan.config_invalid", $"freightPerUnit must be positive, got {freightPerUnit}.");
         _npcRegistry = npcRegistry;
+        _capabilities = capabilities;
     }
+    private IPlayerDestiny? GetDestiny() =>
+        _capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var d) == true ? d : null;
+
 
     public long FeePerUnit => _freightPerUnit;
 
@@ -335,6 +341,33 @@ internal sealed class CaravanService : ICaravanGuild
 
         // Navigator bonus: Log >= 60 reduces route time by 1 day for longer journeys (>= 3 days)
         var days = (crew.NavigatorLog >= 60 && baseDays >= 3) ? Math.Max(1, baseDays - 1) : baseDays;
+        var destiny = GetDestiny();
+        if (destiny is not null)
+        {
+            var speedBonus = destiny.GetModifier("caravan_speed_bonus");
+            if (destiny.HasKeystone("macgia_keystone_wooden_ox"))
+            {
+                speedBonus += 30;
+            }
+            if (speedBonus >= 25 && days > 1)
+            {
+                days = Math.Max(1, days - 1);
+            }
+        }
+
+        if (_capabilities != null && _capabilities.TryGet<IGeopoliticalWar>(CapabilityIds.GeopoliticalWar, out var war) && war != null)
+        {
+            var originWar = war.GetCitadelWarStatus(fromCity);
+            var destWar = war.GetCitadelWarStatus(toCity);
+            if (originWar.IsBesieged || destWar.IsBesieged)
+            {
+                days = (int)Math.Ceiling(days * 1.5);
+            }
+            else if (originWar.IsFrontline || destWar.IsFrontline)
+            {
+                days = (int)Math.Ceiling(days * 1.25);
+            }
+        }
 
         var units = rows.Sum(row => row.Quantity);
         var baseFee = units * _freightPerUnit;
@@ -345,6 +378,24 @@ internal sealed class CaravanService : ICaravanGuild
         var acctDiscountPermille = crew.AccountantCom > 0 ? Math.Min(250, crew.AccountantCom * 250 / 100) : 0;
         var totalDiscountPermille = Math.Min(500, fleetDiscountPermille + acctDiscountPermille);
         var fee = Math.Max(1, baseFee * (1000 - totalDiscountPermille) / 1000);
+
+        var routeDiplomacyNotice = string.Empty;
+        if (_capabilities != null && _capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social != null)
+        {
+            var destNpcs = _npcRegistry?.FindByCitadel(toCity) ?? Array.Empty<NpcDef>();
+            var grudgedNotables = destNpcs.Where(n => social.GetDisposition(n.Id).IsGrudged).ToList();
+            if (grudgedNotables.Count > 0 && (!effectiveEscort.HasValue || crew.EscortWar < 55))
+            {
+                var tollMarkup = Math.Min(400, grudgedNotables.Count * 120);
+                fee = fee * (1000 + tollMarkup) / 1000;
+                routeDiplomacyNotice = " (quan ải thù địch phụ thu cước)";
+            }
+            else if (destNpcs.Any(n => social.GetDisposition(n.Id).IsFavored))
+            {
+                fee = Math.Max(1, fee * 850 / 1000);
+                routeDiplomacyNotice = " (tri kỷ địa phương miễn giảm thuế lộ)";
+            }
+        }
 
         if (_wallet.Liquid < fee)
         {
@@ -393,7 +444,7 @@ internal sealed class CaravanService : ICaravanGuild
         var escortText = effectiveEscort.HasValue ? " (có tiêu đầu hộ vệ)" : string.Empty;
         var navText = (days < baseDays) ? " (Dẫn Đường rút ngắn 1 ngày)" : string.Empty;
         return CaravanResult.Success(
-            $"Đoàn {units} đơn vị lên đường{escortText}{navText}, tới sau {days} ngày (ngày {GameDate.FromDayIndex(arriveDay)}), cước {fee} Quan.");
+            $"Đoàn {units} đơn vị lên đường{escortText}{navText}{routeDiplomacyNotice}, tới sau {days} ngày (ngày {GameDate.FromDayIndex(arriveDay)}), cước {fee} Quan.");
     }
 
     public CaravanResult SendWithEscortFee(long fromCity, long toCity, int escortFee)
@@ -421,6 +472,20 @@ internal sealed class CaravanService : ICaravanGuild
 
         var crew = Crew;
         var days = (crew.NavigatorLog >= 60 && baseDays >= 3) ? Math.Max(1, baseDays - 1) : baseDays;
+
+        if (_capabilities != null && _capabilities.TryGet<IGeopoliticalWar>(CapabilityIds.GeopoliticalWar, out var war) && war != null)
+        {
+            var originWar = war.GetCitadelWarStatus(fromCity);
+            var destWar = war.GetCitadelWarStatus(toCity);
+            if (originWar.IsBesieged || destWar.IsBesieged)
+            {
+                days = (int)Math.Ceiling(days * 1.5);
+            }
+            else if (originWar.IsFrontline || destWar.IsFrontline)
+            {
+                days = (int)Math.Ceiling(days * 1.25);
+            }
+        }
 
         var incidentLog = string.Empty;
 
@@ -645,9 +710,21 @@ internal sealed class CaravanService : ICaravanGuild
                 var ambushLoss = 0;
 
                 // Ambush check: If unescorted and route takes >= 2 days, bandits may ambush
-                if (!run.EscortNpcId.HasValue && transitDays >= 2)
+                var isWarZone = _capabilities != null && _capabilities.TryGet<IGeopoliticalWar>(CapabilityIds.GeopoliticalWar, out var war) && war != null
+                    && (war.GetCitadelWarStatus(run.ToCity).IsFrontline || war.GetCitadelWarStatus(run.ToCity).IsBesieged);
+
+                if (!run.EscortNpcId.HasValue && (transitDays >= 2 || isWarZone))
                 {
-                    var ambushChance = transitDays >= 3 ? 0.35 : 0.20;
+                    var ambushChance = (transitDays >= 3 ? 0.35 : 0.20) + (isWarZone ? 0.25 : 0.0);
+                    var caravanDestiny = GetDestiny();
+                    if (caravanDestiny is not null)
+                    {
+                        var red = caravanDestiny.GetModifier("bandit_ambush_reduction");
+                        if (red > 0)
+                        {
+                            ambushChance *= Math.Max(0.0, 1.0 - Math.Min(90, red) / 100.0);
+                        }
+                    }
                     var rng = new Random((int)(run.Id * 31 + run.Depart));
                     if (rng.NextDouble() < ambushChance)
                     {
@@ -696,6 +773,19 @@ internal sealed class CaravanService : ICaravanGuild
     /// </summary>
     private int Spoilage(long itemId, int quantity, int transitDays, double reduction = 0.0)
     {
+        var destiny = GetDestiny();
+        if (destiny is not null && destiny.HasKeystone("macgia_keystone_wooden_ox"))
+        {
+            return 0;
+        }
+        if (destiny is not null)
+        {
+            var red = destiny.GetModifier("spoilage_rate_reduction");
+            if (red > 0)
+            {
+                reduction = Math.Clamp(reduction + red / 100.0, 0.0, 0.95);
+            }
+        }
         var item = _items.Find(itemId);
         if (item is null || item.ShelfLifeDays <= 0 || quantity <= 0)
         {

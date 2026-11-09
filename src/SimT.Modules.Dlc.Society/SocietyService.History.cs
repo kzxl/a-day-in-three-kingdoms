@@ -61,7 +61,7 @@ internal sealed partial class SocietyService : IEventRumorSource
                         applyTemporaryShocks: false,
                         queuePlayerScene: false,
                         finalStatus: "viewed",
-                        defaultChoice: "continue");
+                        defaultChoice: "continue", checkPreconditions: false);
                 }
             });
         }
@@ -105,19 +105,105 @@ internal sealed partial class SocietyService : IEventRumorSource
         VerifyRumors();
     }
 
+
+    private bool EvaluatePreconditions(HistoricalEventView evt, out string? brokenReason)
+    {
+        brokenReason = null;
+        if (evt.Preconditions == null || evt.Preconditions.Count == 0) return true;
+
+        foreach (var cond in evt.Preconditions)
+        {
+            switch (cond.Type)
+            {
+                case "npc_alive":
+                    if (!string.IsNullOrEmpty(cond.NpcCode))
+                    {
+                        var npc = _registry.FindByCode(cond.NpcCode);
+                        if (npc == null || npc.IsDeceasedFlag || _deceasedNpcIds.Contains(npc.Id))
+                        {
+                            brokenReason = cond.ReasonVi ?? $"Nhân vật {cond.NpcCode} không còn sống";
+                            return false;
+                        }
+                        var act = GetNpcActivity(npc.Id);
+                        if (act != null && (act.IsDeceased || (act.CurrentAction?.StartsWith("Đã mất", StringComparison.OrdinalIgnoreCase) ?? false)))
+                        {
+                            brokenReason = cond.ReasonVi ?? $"Nhân vật {cond.NpcCode} không còn sống";
+                            return false;
+                        }
+                    }
+                    break;
+
+                case "npc_dead":
+                    if (!string.IsNullOrEmpty(cond.NpcCode))
+                    {
+                        var npc = _registry.FindByCode(cond.NpcCode);
+                        if (npc != null && !npc.IsDeceasedFlag && !_deceasedNpcIds.Contains(npc.Id))
+                        {
+                            brokenReason = cond.ReasonVi ?? $"Nhân vật {cond.NpcCode} chưa qua đời";
+                            return false;
+                        }
+                    }
+                    break;
+
+                case "citadel_owner":
+                    if (cond.CitadelId.HasValue && cond.FactionId.HasValue)
+                    {
+                        if (_broker != null && _broker.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice, out var court) && court != null)
+                        {
+                            var currentGov = court.Governances.FirstOrDefault(g => g.CitadelId == cond.CitadelId.Value);
+                            if (currentGov != null && currentGov.FactionId > 0 && currentGov.FactionId != cond.FactionId.Value)
+                            {
+                                brokenReason = cond.ReasonVi ?? $"Châu quận {cond.CitadelId} không còn thuộc phe {cond.FactionId}";
+                                return false;
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
+        return true;
+    }
+
     private void ApplyHistoricalEventInternal(
         HistoricalEventView evt,
         GameDate appliedOnDate,
         bool applyTemporaryShocks,
         bool queuePlayerScene,
         string finalStatus,
-        string? defaultChoice)
+        string? defaultChoice, bool checkPreconditions = true)
     {
         var checkStatus = _db.ScalarString(
             "SELECT status FROM so_historical_event WHERE code = @code",
             DbArgs.One("@code", evt.Code));
         if (!string.Equals(checkStatus, "pending", StringComparison.OrdinalIgnoreCase))
         {
+            return;
+        }
+
+        if (checkPreconditions && !EvaluatePreconditions(evt, out var brokenReason))
+        {
+            var divDateStr = GameDateCodec.Format(evt.ScheduledDate);
+            _db.Execute(
+                "UPDATE so_historical_event SET status = 'occurred', is_diverged = 1, occurred_date = @date WHERE code = @code",
+                new DbArgs().Add("@date", divDateStr).Add("@code", evt.Code));
+
+            var divTitle = evt.DivergenceTitleVi ?? $"[Sử Biến] {evt.TitleVi} Rẽ Nhánh";
+            var divNarr = evt.DivergenceNarrativeVi ?? $"Tiền đề lịch sử bị phá vỡ ({brokenReason}). Thời cuộc chuyển dịch sang hướng mới.";
+            var cit = _map.Find(evt.PrimaryCitadelId);
+
+            LogEvent(
+                divDateStr,
+                0,
+                "Sử Quan",
+                evt.PrimaryCitadelId,
+                cit?.NameVi ?? "Thiên hạ",
+                "history",
+                divTitle,
+                divNarr,
+                $"[Sử Biến - Rẽ Nhánh] {brokenReason}",
+                appliedOnDate.DayIndex);
+
+            _lastDistantHistoricalStatus = $"[Sử Biến] {divTitle}";
             return;
         }
 
@@ -370,7 +456,8 @@ internal sealed partial class SocietyService : IEventRumorSource
     {
         return _db.Query(
             $"SELECT code, year, month, day, title_vi, narrative_vi, primary_citadel_id, related_citadels, related_npcs, " +
-            $"background_key, choices_json, impacts_json, status, occurred_date, choice_code FROM so_historical_event {whereAndOrderSql}",
+            $"background_key, choices_json, impacts_json, status, occurred_date, choice_code, " +
+            $"preconditions_json, is_diverged, divergence_code, divergence_title_vi, divergence_narrative_vi FROM so_historical_event {whereAndOrderSql}",
             row =>
             {
                 var code = row.GetString(0);
@@ -386,9 +473,20 @@ internal sealed partial class SocietyService : IEventRumorSource
                 var occurredStr = row.GetStringOrNull(13);
                 GameDate? occurredDate = !string.IsNullOrWhiteSpace(occurredStr) ? GameDateCodec.Parse(occurredStr) : null;
 
+                var preconditionsJson = row.GetStringOrNull(15);
+                var preconditions = !string.IsNullOrWhiteSpace(preconditionsJson)
+                    ? JsonSerializer.Deserialize<EventPreconditionDef[]>(preconditionsJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? Array.Empty<EventPreconditionDef>()
+                    : Array.Empty<EventPreconditionDef>();
+                var isDiverged = row.GetInt64(16) == 1;
+                var divergenceCode = row.GetStringOrNull(17);
+                var divergenceTitleVi = row.GetStringOrNull(18);
+                var divergenceNarrativeVi = row.GetStringOrNull(19);
+                var status = isDiverged ? "diverged" : row.GetString(12);
+
                 return new HistoricalEventView(
                     code, date, row.GetString(4), row.GetString(5), row.GetInt64(6), citadels, npcs, row.GetString(9),
-                    choices, impacts, row.GetString(12), occurredDate, row.GetStringOrNull(14), $"evt:{code}")
+                    choices, impacts, status, occurredDate, row.GetStringOrNull(14), $"evt:{code}",
+                    preconditions, isDiverged, divergenceCode, divergenceTitleVi, divergenceNarrativeVi)
                 {
                     PortraitExpressions = ReadEventExpressions(code)
                 };

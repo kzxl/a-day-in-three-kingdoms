@@ -49,7 +49,11 @@ public readonly struct DbRecord
 
     public string? GetStringOrNull(int ordinal) => _reader.IsDBNull(ordinal) ? null : _reader.GetString(ordinal);
 
-    public bool IsDbNull(int ordinal) => _reader.IsDBNull(ordinal);
+    public bool IsDbNull(int ordinal) => _reader.IsDBNull(ordinal);
+
+    public bool IsDBNull(int ordinal) => _reader.IsDBNull(ordinal);
+
+    public long? GetInt64OrNull(int ordinal) => _reader.IsDBNull(ordinal) ? null : _reader.GetInt64(ordinal);
 
     public bool GetBool(int ordinal) => _reader.GetInt64(ordinal) != 0;
 }

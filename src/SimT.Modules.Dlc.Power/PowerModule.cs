@@ -23,7 +23,7 @@ public sealed class PowerModule : ISimModule
         var equipment = context.Capabilities.TryGet<IPlayerEquipment>(CapabilityIds.PlayerEquipment, out var pe) ? pe : null;
 
         // 1. Politics / Court Service
-        var courtService = new CourtService(context.Db, context.Clock, wallet, context.Log, attributes)
+        var courtService = new CourtService(context.Db, context.Clock, wallet, context.Log, attributes, context.Capabilities)
         {
             Capabilities = context.Capabilities
         };
@@ -58,8 +58,30 @@ public sealed class PowerModule : ISimModule
         courtService.LordTasks = lordTasks;
         context.Capabilities.Provide(ILordTasks.CapabilityId, lordTasks);
         context.Events.Subscribe<MonthClosed>(closed => lordTasks.AssignMonth(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed =>
+        {
+            foreach (var citadel in map.Citadels)
+            {
+                courtService.SimulateMonthlyCityFoodAndFamine(citadel.Id, closed.Date);
+                militaryService.SimulateMonthlyArmoryAndProcurement(citadel.Id, closed.Date);
+            }
+        });
         context.Events.Subscribe<DayAdvanced>(_ => lordTasks.Tick());
         lordTasks.Tick();
+
+        // 3. Geopolitical Conflict Engine
+        var conflictEngine = new GeopoliticalConflictEngine(
+            context.Db,
+            context.Clock,
+            map,
+            context.Log,
+            context.Capabilities);
+
+        context.Capabilities.Provide(CapabilityIds.GeopoliticalWar, conflictEngine);
+        context.Events.Subscribe<MonthClosed>(closed =>
+        {
+            conflictEngine.AdvanceConflictMonth(closed.Date.DayIndex, 0);
+        });
 
         // Invariants
         foreach (var invariant in PowerInvariants.All())

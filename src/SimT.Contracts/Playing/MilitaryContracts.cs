@@ -228,6 +228,34 @@ public sealed record SupplyRequisitionDef(
     bool Fulfilled);
 
 /// <summary>
+/// State of a citadel military armory, connecting iron value chain to garrison defense strength.
+/// </summary>
+public sealed record CitadelArmoryDef(
+    long CitadelId,
+    int WeaponsStock,
+    int WeaponsCapacity,
+    int MonthlyIronIn,
+    int MonthlyArmsOut,
+    string StatusVi,
+    int UpdatedDayIndex);
+
+/// <summary>
+/// Outcome of a monthly armory forge production and garrison procurement simulation.
+/// </summary>
+public sealed record ArmorySimulationResult(
+    long CitadelId,
+    int InitialWeapons,
+    int IronConsumed,
+    int ArmsForged,
+    int GarrisonDemand,
+    int ArmsSupplied,
+    int WeaponsDeficit,
+    int FinalWeapons,
+    int OldDefenseStrength,
+    int NewDefenseStrength,
+    string StatusVi);
+
+/// <summary>
 /// Military, martial arena, and expedition surface owned by <c>dlc.military</c>.
 /// </summary>
 public interface IMilitaryCommand
@@ -240,6 +268,12 @@ public interface IMilitaryCommand
 
     /// <summary>Calculates the route and peace security index (0 to 100%) for a citadel.</summary>
     int GetCitadelSecurity(long citadelId);
+
+    /// <summary>Queries the military armory state of a citadel.</summary>
+    CitadelArmoryDef GetCitadelArmory(long citadelId);
+
+    /// <summary>Simulates monthly city forge production and garrison weapon procurement.</summary>
+    ArmorySimulationResult SimulateMonthlyArmoryAndProcurement(long citadelId, GameDate date);
 
     /// <summary>Challenges an NPC warrior to a duel in the local arena with default branch.</summary>
     DuelResult ChallengeArena(long npcId);

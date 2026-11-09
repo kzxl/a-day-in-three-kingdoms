@@ -4,11 +4,29 @@
   "apiVersion": "1",
   "kind": "base",
   "requires": [],
-  "provides": ["world.map"],
-  "consumes": [],
+  "provides": [
+    "world.map",
+    "world.stroll"
+  ],
+  "consumes": [
+    "player.attributes",
+    "society.karma",
+    "npc.registry",
+    "player.wallet",
+    "player.bag",
+    "social.network",
+    "content.items"
+  ],
   "owns": {
-    "tables": ["wd_citadel", "wd_route"],
-    "migrations": ["migrations"]
+    "tables": [
+      "wd_citadel",
+      "wd_route"
+    ],
+    "migrations": [
+      "migrations"
+    ]
   },
-  "screens": ["world.map"]
+  "screens": [
+    "world.map"
+  ]
 }

@@ -30,6 +30,44 @@ public sealed record CraftOrderDef(
     string? AssigneeNameVi = null,
     int? CompletionDay = null);
 
+/// <summary>
+/// 3-Branch Profession Progression distinguishing individual skill, elite mastery, and commercial enterprise.
+/// </summary>
+public sealed record ProfessionProgressionDef(
+    long TradeId,
+    string TradeCode,
+    string TradeNameVi,
+    // Branch 1: Personal Skill
+    int SkillTier,
+    int PracticeCount,
+    string SkillTitleVi,
+    int EfficiencyBonusPct,
+    // Branch 2: Elite Mastery
+    int MasteryLevel,
+    string MasteryRankVi,
+    int MasterpieceCount,
+    bool CanCraftMasterpiece,
+    // Branch 3: Commercial Enterprise
+    int WorkshopCount,
+    int TotalArtisansHired,
+    long TotalPassiveOutput,
+    string EnterpriseScaleVi,
+    // Career Hegemony
+    bool IsHegemonyUnlocked,
+    string HegemonyTitleVi,
+    string HegemonyActionVi);
+
+/// <summary>Tier 5 Career Hegemony geopolitical levers that alter the balance of power.</summary>
+public sealed record HegemonyActionDef(
+    string Code,
+    string NameVi,
+    string DescriptionVi,
+    string RequiredProfessionCode,
+    int RequiredTier,
+    int CostCopper,
+    bool IsAvailable,
+    string StatusSummary);
+
 /// <summary>Equipment slot on the protagonist (Weapon, Armor, Tool).</summary>
 public sealed record EquippedSlotDef(
     string SlotCode, // "WEAPON", "ARMOR", "TOOL"
@@ -150,6 +188,15 @@ public interface IProfessionGuild
 
     WorkResult SellDish(long citadelId, long dishId, int quantity = 1);
 
+    // 3-Branch progression and Career Hegemony
+    ProfessionProgressionDef? GetProgression(long tradeId) => null;
+
+    IReadOnlyList<ProfessionProgressionDef> AllProgressions() => Array.Empty<ProfessionProgressionDef>();
+
+    IReadOnlyList<HegemonyActionDef> AvailableHegemonyActions(long citadelId) => Array.Empty<HegemonyActionDef>();
+
+    WorkResult EnactHegemony(long citadelId, string hegemonyCode) => WorkResult.Fail("Chưa mở khóa quyền năng bá quyền.");
+
     EquipmentDef? RecordCombatFeat(long equipmentId, string wielderNameVi, string featDescriptionVi, int killDelta = 1, int fameDelta = 10);
 }
 
@@ -225,5 +272,9 @@ public readonly record struct WorkResult(bool Ok, string Message, int Quantity, 
 {
     public static WorkResult Success(string message, int quantity, int days) => new(true, message, quantity, days);
 
+    public static WorkResult Success(string message) => new(true, message, 0, 0);
+
     public static WorkResult Failure(string message) => new(false, message, 0, 0);
+
+    public static WorkResult Fail(string message) => Failure(message);
 }

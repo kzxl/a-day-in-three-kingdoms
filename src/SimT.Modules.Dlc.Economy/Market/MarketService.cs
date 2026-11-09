@@ -136,6 +136,11 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
                     price = Math.Max(1, price * shockMult / 1000);
                 }
             }
+            var warMult = GetWarPriceFactorPermille(row.City, item);
+            if (warMult != 1000)
+            {
+                price = Math.Max(1, price * warMult / 1000);
+            }
             samples.Add((row.City, row.Item, price));
         }
 
@@ -191,7 +196,10 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
         return factor > 0 ? (int)factor : 1000;
     }
 
-    public long QuoteBuy(long cityId, long itemId)
+    private IPlayerDestiny? GetDestiny() =>
+        _capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var d) == true ? d : null;
+
+    public long RawMarketPrice(long cityId, long itemId)
     {
         var item = RequireItem(itemId);
         var citadel = RequireCitadel(cityId);
@@ -212,10 +220,89 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
                 price = Math.Max(1, price * shockMult / 1000);
             }
         }
+
+        var warMult = GetWarPriceFactorPermille(cityId, item);
+        if (warMult != 1000)
+        {
+            price = Math.Max(1, price * warMult / 1000);
+        }
+
         return price;
     }
 
-    public long QuoteSell(long cityId, long itemId) => MarketPricing.SellQuote(QuoteBuy(cityId, itemId));
+    private int GetWarPriceFactorPermille(long citadelId, ItemDef item)
+    {
+        if (_capabilities == null || !_capabilities.TryGet<IGeopoliticalWar>(CapabilityIds.GeopoliticalWar, out var war) || war == null)
+        {
+            return 1000;
+        }
+
+        var status = war.GetCitadelWarStatus(citadelId);
+        if (!status.IsFrontline && !status.IsBesieged)
+        {
+            return 1000;
+        }
+
+        var isBesieged = status.IsBesieged;
+        var intensity = status.Intensity;
+
+        if (item.Code is "rice" or "wheat" or "dried_fish" || item.Id is 1 or 8 or 9)
+        {
+            return isBesieged ? 2000 : (intensity >= 2 ? 1400 : 1200);
+        }
+
+        if (item.Code is "iron" or "copper" or "coal" || item.Id is 5 or 15 or 16)
+        {
+            return isBesieged ? 2200 : (intensity >= 2 ? 1500 : 1250);
+        }
+
+        if (item.Code is "medicine" or "ginseng" || item.Id is 7 or 13)
+        {
+            return isBesieged ? 1800 : (intensity >= 2 ? 1350 : 1150);
+        }
+
+        if (item.Code is "silk" or "brocade" or "agarwood" || item.Id is 4 or 12 or 14)
+        {
+            return isBesieged ? 750 : 900;
+        }
+
+        return 1000;
+    }
+
+    public long QuoteBuy(long cityId, long itemId)
+    {
+        var price = RawMarketPrice(cityId, itemId);
+        var destiny = GetDestiny();
+        if (destiny is not null)
+        {
+            var discount = destiny.GetModifier("price_buy_discount");
+            if (discount > 0)
+            {
+                price = Math.Max(1, (long)Math.Round(price * (1.0 - Math.Min(90, discount) / 100.0)));
+            }
+        }
+        return price;
+    }
+
+    public long QuoteSell(long cityId, long itemId)
+    {
+        var rawPrice = RawMarketPrice(cityId, itemId);
+        var baseSell = MarketPricing.SellQuote(rawPrice);
+        var destiny = GetDestiny();
+        if (destiny is not null)
+        {
+            var bonus = destiny.GetModifier("price_sell_bonus");
+            if (destiny.HasKeystone("daochu_keystone_merchant_king"))
+            {
+                bonus += 25;
+            }
+            if (bonus > 0)
+            {
+                baseSell = Math.Max(1, (long)Math.Round(baseSell * (1.0 + bonus / 100.0)));
+            }
+        }
+        return baseSell;
+    }
 
     public TradeResult Buy(long cityId, long itemId, int quantity)
     {
@@ -521,6 +608,11 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
     /// </summary>
     public void SpoilOneDay(GameDate date)
     {
+        var destiny = GetDestiny();
+        if (destiny is not null && destiny.HasKeystone("macgia_keystone_wooden_ox"))
+        {
+            return;
+        }
         var rows = _db.Query(
             "SELECT citadel_id, item_id, quantity, spoilage_carry, age_days FROM mk_warehouse_stock",
             row => (City: row.GetInt64(0), Item: row.GetInt64(1), Quantity: row.GetInt32(2),
@@ -545,6 +637,14 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
             }
 
             var rate = Math.Max(1, 1000 / item.ShelfLifeDays);
+            if (destiny is not null)
+            {
+                var red = destiny.GetModifier("spoilage_rate_reduction");
+                if (red > 0)
+                {
+                    rate = Math.Max(0, (int)Math.Round(rate * (1.0 - Math.Min(95, red) / 100.0)));
+                }
+            }
             var raw = (row.Quantity * rate) + row.Carry;
             var lost = raw / 1000;
             var carry = raw % 1000;

@@ -1,4 +1,5 @@
-using SimT.Contracts.Data;
+﻿using SimT.Contracts.Data;
+using SimT.Contracts.Identity;
 using SimT.Contracts.Logging;
 using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
@@ -102,7 +103,7 @@ internal sealed partial class SocietyService
         });
     }
 
-    private void ExecuteRivalMerchantAction(NpcDef npc, NpcActivityDef act, MerchantRivalDef rival, string citName, string date, long tick, SimpleRng rng)
+    private void ExecuteRivalMerchantAction(NpcDef npc, NpcActivityDef act, MerchantRivalDef rival, string citName, string date, long tick, IRng rng)
     {
         var roll = rng.Next(4);
         string headline, detail, impact, actionText;
@@ -174,8 +175,7 @@ internal sealed partial class SocietyService
         {
             foreach (var rival in rivals)
             {
-                var seed = (uint)(date.DayIndex * 1013 ^ (int)rival.NpcId);
-                var rng = new SimpleRng(seed);
+                var rng = CreateSubStreamRng(rival.NpcId, date.DayIndex, 0x50C1E71_003UL);
 
                 var currentCitId = rival.CurrentCitadelId;
                 var currentCit = _map.Find(currentCitId);

@@ -1,4 +1,4 @@
-using SimT.Contracts.Data;
+﻿using SimT.Contracts.Data;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
 
@@ -245,4 +245,54 @@ public sealed class SocietyTests : IDisposable
         Assert.Empty(failures);
     }
 
+
+    [Fact]
+    public void Society_rng_is_campaign_seeded_and_deterministic()
+    {
+        // 1. Two separate campaigns with the exact same campaign seed produce 100% reproducible society events
+        List<(long NpcId, string Headline, string Detail)> events1;
+        using (var host1 = new DlcTestHost(seed: 424242))
+        using (var kernel1 = host1.Boot())
+        {
+            kernel1.AdvanceDays(30);
+            events1 = kernel1.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle)
+                .RecentEvents(limit: 50)
+                .Select(e => (e.NpcId, e.HeadlineVi, e.DetailVi))
+                .ToList();
+        }
+
+        List<(long NpcId, string Headline, string Detail)> events2;
+        using (var host2 = new DlcTestHost(seed: 424242))
+        using (var kernel2 = host2.Boot())
+        {
+            kernel2.AdvanceDays(30);
+            events2 = kernel2.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle)
+                .RecentEvents(limit: 50)
+                .Select(e => (e.NpcId, e.HeadlineVi, e.DetailVi))
+                .ToList();
+        }
+
+        Assert.NotEmpty(events1);
+        Assert.Equal(events1.Count, events2.Count);
+        for (var i = 0; i < events1.Count; i++)
+        {
+            Assert.Equal(events1[i], events2[i]);
+        }
+
+        // 2. A campaign with a different seed produces divergent events
+        List<(long NpcId, string Headline, string Detail)> events3;
+        using (var host3 = new DlcTestHost(seed: 999999))
+        using (var kernel3 = host3.Boot())
+        {
+            kernel3.AdvanceDays(30);
+            events3 = kernel3.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle)
+                .RecentEvents(limit: 50)
+                .Select(e => (e.NpcId, e.HeadlineVi, e.DetailVi))
+                .ToList();
+        }
+
+        Assert.NotEmpty(events3);
+        var diff = events1.Count != events3.Count || !events1.SequenceEqual(events3);
+        Assert.True(diff, "Different campaign seeds must produce divergent society simulation outcomes.");
+    }
 }

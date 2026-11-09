@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using SimT.Contracts;
 using SimT.Core.Kernel;
 using SimT.Core.Modules;
@@ -16,7 +16,7 @@ public sealed class TestHost : IDisposable
     private readonly string _directory;
     private readonly string _productPath;
 
-    public TestHost(string tag = "simt")
+    public TestHost(string tag = "simt", long? seed = null)
     {
         _directory = Path.Combine(Path.GetTempPath(), tag + "-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_directory);
@@ -27,7 +27,7 @@ public sealed class TestHost : IDisposable
             id = "test-product",
             name = "Test product",
             modules = AvailableModules(),
-            seed = 1840502,
+            seed = seed ?? 1840502,
             startLocation = "lac_duong",
             startingCash = 2000
         }, new JsonSerializerOptions { WriteIndented = true }));

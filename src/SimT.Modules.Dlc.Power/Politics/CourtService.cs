@@ -25,15 +25,20 @@ internal sealed partial class CourtService : IPoliticalCourt
     private readonly IWallet _wallet;
     private readonly ILog _log;
     private readonly IPlayerAttributes? _attributes;
+    private readonly SimT.Contracts.Modules.ICapabilityBroker? _capabilities;
 
-    public CourtService(IDbSession db, IGameClock clock, IWallet wallet, ILog log, IPlayerAttributes? attributes = null)
+    public CourtService(IDbSession db, IGameClock clock, IWallet wallet, ILog log, IPlayerAttributes? attributes = null, SimT.Contracts.Modules.ICapabilityBroker? capabilities = null)
     {
         _db = db;
         _clock = clock;
         _wallet = wallet;
         _log = log;
         _attributes = attributes;
+        _capabilities = capabilities;
     }
+
+    private IPlayerDestiny? GetDestiny() =>
+        _capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var d) == true ? d : null;
 
     public int Reputation => (int)State("reputation");
 
@@ -42,8 +47,24 @@ internal sealed partial class CourtService : IPoliticalCourt
     public string? OfficeName =>
         _db.ScalarString("SELECT name_vi FROM po_office WHERE id=@id", DbArgs.One("@id", OfficeId));
 
-    public long MonthlyStipend =>
-        _db.ScalarLong("SELECT COALESCE(monthly_stipend, 0) FROM po_office WHERE id=@id", DbArgs.One("@id", OfficeId));
+    public long MonthlyStipend
+    {
+        get
+        {
+            var baseStipend = _db.ScalarLong("SELECT COALESCE(monthly_stipend, 0) FROM po_office WHERE id=@id", DbArgs.One("@id", OfficeId));
+            if (baseStipend <= 0) return 0;
+            var destiny = GetDestiny();
+            if (destiny is not null)
+            {
+                var bonus = destiny.GetModifier("court_stipend_bonus");
+                if (bonus > 0)
+                {
+                    baseStipend = (long)Math.Round(baseStipend * (1.0 + bonus / 100.0));
+                }
+            }
+            return baseStipend;
+        }
+    }
 
     public long AllegianceFactionId => State("allegiance_faction_id");
 
@@ -480,4 +501,187 @@ internal sealed partial class CourtService : IPoliticalCourt
         _db.Execute(
             "INSERT INTO po_state(key, value) VALUES(@key, @value) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             new DbArgs().Add("@key", key).Add("@value", value));
+
+    public CityDemographicsView? GetCityDemographics(long citadelId)
+    {
+        return _db.QueryOne(
+            """
+            SELECT citadel_id, population, prosperity_score, starvation_months, monthly_food_need, monthly_food_got, famine_status_vi, updated_day_index
+            FROM po_city_demographics WHERE citadel_id = @citId
+            """,
+            r => new CityDemographicsView(
+                r.GetInt64(0),
+                r.GetInt32(1),
+                r.GetInt32(2),
+                r.GetInt32(3),
+                r.GetInt32(4),
+                r.GetInt32(5),
+                r.GetString(6),
+                r.GetInt32(7)),
+            DbArgs.One("@citId", citadelId));
+    }
+
+    public IReadOnlyList<CityDemographicsView> AllDemographics()
+    {
+        return _db.Query(
+            """
+            SELECT citadel_id, population, prosperity_score, starvation_months, monthly_food_need, monthly_food_got, famine_status_vi, updated_day_index
+            FROM po_city_demographics ORDER BY citadel_id ASC
+            """,
+            r => new CityDemographicsView(
+                r.GetInt64(0),
+                r.GetInt32(1),
+                r.GetInt32(2),
+                r.GetInt32(3),
+                r.GetInt32(4),
+                r.GetInt32(5),
+                r.GetString(6),
+                r.GetInt32(7)));
+    }
+
+    public FamineSimulationResult? SimulateMonthlyCityFoodAndFamine(long citadelId, GameDate date)
+    {
+        var demo = GetCityDemographics(citadelId);
+        if (demo == null) return null;
+
+        var pop = demo.Population;
+        var prosperity = demo.ProsperityScore;
+        var starvationMonths = demo.StarvationMonths;
+
+        var gov = _db.QueryOne(
+            "SELECT unrest_level, defense_strength FROM po_city_governance WHERE citadel_id = @citId",
+            r => new { Unrest = r.GetInt32(0), Defense = r.GetInt32(1) },
+            DbArgs.One("@citId", citadelId));
+
+        var oldUnrest = gov?.Unrest ?? 20;
+        var oldDefense = gov?.Defense ?? 80;
+
+        var foodNeed = Math.Max(10, (pop / 4000) + (oldDefense / 15));
+        var foodSupplied = 0;
+
+        IMarketTrade? trade = null;
+        if (_capabilities?.TryGet<IMarketTrade>(CapabilityIds.MarketTrade, out var t) == true)
+        {
+            trade = t;
+        }
+
+        if (trade != null)
+        {
+            var gaoStock = trade.StallStock(citadelId, 1);
+            var wheatStock = trade.StallStock(citadelId, 9);
+            var needed = foodNeed;
+
+            if (gaoStock > 0 && needed > 0)
+            {
+                var takeGao = Math.Min(needed, gaoStock);
+                trade.AdjustStock(citadelId, 1, -takeGao);
+                foodSupplied += takeGao;
+                needed -= takeGao;
+            }
+
+            if (wheatStock > 0 && needed > 0)
+            {
+                var takeWheat = Math.Min(needed, wheatStock);
+                trade.AdjustStock(citadelId, 9, -takeWheat);
+                foodSupplied += takeWheat;
+                needed -= takeWheat;
+            }
+        }
+
+        var deficit = foodNeed - foodSupplied;
+        int newUnrest = oldUnrest;
+        int newDefense = oldDefense;
+        int finalPop = pop;
+        int finalProsperity = prosperity;
+        string narrativeVi;
+
+        if (deficit == 0)
+        {
+            starvationMonths = 0;
+            finalProsperity = Math.Min(100, prosperity + 1);
+            finalPop = pop + Math.Max(10, pop * 5 / 1000);
+            newUnrest = Math.Max(10, oldUnrest - 2);
+            narrativeVi = $"Lương thực sung túc ({foodSupplied}/{foodNeed}), bách tính an cư (+0.5% nhân khẩu).";
+        }
+        else
+        {
+            starvationMonths += 1;
+            finalProsperity = Math.Max(5, prosperity - (10 * starvationMonths));
+
+            if (starvationMonths == 1)
+            {
+                newUnrest = Math.Min(100, oldUnrest + 12);
+                narrativeVi = $"Khan hiếm lương thảo (thiếu {deficit} thạch)! Bách tính lo âu, bất an tăng cao.";
+            }
+            else
+            {
+                var popLoss = Math.Max(50, pop * 8 / 100);
+                finalPop = Math.Max(1000, pop - popLoss);
+                newUnrest = Math.Min(100, oldUnrest + (25 * starvationMonths));
+                newDefense = Math.Max(10, oldDefense - (15 * starvationMonths));
+                narrativeVi = $"Đại cơ hoang bùng phát (tháng thứ {starvationMonths})! Thiếu {deficit} thạch lương thực, bách tính ly tán (-{popLoss} người), quân sĩ đào ngũ.";
+
+                var existingReq = _db.ScalarLong(
+                    "SELECT COUNT(*) FROM ml_supply_requisition WHERE citadel_id = @citId AND target_item_code = 'gao' AND fulfilled = 0",
+                    DbArgs.One("@citId", citadelId));
+
+                if (existingReq == 0)
+                {
+                    var nextId = _db.ScalarLong("SELECT COALESCE(MAX(id), 0) + 1 FROM ml_supply_requisition");
+                    var deadline = GameDateCodec.Format(date.AddMonths(2));
+                    _db.Execute(
+                        "INSERT INTO ml_supply_requisition (id, citadel_id, target_item_code, target_item_name, quantity_needed, reward_per_unit, deadline_date, fulfilled) " +
+                        "VALUES (@id, @citId, 'gao', 'Chẩn Tế Khẩn Cấp: Đại Cơ Hoang', @qty, 35, @deadline, 0)",
+                        new DbArgs().Add("@id", nextId).Add("@citId", citadelId).Add("@qty", deficit * 2).Add("@deadline", deadline));
+                }
+            }
+        }
+
+        _db.Execute(
+            """
+            UPDATE po_city_demographics SET
+                population = @pop,
+                prosperity_score = @pros,
+                starvation_months = @starv,
+                monthly_food_need = @need,
+                monthly_food_got = @got,
+                famine_status_vi = @status,
+                updated_day_index = @day
+            WHERE citadel_id = @citId
+            """,
+            new DbArgs()
+                .Add("@citId", citadelId)
+                .Add("@pop", finalPop)
+                .Add("@pros", finalProsperity)
+                .Add("@starv", starvationMonths)
+                .Add("@need", foodNeed)
+                .Add("@got", foodSupplied)
+                .Add("@status", narrativeVi)
+                .Add("@day", (int)date.DayIndex));
+
+        if (gov != null)
+        {
+            _db.Execute(
+                "UPDATE po_city_governance SET unrest_level = @unrest, defense_strength = @def WHERE citadel_id = @citId",
+                new DbArgs().Add("@unrest", newUnrest).Add("@def", newDefense).Add("@citId", citadelId));
+        }
+
+        _log.Info($"[dlc.power] Demographics at #{citadelId} on {date}: pop={finalPop}, food={foodSupplied}/{foodNeed}, starv={starvationMonths}, unrest={newUnrest}");
+
+        return new FamineSimulationResult(
+            citadelId,
+            pop,
+            finalPop,
+            prosperity,
+            finalProsperity,
+            foodNeed,
+            foodSupplied,
+            deficit,
+            starvationMonths,
+            oldUnrest,
+            newUnrest,
+            oldDefense,
+            newDefense,
+            narrativeVi);
+    }
 }

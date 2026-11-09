@@ -42,6 +42,7 @@ public static class CapabilityIds
     public const string MerchantRivalry = "society.merchant_rivalry";
     public const string KarmaEngine = "society.karma";
     public const string Dialogue = "dlc.dialogue";
+    public const string GeopoliticalWar = "power.geopolitical-war";
     public const string EventPublisher = "core.events";
     public const string TimeService = "core.time";
     public const string Scheduler = "core.scheduler";

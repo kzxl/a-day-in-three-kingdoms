@@ -52,6 +52,15 @@ internal sealed partial class MarketService
         else if (HasNpcTrait(npcId, NpcTraitCodes.HaoSang))
             basePrice = Math.Max(1L, basePrice * NpcTraitRules.HaoSangSellToPlayerPercent / 100);
 
+        if (npcId > 0 && _capabilities != null && _capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social != null)
+        {
+            var disp = social.GetDisposition(npcId);
+            if (disp.PriceFactorPermille != 1000)
+            {
+                basePrice = Math.Max(1L, (basePrice * disp.PriceFactorPermille) / 1000);
+            }
+        }
+
         return ApplyDebateHagglePrice(cityId, npcId, itemId, basePrice);
     }
 
@@ -79,6 +88,15 @@ internal sealed partial class MarketService
         if (HasNpcTrait(npcId, NpcTraitCodes.HaoSang))
             return Math.Max(1L, (markedUp * NpcTraitRules.HaoSangBuyFromPlayerPercent + 50) / 100);
 
+        if (npcId > 0 && _capabilities != null && _capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social != null)
+        {
+            var disp = social.GetDisposition(npcId);
+            if (disp.IsGrudged)
+                markedUp = Math.Max(1L, (markedUp * 800) / 1000);
+            else if (disp.IsFavored)
+                markedUp = Math.Max(1L, (markedUp * 1100) / 1000);
+        }
+
         return markedUp;
     }
 
@@ -100,6 +118,14 @@ internal sealed partial class MarketService
             return TradeResult.Fail($"Trong hành trang chỉ có {held} {item.NameVi}.");
 
         var npcId = stall.NpcId ?? 0L;
+        if (npcId > 0 && _capabilities != null && _capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social != null)
+        {
+            var disp = social.GetDisposition(npcId);
+            if (disp.IsGrudged && disp.PriceFactorPermille >= 1300 && (item.Category == "material" || item.Category == "military"))
+            {
+                return TradeResult.Fail($"{stall.NameVi} lạnh lùng cự tuyệt: 'Ân oán cũ chưa giải, bản hiệu không mua bán quân giới cùng kẻ thất tín!'");
+            }
+        }
         var unitBid = QuoteNpcBuyBidUnitPrice(cityId, npcId, itemId, bidMarkupPermille: 50);
         var total = unitBid * quantity;
 

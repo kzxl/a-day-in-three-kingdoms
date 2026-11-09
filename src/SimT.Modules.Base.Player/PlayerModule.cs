@@ -476,9 +476,12 @@ public sealed class PlayerModule : ISimModule
                     ?? new VitalsRaw(100, 0, 100, 0);
 
                 var maxHp = 80 + (int)(attrs.Con * 1.5) + (int)(attrs.War * 0.5);
-
                 var maxStamina = 70 + (int)(attrs.Con * 1.2) + (int)(attrs.War * 0.3) + vitalsRow.Health / 10;
-
+                if (_capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var destiny) == true && destiny is not null)
+                {
+                    maxHp += destiny.GetModifier("max_health_bonus");
+                    maxStamina += destiny.GetModifier("max_stamina_bonus");
+                }
                 var currentStamina = Math.Max(0, maxStamina - vitalsRow.Fatigue);
 
                 return new CharacterVitals(
@@ -623,6 +626,18 @@ public sealed class PlayerModule : ISimModule
 
         public void RecoverVitals(int fatigueRelief, int stressRelief = 0, int healthGain = 0)
         {
+            if (_capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var destiny) == true && destiny is not null)
+            {
+                if (destiny.HasKeystone("daogia_keystone_five_animals"))
+                {
+                    fatigueRelief *= 2;
+                }
+                var regen = destiny.GetModifier("stamina_regen_bonus");
+                if (regen > 0)
+                {
+                    fatigueRelief = (int)Math.Round(fatigueRelief * (1.0 + regen / 100.0));
+                }
+            }
             _db.Execute(
                 @"UPDATE pl_vitals
                   SET fatigue = MAX(0, fatigue - @rec),
@@ -1018,6 +1033,14 @@ public sealed class PlayerModule : ISimModule
 
         public void GainFame(int amount, string reason, int virtueDelta = 0, int credDelta = 0)
         {
+            if (_capabilities?.TryGet<IPlayerDestiny>(CapabilityIds.PlayerDestiny, out var destiny) == true && destiny is not null)
+            {
+                var fameBonus = destiny.GetModifier("fame_gain_bonus");
+                if (fameBonus > 0)
+                {
+                    amount = (int)Math.Round(amount * (1.0 + fameBonus / 100.0));
+                }
+            }
             _reputation?.GainFame(amount, "deed", reason, reason, virtueDelta: virtueDelta, credDelta: credDelta);
         }
     }

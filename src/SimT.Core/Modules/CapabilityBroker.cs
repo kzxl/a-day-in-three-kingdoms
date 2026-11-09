@@ -48,5 +48,8 @@ public sealed class CapabilityBroker : ICapabilityBroker
         return false;
     }
 
+    public ICapabilityBroker CreateScope(ModuleManifest manifest) =>
+        new ModuleScopedCapabilityBroker(this, manifest);
+
     public IReadOnlyCollection<string> Provided => _providers.Keys;
 }

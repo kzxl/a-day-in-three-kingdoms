@@ -283,6 +283,60 @@ public sealed class LineageTests : IDisposable
         Assert.Contains("👦", gen2.Cells[1]);
     }
 
+    [Fact]
+    public void Marriage_to_npc_requires_affinity_and_records_bond()
+    {
+        using var kernel = _host.Boot();
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var target = npcs.All[0];
+
+        // Low affinity: refused
+        var lowAffinityMsg = Command(kernel, $"marry:{target.Id}");
+        Assert.Contains("Hảo cảm", lowAffinityMsg);
+
+        // Raise affinity to 85 via direct DB or relationship
+        kernel.Db.Execute(
+            "INSERT INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date) VALUES (@npc, 85, 80, 'Tri kỷ', 5, '184-05-01') ON CONFLICT(npc_id) DO UPDATE SET affinity = 85",
+            SimT.Contracts.Data.DbArgs.One("@npc", target.Id));
+
+        var marryMsg = Command(kernel, $"marry:{target.Id}");
+        Assert.Contains("Thành hôn", marryMsg);
+
+        var house = House(kernel);
+        Assert.True(house.IsMarried);
+        Assert.Equal(target.NameVi, house.SpouseName);
+        Assert.Equal(target.Id, house.SpouseNpcId);
+
+        // Verify spouse npc_id recorded in ln_spouse
+        var recordedNpcId = kernel.Db.ScalarLong(
+            "SELECT npc_id FROM ln_spouse ORDER BY id LIMIT 1");
+        Assert.Equal(target.Id, recordedNpcId);
+    }
+
+    [Fact]
+    public void Marriage_to_npc_respects_existing_spouses()
+    {
+        using var kernel = _host.Boot();
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var target = npcs.All[0];
+
+        // Record target as already married to another valid NPC
+        var otherNpc = npcs.All[1];
+        var minId = Math.Min(target.Id, otherNpc.Id);
+        var maxId = Math.Max(target.Id, otherNpc.Id);
+        kernel.Db.Execute(
+            "INSERT INTO kz_npc_bond (npc_a, npc_b, kind, strength, since_date, source) VALUES (@a, @b, 'spouse', 100, '184-01-01', 'history')",
+            new SimT.Contracts.Data.DbArgs().Add("@a", minId).Add("@b", maxId));
+
+        kernel.Db.Execute(
+            "INSERT INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date) VALUES (@npc, 90, 80, 'Tri kỷ', 5, '184-05-01') ON CONFLICT(npc_id) DO UPDATE SET affinity = 90",
+            SimT.Contracts.Data.DbArgs.One("@npc", target.Id));
+
+        var marryMsg = Command(kernel, $"marry:{target.Id}");
+        Assert.Contains("đã có hôn phối", marryMsg);
+        Assert.False(House(kernel).IsMarried);
+    }
+
     private static string MarryAndReadSpouse(TestHost host)
     {
         using var kernel = host.Boot();

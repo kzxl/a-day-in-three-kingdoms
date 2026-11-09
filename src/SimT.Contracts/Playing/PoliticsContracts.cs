@@ -30,7 +30,41 @@ public interface IPoliticalCourt
     CourtResult EnactPolicy(string policyCode, long citadelId);
 
     void SetCityOwner(long citadelId, long factionId, long? governorNpcId = null) { }
+
+    void AdjustCityStability(long citadelId, int unrestDelta, int defenseDelta) { }
+
+    CityDemographicsView? GetCityDemographics(long citadelId) => null;
+
+    IReadOnlyList<CityDemographicsView> AllDemographics() => [];
+
+    FamineSimulationResult? SimulateMonthlyCityFoodAndFamine(long citadelId, SimT.Contracts.Time.GameDate date) => null;
 }
+
+public sealed record CityDemographicsView(
+    long CitadelId,
+    int Population,
+    int ProsperityScore,
+    int StarvationMonths,
+    int MonthlyFoodNeed,
+    int MonthlyFoodGot,
+    string FamineStatusVi,
+    int UpdatedDayIndex);
+
+public sealed record FamineSimulationResult(
+    long CitadelId,
+    int InitialPopulation,
+    int FinalPopulation,
+    int InitialProsperity,
+    int FinalProsperity,
+    int FoodNeeded,
+    int FoodSupplied,
+    int FoodDeficit,
+    int StarvationMonths,
+    int OldUnrest,
+    int NewUnrest,
+    int OldDefense,
+    int NewDefense,
+    string NarrativeVi);
 
 public sealed record OfficeView(
     long Id,
@@ -58,7 +92,10 @@ public sealed record CityGovernanceView(
     long GovernorNpcId,
     int UnrestLevel,
     int DefenseStrength,
-    int TaxRatePercent);
+    int TaxRatePercent)
+{
+    public int Security => Math.Clamp(100 - UnrestLevel, 0, 100);
+}
 
 public sealed record DecreeLogView(
     long Id,
