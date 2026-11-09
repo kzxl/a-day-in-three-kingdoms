@@ -1,6 +1,6 @@
 # A Day in the Three Kingdoms (Một Ngày Ở Tam Quốc · SimT)
 
-[![Build & Test](https://img.shields.io/badge/Tests-430%2B%20Passed-emerald.svg)](tests/)
+[![Build & Test](https://img.shields.io/badge/Tests-640%2B%20Passed-emerald.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%204%20DLC%20Pillars%20Monolith-blueviolet.svg)](docs/module-authoring.md)
 [![Platform](https://img.shields.io/badge/Platform-.NET%208%20%7C%20WPF%20%7C%20SQLite%20WAL-blue.svg)](src/SimT.Host.Wpf/)
 [![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
@@ -9,6 +9,34 @@ A single-player, offline, text-and-tactical merchant simulation for Windows, bui
 modular monolith**. This repository is a deliberate restart of the `Simulation` web project:
 same game genre, but the architecture that project only documented is enforced here from the
 first commit by the compiler and by an architecture test suite.
+
+---
+
+## Visual Showcase (Immersive Feudal UI)
+
+The desktop client features specialized, thematic UI decks designed to replace generic tabular data with atmospheric Three Kingdoms craftsmanship while supporting instantaneous dual-mode toggling (`[ 🎨 Trực quan ]` $\leftrightarrow$ `[ 📋 Bảng biểu ]`):
+
+| Bazaar Trading Deck | Caravan Dispatch Board |
+| :---: | :---: |
+| ![Bazaar Trading Deck](docs/screenshots/01_bazaar_trading_deck.png) | ![Caravan Dispatch Board](docs/screenshots/02_caravan_dispatch.png) |
+| *2-column market shelf, rarity slots, deal tray, and price charts* | *Crew triptych (WAR/COM/LOG), trail canvas, and guild contracts* |
+
+| Artisan Workbench & Forge | Tactical War Camp |
+| :---: | :---: |
+| ![Artisan Workbench](docs/screenshots/03_artisan_workbench.png) | ![Tactical War Camp](docs/screenshots/04_tactical_war_camp.png) |
+| *Crucible anvil, socketed materials, quality forecasting & equipment cards* | *Warrior duel roster, troop affinities, and bandit strongholds* |
+
+| Item Codex Showcase | NPC Hero Directory |
+| :---: | :---: |
+| ![Item Codex Showcase](docs/screenshots/05_item_codex_showcase.png) | ![NPC Directory](docs/screenshots/06_npc_directory.png) |
+| *Multi-column commodity shelf and appraisal pedestal with lore specs* | *Three Kingdoms heroes, scholar badges, and 4-pillar attribute pills* |
+
+| Imperial Court Chamber | Reputation Hall of Fame |
+| :---: | :---: |
+| ![Court Chamber](docs/screenshots/07_court_chamber.png) | ![Reputation Hall of Fame](docs/screenshots/08_reputation_hall_of_fame.png) |
+| *Nine-Rank Official hierarchy, 12 warlord factions, and regional policies* | *Renown tier ladder, 5 strategic macro-regions, and leaderboard* |
+
+---
 
 ## Why a new project
 
@@ -22,11 +50,11 @@ campaign replaces all of it.
 
 | Layer | What belongs | What must never appear |
 | --- | --- | --- |
-| `SimT.Contracts` | Interfaces, DTOs, value objects, capability ids | Any project or package reference |
+| `SimT.Contracts` | Interfaces, DTOs, value objects, capability ids, UI section contracts | Any project or package reference |
 | `SimT.Core` | Kernel: database, clock, ledger, ids, RNG, events, config, module runtime, idempotent migrations | Any business noun (market, warehouse, citadel…) |
 | `SimT.Modules.Base.*` | Always-installed game pillars: content, world, player, npc | References to other modules |
 | `SimT.Modules.Dlc.*` | 4 Consolidated DLC Pillars: `Economy`, `Character`, `Power`, `Society` | References to base modules' assemblies |
-| `SimT.Host.Wpf` | Shell, save picker, ROTK tactical HUD, Imperial Time pill, WebView2 scene overlay, generic screen renderer | Knowledge of any module type |
+| `SimT.Host.Wpf` | Shell, save picker, ROTK tactical HUD, Imperial Time pill, thematic deck controls, dual-mode renderer | Knowledge of any module type |
 | `SimT.Cli` | Golden replay, balance simulation, manifest lint | Knowledge of any module type |
 
 Dependency direction is checked, not asserted — see `tests/SimT.Architecture.Tests`.
@@ -87,7 +115,7 @@ The gameplay systems are structured into cohesive, deep architectural modules:
 
 | Module | Kind | Focus Domains | Owned Schema |
 | --- | --- | --- | --- |
-| `base.content` | Base | 24 trade goods, Item Encyclopedia Hub with deep lore records, category metadata & illustrations | `ct_item` |
+| `base.content` | Base | 24+ trade goods, Item Encyclopedia Hub with deep lore records, category metadata & illustrations | `ct_item` |
 | `base.world` | Base | 20 citadels, 133 urban sublocations, 24 bidirectional trade routes, CityStroll interactive encounters | `wd_citadel`, `wd_route` |
 | `base.player` | Base | Protagonist attributes, per-city bag, wallet facade over ledger, two-way warehouse inventory exchange | `pl_player`, `pl_bag` |
 | `base.npc` | Base | 300 historical & procedural characters across 20 citadels | `np_npc` |
@@ -101,6 +129,10 @@ Legacy saves containing historical records from individual micro-modules (`dlc.m
 
 ## User Interface & Experience (UI/UX)
 
+- **Thematic Dual-Mode View Routing**:
+  - Every migrated section features an ergonomic header pill toggle `[ 🎨 Trực quan ]` $\leftrightarrow$ `[ 📋 Bảng biểu ]`. Players can switch between specialized graphical controls (Bazaar Deck, Caravan Board, Forge Crucible, War Camp, Court Chamber, Item Codex, NPC Dossier, Treasury Vault) and standard tabular DataGrids anytime.
+- **Zero Domain Pollution**:
+  - `SimT.Modules.*` remain 100% agnostic of WPF and XAML, communicating UI hints exclusively through the `SectionViewMode` enum in pure C# contracts (`SimT.Contracts.Ui.IUiRegistry`).
 - **Top Header Imperial Time HUD & Visual Vitals**:
   - Integrated into the top command banner with calendar date, season, turn number, 30-day progress bar, and real-time Stamina, Fatigue, and Prestige Standing gauges.
 - **Contextual Strategic Ribbon & Recommendation Banner**:
@@ -108,18 +140,16 @@ Legacy saves containing historical records from individual micro-modules (`dlc.m
 - **Full-Body Sprite Animation & Interactive WebView2 Scenes**:
   - **Sprite Animation Runner (`assets/scenes/sprite-anim.js`)**: Renders 24-frame horizontal strips (`traveler.png`, `han_officer.png`, `guan_yu.png`, `zhang_fei.png`) and expressive static sprites across Duel (`duel`), City (`city`), and Talk (`talk`) stages.
   - **Interactive Feature Scenes**: World Map (`world.map` with auto-fit 20-citadel view, Dijkstra routes, and travel animation), Social Network (`social.network` with concentric affinity rings, 6 skill slots, letters, and retainers), Market Stall (`market.stall` with 10-day price history and top-3 city arbitrage), and Character Dossier (`npc.directory` with custom portraits, 8-axis radar chart, special skills, and biography).
-- **Interactive City Stroll, Warehouse Exchange & Item Encyclopedia**:
-  - Historical urban encounters, two-way bag/warehouse exchange, and item lore inspection.
 
 ## Verification snapshot
 
 | Gate | Count | Command |
 | --- | --- | --- |
 | Architecture rules | 31 | `dotnet test tests/SimT.Architecture.Tests` |
-| Kernel primitives, contracts and hardening | 140+ | `dotnet test tests/SimT.Core.Tests` |
-| Market slice, pricing budget, price history | 42 | `dotnet test tests/SimT.Modules.Market.Tests` |
-| Consolidated DLC Pillars behavior | 257+ | `dotnet test tests/SimT.Modules.Dlc.Tests` |
-| **Total test suite** | **470+** | `dotnet test SimT.sln` |
+| Kernel primitives, contracts and hardening | 163 | `dotnet test tests/SimT.Core.Tests` |
+| Consolidated DLC Pillars behavior | 442 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| WPF Desktop Host component tests | 8 | `dotnet test tests/SimT.Host.Wpf.Tests` |
+| **Total test suite** | **640+** | `dotnet test SimT.sln` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
 | Invariants at end of every replay | 26 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |
