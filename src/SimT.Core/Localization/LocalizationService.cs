@@ -83,14 +83,14 @@ public sealed class LocalizationService : ILocalizationService
         RegisterPackage(_fallbackViPackage);
         RegisterPackage(_fallbackEnPackage);
 
+        // 2. Discover external modular packages from runtime directories
+        TryDiscoverLanguages();
+
         var defaultClean = defaultLocale.Trim().ToLowerInvariant();
         var defaultPrefix = defaultClean.Split('-')[0];
         _currentPackage = _packages.TryGetValue(defaultClean, out var def) ? def
             : _packages.TryGetValue(defaultPrefix, out var defP) ? defP
             : _fallbackViPackage;
-
-        // 2. Discover external modular packages from runtime directories
-        TryDiscoverLanguages();
     }
 
     public void RegisterPackage(ILanguagePackage package)
@@ -103,6 +103,8 @@ public sealed class LocalizationService : ILocalizationService
     {
         return _packages.Values
             .Select(p => p.Info)
+            .GroupBy(i => i.Code, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
             .OrderBy(i => i.Code == "vi" ? 0 : i.Code == "en" ? 1 : i.Code == "zh" ? 2 : 3)
             .ThenBy(i => i.DisplayName)
             .ToList();
@@ -253,12 +255,12 @@ public sealed class LocalizationService : ILocalizationService
 
             if (dict.Count > 0)
             {
-                if (_packages.TryGetValue(info.Code, out var existing) && existing is DynamicModularPackage dynamicPkg)
+                if (_packages.TryGetValue(info.Code, out var existing) && existing is BaseLanguagePackage basePkg)
                 {
                     // Merge into existing package
                     foreach (var (k, v) in dict)
                     {
-                        dynamicPkg.AddOrUpdate(k, v);
+                        basePkg.AddOrUpdate(k, v);
                     }
                 }
                 else
@@ -370,10 +372,16 @@ public sealed class LocalizationService : ILocalizationService
         try
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            var langDir = Path.Combine(baseDir, "languages");
-            if (Directory.Exists(langDir))
+            var cur = new DirectoryInfo(baseDir);
+            for (int i = 0; i < 8 && cur != null; i++)
             {
-                LoadPackagesFromDirectory(langDir);
+                var candidate = Path.Combine(cur.FullName, "languages");
+                if (Directory.Exists(candidate))
+                {
+                    LoadPackagesFromDirectory(candidate);
+                    break;
+                }
+                cur = cur.Parent;
             }
         }
         catch

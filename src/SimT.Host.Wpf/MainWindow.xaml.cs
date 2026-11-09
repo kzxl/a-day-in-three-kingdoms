@@ -65,6 +65,10 @@ public partial class MainWindow : Window
         PlayerHudCard.ProfileClicked += OpenPlayerProfileModal;
         RegisterModalPresenters();
 
+        GamePreferences.Instance.Apply(_kernel.Localization);
+        _kernel.Localization.LanguageChanged += OnLanguageChanged;
+        ApplyLocalizedTexts();
+
         BuildStrategicRibbon();
         BuildRail();
         UpdateHeader();
@@ -169,6 +173,40 @@ public partial class MainWindow : Window
         "content.item_hub" => "Đồ Giám",
         _ => rawTitle
     };
+
+    private void OnLanguageChanged(SimT.Contracts.Localization.LanguageInfo lang)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            ApplyLocalizedTexts();
+            BuildStrategicRibbon();
+            BuildRail();
+            UpdateHeader();
+            if (_loaded)
+            {
+                RenderSelected();
+            }
+        });
+    }
+
+    private void ApplyLocalizedTexts()
+    {
+        var loc = _kernel.Localization;
+        Title = loc.Get("app.title");
+        SealAdvanceButton.SealLabel = loc.Get("action.advance_day");
+        SealAdvanceButton.SubLabel = loc.Get("action.advance_day_sub");
+        RestButton.Label = loc.Get("action.rest");
+        AdvanceWeekButton.Label = loc.Get("action.advance_week");
+        SettingsButton.Label = loc.Get("action.settings");
+
+        StrategicTitleText.Text = loc.Get("nav.command_title");
+        StaminaLabelText.Text = loc.Get("vitals.stamina");
+        FatigueLabelText.Text = loc.Get("vitals.fatigue");
+        FilterLabelText.Text = loc.Get("action.filter");
+        FilterHint.Text = loc.Get("action.filter_hint");
+        InspectorTitleText.Text = loc.Get("action.details");
+        RecommendationBadgeText.Text = loc.Get("action.advised");
+    }
 
     private static string IconPathFor(string screenId) => screenId switch
     {

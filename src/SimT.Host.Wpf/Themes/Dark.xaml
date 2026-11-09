@@ -191,6 +191,23 @@
         </Setter>
     </Style>
 
+    <Style TargetType="ComboBox">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="8,5" />
+        <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="{StaticResource Surface}" />
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
     <!-- Tabs -->
     <Style TargetType="TabControl">
         <Setter Property="Background" Value="Transparent" />

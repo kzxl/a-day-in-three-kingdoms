@@ -95,6 +95,8 @@ public partial class MainWindow
             }
         };
 
+        LocalizeRibbonItems(ribbonItems);
+
         StrategicRibbon.ItemsSource = ribbonItems;
         StrategicRibbon.ItemSelected += (_, e) =>
         {
@@ -425,4 +427,61 @@ public partial class MainWindow
         RefreshBadges();
         AnimatePageTransition();
     }
+
+    private void LocalizeRibbonItems(ObservableCollection<CommandRibbonItem> items)
+    {
+        var loc = _kernel.Localization;
+        var groupKeyMap = new Dictionary<string, (string TitleKey, string SubKey)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["group.self"] = ("nav.headquarters", "nav.headquarters_sub"),
+            ["group.map"] = ("nav.world", "nav.world_sub"),
+            ["group.trade"] = ("nav.trade", "nav.trade_sub"),
+            ["group.social"] = ("nav.social", "nav.social_sub"),
+            ["group.power"] = ("nav.military", "nav.military_sub")
+        };
+
+        var subKeyMap = new Dictionary<string, (string TitleKey, string SubKey)>(StringComparer.OrdinalIgnoreCase)
+        {
+            [CitySceneScreenId] = ("nav.city_scene", "nav.city_scene_sub"),
+            [CityHubScreenId] = ("nav.city_hub", "nav.city_hub_sub"),
+            ["player.destiny"] = ("nav.destiny", "nav.destiny_sub"),
+            ["player.reputation"] = ("nav.reputation", "nav.reputation_sub"),
+            ["content.item_hub"] = ("nav.item_hub", "nav.item_hub_sub"),
+            [LedgerScreenId] = ("nav.records", "nav.records_sub"),
+            ["world.map"] = ("nav.world", "nav.world_sub"),
+            ["market.stall"] = ("nav.market", "nav.market_sub"),
+            ["market.player_stall"] = ("nav.player_stall", "nav.player_stall_sub"),
+            ["market.warehouse"] = ("nav.warehouse", "nav.warehouse_sub"),
+            ["market.bank"] = ("nav.bank", "nav.bank_sub"),
+            ["market.player_bank"] = ("nav.player_bank", "nav.player_bank_sub"),
+            ["caravan.routes"] = ("nav.caravan", "nav.caravan_sub"),
+            ["cultivation.farm"] = ("nav.cultivation", "nav.cultivation_sub"),
+            ["professions.trades"] = ("nav.professions", "nav.professions_sub"),
+            ["npc.directory"] = ("nav.npc_dir", "nav.npc_dir_sub"),
+            ["social.network"] = ("nav.bonds", "nav.bonds_sub"),
+            ["lineage.family"] = ("nav.family", "nav.family_sub"),
+            ["society.chronicle"] = ("nav.chronicle", "nav.chronicle_sub"),
+            ["politics.court"] = ("nav.court", "nav.court_sub"),
+            ["military.arena"] = ("nav.arena", "nav.arena_sub")
+        };
+
+        foreach (var item in items)
+        {
+            if (groupKeyMap.TryGetValue(item.Id, out var gk))
+            {
+                item.Title = loc.Get(gk.TitleKey);
+                item.Subtitle = loc.Get(gk.SubKey);
+            }
+
+            foreach (var sub in item.SubItems)
+            {
+                if (subKeyMap.TryGetValue(sub.Id, out var sk))
+                {
+                    sub.Title = loc.Get(sk.TitleKey);
+                    sub.Subtitle = loc.Get(sk.SubKey);
+                }
+            }
+        }
+    }
+
 }

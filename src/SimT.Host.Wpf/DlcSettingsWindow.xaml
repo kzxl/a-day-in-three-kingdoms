@@ -26,8 +26,8 @@
                 <TextBlock Text="⚙️" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="THIẾT LẬP HỆ THỐNG &amp; QUẢN LÝ DLC" Style="{StaticResource H1}" FontSize="18" />
-                <TextBlock Text="Kiến trúc Modular · Quản trị 9 DLC Tam Quốc · Kiểm tra toàn vẹn Invariants"
+                <TextBlock x:Name="SettingsTitleText" Text="THIẾT LẬP HỆ THỐNG &amp; QUẢN LÝ DLC" Style="{StaticResource H1}" FontSize="18" />
+                <TextBlock x:Name="SettingsSubtitleText" Text="Kiến trúc Modular · Quản trị 9 DLC Tam Quốc · Kiểm tra toàn vẹn Invariants"
                            Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" Margin="0,2,0,0" />
             </StackPanel>
         </DockPanel>
@@ -110,43 +110,55 @@
                     BorderThickness="1" CornerRadius="6" Padding="16,14">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>
-                    <TextBlock Text="TÙY CHỌN TRẢI NGHIỆM TRÒ CHƠI" Style="{StaticResource Overline}" Margin="0,0,0,12" />
+                    <TextBlock x:Name="OptHeaderLanguage" Text="NGÔN NGỮ &amp; HIỂN THỊ" Style="{StaticResource Overline}" Margin="0,0,0,10" />
 
-                    <CheckBox x:Name="OptBilingualMode" Content="Chế độ Song ngữ Hán - Việt (Hiển thị nguyên tác Chữ Hán cho Danh Tướng, Địa Danh &amp; Kỳ Vật)"
-                              IsChecked="False" Margin="0,0,0,12" Foreground="{StaticResource Text}" Click="OptBilingual_Click" />
+                    <DockPanel Margin="0,0,0,12">
+                        <TextBlock x:Name="OptPrimaryLangLabel" Text="Ngôn ngữ chính:" Width="160" VerticalAlignment="Center" Foreground="{StaticResource Text}" />
+                        <ComboBox x:Name="ComboLanguage" Width="220" HorizontalAlignment="Left" SelectionChanged="ComboLanguage_SelectionChanged" />
+                    </DockPanel>
+
+                    <CheckBox x:Name="OptBilingualMode" Content="Chế độ Song ngữ Hán - Việt / Ngoại ngữ (Hiển thị nguyên tác Chữ Hán song song)"
+                              IsChecked="False" Margin="0,0,0,8" Foreground="{StaticResource Text}" Click="OptBilingual_Click" />
+
+                    <DockPanel x:Name="SecondaryLangRow" Margin="24,0,0,14" Visibility="Collapsed">
+                        <TextBlock x:Name="OptSecondaryLangLabel" Text="Ngôn ngữ phụ song hành:" Width="160" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                        <ComboBox x:Name="ComboSecondaryLanguage" Width="220" HorizontalAlignment="Left" SelectionChanged="ComboSecondaryLanguage_SelectionChanged" />
+                    </DockPanel>
+
+                    <TextBlock x:Name="OptHeaderGameplay" Text="TÙY CHỌN TRẢI NGHIỆM TRÒ CHƠI" Style="{StaticResource Overline}" Margin="0,8,0,12" />
 
                     <CheckBox x:Name="OptAutoSave" Content="Tự động lưu ván chơi sau mỗi lượt tiến ngày / tuần (Khuyến nghị)"
-                              IsChecked="True" Margin="0,0,0,12" Foreground="{StaticResource Text}" />
+                              IsChecked="True" Margin="0,0,0,12" Foreground="{StaticResource Text}" Click="OptPreference_Click" />
 
                     <CheckBox x:Name="OptConfirmAdvance" Content="Xác nhận trước khi tiến tuần (+7 ngày) để tránh nhỡ việc"
-                              IsChecked="True" Margin="0,0,0,12" Foreground="{StaticResource Text}" />
+                              IsChecked="True" Margin="0,0,0,12" Foreground="{StaticResource Text}" Click="OptPreference_Click" />
 
                     <CheckBox x:Name="OptShowAlerts" Content="Hiển thị cảnh báo biến cố thị trường &amp; hết hạn hợp đồng trên thanh Alert Feed"
-                              IsChecked="True" Margin="0,0,0,16" Foreground="{StaticResource Text}" />
+                              IsChecked="True" Margin="0,0,0,16" Foreground="{StaticResource Text}" Click="OptPreference_Click" />
 
-                    <TextBlock Text="ÂM THANH" Style="{StaticResource Overline}" Margin="0,8,0,10" />
+                    <TextBlock x:Name="OptHeaderAudio" Text="ÂM THANH" Style="{StaticResource Overline}" Margin="0,8,0,10" />
                     <DockPanel Margin="0,0,0,10">
-                        <TextBlock Text="Tổng" Width="100" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AudioMasterLabel" Text="Tổng" Width="100" VerticalAlignment="Center" />
                         <TextBlock Text="{Binding ElementName=AudioMaster, Path=Value, StringFormat={}{0:0}%}" DockPanel.Dock="Right" Width="48" TextAlignment="Right" />
                         <Slider x:Name="AudioMaster" AutomationProperties.Name="Tổng" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="AudioVolume_Changed" />
                     </DockPanel>
                     <DockPanel Margin="0,0,0,10">
-                        <TextBlock Text="Nhạc" Width="100" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AudioMusicLabel" Text="Nhạc" Width="100" VerticalAlignment="Center" />
                         <TextBlock Text="{Binding ElementName=AudioMusic, Path=Value, StringFormat={}{0:0}%}" DockPanel.Dock="Right" Width="48" TextAlignment="Right" />
                         <Slider x:Name="AudioMusic" AutomationProperties.Name="Nhạc" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="AudioVolume_Changed" />
                     </DockPanel>
                     <DockPanel Margin="0,0,0,10">
-                        <TextBlock Text="Hiệu ứng" Width="100" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AudioSfxLabel" Text="Hiệu ứng" Width="100" VerticalAlignment="Center" />
                         <TextBlock Text="{Binding ElementName=AudioSfx, Path=Value, StringFormat={}{0:0}%}" DockPanel.Dock="Right" Width="48" TextAlignment="Right" />
                         <Slider x:Name="AudioSfx" AutomationProperties.Name="Hiệu ứng" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="AudioVolume_Changed" />
                     </DockPanel>
                     <DockPanel Margin="0,0,0,10">
-                        <TextBlock Text="Môi trường" Width="100" VerticalAlignment="Center" />
+                        <TextBlock x:Name="AudioAmbienceLabel" Text="Môi trường" Width="100" VerticalAlignment="Center" />
                         <TextBlock Text="{Binding ElementName=AudioAmbience, Path=Value, StringFormat={}{0:0}%}" DockPanel.Dock="Right" Width="48" TextAlignment="Right" />
                         <Slider x:Name="AudioAmbience" AutomationProperties.Name="Môi trường" Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="AudioVolume_Changed" />
                     </DockPanel>
                     <Button x:Name="AudioMute" Content="Tắt tiếng" Click="AudioMute_Click" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,0,0,12" />
-                    <TextBlock Text="Âm lượng được lưu tự động theo người chơi trên máy này."
+                    <TextBlock x:Name="AudioSavedHint" Text="Âm lượng được lưu tự động theo người chơi trên máy này."
                                Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
                 </StackPanel>
                 </ScrollViewer>
@@ -155,9 +167,9 @@
 
         <!-- Footer -->
         <DockPanel Grid.Row="3" Margin="0,16,0,0">
-            <TextBlock Text="Phím tắt: [ESC] để đóng cửa sổ" Style="{StaticResource Caption}"
+            <TextBlock x:Name="EscHintText" Text="Phím tắt: [ESC] để đóng cửa sổ" Style="{StaticResource Caption}"
                        Foreground="{StaticResource Faint}" VerticalAlignment="Center" />
-            <Button Content="Đóng" Click="Close_Click" Style="{StaticResource GhostButton}"
+            <Button x:Name="CloseButton" Content="Đóng" Click="Close_Click" Style="{StaticResource GhostButton}"
                     HorizontalAlignment="Right" MinWidth="85" />
         </DockPanel>
     </Grid>

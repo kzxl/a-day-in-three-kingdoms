@@ -177,4 +177,32 @@ public sealed class LocalizationTests
 
         Assert.Equal("Tiểu Binh Khuyết Danh", unknownNpc.LocalizeName(loc));
     }
+
+    [Fact]
+    public void Discovered_languages_include_vi_en_zh_with_comprehensive_vocab()
+    {
+        var loc = new LocalizationService("vi");
+        var langs = loc.GetAvailableLanguages();
+
+        Assert.Contains(langs, l => l.Code == "vi");
+        Assert.Contains(langs, l => l.Code == "en");
+        Assert.Contains(langs, l => l.Code == "zh");
+
+        // Verify Vietnamese strings
+        Assert.Equal("QUA NGÀY", loc.Get("action.advance_day"));
+        Assert.Equal("Lạc Dương", loc.Get("citadel.1.name"));
+        Assert.Equal("Gạo Thơm", loc.Get("item.gao.name"));
+
+        // Switch to English
+        loc.SetLocale("en");
+        Assert.Equal("NEXT DAY", loc.Get("action.advance_day"));
+        Assert.Equal("Luoyang", loc.Get("citadel.1.name"));
+        Assert.Equal("Fragrant Rice", loc.Get("item.gao.name"));
+
+        // Switch to Chinese
+        loc.SetLocale("zh");
+        Assert.Equal("推进一日", loc.Get("action.advance_day"));
+        Assert.Equal("洛阳", loc.Get("citadel.1.name"));
+        Assert.Equal("米", loc.Get("item.gao.name"));
+    }
 }

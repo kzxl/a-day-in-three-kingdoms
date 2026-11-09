@@ -1,3 +1,4 @@
+using SimT.Contracts.Localization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -41,7 +42,9 @@ public partial class DlcSettingsWindow : Window
 
         PopulateDlcList();
         PopulateEngineInfo();
-        OptBilingualMode.IsChecked = _kernel.Localization.IsBilingualMode;
+        InitializeLanguageOptions();
+        InitializeGameplayOptions();
+        UpdateLocalizedTexts();
     }
 
     private void PopulateDlcList()
@@ -163,14 +166,128 @@ public partial class DlcSettingsWindow : Window
         TabOptionsBtn.FontWeight = FontWeights.Bold;
     }
 
+    private bool _languageOptionsReady;
+
+    public sealed record LanguageItem(string Code, string DisplayName)
+    {
+        public override string ToString() => DisplayName;
+    }
+
+    private void InitializeLanguageOptions()
+    {
+        var avail = _kernel.Localization.GetAvailableLanguages();
+        var items = new List<LanguageItem>();
+
+        var supported = new (string Code, string FallbackName, string Flag)[]
+        {
+            ("vi", "Tiếng Việt", "🇻🇳"),
+            ("en", "English", "🇬🇧"),
+            ("zh", "简体中文", "🇨🇳")
+        };
+
+        foreach (var (code, fallbackName, flag) in supported)
+        {
+            var match = avail.FirstOrDefault(a => a.Code.Equals(code, StringComparison.OrdinalIgnoreCase));
+            var name = match != null ? $"{flag} {match.DisplayName}" : $"{flag} {fallbackName}";
+            items.Add(new LanguageItem(code, name));
+        }
+
+        ComboLanguage.ItemsSource = items;
+        ComboLanguage.SelectedValuePath = nameof(LanguageItem.Code);
+        ComboLanguage.SelectedValue = _kernel.Localization.CurrentLocale;
+        if (ComboLanguage.SelectedItem == null && items.Count > 0)
+        {
+            ComboLanguage.SelectedIndex = 0;
+        }
+
+        var secondaryItems = items.ToList();
+        ComboSecondaryLanguage.ItemsSource = secondaryItems;
+        ComboSecondaryLanguage.SelectedValuePath = nameof(LanguageItem.Code);
+        ComboSecondaryLanguage.SelectedValue = _kernel.Localization.SecondaryLocale;
+        if (ComboSecondaryLanguage.SelectedItem == null && secondaryItems.Count > 1)
+        {
+            ComboSecondaryLanguage.SelectedValue = "zh";
+        }
+
+        OptBilingualMode.IsChecked = _kernel.Localization.IsBilingualMode;
+        SecondaryLangRow.Visibility = _kernel.Localization.IsBilingualMode ? Visibility.Visible : Visibility.Collapsed;
+
+        _languageOptionsReady = true;
+    }
+
+    private void InitializeGameplayOptions()
+    {
+        var prefs = GamePreferences.Instance;
+        OptAutoSave.IsChecked = prefs.AutoSave;
+        OptConfirmAdvance.IsChecked = prefs.ConfirmAdvance;
+        OptShowAlerts.IsChecked = prefs.ShowAlerts;
+    }
+
+    private void ComboLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_languageOptionsReady) return;
+        if (ComboLanguage.SelectedItem is LanguageItem item)
+        {
+            _kernel.Localization.SetLocale(item.Code);
+            GamePreferences.Instance.Language = item.Code;
+            GamePreferences.Instance.Save();
+            UpdateLocalizedTexts();
+        }
+    }
+
+    private void ComboSecondaryLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_languageOptionsReady) return;
+        if (ComboSecondaryLanguage.SelectedItem is LanguageItem item)
+        {
+            _kernel.Localization.SecondaryLocale = item.Code;
+            GamePreferences.Instance.SecondaryLanguage = item.Code;
+            GamePreferences.Instance.Save();
+        }
+    }
+
     private void OptBilingual_Click(object sender, RoutedEventArgs e)
     {
         var enabled = OptBilingualMode.IsChecked == true;
         _kernel.Localization.IsBilingualMode = enabled;
-        if (enabled)
-        {
-            _kernel.Localization.SecondaryLocale = "zh";
-        }
+        SecondaryLangRow.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+        GamePreferences.Instance.BilingualMode = enabled;
+        GamePreferences.Instance.Save();
+    }
+
+    private void OptPreference_Click(object sender, RoutedEventArgs e)
+    {
+        var prefs = GamePreferences.Instance;
+        prefs.AutoSave = OptAutoSave.IsChecked == true;
+        prefs.ConfirmAdvance = OptConfirmAdvance.IsChecked == true;
+        prefs.ShowAlerts = OptShowAlerts.IsChecked == true;
+        prefs.Save();
+    }
+
+    private void UpdateLocalizedTexts()
+    {
+        var loc = _kernel.Localization;
+        Title = loc.Get("settings.title");
+        SettingsTitleText.Text = loc.Get("settings.title");
+        SettingsSubtitleText.Text = loc.Get("settings.subtitle");
+        TabDlcBtn.Content = loc.Get("settings.tab_dlc");
+        TabDiagnosticsBtn.Content = loc.Get("settings.tab_diagnostics");
+        TabOptionsBtn.Content = loc.Get("settings.tab_options");
+        OptHeaderLanguage.Text = loc.Get("settings.section_language");
+        OptPrimaryLangLabel.Text = loc.Get("settings.primary_language");
+        OptBilingualMode.Content = loc.Get("settings.bilingual_mode");
+        OptSecondaryLangLabel.Text = loc.Get("settings.secondary_language");
+        OptHeaderGameplay.Text = loc.Get("settings.section_gameplay");
+        OptAutoSave.Content = loc.Get("settings.opt_autosave");
+        OptConfirmAdvance.Content = loc.Get("settings.opt_confirm_advance");
+        OptShowAlerts.Content = loc.Get("settings.opt_show_alerts");
+        OptHeaderAudio.Text = loc.Get("settings.section_audio");
+        AudioMasterLabel.Text = loc.Get("settings.audio_master");
+        AudioMusicLabel.Text = loc.Get("settings.audio_music");
+        AudioSfxLabel.Text = loc.Get("settings.audio_sfx");
+        AudioAmbienceLabel.Text = loc.Get("settings.audio_ambience");
+        EscHintText.Text = loc.Get("settings.esc_hint");
+        CloseButton.Content = loc.Get("common.close");
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)

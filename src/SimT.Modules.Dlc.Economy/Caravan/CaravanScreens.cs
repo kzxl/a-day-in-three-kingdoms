@@ -379,8 +379,8 @@ internal sealed class CaravanScreen : IScreenContribution
             $"Đội xe: {fleet.NameVi} (Bậc {fleet.Tier}/3) · Đang chở {_service.UnitsInTransit} đv · Hợp đồng: {activeContracts} · Túi: {held} đv",
             [
                 new ScreenSection("Thương Cơ & Tin Tức", RumorColumns, rumorRows, SectionViewMode.CaravanDispatchBoard),
-                new ScreenSection("Minh Ước Thương Bang", CartelColumns, cartelRows, SectionViewMode.CaravanDispatchBoard),
-                new ScreenSection("Tuyến Buôn Tự Động", AutoRouteColumns, autoRouteRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Minh Ước Tứ Đại Thương Bang", CartelColumns, cartelRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Tuyến Thương Mại Tự Động", AutoRouteColumns, autoRouteRows, SectionViewMode.CaravanDispatchBoard),
                 new ScreenSection("Biên Chế Nhân Sự", CrewColumns, crewRows, SectionViewMode.CaravanDispatchBoard),
                 new ScreenSection("Hợp Đồng Áp Tiêu", ContractColumns, contractRows, SectionViewMode.CaravanDispatchBoard),
                 new ScreenSection("Tuyến Đường", RouteColumns, routeRows, SectionViewMode.CaravanDispatchBoard),
