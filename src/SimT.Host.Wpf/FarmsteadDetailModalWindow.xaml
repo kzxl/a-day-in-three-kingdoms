@@ -62,6 +62,8 @@
                                                Style="{StaticResource Caption}" Foreground="{StaticResource Gain}" Margin="0,2,0,2" />
                                     <TextBlock x:Name="PlotLocationText" Text="Vị trí: Ngoại Ô Lạc Dương"
                                                Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" />
+                                    <TextBlock x:Name="WeatherResonanceText" Text="Tiết khí: Cốc Vũ · Nắng ráo"
+                                               Style="{StaticResource Caption}" Foreground="{StaticResource Accent}" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Grid>
                         </Border>

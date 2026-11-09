@@ -50,6 +50,16 @@ public partial class FarmsteadDetailModalWindow : HubModalWindowBase
 
         // 2. Metrics & Soil
         PlotLocationText.Text = $"Vị trí: Ngoại Ô {citadelName}";
+        if (_kernel.Capabilities.TryGet<IWeatherSystem>(CapabilityIds.WeatherSystem, out var weatherSys) && weatherSys is not null)
+        {
+            var weather = weatherSys.GetWeather(plot.CitadelId, _kernel.Clock.Today);
+            WeatherResonanceText.Text = $"Tiết khí: {weather.SolarTermNameVi} · {weather.Icon} {weather.NameVi} (Độ ẩm {(weather.CultivationMoistureDelta >= 0 ? "+" : "")}{weather.CultivationMoistureDelta})";
+            WeatherResonanceText.ToolTip = $"Thời tiết: {weather.NameVi}\n{weather.DescriptionVi}\nTác động thủy lợi: {(weather.CultivationMoistureDelta >= 0 ? "+" : "")}{weather.CultivationMoistureDelta}";
+        }
+        else
+        {
+            WeatherResonanceText.Text = string.Empty;
+        }
         PlotTenancyText.Text = plot.Rented ? "Trạng thái: Đã thuê canh tác" : "Trạng thái: Đất nhàn rỗi";
         PlotTenancyText.Foreground = (Brush)FindResource(plot.Rented ? "Gain" : "Muted");
 

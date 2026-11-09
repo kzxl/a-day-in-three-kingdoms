@@ -14,6 +14,8 @@ public sealed partial class WorldModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.WorldMap, map);
         var stroll = new CityStrollService(map, context.Capabilities, context.Clock, context.Log);
         context.Capabilities.Provide(CapabilityIds.CityStroll, stroll);
+        var weather = new WeatherService(map);
+        context.Capabilities.Provide(CapabilityIds.WeatherSystem, weather);
         context.Ui.AddScreen(new WorldMapScreen(map, context.Capabilities, context.Clock));
         context.Ui.AddCommandHandler(new WorldMapCommandHandler(context.Db, map, context.Capabilities, context.Clock));
         context.Log.Info($"map ready with {map.Citadels.Count} citadels, CityStroll registered");

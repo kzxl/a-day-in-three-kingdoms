@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using SimT.Contracts.Playing;
@@ -85,7 +86,7 @@ public sealed partial class GameStrategicBriefingControl : Border
         var ecosystem = map?.GetEcosystem(cityId);
 
         // 1. Top Citadel Overview Hero Banner
-        _rootContent.Children.Add(BuildCitadelHeroBanner(citadel, ecosystem, today));
+        _rootContent.Children.Add(BuildCitadelHeroBanner(kernel, citadel, ecosystem, today));
 
         // 1.5 RPG Starter Questline (Hành Trình Tân Thủ - 3 Bước Khởi Đầu)
         var starterCard = BuildStarterQuestCard(kernel, today, playerState);
@@ -115,6 +116,11 @@ public sealed partial class GameStrategicBriefingControl : Border
 
         // LEFT COLUMN: Daily Imperatives & Hot Trade Opportunities
         leftCol.Children.Add(BuildDailyAgendaCard(today, attrs));
+        var weatherCard = BuildWeatherOutlookCard(kernel, cityId, today);
+        if (weatherCard is not null)
+        {
+            leftCol.Children.Add(weatherCard);
+        }
         var monthlyCard = BuildMonthlyFinancialDigestCard(kernel, today);
         if (monthlyCard is not null)
         {
@@ -130,7 +136,7 @@ public sealed partial class GameStrategicBriefingControl : Border
     // =========================================================================
     // 1. Citadel Hero Banner
     // =========================================================================
-    private UIElement BuildCitadelHeroBanner(CitadelDef? citadel, CitadelEcosystemDef? eco, GameDate today)
+    private UIElement BuildCitadelHeroBanner(SimKernel kernel, CitadelDef? citadel, CitadelEcosystemDef? eco, GameDate today)
     {
         var banner = new Border
         {
@@ -217,6 +223,19 @@ public sealed partial class GameStrategicBriefingControl : Border
             VerticalAlignment = VerticalAlignment.Center
         };
         titleRow.Children.Add(regionBadge);
+
+        if (kernel.Capabilities.TryGet<IWeatherSystem>(CapabilityIds.WeatherSystem, out var weatherSys) && weatherSys is not null && citadel is not null)
+        {
+            var weather = weatherSys.GetWeather(citadel.Id, today);
+            var weatherBadge = new GameBadge($"{weather.Icon} {weather.SolarTermNameVi} · {weather.NameVi}", BadgeVariant.Info)
+            {
+                Size = BadgeSize.Small,
+                Margin = new Thickness(8, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = $"Khí hậu tiết khí: {weather.SolarTermNameVi}\nThời tiết: {weather.NameVi} ({weather.DescriptionVi})\nTưới tiêu: {(weather.CultivationMoistureDelta >= 0 ? "+" : "")}{weather.CultivationMoistureDelta}"
+            };
+            titleRow.Children.Add(weatherBadge);
+        }
 
         leftInfo.Children.Add(titleRow);
 
@@ -1020,4 +1039,204 @@ public sealed partial class GameStrategicBriefingControl : Border
         return card;
     }
 
+    private UIElement? BuildWeatherOutlookCard(SimKernel kernel, long cityId, GameDate today)
+    {
+        if (!kernel.Capabilities.TryGet<IWeatherSystem>(CapabilityIds.WeatherSystem, out var weatherSys) || weatherSys is null)
+        {
+            return null;
+        }
+
+        var weather = weatherSys.GetWeather(cityId, today);
+        var card = new GameSectionCard
+        {
+            Heading = "Thiên Thời & 24 Tiết Khí",
+            Subtitle = "Khí hậu địa phương · Cộng hưởng thương đạo & canh tác điền trang",
+            Icon = "⛅"
+        };
+
+        var root = new StackPanel();
+
+        // Main Weather Banner
+        var todayBanner = new Border
+        {
+            Background = ItemRowBg,
+            BorderBrush = ItemRowBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(14, 12, 14, 12),
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+
+        var bannerGrid = new Grid();
+        bannerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+        bannerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var iconBlock = new TextBlock
+        {
+            Text = weather.Icon,
+            FontSize = 26,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(iconBlock, 0);
+        bannerGrid.Children.Add(iconBlock);
+
+        var infoStack = new StackPanel
+        {
+            Margin = new Thickness(10, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(infoStack, 1);
+
+        var headlineRow = new StackPanel { Orientation = Orientation.Horizontal };
+        headlineRow.Children.Add(new TextBlock
+        {
+            Text = $"Tiết Khí: {weather.SolarTermNameVi}",
+            FontWeight = FontWeights.Bold,
+            FontSize = 14,
+            Foreground = AccentGold,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        headlineRow.Children.Add(new GameBadge(weather.NameVi, BadgeVariant.Info)
+        {
+            Size = BadgeSize.Small,
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        infoStack.Children.Add(headlineRow);
+
+        var descBlock = new TextBlock
+        {
+            Text = weather.DescriptionVi,
+            FontSize = 12,
+            Foreground = TextMuted,
+            Margin = new Thickness(0, 3, 0, 0),
+            TextWrapping = TextWrapping.Wrap
+        };
+        infoStack.Children.Add(descBlock);
+
+        bannerGrid.Children.Add(infoStack);
+        todayBanner.Child = bannerGrid;
+        root.Children.Add(todayBanner);
+
+        // Resonance Highlights (Điền trang & Thương lộ)
+        var resGrid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 10) };
+
+        // Farmstead Impact
+        var farmImpact = new Border
+        {
+            Background = ItemRowBg,
+            BorderBrush = ItemRowBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(0, 0, 4, 0)
+        };
+        var farmStack = new StackPanel();
+        farmStack.Children.Add(new TextBlock
+        {
+            Text = "🌱 ĐIỀN TRANG NÔNG ĐIỀN",
+            FontSize = 10,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = TextPrimary
+        });
+        var moistSign = weather.CultivationMoistureDelta >= 0 ? "+" : "";
+        farmStack.Children.Add(new TextBlock
+        {
+            Text = $"Tưới tiêu: {moistSign}{weather.CultivationMoistureDelta} Thủy lợi",
+            FontSize = 12,
+            FontWeight = FontWeights.Bold,
+            Foreground = weather.CultivationMoistureDelta >= 0 ? (Brush)Application.Current.FindResource("Gain") : (Brush)Application.Current.FindResource("Loss"),
+            Margin = new Thickness(0, 3, 0, 0)
+        });
+        farmImpact.Child = farmStack;
+        resGrid.Children.Add(farmImpact);
+
+        // Caravan & Market Impact
+        var tradeImpact = new Border
+        {
+            Background = ItemRowBg,
+            BorderBrush = ItemRowBorder,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(4, 0, 0, 0)
+        };
+        var tradeStack = new StackPanel();
+        tradeStack.Children.Add(new TextBlock
+        {
+            Text = "🐪 THƯƠNG ĐẠO & VẬN TẢI",
+            FontSize = 10,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = TextPrimary
+        });
+        var caravanNotice = weather.CaravanTravelDelayDays > 0 ? $"+{weather.CaravanTravelDelayDays} ngày trễ lộ" : "Lộ trình thông suốt";
+        tradeStack.Children.Add(new TextBlock
+        {
+            Text = caravanNotice,
+            FontSize = 12,
+            FontWeight = FontWeights.Bold,
+            Foreground = weather.CaravanTravelDelayDays > 0 ? (Brush)Application.Current.FindResource("Loss") : AccentGold,
+            Margin = new Thickness(0, 3, 0, 0)
+        });
+        tradeImpact.Child = tradeStack;
+        resGrid.Children.Add(tradeImpact);
+
+        root.Children.Add(resGrid);
+
+        // 5-Day Weather Forecast
+        var forecastTitle = new TextBlock
+        {
+            Text = "Dự Báo Khí Tượng 5 Ngày Tới:",
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = TextMuted,
+            Margin = new Thickness(0, 0, 0, 6)
+        };
+        root.Children.Add(forecastTitle);
+
+        var forecastBar = new UniformGrid { Columns = 5 };
+        var forecastList = weatherSys.GetForecast(cityId, today, 5);
+        foreach (var item in forecastList)
+        {
+            var dayCard = new Border
+            {
+                Background = ItemRowBg,
+                BorderBrush = ItemRowBorder,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(4, 6, 4, 6),
+                Margin = new Thickness(2, 0, 2, 0)
+            };
+            var dayStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+            dayStack.Children.Add(new TextBlock
+            {
+                Text = $"{item.Date.Day}/{item.Date.Month}",
+                FontSize = 10,
+                Foreground = TextMuted,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            dayStack.Children.Add(new TextBlock
+            {
+                Text = item.Icon,
+                FontSize = 15,
+                Margin = new Thickness(0, 2, 0, 2),
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            dayStack.Children.Add(new TextBlock
+            {
+                Text = item.NameVi,
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = TextPrimary,
+                HorizontalAlignment = HorizontalAlignment.Center
+            });
+            dayCard.Child = dayStack;
+            forecastBar.Children.Add(dayCard);
+        }
+        root.Children.Add(forecastBar);
+
+        card.CardBody = root;
+        return card;
+    }
 }

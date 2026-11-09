@@ -39,6 +39,7 @@ public static class CapabilityIds
     public const string MilitaryCommand = "military.command";
     public const string PlayerDestiny = "player.destiny";
     public const string CityStroll = "world.stroll";
+    public const string WeatherSystem = "world.weather";
     public const string MerchantRivalry = "society.merchant_rivalry";
     public const string KarmaEngine = "society.karma";
     public const string Dialogue = "dlc.dialogue";

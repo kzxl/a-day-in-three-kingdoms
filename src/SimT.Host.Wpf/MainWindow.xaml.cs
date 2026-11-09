@@ -255,7 +255,17 @@ public partial class MainWindow : Window
                 (shortStanding, fameStanding) = (rep.Standing.TitleVi, $"{rep.Standing.TitleVi} · {rep.Standing.Fame:N0} Uy Danh");
 
             CompactPlayerNameText.Text = playerState.Name;
-            CompactLocationText.Text = citadelName;
+            if (_kernel.Capabilities.TryGet<IWeatherSystem>(CapabilityIds.WeatherSystem, out var weatherSys) && weatherSys is not null)
+            {
+                var weather = weatherSys.GetWeather(playerState.CurrentCityId, today);
+                CompactLocationText.Text = $"{citadelName} · {weather.Icon} {weather.NameVi}";
+                CompactLocationText.ToolTip = $"Tiết khí: {weather.SolarTermNameVi} ({weather.SolarTermNameEn})\nThời tiết: {weather.NameVi} ({weather.DescriptionVi})\nĐộ ẩm thổ nhưỡng: {(weather.CultivationMoistureDelta >= 0 ? "+" : "")}{weather.CultivationMoistureDelta}";
+            }
+            else
+            {
+                CompactLocationText.Text = citadelName;
+                CompactLocationText.ToolTip = null;
+            }
             CompactVitalsText.Text = vitals is not null ? $"Thể lực {vitals.CurrentStamina}/{vitals.MaxStamina} · Mệt {vitals.Fatigue}% · {shortStanding}" : shortStanding;
 
             if (vitals is not null)
