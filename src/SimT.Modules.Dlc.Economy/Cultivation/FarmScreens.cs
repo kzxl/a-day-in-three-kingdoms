@@ -272,8 +272,8 @@ internal sealed class FarmScreen : IScreenContribution
             status,
             [
                 new ScreenSection("Điền Trang Đang Quản Lý", Columns, rows),
-                new ScreenSection($"Kho Nông Cụ & Hạt Giống (Hành Trang Sở Tại · {currentCity?.NameVi ?? "Thành"})", SupplyColumns, supplyRows),
-                new ScreenSection($"Công Trình Điền Trang (Ổ Bảo Tại {currentCity?.NameVi ?? "Sở Tại"})", FacilityColumns, facilityRows),
+                new ScreenSection($"Kho Nông Cụ & Hạt Giống (Hành Trang Sở Tại · {currentCity?.NameVi ?? "Thành"})", SupplyColumns, supplyRows, SectionViewMode.EstatePouchGrid),
+                new ScreenSection($"Công Trình Điền Trang (Ổ Bảo Tại {currentCity?.NameVi ?? "Sở Tại"})", FacilityColumns, facilityRows, SectionViewMode.EstatePouchGrid),
                 new ScreenSection("Lịch Sử Mùa Vụ (Gặt Gần Đây)", HarvestColumns, harvestRows)
             ],
             [],

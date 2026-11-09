@@ -396,6 +396,13 @@ public partial class MainWindow
                 cmd => _ = ExecuteScreenCommandAsync(cmd),
                 (sec, row) => ShowInspector(sec, row)));
         }
+        else if (!isTablePreferred && section.ViewMode == SectionViewMode.EstatePouchGrid)
+        {
+            bodyStack.Children.Add(new GameEstatePouchControl(
+                section,
+                cmd => _ = ExecuteScreenCommandAsync(cmd),
+                (sec, row) => ShowInspector(sec, row)));
+        }
         else
         {
             var portraitStrip = TryBuildPortraitStrip(section);
