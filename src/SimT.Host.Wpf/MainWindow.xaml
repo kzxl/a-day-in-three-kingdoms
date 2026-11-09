@@ -126,6 +126,10 @@
                                VerticalAlignment="Center" Margin="0,0,10,0" TextTrimming="CharacterEllipsis" MaxWidth="150" />
                     <TextBlock x:Name="VersionText" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}"
                                FontSize="10" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <controls:GameButton x:Name="TradeRadarButton" Label="La Bàn Giá" Variant="Secondary" IsCompact="True" Margin="0,0,6,0"
+                                         IconPathData="M12,2 A10,10 0 1,0 12,22 A10,10 0 1,0 12,2 M12,4 A8,8 0 1,1 12,20 A8,8 0 1,1 12,4 M12,6 L14,11 L19,12 L14,13 L12,18 L10,13 L5,12 L10,11 Z"
+                                         Click="TradeRadar_Click" VerticalAlignment="Center"
+                                         ToolTip="Kinh thương la bàn · Bản đồ nhiệt giá cả &amp; Tuyến buôn thiên hạ [B]" />
                     <controls:GameButton x:Name="AmbitionsButton" Label="Đại Nghiệp" Variant="Secondary" IsCompact="True" Margin="0,0,6,0"
                                          IconPathData="M12,2 L15,8 L21,9 L16.5,14 L18,20 L12,17 L6,20 L7.5,14 L3,9 L9,8 Z"
                                          Click="Ambitions_Click" VerticalAlignment="Center"

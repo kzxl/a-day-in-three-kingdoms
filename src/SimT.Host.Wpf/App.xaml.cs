@@ -133,6 +133,9 @@ public partial class App : Application
             window.Show();
             ValidateAudioSettingsSmoke(kernel);
             var screens = window.RenderAllScreens();
+            var compass = new TradeCompassModalWindow(kernel);
+            compass.UpdateLayout();
+            compass.Close();
             File.WriteAllText(log, $"ok screens={screens} date={kernel.Today} balance={kernel.Ledger.Balance}");
             window.Close();
             return 0;

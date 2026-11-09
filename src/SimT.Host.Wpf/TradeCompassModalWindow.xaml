@@ -1,0 +1,161 @@
+<local:HubModalWindowBase x:Class="SimT.Host.Wpf.TradeCompassModalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SimT.Host.Wpf"
+        xmlns:controls="clr-namespace:SimT.Host.Wpf.Controls"
+        Title="Kinh Thương La Bàn · Bản Đồ Nhiệt Giá Cả &amp; Tuyến Buôn Thiên Hạ"
+        Height="760" Width="1080"
+        MinHeight="680" MinWidth="940"
+        Background="{StaticResource Bg}"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= ROW 0: GAME HUB HEADER ================= -->
+        <controls:GameHubHeader Grid.Row="0" x:Name="HubHeader" />
+
+        <!-- ================= ROW 1: TRADE COMPASS ARENA ================= -->
+        <Grid Grid.Row="1" Margin="0,12,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== LEFT COLUMN: COMMODITY DIRECTORY ===== -->
+            <Border Grid.Column="0" Background="{StaticResource Surface}"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="8" Padding="14,12" Margin="0,0,12,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="DANH MỤC THƯƠNG PHẨM THIÊN HẠ"
+                               Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="2,0,0,8" />
+
+                    <!-- Quick Category Filter Pills -->
+                    <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+                        <Button x:Name="FilterAllBtn" Content="Tất Cả" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,4,4" Click="FilterAll_Click" />
+                        <Button x:Name="FilterFoodBtn" Content="Lương Thực" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,4,4" Click="FilterFood_Click" />
+                        <Button x:Name="FilterMaterialBtn" Content="Khoáng Vật" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,4,4" Click="FilterMaterial_Click" />
+                        <Button x:Name="FilterLuxuryBtn" Content="Kỳ Trân" Style="{StaticResource GhostButton}" Padding="8,4" Margin="0,0,4,4" Click="FilterLuxury_Click" />
+                    </WrapPanel>
+
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="ItemsListPanel" />
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- ===== RIGHT COLUMN: ARBITRAGE RADAR & HEATMAP ===== -->
+            <Border Grid.Column="1" Background="{StaticResource Surface}"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="8" Padding="18,16">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="DetailPanel">
+                        <!-- Commodity Overview Header Card -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
+                                BorderThickness="1" CornerRadius="8" Padding="16,14" Margin="0,0,0,14">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Width="64" Height="64" Background="{StaticResource Bg}"
+                                        BorderBrush="{StaticResource Accent}" BorderThickness="2"
+                                        CornerRadius="8" Margin="0,0,14,0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="SelectedItemIcon" Text="🌾" FontSize="32"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <DockPanel LastChildFill="False">
+                                        <TextBlock x:Name="SelectedItemTitle" Text="Lúa Mì Thượng Hạng"
+                                                   Style="{StaticResource H1}" Foreground="{StaticResource Ink}" />
+                                        <Border DockPanel.Dock="Right" Background="{StaticResource Bg}"
+                                                BorderBrush="{StaticResource Line}" BorderThickness="1"
+                                                CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
+                                            <TextBlock x:Name="SelectedItemCategoryText" Text="Nông Sản Cơ Bản"
+                                                       Style="{StaticResource Caption}" Foreground="{StaticResource Accent}" />
+                                        </Border>
+                                    </DockPanel>
+
+                                    <TextBlock x:Name="SelectedItemDescription"
+                                               Text="Lương thảo thiết yếu cho quân đội và bách tính, biên độ lợi nhuận cao giữa vùng sản xuất và tiền tuyến."
+                                               Style="{StaticResource Caption}" Foreground="{StaticResource Muted}" Margin="0,4,0,8" />
+
+                                    <!-- 4 Arbitrage KPI Metrics -->
+                                    <UniformGrid Columns="4" Margin="0,4,0,0">
+                                        <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Line}"
+                                                BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,4,0">
+                                            <StackPanel>
+                                                <TextBlock Text="NƠI RẺ NHẤT (MUA)" Style="{StaticResource Overline}" Foreground="{StaticResource Gain}" />
+                                                <TextBlock x:Name="CheapestCityText" Text="Nghiệp Thành" FontWeight="Bold" Foreground="{StaticResource Text}" FontSize="12" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock x:Name="MinPriceText" Text="12 Quan" Style="{StaticResource Number}" Foreground="{StaticResource Gain}" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Line}"
+                                                BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="4,0,4,0">
+                                            <StackPanel>
+                                                <TextBlock Text="NƠI ĐẮT NHẤT (BÁN)" Style="{StaticResource Overline}" Foreground="{StaticResource Loss}" />
+                                                <TextBlock x:Name="MostExpensiveCityText" Text="Trường An" FontWeight="Bold" Foreground="{StaticResource Text}" FontSize="12" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock x:Name="MaxPriceText" Text="28 Quan" Style="{StaticResource Number}" Foreground="{StaticResource Loss}" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Line}"
+                                                BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="4,0,4,0">
+                                            <StackPanel>
+                                                <TextBlock Text="CHÊNH LỆCH GỘP" Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" />
+                                                <TextBlock x:Name="GrossMarginText" Text="+16 Quan/đv" Style="{StaticResource NumberLarge}" Foreground="{StaticResource Accent}" />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Line}"
+                                                BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="4,0,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="TỶ SUẤT LỢI NHUẬN" Style="{StaticResource Overline}" Foreground="{StaticResource Gain}" />
+                                                <TextBlock x:Name="RoiText" Text="+133%" Style="{StaticResource NumberLarge}" Foreground="{StaticResource Gain}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Best Arbitrage Routes -->
+                        <TextBlock Text="TOP 3 TUYẾN ĐƯỜNG BUÔN LỜI NHẤT"
+                                   Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="0,4,0,8" />
+                        <StackPanel x:Name="RoutesPanel" Margin="0,0,0,16" />
+
+                        <!-- 20-Citadel Regional Heatmap -->
+                        <TextBlock Text="BẢN ĐỒ NHIỆT GIÁ CẢ 20 CHÂU QUẬN"
+                                   Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="0,4,0,8" />
+                        <StackPanel x:Name="HeatmapPanel" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- ================= ROW 2: FOOTER CONTROLS ================= -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+            <DockPanel LastChildFill="False">
+                <TextBlock Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" VerticalAlignment="Center">
+                    <Run Text="💡 Mẹo: Phím tắt [B] mở Kinh Thương La Bàn. Giá cả cập nhật theo thực tế hàng ngày và bị tác động bởi Tiết Khí &amp; Chiến loạn." />
+                </TextBlock>
+                <Button DockPanel.Dock="Right" Content="Đóng [Esc]"
+                        Padding="16,6" Click="Close_Click" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</local:HubModalWindowBase>

@@ -272,6 +272,12 @@ public partial class MainWindow
     private string ScreenForCommand() =>
         NavList.SelectedItem is NavEntry entry ? entry.ScreenId : _screenId;
 
+    private void TradeRadar_Click(object sender, RoutedEventArgs e)
+    {
+        var compassWindow = new TradeCompassModalWindow(_kernel) { Owner = this };
+        compassWindow.ShowDialog();
+    }
+
     private void Ambitions_Click(object sender, RoutedEventArgs e)
     {
         var ambitionsWindow = new VictoryAmbitionsModalWindow(_kernel) { Owner = this };

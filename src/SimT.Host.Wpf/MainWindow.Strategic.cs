@@ -244,6 +244,7 @@ public partial class MainWindow
         briefing.RequestRest += () => Rest_Click(this, new RoutedEventArgs());
         briefing.RequestStroll += () => TriggerCityStroll(preferModalWhenOutsideScene: true);
         briefing.RequestTalkNpc += npcId => TryOpenTalkScene(npcId);
+        briefing.RequestOpenTradeCompass += () => TradeRadar_Click(this, new RoutedEventArgs());
 
         briefing.RequestWishDestination += OpenWishDestination;
         briefing.Bind(_kernel);

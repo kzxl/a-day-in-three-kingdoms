@@ -413,6 +413,8 @@ public partial class MainWindow : Window
                 Rest_Click(this, new RoutedEventArgs()); e.Handled = true; break;
             case System.Windows.Input.Key.O:
                 Settings_Click(this, new RoutedEventArgs()); e.Handled = true; break;
+            case System.Windows.Input.Key.B:
+                TradeRadar_Click(this, new RoutedEventArgs()); e.Handled = true; break;
             case System.Windows.Input.Key.V:
                 Ambitions_Click(this, new RoutedEventArgs()); e.Handled = true; break;
             case System.Windows.Input.Key.Enter:

@@ -33,6 +33,7 @@ public sealed partial class GameStrategicBriefingControl : Border
     public event Action? RequestOpenCityScene;
     public event Action? RequestRest;
     public event Action? RequestStroll;
+    public event Action? RequestOpenTradeCompass;
     public event Action<long>? RequestTalkNpc;
 
     private readonly StackPanel _rootContent;
@@ -490,6 +491,16 @@ public sealed partial class GameStrategicBriefingControl : Border
             MinHeight = 32
         };
         footerBtn.Click += (_, _) => RequestNavigate?.Invoke("caravan.routes");
+        var compassBtn = new GameButton
+        {
+            Content = "🧭 La Bàn Giá [B]",
+            Variant = GameButtonVariant.Primary,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 6, 0, 0),
+            MinHeight = 32
+        };
+        compassBtn.Click += (_, _) => RequestOpenTradeCompass?.Invoke();
+        stack.Children.Add(compassBtn);
         stack.Children.Add(footerBtn);
 
         card.CardBody = stack;
