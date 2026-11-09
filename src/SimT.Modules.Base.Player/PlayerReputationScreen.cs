@@ -83,7 +83,7 @@ internal sealed class PlayerReputationScreen : IScreenContribution
             BuildTierRow(5, "Cột Trụ Giang Sơn", "Thiên Hạ Tri Danh", "2.500", "Danh tướng phẩm S (Quan Vũ, Triệu Vân...) tôn kính tiếp đãi; thỉnh viện binh.", standing),
             BuildTierRow(6, "Tam Quốc Chí Tôn", "Thiên Hạ Vô Song", "5.000+", "Đỉnh cao danh vọng thời loạn, vạn dân ngưỡng vọng, lưu danh thiên cổ sử sách.", standing)
         };
-        sections.Add(new ScreenSection("CẤP BẬC DANH VỌNG & ĐẶC QUYỀN MỞ KHÓA", TierColumns, tierRows));
+        sections.Add(new ScreenSection("CẤP BẬC DANH VỌNG & ĐẶC QUYỀN MỞ KHÓA", TierColumns, tierRows, SectionViewMode.ReputationHallOfFame));
 
         // Section 2: Regional Standing
         var regionRows = regions.Select(r => new ScreenRow(
@@ -95,7 +95,7 @@ internal sealed class PlayerReputationScreen : IScreenContribution
             ],
             Array.Empty<ScreenCommand>()
         )).ToList();
-        sections.Add(new ScreenSection("UY DANH THEO 5 ĐẠI KHU VỰC CHIẾN LƯỢC", RegionColumns, regionRows));
+        sections.Add(new ScreenSection("UY DANH THEO 5 ĐẠI KHU VỰC CHIẾN LƯỢC", RegionColumns, regionRows, SectionViewMode.ReputationHallOfFame));
 
         // Section 3: Hall of Fame / Leaderboard
         var leaderboardRows = leaderboard.Select(e => new ScreenRow(
@@ -109,7 +109,7 @@ internal sealed class PlayerReputationScreen : IScreenContribution
             ],
             Array.Empty<ScreenCommand>()
         )).ToList();
-        sections.Add(new ScreenSection("BẢNG PHONG THẦN · XẾP HẠNG UY DANH THIÊN HẠ", LeaderboardColumns, leaderboardRows));
+        sections.Add(new ScreenSection("BẢNG PHONG THẦN · XẾP HẠNG UY DANH THIÊN HẠ", LeaderboardColumns, leaderboardRows, SectionViewMode.ReputationHallOfFame));
 
         // Section 4: Deeds Ledger
         var deedRows = deeds.Select(d => new ScreenRow(
@@ -122,7 +122,7 @@ internal sealed class PlayerReputationScreen : IScreenContribution
             ],
             Array.Empty<ScreenCommand>()
         )).ToList();
-        sections.Add(new ScreenSection("NHẬT KÝ CHIẾN TÍCH & SỰ KIỆN RẠNG DANH", DeedColumns, deedRows));
+        sections.Add(new ScreenSection("NHẬT KÝ CHIẾN TÍCH & SỰ KIỆN RẠNG DANH", DeedColumns, deedRows, SectionViewMode.ReputationHallOfFame));
 
         // 4. Global Action Commands
         var commands = new List<ScreenCommand>

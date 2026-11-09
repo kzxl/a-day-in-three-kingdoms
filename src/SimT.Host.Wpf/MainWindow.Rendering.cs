@@ -403,6 +403,13 @@ public partial class MainWindow
                 cmd => _ = ExecuteScreenCommandAsync(cmd),
                 (sec, row) => ShowInspector(sec, row)));
         }
+        else if (!isTablePreferred && section.ViewMode == SectionViewMode.ReputationHallOfFame)
+        {
+            bodyStack.Children.Add(new GameReputationControl(
+                section,
+                cmd => _ = ExecuteScreenCommandAsync(cmd),
+                (sec, row) => ShowInspector(sec, row)));
+        }
         else
         {
             var portraitStrip = TryBuildPortraitStrip(section);
