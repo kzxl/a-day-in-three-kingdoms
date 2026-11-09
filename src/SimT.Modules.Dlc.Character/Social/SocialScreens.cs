@@ -150,7 +150,7 @@ internal sealed class SocialScreen : IScreenContribution
                     ]);
             }).ToList();
 
-            sections.Add(new ScreenSection($"🌸 Kim Lan Huynh Đệ · Đào Viên Thề Ước ({swornBrothers.Count}/2)", swornColumns, swornRows));
+            sections.Add(new ScreenSection($"🌸 Kim Lan Huynh Đệ · Đào Viên Thề Ước ({swornBrothers.Count}/2)", swornColumns, swornRows, SectionViewMode.DossierGrid));
         }
 
         // 2. Retainers section
@@ -184,7 +184,7 @@ internal sealed class SocialScreen : IScreenContribution
                     ]);
             }).ToList();
 
-            sections.Add(new ScreenSection($"🛡️ Đội Ngũ Gia Thần & Môn Khách ({retainers.Count})", retainerColumns, retainerRows));
+            sections.Add(new ScreenSection($"🛡️ Đội Ngũ Gia Thần & Môn Khách ({retainers.Count})", retainerColumns, retainerRows, SectionViewMode.DossierGrid));
         }
 
         // 3. Equipped Skills Loadout Section (6 Slots)
@@ -258,7 +258,7 @@ internal sealed class SocialScreen : IScreenContribution
             }
         }
 
-        sections.Add(new ScreenSection("🥋 Tâm Pháp & Tuyệt Kỹ Kích Hoạt (Tối đa: 1 Phẩm S, 2 Phẩm A, Phẩm B-C tự do)", slotColumns, slotRows));
+        sections.Add(new ScreenSection("🥋 Tâm Pháp & Tuyệt Kỹ Kích Hoạt (Tối đa: 1 Phẩm S, 2 Phẩm A, Phẩm B-C tự do)", slotColumns, slotRows, SectionViewMode.DossierGrid));
 
         // 4. Learned Skills Library Section
         if (progresses.Count > 0)
@@ -419,7 +419,7 @@ internal sealed class SocialScreen : IScreenContribution
                 ]);
         }).ToList();
 
-        sections.Add(new ScreenSection($"💬 Nhân Sĩ Hữu Duyên Cùng Thành · {currentCitadelName} ({localNpcs.Count})", localColumns, localRows));
+        sections.Add(new ScreenSection($"💬 Nhân Sĩ Hữu Duyên Cùng Thành · {currentCitadelName} ({localNpcs.Count})", localColumns, localRows, SectionViewMode.DossierGrid));
 
         var metrics = new List<ScreenMetric>
         {

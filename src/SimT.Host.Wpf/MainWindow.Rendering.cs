@@ -361,6 +361,27 @@ public partial class MainWindow
                 cmd => _ = ExecuteScreenCommandAsync(cmd),
                 (sec, row) => ShowInspector(sec, row)));
         }
+        else if (!isTablePreferred && section.ViewMode == SectionViewMode.ImperialCourtChamber)
+        {
+            bodyStack.Children.Add(new GameCourtChamberControl(
+                section,
+                cmd => _ = ExecuteScreenCommandAsync(cmd),
+                (sec, row) => ShowInspector(sec, row)));
+        }
+        else if (!isTablePreferred && section.ViewMode == SectionViewMode.DossierGrid)
+        {
+            bodyStack.Children.Add(new GameDossierGridControl(
+                section,
+                cmd => _ = ExecuteScreenCommandAsync(cmd),
+                (sec, row) => ShowInspector(sec, row)));
+        }
+        else if (!isTablePreferred && section.ViewMode == SectionViewMode.TreasuryVault)
+        {
+            bodyStack.Children.Add(new GameTreasuryVaultControl(
+                section,
+                cmd => _ = ExecuteScreenCommandAsync(cmd),
+                (sec, row) => ShowInspector(sec, row)));
+        }
         else
         {
             var portraitStrip = TryBuildPortraitStrip(section);

@@ -108,7 +108,7 @@ public sealed class BankScreen : IScreenContribution
                 ]));
         }
 
-        sections.Add(new ScreenSection($"📜 Ngân Phiếu Đang Sở Hữu ({drafts.Count} phiếu lưu thông)", draftColumns, draftRows));
+        sections.Add(new ScreenSection($"📜 Ngân Phiếu Đang Sở Hữu ({drafts.Count} phiếu lưu thông)", draftColumns, draftRows, SectionViewMode.TreasuryVault));
 
         // 2. Arbitrage Intelligence Radar (computed once per game day)
         var todayIndex = _clock.Today.DayIndex;

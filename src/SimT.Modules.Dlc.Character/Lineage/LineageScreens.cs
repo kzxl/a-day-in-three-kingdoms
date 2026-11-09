@@ -125,7 +125,7 @@ internal sealed class FamilyScreen : IScreenContribution
                     ]));
             }
 
-            sections.Add(new ScreenSection("🌿 Cây Phả Hệ Gia Tộc (Gia Tộc Tương Truyền)", treeCols, treeRows));
+            sections.Add(new ScreenSection("🌿 Cây Phả Hệ Gia Tộc (Gia Tộc Tương Truyền)", treeCols, treeRows, SectionViewMode.DossierGrid));
         }
 
         sections.Add(new("Gia phả", Columns, rows));
@@ -162,7 +162,7 @@ internal sealed class FamilyScreen : IScreenContribution
                     rowCmds);
             }).ToList();
 
-            sections.Add(new ScreenSection("Tử Tức & Giáo Dưỡng", childCols, childRows));
+            sections.Add(new ScreenSection("Tử Tức & Giáo Dưỡng", childCols, childRows, SectionViewMode.DossierGrid));
         }
 
         return new ScreenModel(

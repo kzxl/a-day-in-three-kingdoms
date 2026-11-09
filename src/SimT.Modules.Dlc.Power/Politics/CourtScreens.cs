@@ -188,9 +188,9 @@ internal sealed class CourtScreen : IScreenContribution
 
         var sections = new List<ScreenSection>
         {
-            new("Cửu Phẩm Quan Chế Triều Đình", OfficeColumns, officeRows),
-            new("Thế Lực Chư Hầu Tam Quốc (12 Lộ)", FactionColumns, factionRows),
-            new($"Chính Sự & Trị An Châu Quận ({govRows.Count} Thành)", CityColumns, govRows)
+            new("Cửu Phẩm Quan Chế Triều Đình", OfficeColumns, officeRows, SectionViewMode.ImperialCourtChamber),
+            new("Thế Lực Chư Hầu Tam Quốc (12 Lộ)", FactionColumns, factionRows, SectionViewMode.ImperialCourtChamber),
+            new($"Chính Sự & Trị An Châu Quận ({govRows.Count} Thành)", CityColumns, govRows, SectionViewMode.ImperialCourtChamber)
         };
 
         if (logRows.Count > 0)

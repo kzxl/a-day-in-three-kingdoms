@@ -130,7 +130,7 @@ public sealed class PlayerBankScreen : IScreenContribution
                 ]));
         }
 
-        sections.Add(new ScreenSection($"🏛️ Mạng Lưới Chi Nhánh Tiền Trang ({branches.Count} đô thành)", branchColumns, branchRows));
+        sections.Add(new ScreenSection($"🏛️ Mạng Lưới Chi Nhánh Tiền Trang ({branches.Count} đô thành)", branchColumns, branchRows, SectionViewMode.TreasuryVault));
 
         // 2. Convoys table
         if (convoys.Count > 0)
@@ -200,7 +200,7 @@ public sealed class PlayerBankScreen : IScreenContribution
                 wlCmds));
         }
 
-        sections.Add(new ScreenSection("⚔️ Khế Ước Tín Dụng Quân Phí & Đặc Quyền Chư Hầu", warLoanColumns, warLoanRows));
+        sections.Add(new ScreenSection("⚔️ Khế Ước Tín Dụng Quân Phí & Đặc Quyền Chư Hầu", warLoanColumns, warLoanRows, SectionViewMode.TreasuryVault));
 
         commands.Add(new("faction_loan:1:2000", "Tài Trợ Quân Phí Tào Ngụy (2.000q)"));
         commands.Add(new("faction_loan:2:2000", "Tài Trợ Quân Phí Thục Hán (2.000q)"));
