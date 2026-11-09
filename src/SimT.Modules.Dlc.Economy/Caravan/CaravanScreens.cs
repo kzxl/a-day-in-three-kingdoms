@@ -1,4 +1,4 @@
-using SimT.Contracts.Playing;
+﻿using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 using SimT.Modules.Dlc.Economy.Caravan;
@@ -381,9 +381,9 @@ internal sealed class CaravanScreen : IScreenContribution
                 new ScreenSection("Thương Cơ Thị Trường & Tin Tức Thời Thế", RumorColumns, rumorRows),
                 new ScreenSection("Tứ Đại Thương Bang & Minh Ước Độc Quyền", CartelColumns, cartelRows),
                 new ScreenSection("Tuyến Thương Mại Tự Động (Thương Đoàn Thường Trực)", AutoRouteColumns, autoRouteRows),
-                new ScreenSection("Biên Chế Nhân Sự Thương Đội", CrewColumns, crewRows),
-                new ScreenSection("Hợp Đồng Áp Tiêu (Đại Thương Bang)", ContractColumns, contractRows),
-                new ScreenSection("Tuyến Đường & Lộ Trình", RouteColumns, routeRows),
+                new ScreenSection("Biên Chế Nhân Sự Thương Đội", CrewColumns, crewRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Hợp Đồng Áp Tiêu (Đại Thương Bang)", ContractColumns, contractRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Tuyến Đường & Lộ Trình", RouteColumns, routeRows, SectionViewMode.CaravanDispatchBoard),
                 new ScreenSection("Đoàn Hàng Đang Di Chuyển", RunColumns, runRows)
             ],
             topCommands,

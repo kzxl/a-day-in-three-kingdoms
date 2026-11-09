@@ -335,6 +335,18 @@ public partial class MainWindow
                 (sec, row) => ShowInspector(sec, row),
                 GetPriceHistoryForRow));
         }
+        else if (!isTablePreferred && section.ViewMode == SectionViewMode.CaravanDispatchBoard)
+        {
+            var currentCityName = _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var map) &&
+                                  _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) &&
+                                  player is not null && map is not null
+                                  ? (map.Find(player.CurrentCityId)?.NameVi ?? "Bản Thành") : "Bản Thành";
+            bodyStack.Children.Add(new GameCaravanDispatchControl(
+                section,
+                cmd => _ = ExecuteScreenCommandAsync(cmd),
+                (sec, row) => ShowInspector(sec, row),
+                currentCityName));
+        }
         else
         {
             var portraitStrip = TryBuildPortraitStrip(section);
