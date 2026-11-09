@@ -13,8 +13,19 @@ const state = {
   filterFaction: 'all',
   filterCity: 'all',
   filterRole: 'all',
+  rosterQuery: '',
   lazyObserver: null
 };
+
+const TAB_SUB = {
+  profile: 'Mỗi nhân vật có ảnh riêng. Bấm tên để xem hồ sơ.',
+  characters: 'Sưu tầm đủ 10, 50, 100 danh sĩ để được thưởng Danh vọng. Bấm người đã gặp để xem hồ sơ.',
+  history: 'Sử biến đã chứng kiến có thể xem lại. Chứng kiến đủ mọi sử biến để được thưởng Danh vọng.'
+};
+
+function currentTab() {
+  return state.mode === 'profile' ? 'profile' : state.vtlTab;
+}
 
 export function shortDossierName(nameVi) {
   return String(nameVi || '').replace(/\s*\([^)]*\)\s*/g, '').trim() || String(nameVi || '');
@@ -63,7 +74,12 @@ function classifyNpcRole(n) {
 }
 
 function filteredRosterNpcs(npcs) {
+  const q = state.rosterQuery.trim().toLowerCase();
   return npcs.filter((n) => {
+    // Unmet people show as "???", so a name search must not reveal them.
+    if (q && !(n.hasMet && [n.nameVi, n.courtesyVi].some((v) => v && v.toLowerCase().includes(q)))) {
+      return false;
+    }
     if (state.filterFaction !== 'all' && (n.factionVi || 'Quần Hùng') !== state.filterFaction) {
       return false;
     }
@@ -113,23 +129,20 @@ function paint(root, bridge) {
     ? s.metCount
     : allNpcs.filter((n) => Boolean(n.hasMet)).length;
   const totalCount = typeof s.totalCount === 'number' ? s.totalCount : allNpcs.length;
+  const societyEnabled = s.societyEnabled !== false;
+  if (!societyEnabled && state.vtlTab === 'history') state.vtlTab = 'characters';
 
   if (!root.dataset.initialized) {
     root.dataset.initialized = '1';
     root.innerHTML =
       '<div class="dossier-head">' +
-        '<div class="dossier-head-left">' +
-          '<div>' +
-            '<h1>Danh Sĩ</h1>' +
-            '<div class="dossier-head-sub">Mỗi nhân vật có ảnh riêng. Bấm tên để xem hồ sơ.</div>' +
-          '</div>' +
-          '<div class="dossier-mode-tabs" role="tablist" aria-label="Chế độ xem Danh Sĩ">' +
-            '<button type="button" class="dossier-btn dossier-tab-btn" id="btn-mode-profile" data-mode="profile">Hồ sơ danh sĩ</button>' +
-            '<button type="button" class="dossier-btn dossier-tab-btn" id="btn-mode-roster" data-mode="roster">Võ tướng lục</button>' +
-          '</div>' +
+        '<div>' +
+          '<h1>Danh Sĩ</h1>' +
+          '<div class="dossier-head-sub" id="dossier-head-sub"></div>' +
         '</div>' +
         '<div class="dossier-head-meta" id="dossier-head-meta"></div>' +
       '</div>' +
+      '<nav class="dossier-tabs" id="dossier-tabs" role="tablist" aria-label="Danh Sĩ"></nav>' +
       '<div class="dossier-rec-bar" id="dossier-rec-bar"></div>' +
       '<div class="dossier-body" id="dossier-profile-view">' +
         '<div class="dossier-list-col">' +
@@ -138,149 +151,88 @@ function paint(root, bridge) {
         '</div>' +
         '<div class="dossier-card" id="dossier-card"></div>' +
       '</div>' +
-      '<div class="dossier-vtl-view" id="dossier-vtl-view" hidden>' +
-        '<div class="dossier-vtl-top">' +
-          '<div class="dossier-mode-tabs" id="dossier-vtl-subtabs" role="tablist" aria-label="Võ tướng lục"></div>' +
-          '<div class="dossier-vtl-counter" id="dossier-vtl-counter"></div>' +
+      '<div class="dossier-vtl-characters" id="dossier-vtl-characters" hidden>' +
+        '<div class="dossier-vtl-toolbar">' +
+          '<input type="text" class="dossier-search dossier-vtl-search" id="dossier-vtl-search" placeholder="Tìm người đã gặp..." />' +
+          '<div class="dossier-vtl-selects" id="dossier-vtl-selects"></div>' +
+          '<span class="dossier-vtl-count" id="dossier-vtl-count"></span>' +
         '</div>' +
-        '<div class="dossier-vtl-characters" id="dossier-vtl-characters">' +
-          '<div class="dossier-vtl-filters" id="dossier-vtl-filters"></div>' +
-          '<div class="dossier-vtl-scroll" id="dossier-vtl-scroll">' +
-            '<div class="dossier-vtl-grid" id="dossier-vtl-grid"></div>' +
-          '</div>' +
+        '<div class="dossier-vtl-scroll" id="dossier-vtl-scroll">' +
+          '<div class="dossier-vtl-grid" id="dossier-vtl-grid"></div>' +
         '</div>' +
-        '<div class="dossier-vtl-history" id="dossier-vtl-history" hidden>' +
-          '<div class="dossier-vtl-history-scroll" id="dossier-vtl-history-scroll"></div>' +
-        '</div>' +
+      '</div>' +
+      '<div class="dossier-vtl-history" id="dossier-vtl-history" hidden>' +
+        '<ol class="dossier-timeline" id="dossier-vtl-history-scroll"></ol>' +
       '</div>';
 
-    const searchInput = root.querySelector('#dossier-search-input');
-    if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
-        state.query = e.target.value || '';
-        paintListAndCard(root, bridge);
-      });
-    }
-
-    const modeProfileBtn = root.querySelector('#btn-mode-profile');
-    if (modeProfileBtn) {
-      modeProfileBtn.addEventListener('click', () => {
+    root.querySelector('#dossier-search-input').addEventListener('input', (e) => {
+      state.query = e.target.value || '';
+      paintListAndCard(root, bridge);
+    });
+    root.querySelector('#dossier-vtl-search').addEventListener('input', (e) => {
+      state.rosterQuery = e.target.value || '';
+      paintCharactersTab(root, bridge);
+    });
+    root.querySelector('#dossier-vtl-selects').addEventListener('change', (e) => {
+      const group = e.target.getAttribute('data-filter-group');
+      const val = e.target.value || 'all';
+      if (group === 'faction') state.filterFaction = val;
+      else if (group === 'city') state.filterCity = val;
+      else if (group === 'role') state.filterRole = val;
+      paintCharactersTab(root, bridge);
+    });
+    root.querySelector('#dossier-tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-tab]');
+      if (!btn) return;
+      const tab = btn.getAttribute('data-tab');
+      if (tab === 'profile') {
         state.mode = 'profile';
-        paint(root, bridge);
-      });
-    }
-
-    const modeRosterBtn = root.querySelector('#btn-mode-roster');
-    if (modeRosterBtn) {
-      modeRosterBtn.addEventListener('click', () => {
+      } else {
         state.mode = 'roster';
-        paint(root, bridge);
-      });
-    }
-  }
-
-  const metaEl = root.querySelector('#dossier-head-meta');
-  if (metaEl) {
-    metaEl.innerHTML =
-      '<span>Đang tại <b>' + esc(s.currentCityName) + '</b></span>' +
-      '<span>Đã gặp <b>' + esc(metCount) + ' / ' + esc(totalCount) + '</b></span>' +
-      '<span>Tuệ Nhãn <b>' + esc(s.perceptionText) + '</b></span>';
-  }
-
-  const recEl = root.querySelector('#dossier-rec-bar');
-  if (recEl) {
-    if (state.mode === 'roster') {
-      recEl.innerHTML = '<b>VÕ TƯỚNG LỤC</b>Đã gặp ' + esc(metCount) + ' / ' + esc(totalCount) + ' nhân vật. Các mốc sưu tầm (10, 50, 100 danh sĩ và đủ mọi sử biến) thưởng Danh vọng và ghi vào biên niên Thế Thái.';
-    } else {
-      recEl.innerHTML = '<b>NÊN LÀM</b>' + esc(s.recommendation || 'Chọn một danh sĩ ở cột trái để xem bát diện năng lực, đặc kỹ và tiểu sử.');
-    }
-  }
-
-  const modeProfileBtn = root.querySelector('#btn-mode-profile');
-  const modeRosterBtn = root.querySelector('#btn-mode-roster');
-  if (modeProfileBtn) modeProfileBtn.classList.toggle('pri', state.mode === 'profile');
-  if (modeRosterBtn) modeRosterBtn.classList.toggle('pri', state.mode === 'roster');
-
-  const profileView = root.querySelector('#dossier-profile-view');
-  const vtlView = root.querySelector('#dossier-vtl-view');
-  if (state.mode === 'roster') {
-    if (profileView) profileView.hidden = true;
-    if (vtlView) vtlView.hidden = false;
-    paintVoTuongLuc(root, bridge, metCount, totalCount);
-  } else {
-    if (profileView) profileView.hidden = false;
-    if (vtlView) vtlView.hidden = true;
-    paintListAndCard(root, bridge);
-  }
-}
-
-function paintVoTuongLuc(root, bridge, metCount, totalCount) {
-  const s = state.scene;
-  if (!s) return;
-  const societyEnabled = s.societyEnabled !== false;
-  if (!societyEnabled && state.vtlTab === 'history') {
-    state.vtlTab = 'characters';
-  }
-
-  const subtabsEl = root.querySelector('#dossier-vtl-subtabs');
-  if (subtabsEl) {
-    subtabsEl.innerHTML =
-      '<button type="button" class="dossier-btn dossier-tab-btn' + (state.vtlTab === 'characters' ? ' pri' : '') + '" id="btn-vtl-tab-characters" data-vtl-tab="characters">Nhân vật</button>' +
-      (societyEnabled
-        ? '<button type="button" class="dossier-btn dossier-tab-btn' + (state.vtlTab === 'history' ? ' pri' : '') + '" id="btn-vtl-tab-history" data-vtl-tab="history">Sử biến</button>'
-        : '');
-
-    subtabsEl.querySelectorAll('[data-vtl-tab]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        state.vtlTab = btn.getAttribute('data-vtl-tab') || 'characters';
-        paintVoTuongLuc(root, bridge, metCount, totalCount);
-      });
+        state.vtlTab = tab;
+      }
+      paint(root, bridge);
     });
   }
 
-  const counterEl = root.querySelector('#dossier-vtl-counter');
-  if (counterEl) {
-    if (state.vtlTab === 'history' && societyEnabled) {
-      const evts = Array.isArray(s.historicalEvents) ? s.historicalEvents : [];
-      const viewedCount = evts.filter((e) => e.status === 'viewed').length;
-      counterEl.innerHTML = 'Đã gặp <b>' + esc(metCount) + ' / ' + esc(totalCount) + '</b> · Chứng kiến <b>' + esc(viewedCount) + ' / ' + esc(evts.length) + '</b>';
-    } else {
-      counterEl.innerHTML = 'Đã gặp <b>' + esc(metCount) + ' / ' + esc(totalCount) + '</b>';
-    }
-  }
+  const tab = currentTab();
+  const tabs = [['profile', 'Hồ sơ'], ['characters', 'Võ tướng lục']];
+  if (societyEnabled) tabs.push(['history', 'Sử biến']);
+  root.querySelector('#dossier-tabs').innerHTML = tabs.map(([key, label]) =>
+    '<button type="button" role="tab" class="dossier-tab' + (key === tab ? ' active' : '') + '" ' +
+      'aria-selected="' + (key === tab) + '" data-tab="' + key + '">' + label + '</button>'
+  ).join('');
+  root.querySelector('#dossier-head-sub').textContent = TAB_SUB[tab];
 
-  const charPane = root.querySelector('#dossier-vtl-characters');
-  const histPane = root.querySelector('#dossier-vtl-history');
-  if (state.vtlTab === 'history' && societyEnabled) {
-    if (charPane) charPane.hidden = true;
-    if (histPane) histPane.hidden = false;
-    paintHistoryTab(root, bridge);
-  } else {
-    if (charPane) charPane.hidden = false;
-    if (histPane) histPane.hidden = true;
-    paintCharactersTab(root, bridge);
-  }
+  const evts = Array.isArray(s.historicalEvents) ? s.historicalEvents : [];
+  root.querySelector('#dossier-head-meta').innerHTML =
+    '<span>Đang tại <b>' + esc(s.currentCityName) + '</b></span>' +
+    '<span>Đã gặp <b>' + esc(metCount) + ' / ' + esc(totalCount) + '</b></span>' +
+    (tab === 'history'
+      ? '<span>Chứng kiến <b>' + evts.filter((e) => e.status === 'viewed').length + ' / ' + evts.length + '</b></span>'
+      : '<span>Tuệ Nhãn <b>' + esc(s.perceptionText) + '</b></span>');
+
+  const recEl = root.querySelector('#dossier-rec-bar');
+  recEl.hidden = tab !== 'profile';
+  recEl.innerHTML = '<b>NÊN LÀM</b>' + esc(s.recommendation || 'Chọn một danh sĩ ở cột trái để xem bát diện năng lực, đặc kỹ và tiểu sử.');
+
+  root.querySelector('#dossier-profile-view').hidden = tab !== 'profile';
+  root.querySelector('#dossier-vtl-characters').hidden = tab !== 'characters';
+  root.querySelector('#dossier-vtl-history').hidden = tab !== 'history';
+  if (tab === 'profile') paintListAndCard(root, bridge);
+  else if (tab === 'characters') paintCharactersTab(root, bridge);
+  else paintHistoryTab(root, bridge);
 }
 
-function buildFilterChipsHtml(groupKey, labelVi, options, currentVal) {
-  const chips = ['all', ...options].map((opt) => {
-    const isAll = opt === 'all';
-    const text = isAll ? 'Tất cả' : opt;
-    const activeCls = currentVal === opt ? ' active' : '';
-    return (
-      '<button type="button" class="dossier-chip dossier-filter-btn' + activeCls + '" ' +
-        'data-filter-group="' + esc(groupKey) + '" ' +
-        'data-filter-val="' + esc(opt) + '">' +
-        esc(text) +
-      '</button>'
-    );
-  }).join('');
-
+function filterSelectHtml(group, labelVi, options, currentVal) {
   return (
-    '<div class="dossier-filter-row">' +
-      '<span class="dossier-filter-lbl">' + esc(labelVi) + '</span>' +
-      '<div class="dossier-filter-strip">' + chips + '</div>' +
-    '</div>'
+    '<select class="dossier-select" data-filter-group="' + group + '" aria-label="' + esc(labelVi) + '">' +
+      ['all', ...options].map((opt) =>
+        '<option value="' + esc(opt) + '"' + (opt === currentVal ? ' selected' : '') + '>' +
+          esc(opt === 'all' ? labelVi + ': tất cả' : opt) +
+        '</option>'
+      ).join('') +
+    '</select>'
   );
 }
 
@@ -299,26 +251,14 @@ function paintCharactersTab(root, bridge) {
   if (state.filterCity !== 'all' && !cities.includes(state.filterCity)) state.filterCity = 'all';
   if (state.filterRole !== 'all' && !roles.includes(state.filterRole)) state.filterRole = 'all';
 
-  const filtersEl = root.querySelector('#dossier-vtl-filters');
-  if (filtersEl) {
-    filtersEl.innerHTML =
-      buildFilterChipsHtml('faction', 'Thế lực', factions, state.filterFaction) +
-      buildFilterChipsHtml('city', 'Thành', cities, state.filterCity) +
-      buildFilterChipsHtml('role', 'Loại người', roles, state.filterRole);
-
-    filtersEl.querySelectorAll('.dossier-filter-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const group = btn.getAttribute('data-filter-group');
-        const val = btn.getAttribute('data-filter-val') || 'all';
-        if (group === 'faction') state.filterFaction = val;
-        else if (group === 'city') state.filterCity = val;
-        else if (group === 'role') state.filterRole = val;
-        paintCharactersTab(root, bridge);
-      });
-    });
-  }
+  root.querySelector('#dossier-vtl-selects').innerHTML =
+    filterSelectHtml('faction', 'Thế lực', factions, state.filterFaction) +
+    filterSelectHtml('city', 'Thành', cities, state.filterCity) +
+    filterSelectHtml('role', 'Loại người', roles, state.filterRole);
 
   const visible = filteredRosterNpcs(allNpcs);
+  root.querySelector('#dossier-vtl-count').innerHTML =
+    '<b>' + visible.length + '</b> người · đã gặp <b>' + visible.filter((n) => n.hasMet).length + '</b>';
   const gridEl = root.querySelector('#dossier-vtl-grid');
   const scrollEl = root.querySelector('#dossier-vtl-scroll');
   if (!gridEl) return;
@@ -353,7 +293,6 @@ function paintCharactersTab(root, bridge) {
     return (
       '<div class="dossier-vtl-cell is-unmet" data-npc-id="' + n.id + '">' +
         '<span class="dossier-vtl-avatar">' +
-          '<img class="dossier-vtl-img is-silhouette" loading="lazy" decoding="async" ' + imgAttr + ' alt="Chưa gặp" />' +
           '<span class="dossier-vtl-qmark">?</span>' +
         '</span>' +
         '<span class="dossier-vtl-name">' + esc(displayName) + '</span>' +
@@ -408,52 +347,34 @@ function paintHistoryTab(root, bridge) {
 
   const events = Array.isArray(s.historicalEvents) ? s.historicalEvents : [];
   if (events.length === 0) {
-    listEl.innerHTML = '<div class="dossier-history-empty">Chưa có biến cố lịch sử nào được ghi nhận.</div>';
+    listEl.innerHTML = '<li class="dossier-history-empty">Chưa có biến cố lịch sử nào được ghi nhận.</li>';
     return;
   }
 
+  // A timeline: viewed events can be replayed, missed ones are named, future ones stay hidden.
   listEl.innerHTML = events.map((evt) => {
     const status = String(evt.status || 'pending').toLowerCase();
-    const yearLabel = 'Năm ' + esc(evt.year);
-    if (status === 'viewed') {
-      return (
-        '<button type="button" class="dossier-row dossier-history-row is-viewed" data-event-code="' + esc(evt.code) + '">' +
-          '<span class="dossier-history-year">' + yearLabel + '<small>' + esc(evt.dateText) + '</small></span>' +
-          '<span class="dossier-row-meta">' +
-            '<span class="dossier-row-name">' + esc(evt.titleVi) + '</span>' +
-            '<span class="dossier-row-sub">' + esc(evt.citadelNameVi) + ' · ' + esc(evt.summaryVi) + '</span>' +
-          '</span>' +
-          '<span class="dossier-row-tag is-viewed">Xem lại cảnh</span>' +
-        '</button>'
-      );
-    }
-
-    if (status === 'occurred') {
-      return (
-        '<div class="dossier-row dossier-history-row is-missed" data-event-code="' + esc(evt.code) + '">' +
-          '<span class="dossier-history-year">' + yearLabel + '<small>' + esc(evt.dateText) + '</small></span>' +
-          '<span class="dossier-row-meta">' +
-            '<span class="dossier-row-name">' + esc(evt.titleVi) + '</span>' +
-            '<span class="dossier-row-sub">' + esc(evt.citadelNameVi) + '</span>' +
-          '</span>' +
-          '<span class="dossier-row-tag is-missed">Không có mặt</span>' +
-        '</div>'
-      );
-    }
-
+    const viewed = status === 'viewed';
+    const known = viewed || status === 'occurred';
+    const cls = viewed ? 'is-viewed' : known ? 'is-missed' : 'is-pending';
+    const tag = viewed ? 'button type="button"' : 'div';
+    const sub = viewed ? esc(evt.citadelNameVi) + ' · ' + esc(evt.summaryVi) : known ? esc(evt.citadelNameVi) : '';
     return (
-      '<div class="dossier-row dossier-history-row is-pending" data-event-code="' + esc(evt.code) + '">' +
-        '<span class="dossier-history-year">' + yearLabel + '</span>' +
-        '<span class="dossier-row-meta">' +
-          '<span class="dossier-row-name">???</span>' +
-          '<span class="dossier-row-sub">Chưa xảy ra</span>' +
-        '</span>' +
-        '<span class="dossier-row-tag is-pending">???</span>' +
-      '</div>'
+      '<li>' +
+        '<' + tag + ' class="dossier-tl-row ' + cls + '" data-event-code="' + esc(evt.code) + '">' +
+          '<span class="dossier-tl-year">Năm ' + esc(evt.year) + (known ? '<small>' + esc(evt.dateText) + '</small>' : '') + '</span>' +
+          '<span class="dossier-tl-dot"></span>' +
+          '<span class="dossier-tl-body">' +
+            '<span class="dossier-tl-title">' + (known ? esc(evt.titleVi) : 'Chưa xảy ra') + '</span>' +
+            (sub ? '<span class="dossier-tl-sub">' + sub + '</span>' : '') +
+          '</span>' +
+          (viewed ? '<span class="dossier-tl-act">Xem lại ▸</span>' : known ? '<span class="dossier-tl-act">Không có mặt</span>' : '') +
+        '</' + tag.split(' ')[0] + '>' +
+      '</li>'
     );
   }).join('');
 
-  listEl.querySelectorAll('.dossier-history-row.is-viewed').forEach((btn) => {
+  listEl.querySelectorAll('.dossier-tl-row.is-viewed').forEach((btn) => {
     btn.addEventListener('click', () => {
       const code = btn.getAttribute('data-event-code');
       if (code && bridge) {
@@ -474,7 +395,7 @@ function paintListAndCard(root, bridge) {
   if (listEl) {
     listEl.innerHTML = visibleNpcs.map((n) => {
       const activeCls = current && n.id === current.id ? ' active' : '';
-      const portrait = n.profilePath || n.facePath || 'art/portraits/scholar/face.webp';
+      const portrait = n.facePath || n.profilePath || 'art/portraits/scholar/face.webp';
       const displayName = shortDossierName(n.nameVi);
       const localDot = n.isLocal ? '<span class="dossier-local-dot" title="Đồng thành"></span>' : '';
       const subText = !n.isLocal && n.cityNameVi ? n.cityNameVi + ' · ' + (n.roleVi || '') : (n.roleVi || '');
