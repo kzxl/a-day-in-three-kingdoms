@@ -111,8 +111,9 @@
 
                             <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
                                     BorderThickness="1" CornerRadius="3" Padding="6,1" VerticalAlignment="Center">
-                                <TextBlock x:Name="VisualStandingText" Text="Bách Tính" FontSize="10.5"
-                                           Foreground="{StaticResource Accent}" FontWeight="SemiBold" />
+                                <TextBlock x:Name="VisualStandingText" Text="Bách Tính" FontSize="10.5" MaxWidth="105"
+                                           TextTrimming="CharacterEllipsis" Foreground="{StaticResource Accent}" FontWeight="SemiBold"
+                                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                             </Border>
                         </StackPanel>
                     </Border>
@@ -120,7 +121,7 @@
                 </StackPanel>
 
                 <!-- Right: System Utility Controls -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
                     <TextBlock x:Name="CampaignText" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}"
                                VerticalAlignment="Center" Margin="0,0,10,0" TextTrimming="CharacterEllipsis" MaxWidth="150" />
                     <TextBlock x:Name="VersionText" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}"

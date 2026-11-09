@@ -33,6 +33,9 @@ public interface IPoliticalCourt
 
     void AdjustCityStability(long citadelId, int unrestDelta, int defenseDelta) { }
 
+    /// <summary>Boosts the prosperity score of a citadel and alleviates famine status.</summary>
+    void BoostCityProsperity(long citadelId, int prosperityDelta, string famineStatusVi, int populationDelta = 0) { }
+
     CityDemographicsView? GetCityDemographics(long citadelId) => null;
 
     IReadOnlyList<CityDemographicsView> AllDemographics() => [];

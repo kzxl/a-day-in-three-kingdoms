@@ -684,4 +684,18 @@ internal sealed partial class CourtService : IPoliticalCourt
             newDefense,
             narrativeVi);
     }
+
+    public void BoostCityProsperity(long citadelId, int prosperityDelta, string famineStatusVi, int populationDelta = 0)
+    {
+        _db.Execute(
+            """
+            UPDATE po_city_demographics 
+            SET population = population + @pop,
+                prosperity_score = MIN(100, prosperity_score + @delta),
+                starvation_months = 0,
+                famine_status_vi = @status
+            WHERE citadel_id = @citadel
+            """,
+            new DbArgs().Add("@pop", populationDelta).Add("@delta", prosperityDelta).Add("@status", famineStatusVi).Add("@citadel", citadelId));
+    }
 }

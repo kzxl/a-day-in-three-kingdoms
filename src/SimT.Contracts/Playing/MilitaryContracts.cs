@@ -298,4 +298,7 @@ public interface IMilitaryCommand
 
     /// <summary>Fulfills a military garrison requisition from local bag stock.</summary>
     string FulfillRequisition(long requisitionId);
+
+    /// <summary>Reinforces the military armory of a citadel with additional weapons.</summary>
+    void ReinforceArmory(long citadelId, int weaponCount, string statusVi) { }
 }

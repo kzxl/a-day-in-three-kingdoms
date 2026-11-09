@@ -363,6 +363,84 @@ public partial class MainWindow
             }
         }
 
+        // Screen-contextual strategy counsel
+        switch (_screenId)
+        {
+            case "politics.court":
+                StrategicAdvisorBox.AdvisorName = "MƯU SĨ PHỦ ĐỆ";
+                StrategicAdvisorBox.AdvisorTitle = "Chính Lộ Tham Mưu";
+                StrategicAdvisorBox.AvatarInitials = "Mưu";
+                StrategicAdvisorBox.AdviceMessage = "Tích lũy uy danh qua việc chẩn tế dân bần và lập công vụ để triều đình cất nhắc phẩm hàm cao hơn.";
+                StrategicAdvisorBox.ActionButtonLabel = "Triều Đình";
+                StrategicAdvisorBox.Tag = "politics.court";
+                return;
+
+            case "military.arena":
+            case "military.strongholds":
+                StrategicAdvisorBox.AdvisorName = "GIÁO ĐẦU QUÂN DOANH";
+                StrategicAdvisorBox.AdvisorTitle = "Binh Cơ Chỉ Đạo";
+                StrategicAdvisorBox.AvatarInitials = "Võ";
+                StrategicAdvisorBox.AdviceMessage = "Khắc chế binh chủng là đạo thắng lợi: Kỵ khắc Bộ (+25%), Bộ khắc Cung (+25%), Cung khắc Kỵ (+25%).";
+                StrategicAdvisorBox.ActionButtonLabel = "Tỷ Võ";
+                StrategicAdvisorBox.Tag = "military.arena";
+                return;
+
+            case "cultivation.farm":
+                StrategicAdvisorBox.AdvisorName = "ĐIỀN TRANG NÔNG ĐẦU";
+                StrategicAdvisorBox.AdvisorTitle = "Nông Vụ Cố Vấn";
+                StrategicAdvisorBox.AvatarInitials = "Nông";
+                StrategicAdvisorBox.AdviceMessage = "Thời vụ bốn mùa: Xuân hạ gieo cấy, thu hoạch vào thu, tích trữ lương thảo đợi mùa giáp hạt giá cao.";
+                StrategicAdvisorBox.ActionButtonLabel = "Điền Trang";
+                StrategicAdvisorBox.Tag = "cultivation.farm";
+                return;
+
+            case "content.items":
+                StrategicAdvisorBox.AdvisorName = "BÁCH VẬT GIÁM ĐỊNH";
+                StrategicAdvisorBox.AdvisorTitle = "Đồ Giám Tiên Sinh";
+                StrategicAdvisorBox.AvatarInitials = "Giám";
+                StrategicAdvisorBox.AdviceMessage = "Nắm rõ hạn sử dụng và địa lý đặc sản 24 loại kỳ vật để vận tải liên châu không lo hao hụt mục nát.";
+                StrategicAdvisorBox.ActionButtonLabel = "Đồ Giám";
+                StrategicAdvisorBox.Tag = "content.items";
+                return;
+
+            case "player.reputation":
+                StrategicAdvisorBox.AdvisorName = "DANH SĨ HUYỀN ĐÀM";
+                StrategicAdvisorBox.AdvisorTitle = "Thanh Nghị Luận Danh";
+                StrategicAdvisorBox.AvatarInitials = "Danh";
+                StrategicAdvisorBox.AdviceMessage = "Thi ân bố đức cứu tế dân nghèo, kết giao hào kiệt bốn phương để nâng cấp vị thế trong bảng Phong Thần.";
+                StrategicAdvisorBox.ActionButtonLabel = "Uy Danh";
+                StrategicAdvisorBox.Tag = "player.reputation";
+                return;
+
+            case "caravan.dispatch":
+            case "caravan.routes":
+                StrategicAdvisorBox.AdvisorName = "TIÊU CỤC TỔNG TIÊU";
+                StrategicAdvisorBox.AdvisorTitle = "Hành Trình Hộ Tiêu";
+                StrategicAdvisorBox.AvatarInitials = "Tiêu";
+                StrategicAdvisorBox.AdviceMessage = "Đường xa nhiều đạo tặc, hãy điều phối hộ vệ tinh nhuệ và nâng cấp xe thồ để tối ưu chuyến tải.";
+                StrategicAdvisorBox.ActionButtonLabel = "Thương Đoàn";
+                StrategicAdvisorBox.Tag = "caravan.dispatch";
+                return;
+
+            case "professions.trades":
+                StrategicAdvisorBox.AdvisorName = "BÁCH NGHỆ TỔ SƯ";
+                StrategicAdvisorBox.AdvisorTitle = "Thợ Cả Phường Hội";
+                StrategicAdvisorBox.AvatarInitials = "Nghệ";
+                StrategicAdvisorBox.AdviceMessage = "Rèn luyện tay nghề nâng bậc, chế tác thần binh hộ giáp và hoàn thành ủy thác thương hội để nhận bổng lộc.";
+                StrategicAdvisorBox.ActionButtonLabel = "Chế Tác";
+                StrategicAdvisorBox.Tag = "professions.trades";
+                return;
+
+            case "npc.directory":
+                StrategicAdvisorBox.AdvisorName = "NGUYỆT ĐÁN BÌNH SĨ";
+                StrategicAdvisorBox.AdvisorTitle = "Hào Kiệt Giám Định";
+                StrategicAdvisorBox.AvatarInitials = "Nhân";
+                StrategicAdvisorBox.AdviceMessage = "Thiên hạ anh hùng quy về một mối. Thăm hỏi và tặng quà hợp sở thích để chiêu mộ danh sĩ làm gia thần.";
+                StrategicAdvisorBox.ActionButtonLabel = "Dạo Phố";
+                StrategicAdvisorBox.Tag = "world.stroll";
+                return;
+        }
+
         // Check balance
         var liquid = _kernel.Ledger.Liquid;
         if (liquid > 15000)
@@ -372,7 +450,7 @@ public partial class MainWindow
             StrategicAdvisorBox.AvatarInitials = "Phú";
             StrategicAdvisorBox.AdviceMessage = $"Ngân lượng lưu động đạt {liquid:N0} quan! Đại nhân nên xem xét cấp vốn cho Thương Đoàn hoặc thâu tóm thêm Điền Trang.";
             StrategicAdvisorBox.ActionButtonLabel = "Thương Đoàn";
-            StrategicAdvisorBox.Tag = "caravan.routes";
+            StrategicAdvisorBox.Tag = "caravan.dispatch";
             return;
         }
 

@@ -43,7 +43,7 @@ internal sealed class CourtScreen : IScreenContribution
 
             officeRows.Add(new ScreenRow(
                 [
-                    $"{office.NameVi} ({office.NameEn})",
+                    office.NameVi,
                     $"Phẩm {office.Rank}",
                     $"{office.MonthlyStipend} Quan",
                     office.ReputationRequired.ToString(System.Globalization.CultureInfo.InvariantCulture),

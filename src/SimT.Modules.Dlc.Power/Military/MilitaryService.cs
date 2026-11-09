@@ -642,4 +642,16 @@ internal sealed class MilitaryService : IMilitaryCommand
             newDefense,
             statusVi);
     }
+
+    public void ReinforceArmory(long citadelId, int weaponCount, string statusVi)
+    {
+        _db.Execute(
+            """
+            UPDATE ml_citadel_armory 
+            SET weapons_stock = MIN(weapons_capacity, weapons_stock + @weapons),
+                last_status_vi = @status
+            WHERE citadel_id = @citadel
+            """,
+            new DbArgs().Add("@weapons", weaponCount).Add("@status", statusVi).Add("@citadel", citadelId));
+    }
 }

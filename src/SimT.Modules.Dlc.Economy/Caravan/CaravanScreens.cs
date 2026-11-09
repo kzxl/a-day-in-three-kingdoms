@@ -1,4 +1,4 @@
-﻿using SimT.Contracts.Playing;
+using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
 using SimT.Contracts.Ui;
 using SimT.Modules.Dlc.Economy.Caravan;
@@ -378,13 +378,13 @@ internal sealed class CaravanScreen : IScreenContribution
             $"{Title} — {city.NameVi}",
             $"Đội xe: {fleet.NameVi} (Bậc {fleet.Tier}/3) · Đang chở {_service.UnitsInTransit} đv · Hợp đồng: {activeContracts} · Túi: {held} đv",
             [
-                new ScreenSection("Thương Cơ Thị Trường & Tin Tức Thời Thế", RumorColumns, rumorRows, SectionViewMode.CaravanDispatchBoard),
-                new ScreenSection("Tứ Đại Thương Bang & Minh Ước Độc Quyền", CartelColumns, cartelRows, SectionViewMode.CaravanDispatchBoard),
-                new ScreenSection("Tuyến Thương Mại Tự Động (Thương Đoàn Thường Trực)", AutoRouteColumns, autoRouteRows, SectionViewMode.CaravanDispatchBoard),
-                new ScreenSection("Biên Chế Nhân Sự Thương Đội", CrewColumns, crewRows, SectionViewMode.CaravanDispatchBoard),
-                new ScreenSection("Hợp Đồng Áp Tiêu (Đại Thương Bang)", ContractColumns, contractRows, SectionViewMode.CaravanDispatchBoard),
-                new ScreenSection("Tuyến Đường & Lộ Trình", RouteColumns, routeRows, SectionViewMode.CaravanDispatchBoard),
-                new ScreenSection("Đoàn Hàng Đang Di Chuyển", RunColumns, runRows, SectionViewMode.CaravanDispatchBoard)
+                new ScreenSection("Thương Cơ & Tin Tức", RumorColumns, rumorRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Minh Ước Thương Bang", CartelColumns, cartelRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Tuyến Buôn Tự Động", AutoRouteColumns, autoRouteRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Biên Chế Nhân Sự", CrewColumns, crewRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Hợp Đồng Áp Tiêu", ContractColumns, contractRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Tuyến Đường", RouteColumns, routeRows, SectionViewMode.CaravanDispatchBoard),
+                new ScreenSection("Đoàn Đang Di Chuyển", RunColumns, runRows, SectionViewMode.CaravanDispatchBoard)
             ],
             topCommands,
             [

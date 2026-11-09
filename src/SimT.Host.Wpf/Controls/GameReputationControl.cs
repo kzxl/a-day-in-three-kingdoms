@@ -68,8 +68,14 @@ public sealed class GameReputationControl : Grid
 
         foreach (var row in _section.Rows)
         {
-            var isCurrent = row.Cells.Count > 4 && (row.Cells[4].Contains("Đang ở cấp") || row.Cells[4].Contains("👑"));
-            var isUnlocked = row.Cells.Count > 4 && row.Cells[4].Contains("Đã mở");
+            var title = row.Cells.Count > 0 ? row.Cells[0] : (row.Title ?? "Tước Vị");
+            var name = row.Cells.Count > 1 ? row.Cells[1] : "";
+            var reqFame = row.Cells.Count > 2 ? row.Cells[2] : "0";
+            var status = row.Cells.Count > 3 ? row.Cells[3] : "";
+            var perk = row.Cells.Count > 4 ? row.Cells[4] : "";
+
+            var isCurrent = status.Contains("Đang giữ") || status.Contains("👑") || title.StartsWith("★");
+            var isUnlocked = isCurrent || status.Contains("Đã mở");
 
             var card = new Border
             {
@@ -79,18 +85,12 @@ public sealed class GameReputationControl : Grid
                 CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(12),
                 Margin = new Thickness(6),
-                Width = 270,
+                Width = 320,
                 Cursor = Cursors.Hand
             };
 
             var stack = new StackPanel();
             card.Child = stack;
-
-            var title = row.Cells.Count > 0 ? row.Cells[0] : (row.Title ?? "Tước Vị");
-            var name = row.Cells.Count > 1 ? row.Cells[1] : "";
-            var reqFame = row.Cells.Count > 2 ? row.Cells[2] : "0";
-            var perk = row.Cells.Count > 3 ? row.Cells[3] : "";
-            var status = row.Cells.Count > 4 ? row.Cells[4] : "";
 
             var header = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
             var titleBlock = new TextBlock
@@ -99,7 +99,7 @@ public sealed class GameReputationControl : Grid
                 FontWeight = FontWeights.Bold,
                 FontSize = 13.5,
                 Foreground = isCurrent ? GoldBrush : TextPrimaryBrush,
-                MaxWidth = 170,
+                MaxWidth = 220,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
             DockPanel.SetDock(titleBlock, Dock.Left);
@@ -139,6 +139,18 @@ public sealed class GameReputationControl : Grid
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 2, 0, 4)
             });
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = status,
+                    FontSize = 10.5,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = isCurrent ? GoldBrush : (isUnlocked ? GreenBrush : TextMutedBrush),
+                    Margin = new Thickness(0, 4, 0, 0)
+                });
+            }
 
             card.MouseEnter += (_, _) => { if (!isCurrent) card.Background = CardHoverBg; };
             card.MouseLeave += (_, _) => { if (!isCurrent) card.Background = CardBg; };

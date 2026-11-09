@@ -180,14 +180,10 @@ internal sealed partial class ProfessionService
                 case "IMPERIAL_ARMORY":
                 {
                     _wallet.Pay(500, "professions.hegemony", "Bổng lộc độc quyền quân giới triều đình");
-                    _db.Execute(
-                        """
-                        UPDATE ml_citadel_armory 
-                        SET weapons_stock = MIN(weapons_capacity, weapons_stock + 20),
-                            last_status_vi = 'Độc quyền quân giới triều đình gia cố võ khố'
-                        WHERE citadel_id = @citadel
-                        """,
-                        DbArgs.One("@citadel", citadelId));
+                    if (_broker?.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var military) == true && military != null)
+                    {
+                        military.ReinforceArmory(citadelId, 20, "Độc quyền quân giới triều đình gia cố võ khố");
+                    }
 
                     AddGuildFame(30);
                     _db.Execute(
@@ -201,15 +197,10 @@ internal sealed partial class ProfessionService
                 case "GRAND_IRRIGATION":
                 {
                     _wallet.Charge(available.CostCopper, "professions.hegemony", "Chi phí đại công trình thủy lợi nông giang");
-                    _db.Execute(
-                        """
-                        UPDATE po_city_demographics 
-                        SET prosperity_score = MIN(100, prosperity_score + 10),
-                            starvation_months = 0,
-                            famine_status_vi = 'Thủy lợi đại khai, ngũ cốc phong đăng'
-                        WHERE citadel_id = @citadel
-                        """,
-                        DbArgs.One("@citadel", citadelId));
+                    if (_broker?.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice, out var court) == true && court != null)
+                    {
+                        court.BoostCityProsperity(citadelId, 10, "Thủy lợi đại khai, ngũ cốc phong đăng");
+                    }
 
                     // Inject grain into city market
                     _db.Execute(
@@ -228,15 +219,10 @@ internal sealed partial class ProfessionService
                 case "PLAGUE_RELIEF":
                 {
                     _wallet.Charge(available.CostCopper, "professions.hegemony", "Chi phí bách thảo cứu tế dịch bệnh");
-                    _db.Execute(
-                        """
-                        UPDATE po_city_demographics 
-                        SET population = population + 500,
-                            prosperity_score = MIN(100, prosperity_score + 5),
-                            famine_status_vi = 'Y thánh tế thế, dịch lệ tiêu tan'
-                        WHERE citadel_id = @citadel
-                        """,
-                        DbArgs.One("@citadel", citadelId));
+                    if (_broker?.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice, out var court) == true && court != null)
+                    {
+                        court.BoostCityProsperity(citadelId, 5, "Y thánh tế thế, dịch lệ tiêu tan", 500);
+                    }
 
                     AddGuildFame(40);
                     var apothecaryId = Trades.FirstOrDefault(t => t.Code == "duoc_su")?.Id ?? 5;

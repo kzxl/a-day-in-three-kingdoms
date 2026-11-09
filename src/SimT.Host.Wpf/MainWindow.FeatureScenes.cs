@@ -10,8 +10,6 @@ public partial class MainWindow
     {
         "world.map" => TryOpenMapScene(recommendation),
         "social.network" => TryOpenSocialScene(recommendation),
-        "market.stall" => TryOpenMarketScene(recommendation),
-        "npc.directory" => TryOpenDossierScene(recommendation),
         _ => false
     };
 
