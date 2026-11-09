@@ -41,6 +41,7 @@ public sealed class GameTable : Grid
     private readonly int _flexColumn;
     private readonly bool[] _numeric;
     private readonly bool _hasActions;
+    private readonly double _actionColumnWidth;
     private readonly ListBox _listBox;
     private Grid _headerGrid;
     private int _sortColumn = -1;
@@ -57,6 +58,7 @@ public sealed class GameTable : Grid
         _flexColumn = flexColumn;
         _numeric = numeric;
         _hasActions = section.Rows.Any(r => r.Commands.Any(c => !c.RequiresQuantity));
+        _actionColumnWidth = CalculateActionColumnWidth();
 
         RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -197,42 +199,36 @@ public sealed class GameTable : Grid
             rowGrid.Children.Add(cellElement);
         }
 
-        Border? selectBar = null;
-        StackPanel? actionsPanel = null;
-        void EnsureInteractiveChrome(bool sel, bool hov)
+        var selectBar = new Border
         {
-            if (sel && selectBar is null)
+            Width = 3, CornerRadius = new CornerRadius(1.5), Background = Brushes.Transparent,
+            HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 2, 0, 2)
+        };
+        SetColumn(selectBar, 0);
+        rowGrid.Children.Add(selectBar);
+
+        StackPanel? actionsPanel = null;
+        if (_hasActions && vm.Chips.Count > 0)
+        {
+            actionsPanel = new StackPanel
             {
-                selectBar = new Border
-                {
-                    Width = 3, CornerRadius = new CornerRadius(1.5), Background = CinnabarMark,
-                    HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 2, 0, 2)
-                };
-                SetColumn(selectBar, 0);
-                rowGrid.Children.Add(selectBar);
-            }
-            if ((hov || sel) && actionsPanel is null && _hasActions && vm.Chips.Count > 0)
+                Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right, Visibility = Visibility.Hidden
+            };
+            foreach (var chip in vm.Chips)
             {
-                actionsPanel = new StackPanel
+                var variant = chip.Command.Kind switch
                 {
-                    Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Right
+                    CommandKind.Primary => GameButtonVariant.Primary,
+                    CommandKind.Danger => GameButtonVariant.Danger,
+                    _ => GameButtonVariant.Secondary
                 };
-                foreach (var chip in vm.Chips)
-                {
-                    var variant = chip.Command.Kind switch
-                    {
-                        CommandKind.Primary => GameButtonVariant.Primary,
-                        CommandKind.Danger => GameButtonVariant.Danger,
-                        _ => GameButtonVariant.Secondary
-                    };
-                    var btn = new GameButton(chip.Label, variant, isCompact: true) { Tag = chip.Id, Margin = new Thickness(0, 0, 5, 0) };
-                    btn.Click += (s, e) => { e.Handled = true; ActionClicked?.Invoke(s, e); };
-                    actionsPanel.Children.Add(btn);
-                }
-                SetColumn(actionsPanel, _visibleColumns);
-                rowGrid.Children.Add(actionsPanel);
+                var btn = new GameButton(chip.Label, variant, isCompact: true) { Tag = chip.Id, Margin = new Thickness(0, 0, 5, 0) };
+                btn.Click += (s, e) => { e.Handled = true; ActionClicked?.Invoke(s, e); };
+                actionsPanel.Children.Add(btn);
             }
+            SetColumn(actionsPanel, _visibleColumns);
+            rowGrid.Children.Add(actionsPanel);
         }
 
         var detailBtn = new Border
@@ -254,10 +250,9 @@ public sealed class GameTable : Grid
         {
             var sel = item.IsSelected;
             var hov = card.IsMouseOver;
-            if (hov || sel) EnsureInteractiveChrome(sel, hov);
             card.Background = sel ? RowSelectedBg : (hov ? RowHoverBg : baseBg);
             card.BorderBrush = hov || sel ? RowHoverBorder : RowBorder;
-            if (selectBar is not null) selectBar.Background = sel ? CinnabarMark : Brushes.Transparent;
+            selectBar.Background = sel ? CinnabarMark : Brushes.Transparent;
             if (actionsPanel is not null) actionsPanel.Visibility = (hov || sel) ? Visibility.Visible : Visibility.Hidden;
         }
 
@@ -265,6 +260,7 @@ public sealed class GameTable : Grid
         card.MouseLeave += (_, _) => SyncRowState();
         item.Selected += (_, _) => SyncRowState();
         item.Unselected += (_, _) => SyncRowState();
+        SyncRowState();
         return item;
     }
 
@@ -369,8 +365,53 @@ public sealed class GameTable : Grid
             var minW = i == _flexColumn ? 140 : (_numeric[i] ? 82 : 96);
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(star, GridUnitType.Star), MinWidth = minW });
         }
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        if (_hasActions && _actionColumnWidth > 0)
+        {
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(_actionColumnWidth, GridUnitType.Pixel) });
+        }
+        else
+        {
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0) });
+        }
         g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+    }
+
+    private double CalculateActionColumnWidth()
+    {
+        if (!_hasActions || _allRows.Count == 0) return 0;
+
+        double maxWidth = 0;
+        var seenPatterns = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var row in _allRows)
+        {
+            if (row.Chips.Count == 0) continue;
+
+            var key = string.Join("|", row.Chips.Select(c => c.Label));
+            if (!seenPatterns.Add(key)) continue;
+
+            var panel = new StackPanel { Orientation = Orientation.Horizontal };
+            foreach (var chip in row.Chips)
+            {
+                var variant = chip.Command.Kind switch
+                {
+                    CommandKind.Primary => GameButtonVariant.Primary,
+                    CommandKind.Danger => GameButtonVariant.Danger,
+                    _ => GameButtonVariant.Secondary
+                };
+                var btn = new GameButton(chip.Label, variant, isCompact: true)
+                {
+                    Margin = new Thickness(0, 0, 5, 0)
+                };
+                panel.Children.Add(btn);
+            }
+
+            panel.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            if (panel.DesiredSize.Width > maxWidth)
+                maxWidth = panel.DesiredSize.Width;
+        }
+
+        return maxWidth > 0 ? Math.Ceiling(maxWidth + 4) : 0;
     }
 
     private static Style CreateRowContainerStyle()
