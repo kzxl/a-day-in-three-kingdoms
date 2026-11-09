@@ -247,7 +247,7 @@ public partial class MainWindow
 
         ContentPanel.Children.Clear();
         ContentPanel.Children.Add(BuildCard(
-            new ScreenSection("Bút toán", ["Ngày", "Mã", "Loại", "Số tiền", "Số dư", "Nguồn", "Diễn giải"], rows),
+            new ScreenSection("Bút toán", ["Ngày", "Mã", "Loại", "Số tiền", "Số dư", "Nguồn", "Diễn giải"], rows, SectionViewMode.TreasuryVault),
             wideColumn: 5));
 
         ContentPanel.Children.Add(MonthFooter());

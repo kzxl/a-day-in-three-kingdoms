@@ -323,8 +323,8 @@ internal sealed partial class ProfessionScreen
         }
 
         return (
-            new ScreenSection("Xưởng Chế Tác Tại Thành", ["Tên Xưởng", "Chuyên Môn", "Lò Luyện", "Thợ Phụ", "Tiền Thuê", "Trạng Thái"], workshopRows),
-            new ScreenSection("Bách Nghệ Lao Tác (16 Ngành Nghề)", Columns, rows));
+            new ScreenSection("Xưởng Chế Tác Tại Thành", ["Tên Xưởng", "Chuyên Môn", "Lò Luyện", "Thợ Phụ", "Tiền Thuê", "Trạng Thái"], workshopRows, SectionViewMode.ArtisanWorkbench),
+            new ScreenSection("Bách Nghệ Lao Tác (16 Ngành Nghề)", Columns, rows, SectionViewMode.ArtisanWorkbench));
     }
 
     private (ScreenSection OrderSection, ScreenSection BountySection, int OrderCount) BuildOrderAndBountySections(
@@ -435,8 +435,8 @@ internal sealed partial class ProfessionScreen
         }
 
         return (
-            new ScreenSection("Ủy Thác & Đơn Đặt Hàng Phường Hội", OrderColumns, orderRows),
-            new ScreenSection("Bảng Cáo Thị Ủy Thác Khai Thác & Sai Phái", ["Hình Thức", "Vật Phẩm Cần", "Số Lượng", "Thù Lao / Chi Phí", "Người Nhận", "Tiến Độ"], bountyRows),
+            new ScreenSection("Ủy Thác & Đơn Đặt Hàng Phường Hội", OrderColumns, orderRows, SectionViewMode.ArtisanWorkbench),
+            new ScreenSection("Bảng Cáo Thị Ủy Thác Khai Thác & Sai Phái", ["Hình Thức", "Vật Phẩm Cần", "Số Lượng", "Thù Lao / Chi Phí", "Người Nhận", "Tiến Độ"], bountyRows, SectionViewMode.ArtisanWorkbench),
             orderRows.Count);
     }
 
@@ -535,8 +535,8 @@ internal sealed partial class ProfessionScreen
         };
 
         return (
-            new ScreenSection("Bếp Nấu Ẩm Thực (Mỹ Vị Tam Quốc)", ["Món Ăn", "Nguyên Liệu", "Chi Phí", "Hiệu Quả Sinh Mệnh", "Có Sẵn"], dishRows),
-            new ScreenSection("Dã Ngoại Sinh Hoạt (Câu Cá, Hái Thuốc & Săn Bắn)", ["Hoạt Động", "Địa Điểm", "Tiêu Hao", "Thu Hoạch Dự Kiến", "Lợi Ích Thần Trí"], wildRows),
-            new ScreenSection("Bí Kỹ Nghề Nghiệp & Giác Ngộ", PerkColumns, perkRows));
+            new ScreenSection("Bếp Nấu Ẩm Thực (Mỹ Vị Tam Quốc)", ["Món Ăn", "Nguyên Liệu", "Chi Phí", "Hiệu Quả Sinh Mệnh", "Có Sẵn"], dishRows, SectionViewMode.ArtisanWorkbench),
+            new ScreenSection("Dã Ngoại Sinh Hoạt (Câu Cá, Hái Thuốc & Săn Bắn)", ["Hoạt Động", "Địa Điểm", "Tiêu Hao", "Thu Hoạch Dự Kiến", "Lợi Ích Thần Trí"], wildRows, SectionViewMode.ArtisanWorkbench),
+            new ScreenSection("Bí Kỹ Nghề Nghiệp & Giác Ngộ", PerkColumns, perkRows, SectionViewMode.ArtisanWorkbench));
     }
 }

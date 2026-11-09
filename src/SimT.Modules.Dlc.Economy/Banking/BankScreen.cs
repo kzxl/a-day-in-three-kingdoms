@@ -144,7 +144,7 @@ public sealed class BankScreen : IScreenContribution
         }
 
         var radarColumns = new[] { "Hàng Hóa", "Thành Xuất Xứ (Giá Mua)", "Thành Tiêu Thụ (Giá Bán)", "Lợi Nhuận/Đvị", "Biên Lợi Nhuận", "Khuyến Nghị" };
-        sections.Add(new ScreenSection($"📡 Thương Báo Tam Quốc — Radar Tuyến Buôn Chênh Lệch Lời Nhất", radarColumns, _cachedRadarRows));
+        sections.Add(new ScreenSection($"📡 Thương Báo Tam Quốc — Radar Tuyến Buôn Chênh Lệch Lời Nhất", radarColumns, _cachedRadarRows, SectionViewMode.TreasuryVault));
 
         return new ScreenModel(
             ScreenId,

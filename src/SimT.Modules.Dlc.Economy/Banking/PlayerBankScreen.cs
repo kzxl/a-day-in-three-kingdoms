@@ -162,7 +162,7 @@ public sealed class PlayerBankScreen : IScreenContribution
                     ]));
             }
 
-            sections.Add(new ScreenSection($"🛡️ Đoàn Tiêu Cục Áp Tải Ngân Lượng ({convoys.Count} lượt vận hành)", convoyColumns, convoyRows));
+            sections.Add(new ScreenSection($"🛡️ Đoàn Tiêu Cục Áp Tải Ngân Lượng ({convoys.Count} lượt vận hành)", convoyColumns, convoyRows, SectionViewMode.TreasuryVault));
         }
 
         var commands = new List<ScreenCommand>();

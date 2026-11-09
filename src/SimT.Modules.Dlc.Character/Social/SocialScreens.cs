@@ -116,7 +116,7 @@ internal sealed class SocialScreen : IScreenContribution
             }).ToList();
 
             var unreadTag = unreadLetters > 0 ? $" ({unreadLetters} thư mới 🔴)" : "";
-            sections.Add(new ScreenSection($"✉️ Hòm Thư Tri Kỷ & Bằng Hữu{unreadTag}", letterColumns, letterRows));
+            sections.Add(new ScreenSection($"✉️ Hòm Thư Tri Kỷ & Bằng Hữu{unreadTag}", letterColumns, letterRows, SectionViewMode.DossierGrid));
         }
 
         // 2. Sworn Brothers Section
@@ -321,7 +321,7 @@ internal sealed class SocialScreen : IScreenContribution
                     ]);
             }).ToList();
 
-            sections.Add(new ScreenSection($"📚 Tuyệt Kỹ Đã Lĩnh Hội & Kho Bí Kíp ({progresses.Count})", libraryColumns, libraryRows));
+            sections.Add(new ScreenSection($"📚 Tuyệt Kỹ Đã Lĩnh Hội & Kho Bí Kíp ({progresses.Count})", libraryColumns, libraryRows, SectionViewMode.DossierGrid));
         }
 
         // 2. Local NPCs & Interaction Section
