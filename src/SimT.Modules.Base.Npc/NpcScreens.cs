@@ -80,7 +80,8 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             sections.Add(new ScreenSection(
                 $"Nhân sĩ đồng thành · {currentCitadelName} ({localNpcs.Count})",
                 Columns,
-                localNpcs.Select(npc => ToRow(npc, currentCitadelName, isLocal: true, hasMet: metNpcIds.Contains(npc.Id), effectivePrc, hasBaLac, hasNguyetDan, hasVongKhi)).ToList()));
+                localNpcs.Select(npc => ToRow(npc, currentCitadelName, isLocal: true, hasMet: metNpcIds.Contains(npc.Id), effectivePrc, hasBaLac, hasNguyetDan, hasVongKhi)).ToList(),
+                SectionViewMode.NpcDirectoryDeck));
         }
 
         if (distantMetNpcs.Count > 0)
@@ -92,7 +93,8 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
                 {
                     var cit = _map.Find(npc.CitadelId);
                     return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: true, effectivePrc, hasBaLac, hasNguyetDan, hasVongKhi);
-                }).ToList()));
+                }).ToList(),
+                SectionViewMode.NpcDirectoryDeck));
         }
 
         sections.Add(new ScreenSection(
@@ -102,7 +104,8 @@ internal sealed class NpcDirectoryScreen : IScreenContribution
             {
                 var cit = _map.Find(npc.CitadelId);
                 return ToRow(npc, cit?.NameVi ?? "Ẩn sĩ", isLocal: false, hasMet: false, effectivePrc, hasBaLac, hasNguyetDan, hasVongKhi);
-            }).ToList()));
+            }).ToList(),
+            SectionViewMode.NpcDirectoryDeck));
 
         var metCount = all.Count(n => metNpcIds.Contains(n.Id));
         var prcTitle = effectivePrc switch

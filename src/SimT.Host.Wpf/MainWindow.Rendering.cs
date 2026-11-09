@@ -389,6 +389,13 @@ public partial class MainWindow
                 cmd => _ = ExecuteScreenCommandAsync(cmd),
                 (sec, row) => ShowInspector(sec, row)));
         }
+        else if (!isTablePreferred && section.ViewMode == SectionViewMode.NpcDirectoryDeck)
+        {
+            bodyStack.Children.Add(new GameNpcDirectoryControl(
+                section,
+                cmd => _ = ExecuteScreenCommandAsync(cmd),
+                (sec, row) => ShowInspector(sec, row)));
+        }
         else
         {
             var portraitStrip = TryBuildPortraitStrip(section);
