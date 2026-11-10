@@ -153,4 +153,85 @@ public sealed class DeepOfficialdomTests : IDisposable
         Assert.NotEmpty(memorials);
         Assert.Contains(memorials, m => m.Category == "reform");
     }
+
+    [Fact]
+    public void Autonomous_aide_delegation_and_monthly_digest_generation()
+    {
+        using var kernel = _host.Boot();
+        var court = kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+        Assert.NotNull(court);
+
+        // Join faction with cities and become governor
+        var targetGov = court.Governances.First(g => g.FactionId > 0);
+        var faction = court.Factions.First(f => f.Id == targetGov.FactionId);
+        while (court.Reputation < 5) court.Serve();
+        court.JoinFaction(faction.Id);
+
+        var office3 = court.Offices.FirstOrDefault(o => o.Rank >= 3) ?? court.Offices[court.Offices.Count - 1];
+        while (court.Reputation < office3.ReputationRequired) court.Serve();
+        court.Apply(office3.Id);
+
+        var appoint = court.AppointGovernor(targetGov.CitadelId);
+        Assert.True(appoint.Ok, appoint.Message);
+
+        var fief = court.PlayerFief;
+        Assert.NotNull(fief);
+        Assert.Equal("BALANCE", fief.PolicyDirective);
+        Assert.True(fief.Population > 0);
+        Assert.True(fief.GarrisonTroops > 0);
+        Assert.Equal(0, fief.CivilAideNpcId);
+        Assert.Equal(0, fief.MilitaryAideNpcId);
+
+        // 1. Appoint Aides
+        var npcs = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var civilNpc = npcs.All.First();
+        var militaryNpc = npcs.All.Skip(1).First();
+
+        var appointCiv = court.AppointFiefAide(civilNpc.Id, "CIVIL");
+        Assert.True(appointCiv.Ok, appointCiv.Message);
+
+        var appointMil = court.AppointFiefAide(militaryNpc.Id, "MILITARY");
+        Assert.True(appointMil.Ok, appointMil.Message);
+
+        var fiefWithAides = court.PlayerFief;
+        Assert.NotNull(fiefWithAides);
+        Assert.Equal(civilNpc.Id, fiefWithAides.CivilAideNpcId);
+        Assert.Equal(civilNpc.NameVi, fiefWithAides.CivilAideNameVi);
+        Assert.Equal(militaryNpc.Id, fiefWithAides.MilitaryAideNpcId);
+        Assert.Equal(militaryNpc.NameVi, fiefWithAides.MilitaryAideNameVi);
+
+        // 2. Set Directive to AGRI
+        var setDir = court.SetFiefDirective("AGRI");
+        Assert.True(setDir.Ok, setDir.Message);
+        Assert.Equal("AGRI", court.PlayerFief!.PolicyDirective);
+
+        // 3. Simulate Month Autonomy
+        court.SimulateMonthlyFiefAutonomy(new SimT.Contracts.Time.GameDate(184, 10, 30));
+
+        var digest1 = court.LatestMonthlyDigest;
+        Assert.NotNull(digest1);
+        Assert.Equal(184, digest1.Year);
+        Assert.Equal(10, digest1.Month);
+        Assert.Equal("AGRI", digest1.Directive);
+        Assert.True(digest1.PopulationDelta > 0);
+        Assert.True(digest1.MeritsEarned > 0);
+        Assert.Contains(civilNpc.NameVi, digest1.CivilActionVi);
+        Assert.Contains("Trọng Nông", digest1.SummaryVi);
+
+        // 4. Switch Directive to MILITARY and simulate next month
+        court.SetFiefDirective("MILITARY");
+        court.SimulateMonthlyFiefAutonomy(new SimT.Contracts.Time.GameDate(184, 11, 30));
+
+        var digests = court.RecentMonthlyDigests(5);
+        Assert.Equal(2, digests.Count);
+        Assert.Equal("MILITARY", digests[0].Directive);
+        Assert.True(digests[0].GarrisonDelta > 0);
+        Assert.Contains(militaryNpc.NameVi, digests[0].MilitaryActionVi);
+
+        // 5. Dismiss Aide
+        var dismissCiv = court.AppointFiefAide(0, "CIVIL");
+        Assert.True(dismissCiv.Ok);
+        Assert.Equal(0, court.PlayerFief!.CivilAideNpcId);
+        Assert.Equal("Chưa bổ nhiệm", court.PlayerFief!.CivilAideNameVi);
+    }
 }

@@ -50,7 +50,8 @@
       "po_city_demographics",
       "po_governor_fief",
       "po_court_memorial",
-      "po_career_log"
+      "po_career_log",
+      "po_governance_digest"
     ],
     "migrations": [
       "migrations"

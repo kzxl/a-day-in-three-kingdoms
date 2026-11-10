@@ -10,7 +10,8 @@ internal sealed class CourtScreen : IScreenContribution
     private static readonly string[] OfficeColumns = ["Chức vụ", "Phẩm", "Bổng/tháng", "Uy tín cần", "Trạng thái"];
     private static readonly string[] FactionColumns = ["Thế Lực / Minh Chủ", "Thủ Phủ", "Lý Tưởng Cát Cứ", "Binh Lực", "Quốc Khố", "Quan Hệ"];
     private static readonly string[] CityColumns = ["Thành Trì", "Thế Lực Chiếm Giữ", "Bất Ổn", "Phòng Thủ", "Thuế Suất", "Hành Chính Địa Phương"];
-    private static readonly string[] FiefColumns = ["Phong Ấp Châu Quận", "Nông Khẩn", "Thương Nghiệp", "Thành Phòng", "Trị An", "Ngân Khố Nha Môn"];
+    private static readonly string[] FiefColumns = ["Phong Ấp Châu Quận", "Dân Số & Binh Lực", "Nông Khẩn", "Thương Nghiệp", "Thành Phòng", "Trị An", "Ban Bệ Phụ Tá", "Phương Châm", "Ngân Khố Nha Môn"];
+    private static readonly string[] DigestColumns = ["Thời Điểm", "Phương Châm", "Biến Động Dân & Khố", "Binh Lực & Lương Thực", "Huân Công", "Tường Trình Nha Môn"];
     private static readonly string[] MemorialColumns = ["Ngày", "Thể Loại", "Sớ Thượng Tấu", "Kết Quả", "Công Trạng", "Hồi Âm Triều Đình"];
     private static readonly string[] CareerColumns = ["Ngày", "Biến Chuyển", "Chức Vị Cũ", "Chức Vị Mới", "Công Trạng", "Chiếu Chỉ Minh Chủ"];
     private static readonly string[] LogColumns = ["Ngày", "Thành", "Chính Sách", "Chi Phí", "Uy Tín", "Bất Ổn", "Tường Trình"];
@@ -63,13 +64,26 @@ internal sealed class CourtScreen : IScreenContribution
             fiefRows.Add(new ScreenRow(
                 [
                     $"🏛️ {fief.CitadelNameVi} (Trấn nhậm)",
+                    $"👥 {fief.Population:N0} dân · ⚔️ {fief.GarrisonTroops:N0} binh ({fief.WeaponsStock} vk)",
                     $"{fief.Agriculture}/100",
                     $"{fief.Commerce}/100",
                     $"{fief.Fortification}/100",
                     $"{fief.PublicOrder}/100",
-                    $"{fief.LocalTreasury} Quan"
+                    $"Văn: {fief.CivilAideNameVi} | Võ: {fief.MilitaryAideNameVi}",
+                    fief.PolicyDirective switch
+                    {
+                        "AGRI" => "🌾 Trọng Nông Tích Cốc",
+                        "COMM" => "💰 Trọng Thương Thu Thuế",
+                        "MILITARY" => "⚔️ Quân Bị Tiễu Phỉ",
+                        _ => "⚖️ Cân Bằng Toàn Diện"
+                    },
+                    $"{fief.LocalTreasury:N0} Quan"
                 ],
                 [
+                    new ScreenCommand("fief_directive:AGRI", "Đổi: Trọng Nông 🌾"),
+                    new ScreenCommand("fief_directive:COMM", "Đổi: Trọng Thương 💰"),
+                    new ScreenCommand("fief_directive:MILITARY", "Đổi: Quân Bị ⚔️"),
+                    new ScreenCommand("fief_directive:BALANCE", "Đổi: Cân Bằng ⚖️"),
                     new ScreenCommand("develop_fief:agriculture", "Khuyến Nông (65q)"),
                     new ScreenCommand("develop_fief:commerce", "Mở Thị (65q)"),
                     new ScreenCommand("develop_fief:defense", "Cố Thủ (65q)"),
@@ -77,6 +91,28 @@ internal sealed class CourtScreen : IScreenContribution
                     new ScreenCommand("eval_governance", "Khảo Hạch Quý 📜", CommandKind.Primary),
                     new ScreenCommand("resign_governor", "Bàn Giao Ấn", CommandKind.Danger)
                 ]));
+        }
+
+        // Section 3: Monthly Governance Digest (Tổng Kết Chánh Vụ Hàng Tháng)
+        var digestRows = new List<ScreenRow>();
+        foreach (var d in _service.RecentMonthlyDigests(6))
+        {
+            digestRows.Add(new ScreenRow(
+                [
+                    $"Năm {d.Year} Tháng {d.Month}",
+                    d.Directive switch
+                    {
+                        "AGRI" => "🌾 Trọng Nông",
+                        "COMM" => "💰 Trọng Thương",
+                        "MILITARY" => "⚔️ Quân Bị",
+                        _ => "⚖️ Cân Bằng"
+                    },
+                    $"Dân số: {(d.PopulationDelta >= 0 ? "+" : "")}{d.PopulationDelta:N0} · Khố: {(d.TreasuryDelta >= 0 ? "+" : "")}{d.TreasuryDelta:N0}q",
+                    $"Lương: -{d.FoodConsumed:N0} · Binh: +{d.GarrisonDelta:N0}",
+                    $"+{d.MeritsEarned} huân công",
+                    d.SummaryVi
+                ],
+                Array.Empty<ScreenCommand>()));
         }
 
         // Section 3: Memorials (Triều Hội Thượng Tấu)
@@ -269,6 +305,11 @@ internal sealed class CourtScreen : IScreenContribution
             sections.Add(new ScreenSection("Thái Thú Phủ & Phong Ấp Châu Quận", FiefColumns, fiefRows, SectionViewMode.ImperialCourtChamber));
         }
 
+        if (digestRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Tổng Kết Chánh Vụ Phong Ấp Hàng Tháng", DigestColumns, digestRows));
+        }
+
         if (memorialRows.Count > 0)
         {
             sections.Add(new ScreenSection("Triều Hội Nghị Sự & Thượng Tấu", MemorialColumns, memorialRows));
@@ -342,6 +383,16 @@ internal sealed class CourtCommandHandler : IScreenCommandHandler
         var parts = commandId.Split(':');
         if (parts.Length >= 2)
         {
+            if (parts[0] == "fief_directive")
+            {
+                return _service.SetFiefDirective(parts[1]).Message;
+            }
+
+            if (parts[0] == "appoint_aide" && parts.Length >= 3 && long.TryParse(parts[2], out var aideNpcId))
+            {
+                return _service.AppointFiefAide(aideNpcId, parts[1]).Message;
+            }
+
             if (parts[0] == "apply" && long.TryParse(parts[1], out var officeId))
             {
                 return _service.Apply(officeId).Message;

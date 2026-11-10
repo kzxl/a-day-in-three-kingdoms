@@ -2,6 +2,7 @@ using SimT.Contracts;
 using SimT.Contracts.Data;
 using SimT.Contracts.Ledger;
 using SimT.Contracts.Playing;
+using SimT.Contracts.Time;
 
 namespace SimT.Modules.Dlc.Power;
 
@@ -18,23 +19,303 @@ internal sealed partial class CourtService
 
             var map = _capabilities?.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var m) == true ? m : null;
             var cityName = map?.Find(cityId)?.NameVi ?? $"Thành #{cityId}";
+            var npcs = _capabilities?.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var n) == true ? n : null;
+
+            var demo = GetCityDemographics(cityId);
+            var pop = demo?.Population ?? 50000;
+
+            var armory = _db.Query(
+                "SELECT weapons_stock, weapons_capacity FROM ml_citadel_armory WHERE citadel_id = @citId",
+                r => (Stock: r.GetInt32(0), Cap: r.GetInt32(1)),
+                DbArgs.One("@citId", cityId)).FirstOrDefault();
+
+            var gov = Governances.FirstOrDefault(g => g.CitadelId == cityId);
+            var garrison = (gov?.DefenseStrength ?? 80) * 15;
 
             return _db.Query(
                 """
-                SELECT citadel_id, agriculture_score, commerce_score, fortification_score, order_score, local_treasury, appointed_day
+                SELECT citadel_id, agriculture_score, commerce_score, fortification_score, order_score, local_treasury, appointed_day,
+                       COALESCE(civil_aide_npc_id, 0), COALESCE(military_aide_npc_id, 0), COALESCE(policy_directive, 'BALANCE'),
+                       COALESCE(last_monthly_digest_text, '')
                 FROM po_governor_fief WHERE citadel_id = @citId AND player_governor = 1
                 """,
-                row => new FiefStatusView(
-                    row.GetInt64(0),
-                    cityName,
-                    row.GetInt32(1),
-                    row.GetInt32(2),
-                    row.GetInt32(3),
-                    row.GetInt32(4),
-                    row.GetInt64(5),
-                    row.GetInt32(6)),
+                row =>
+                {
+                    var civilId = row.GetInt64(7);
+                    var militaryId = row.GetInt64(8);
+                    var civilName = civilId > 0 && npcs is not null ? npcs.Find(civilId)?.NameVi ?? $"Quan viên #{civilId}" : "Chưa bổ nhiệm";
+                    var militaryName = militaryId > 0 && npcs is not null ? npcs.Find(militaryId)?.NameVi ?? $"Võ tướng #{militaryId}" : "Chưa bổ nhiệm";
+
+                    return new FiefStatusView(
+                        row.GetInt64(0),
+                        cityName,
+                        row.GetInt32(1),
+                        row.GetInt32(2),
+                        row.GetInt32(3),
+                        row.GetInt32(4),
+                        row.GetInt64(5),
+                        row.GetInt32(6),
+                        pop,
+                        garrison,
+                        armory.Stock > 0 ? armory.Stock : 50,
+                        civilId,
+                        civilName,
+                        militaryId,
+                        militaryName,
+                        row.GetString(9),
+                        row.GetString(10));
+                },
                 DbArgs.One("@citId", cityId)).FirstOrDefault();
         }
+    }
+
+    public CourtResult AppointFiefAide(long npcId, string aideRole)
+    {
+        var cityId = GovernorCityId;
+        if (cityId <= 0)
+        {
+            return CourtResult.Failure("Bạn chưa cai quản phong ấp nào để bổ nhiệm phụ tá.");
+        }
+
+        var role = aideRole.ToUpperInvariant();
+        if (role != "CIVIL" && role != "MILITARY")
+        {
+            return CourtResult.Failure("Chức vụ phụ tá không hợp lệ (phải là Trưởng Thừa hoặc Đô Úy).");
+        }
+
+        if (npcId <= 0)
+        {
+            _db.Transaction(() =>
+            {
+                if (role == "CIVIL")
+                {
+                    _db.Execute(
+                        "UPDATE po_governor_fief SET civil_aide_npc_id = 0 WHERE citadel_id = @citId",
+                        DbArgs.One("@citId", cityId));
+                }
+                else
+                {
+                    _db.Execute(
+                        "UPDATE po_governor_fief SET military_aide_npc_id = 0 WHERE citadel_id = @citId",
+                        DbArgs.One("@citId", cityId));
+                }
+            });
+            var dismissedRole = role == "CIVIL" ? "Trưởng Thừa" : "Đô Úy";
+            return CourtResult.Success($"Đã bãi miễn chức vụ {dismissedRole}, trả quyền quản lý về nha môn bản địa.");
+        }
+
+        var npcs = _capabilities?.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var n) == true ? n : null;
+        var npc = npcs?.Find(npcId);
+        var npcName = npc?.NameVi ?? $"Nhân vật #{npcId}";
+
+        _db.Transaction(() =>
+        {
+            if (role == "CIVIL")
+            {
+                _db.Execute(
+                    "UPDATE po_governor_fief SET civil_aide_npc_id = @npcId WHERE citadel_id = @citId",
+                    new DbArgs().Add("@npcId", npcId).Add("@citId", cityId));
+            }
+            else
+            {
+                _db.Execute(
+                    "UPDATE po_governor_fief SET military_aide_npc_id = @npcId WHERE citadel_id = @citId",
+                    new DbArgs().Add("@npcId", npcId).Add("@citId", cityId));
+            }
+        });
+
+        var roleTitle = role == "CIVIL" ? "Trưởng Thừa (Quản Lý Dân Nông & Kho Thóc)" : "Đô Úy (Thống Soái Binh Bị & Tiễu Phỉ)";
+        return CourtResult.Success($"📜 Bổ nhiệm thành công: {npcName} tiếp nhận trọng trách {roleTitle}!");
+    }
+
+    public CourtResult SetFiefDirective(string directiveCode)
+    {
+        var cityId = GovernorCityId;
+        if (cityId <= 0)
+        {
+            return CourtResult.Failure("Bạn chưa cai quản phong ấp nào.");
+        }
+
+        var code = directiveCode.ToUpperInvariant() switch
+        {
+            "AGRI" => "AGRI",
+            "COMM" => "COMM",
+            "MILITARY" => "MILITARY",
+            _ => "BALANCE"
+        };
+
+        _db.Execute(
+            "UPDATE po_governor_fief SET policy_directive = @dir WHERE citadel_id = @citId",
+            new DbArgs().Add("@dir", code).Add("@citId", cityId));
+
+        var nameVi = code switch
+        {
+            "AGRI" => "🌾 Trọng Nông Tích Cốc",
+            "COMM" => "🏮 Trọng Thương Thu Thuế",
+            "MILITARY" => "🛡️ Quân Bị Tiễu Phỉ",
+            _ => "⚖️ Cân Bằng Toàn Diện"
+        };
+
+        return CourtResult.Success($"Phương châm chỉ đạo phong ấp chuyển sang: {nameVi}. Phụ tá sẽ tự động thi hành hàng tháng.");
+    }
+
+    public GovernanceMonthlyDigestView? LatestMonthlyDigest =>
+        RecentMonthlyDigests(1).FirstOrDefault();
+
+    public IReadOnlyList<GovernanceMonthlyDigestView> RecentMonthlyDigests(int limit = 6)
+    {
+        var map = _capabilities?.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var m) == true ? m : null;
+
+        return _db.Query(
+            """
+            SELECT id, citadel_id, year, month, directive, population_delta, treasury_delta, food_consumed, garrison_delta, merits_earned, civil_action_vi, military_action_vi, summary_vi
+            FROM po_governance_digest ORDER BY id DESC LIMIT @lim
+            """,
+            row =>
+            {
+                var citId = row.GetInt64(1);
+                var cityName = map?.Find(citId)?.NameVi ?? $"Thành #{citId}";
+                return new GovernanceMonthlyDigestView(
+                    row.GetInt64(0),
+                    citId,
+                    cityName,
+                    row.GetInt32(2),
+                    row.GetInt32(3),
+                    row.GetString(4),
+                    row.GetInt32(5),
+                    row.GetInt32(6),
+                    row.GetInt32(7),
+                    row.GetInt32(8),
+                    row.GetInt32(9),
+                    row.GetString(10),
+                    row.GetString(11),
+                    row.GetString(12));
+            },
+            DbArgs.One("@lim", limit));
+    }
+
+    public void SimulateMonthlyFiefAutonomy(GameDate date)
+    {
+        var cityId = GovernorCityId;
+        if (cityId <= 0) return;
+
+        var fief = PlayerFief;
+        if (fief is null) return;
+
+        var map = _capabilities?.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var m) == true ? m : null;
+        var cityName = map?.Find(cityId)?.NameVi ?? $"Thành #{cityId}";
+
+        int popDelta = 0;
+        int treasuryDelta = 0;
+        int foodConsumed = Math.Max(20, fief.Population / 2500);
+        int garrisonDelta = 0;
+        int meritsEarned = 10;
+        string civTitle = fief.CivilAideNpcId > 0 ? $"Trưởng Thừa {fief.CivilAideNameVi}" : "Nha Lại Dân Phụ";
+        string milTitle = fief.MilitaryAideNpcId > 0 ? $"Đô Úy {fief.MilitaryAideNameVi}" : "Hiệu Úy Đồn Trú";
+        string civilAction = "";
+        string militaryAction = "";
+        string summary = "";
+
+        switch (fief.PolicyDirective)
+        {
+            case "AGRI":
+            {
+                popDelta = (int)(fief.Population * 0.02);
+                treasuryDelta = -40;
+                var newAgri = Math.Min(100, fief.Agriculture + 6);
+                _db.Execute("UPDATE po_governor_fief SET agriculture_score = @agri, local_treasury = local_treasury + @t WHERE citadel_id = @citId",
+                    new DbArgs().Add("@agri", newAgri).Add("@t", treasuryDelta).Add("@citId", cityId));
+                civilAction = $"{civTitle} mở rộng kênh thủy lợi, Nông Khẩn tăng lên {newAgri}/100.";
+                militaryAction = $"{milTitle} duy trì đội tuần phòng bờ cõi.";
+                summary = $"[Tháng {date.Month}] Trọng Nông: Dân số +{popDelta}, Nông nghiệp +6, Kho lương thặng dư dồi dào.";
+                break;
+            }
+
+            case "COMM":
+            {
+                popDelta = (int)(fief.Population * 0.01);
+                treasuryDelta = 120;
+                var newComm = Math.Min(100, fief.Commerce + 6);
+                _db.Execute("UPDATE po_governor_fief SET commerce_score = @comm, local_treasury = local_treasury + @t WHERE citadel_id = @citId",
+                    new DbArgs().Add("@comm", newComm).Add("@t", treasuryDelta).Add("@citId", cityId));
+                civilAction = $"{civTitle} mở rộng trạm dịch buôn bán, thuế chợ nộp về +{treasuryDelta} Quan.";
+                militaryAction = $"{milTitle} hộ tống các đoàn lữ hành vào thành an toàn.";
+                summary = $"[Tháng {date.Month}] Trọng Thương: Ngân khố nha môn +{treasuryDelta} Quan, Thương nghiệp +6, phố phường tấp nập.";
+                break;
+            }
+
+            case "MILITARY":
+            {
+                garrisonDelta = 250;
+                treasuryDelta = -60;
+                var newDef = Math.Min(100, fief.Fortification + 6);
+                var newOrder = Math.Min(100, fief.PublicOrder + 5);
+                _db.Execute(
+                    "UPDATE po_governor_fief SET fortification_score = @def, order_score = @ord, local_treasury = local_treasury + @t WHERE citadel_id = @citId",
+                    new DbArgs().Add("@def", newDef).Add("@ord", newOrder).Add("@t", treasuryDelta).Add("@citId", cityId));
+                _db.Execute(
+                    "UPDATE po_city_governance SET defense_strength = defense_strength + 5, unrest_level = MAX(0, unrest_level - 4) WHERE citadel_id = @citId",
+                    DbArgs.One("@citId", cityId));
+                civilAction = $"{civTitle} xuất kho chuẩn bị quân lương cho thao luyện.";
+                militaryAction = $"{milTitle} tuyển mộ và thao luyện thêm {garrisonDelta} dũng sĩ, trị an vững vàng.";
+                summary = $"[Tháng {date.Month}] Quân Bị: Quân đồn trú +{garrisonDelta}, Thành phòng +6, Trị an được củng cố tuyệt đối.";
+                break;
+            }
+
+            default: // BALANCE
+            {
+                popDelta = (int)(fief.Population * 0.01);
+                treasuryDelta = 35;
+                var newAgri = Math.Min(100, fief.Agriculture + 3);
+                var newComm = Math.Min(100, fief.Commerce + 3);
+                var newDef = Math.Min(100, fief.Fortification + 3);
+                var newOrd = Math.Min(100, fief.PublicOrder + 3);
+                _db.Execute(
+                    "UPDATE po_governor_fief SET agriculture_score = @a, commerce_score = @c, fortification_score = @d, order_score = @o, local_treasury = local_treasury + @t WHERE citadel_id = @citId",
+                    new DbArgs().Add("@a", newAgri).Add("@c", newComm).Add("@d", newDef).Add("@o", newOrd).Add("@t", treasuryDelta).Add("@citId", cityId));
+                civilAction = $"{civTitle} điều hòa nông thương, thu chi cân đối.";
+                militaryAction = $"{milTitle} canh phòng cẩn mật các cổng thành.";
+                summary = $"[Tháng {date.Month}] Cân Bằng: Nông-Thương-Thủ-Trị đều tăng đều đặn, ngân khố +{treasuryDelta} Quan.";
+                break;
+            }
+        }
+
+        _db.Transaction(() =>
+        {
+            if (popDelta != 0)
+            {
+                _db.Execute(
+                    "UPDATE po_city_demographics SET population = population + @p WHERE citadel_id = @citId",
+                    new DbArgs().Add("@p", popDelta).Add("@citId", cityId));
+            }
+
+            AddMerits(meritsEarned);
+
+            _db.Execute(
+                """
+                INSERT INTO po_governance_digest (citadel_id, year, month, directive, population_delta, treasury_delta, food_consumed, garrison_delta, merits_earned, civil_action_vi, military_action_vi, summary_vi)
+                VALUES (@citId, @y, @m, @dir, @pDelta, @tDelta, @fCons, @gDelta, @merits, @civAct, @milAct, @summ)
+                """,
+                new DbArgs()
+                    .Add("@citId", cityId)
+                    .Add("@y", date.Year)
+                    .Add("@m", date.Month)
+                    .Add("@dir", fief.PolicyDirective)
+                    .Add("@pDelta", popDelta)
+                    .Add("@tDelta", treasuryDelta)
+                    .Add("@fCons", foodConsumed)
+                    .Add("@gDelta", garrisonDelta)
+                    .Add("@merits", meritsEarned)
+                    .Add("@civAct", civilAction)
+                    .Add("@milAct", militaryAction)
+                    .Add("@summ", summary));
+
+            _db.Execute(
+                "UPDATE po_governor_fief SET last_monthly_digest_text = @summ WHERE citadel_id = @citId",
+                new DbArgs().Add("@summ", summary).Add("@citId", cityId));
+        });
+
+        _log.Info($"[Monthly Governance] Fief {cityName} simulated: {summary}");
     }
 
     public CourtResult AppointGovernor(long citadelId)

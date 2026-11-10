@@ -39,7 +39,17 @@ public interface IPoliticalCourt
 
     CourtResult DevelopFief(string domainCode) => CourtResult.Failure("Chưa được hỗ trợ.");
 
+    CourtResult AppointFiefAide(long npcId, string aideRole) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult SetFiefDirective(string directiveCode) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    GovernanceMonthlyDigestView? LatestMonthlyDigest => null;
+
+    IReadOnlyList<GovernanceMonthlyDigestView> RecentMonthlyDigests(int limit = 6) => [];
+
     QuarterlyEvalResult? EvaluateQuarterlyGovernance() => null;
+
+    void SimulateMonthlyFiefAutonomy(SimT.Contracts.Time.GameDate date) { }
 
     CourtResult SubmitMemorial(string category, string proposalVi) => CourtResult.Failure("Chưa được hỗ trợ.");
 
@@ -154,7 +164,32 @@ public sealed record FiefStatusView(
     int Fortification,
     int PublicOrder,
     long LocalTreasury,
-    int AppointedDay);
+    int AppointedDay,
+    int Population = 50000,
+    int GarrisonTroops = 1000,
+    int WeaponsStock = 50,
+    long CivilAideNpcId = 0,
+    string CivilAideNameVi = "Chưa có",
+    long MilitaryAideNpcId = 0,
+    string MilitaryAideNameVi = "Chưa có",
+    string PolicyDirective = "BALANCE",
+    string LastMonthlyDigest = "");
+
+public sealed record GovernanceMonthlyDigestView(
+    long Id,
+    long CitadelId,
+    string CitadelNameVi,
+    int Year,
+    int Month,
+    string Directive,
+    int PopulationDelta,
+    int TreasuryDelta,
+    int FoodConsumed,
+    int GarrisonDelta,
+    int MeritsEarned,
+    string CivilActionVi,
+    string MilitaryActionVi,
+    string SummaryVi);
 
 public sealed record QuarterlyEvalResult(
     long CitadelId,

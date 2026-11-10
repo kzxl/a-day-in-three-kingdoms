@@ -413,7 +413,7 @@ public sealed class GameCourtChamberControl : Grid
         var bannerDock = new DockPanel();
         var bannerTitle = new TextBlock
         {
-            Text = "🏛️ THÁI THÚ PHỦ · QUẢN TRỊ PHONG ẤP & TRẤN NHẬM CHÂU QUẬN",
+            Text = "🏛️ THÁI THÚ PHỦ · QUẢN TRỊ PHONG ẤP & TỰ ĐỘNG CHÁNH VỤ",
             FontWeight = FontWeights.Bold,
             FontSize = 13,
             Foreground = GoldBrush
@@ -423,7 +423,7 @@ public sealed class GameCourtChamberControl : Grid
 
         var subText = new TextBlock
         {
-            Text = "Được minh chủ ủy thác quyền cai quản quân lương, thương nông và thành phòng",
+            Text = "Ban bệ Trưởng Thừa (Văn) & Đô Úy (Võ) tự trị hàng tháng theo phương châm chánh sự",
             FontSize = 11,
             Foreground = TextMutedBrush,
             HorizontalAlignment = HorizontalAlignment.Right
@@ -448,7 +448,7 @@ public sealed class GameCourtChamberControl : Grid
             var root = new StackPanel();
             card.Child = root;
 
-            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
+            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
             var cityName = row.Cells.Count > 0 ? row.Cells[0] : "Phong Ấp";
             var cityTitle = new TextBlock
             {
@@ -460,18 +460,82 @@ public sealed class GameCourtChamberControl : Grid
             DockPanel.SetDock(cityTitle, Dock.Left);
             head.Children.Add(cityTitle);
 
-            var treasury = row.Cells.Count > 5 ? row.Cells[5] : "500 Quan";
+            var treasury = row.Cells.Count > 8 ? row.Cells[8] : row.Cells.Count > 5 ? row.Cells[5] : "500 Quan";
             var treasuryBadge = new GameBadge($"Ngân Khố Nha Môn: {treasury}", BadgeVariant.Gain);
             DockPanel.SetDock(treasuryBadge, Dock.Right);
             head.Children.Add(treasuryBadge);
             root.Children.Add(head);
 
+            // Demographic & Garrison Bar
+            if (row.Cells.Count > 1)
+            {
+                var demoPanel = new Border
+                {
+                    Background = Freeze(new SolidColorBrush(Color.FromArgb(0x35, 0x1A, 0x14, 0x10))),
+                    BorderBrush = PanelBorder,
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 0, 0, 8)
+                };
+                var demoDock = new DockPanel();
+                var demoText = new TextBlock
+                {
+                    Text = row.Cells[1],
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = TextPrimaryBrush
+                };
+                DockPanel.SetDock(demoText, Dock.Left);
+                demoDock.Children.Add(demoText);
+
+                if (row.Cells.Count > 7)
+                {
+                    var directiveBadge = new GameBadge(row.Cells[7], BadgeVariant.Warning);
+                    DockPanel.SetDock(directiveBadge, Dock.Right);
+                    demoDock.Children.Add(directiveBadge);
+                }
+                demoPanel.Child = demoDock;
+                root.Children.Add(demoPanel);
+            }
+
+            // Aide Panel
+            if (row.Cells.Count > 6)
+            {
+                var aidePanel = new Border
+                {
+                    Background = Freeze(new SolidColorBrush(Color.FromArgb(0x28, 0xD4, 0xAF, 0x37))),
+                    BorderBrush = Freeze(new SolidColorBrush(Color.FromArgb(0x55, 0xD4, 0xAF, 0x37))),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+                var aideSp = new StackPanel { Orientation = Orientation.Horizontal };
+                aideSp.Children.Add(new TextBlock
+                {
+                    Text = "📜 Ban Bệ Phụ Tá: ",
+                    FontSize = 11.5,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = GoldBrush,
+                    Margin = new Thickness(0, 0, 8, 0)
+                });
+                aideSp.Children.Add(new TextBlock
+                {
+                    Text = row.Cells[6],
+                    FontSize = 11.5,
+                    Foreground = TextPrimaryBrush
+                });
+                aidePanel.Child = aideSp;
+                root.Children.Add(aidePanel);
+            }
+
             var grid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 0, 0, 12) };
 
-            var agri = row.Cells.Count > 1 ? row.Cells[1] : "50/100";
-            var comm = row.Cells.Count > 2 ? row.Cells[2] : "50/100";
-            var def = row.Cells.Count > 3 ? row.Cells[3] : "50/100";
-            var ord = row.Cells.Count > 4 ? row.Cells[4] : "50/100";
+            var agri = row.Cells.Count > 2 ? row.Cells[2] : "50/100";
+            var comm = row.Cells.Count > 3 ? row.Cells[3] : "50/100";
+            var def = row.Cells.Count > 4 ? row.Cells[4] : "50/100";
+            var ord = row.Cells.Count > 5 ? row.Cells[5] : "50/100";
 
             grid.Children.Add(BuildStatPill("🌾 Nông Khẩn", agri, TextSuccessBrush));
             grid.Children.Add(BuildStatPill("🏮 Thương Nghiệp", comm, GoldBrush));
