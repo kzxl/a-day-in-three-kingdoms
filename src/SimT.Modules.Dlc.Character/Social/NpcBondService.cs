@@ -93,12 +93,14 @@ internal sealed class NpcBondService(ModuleContext context) : INpcBonds
             context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
             var citadelByNpc = society?.AllActivities().ToDictionary(a => a.NpcId, a => a.CurrentCitadelId);
             var all = context.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry).All.OrderBy(n => n.Id).ToArray();
+            var adjacency = LoadAdjacencyMap();
             var changes = 0;
             int start = all.Length == 0 ? 0 : context.Rng.Next(0, all.Length);
             foreach (var npc in all.Skip(start).Concat(all.Take(start)))
             {
                 if (changes >= NpcBondRules.MonthlyChangeLimit) break;
-                foreach (var bond in ForNpc(npc.Id).Where(b => b.NpcA == npc.Id && b.Source == "sim"))
+                var npcBonds = GetFromMap(adjacency, npc.Id);
+                foreach (var bond in npcBonds.Where(b => b.NpcA == npc.Id && b.Source == "sim").ToArray())
                 {
                     if (context.Rng.Next(0, 8) != 0) continue;
                     _db.Execute("UPDATE kz_npc_bond SET strength=MAX(0,strength-5) WHERE npc_a=@a AND npc_b=@b AND kind=@k",
@@ -106,18 +108,22 @@ internal sealed class NpcBondService(ModuleContext context) : INpcBonds
                     if (bond.Strength > 5) continue;
                     _db.Execute("DELETE FROM kz_npc_bond WHERE npc_a=@a AND npc_b=@b AND kind=@k",
                         new DbArgs().Add("@a",bond.NpcA).Add("@b",bond.NpcB).Add("@k",bond.Kind));
+                    GetFromMap(adjacency, bond.NpcA).RemoveAll(b => b.NpcA == bond.NpcA && b.NpcB == bond.NpcB && b.Kind == bond.Kind);
+                    GetFromMap(adjacency, bond.NpcB).RemoveAll(b => b.NpcA == bond.NpcA && b.NpcB == bond.NpcB && b.Kind == bond.Kind);
                     society?.RecordRelationshipEvent(date,npc.Id,$"Duyên cũ phai nhạt: {npc.NameVi} và {all.First(n => n.Id == bond.NpcB).NameVi}");
                     changes++; break;
                 }
                 if (changes >= NpcBondRules.MonthlyChangeLimit || context.Rng.Next(0, 12) != 0) continue;
                 var npcCitadelId = citadelByNpc != null && citadelByNpc.TryGetValue(npc.Id, out var cId) ? cId : npc.CitadelId;
-                var currentPeers = ForNpc(npc.Id).Select(b => b.Other(npc.Id)).ToHashSet();
+                var currentPeers = GetFromMap(adjacency, npc.Id).Select(b => b.Other(npc.Id)).ToHashSet();
                 var peers = all.Where(n => n.Id != npc.Id
                     && (citadelByNpc != null && citadelByNpc.TryGetValue(n.Id, out var nCit) ? nCit : n.CitadelId) == npcCitadelId
                     && !currentPeers.Contains(n.Id)).ToArray();
                 if (peers.Length == 0) continue;
                 var friend = peers[context.Rng.Next(0,peers.Length)];
-                Insert(npc.Id,friend.Id,"friend",40,date); changes++;
+                Insert(npc.Id,friend.Id,"friend",40,date);
+                AddToMap(adjacency, new NpcBond(Math.Min(npc.Id, friend.Id), Math.Max(npc.Id, friend.Id), "friend", 40, date, "sim"));
+                changes++;
                 society?.RecordRelationshipEvent(date,npc.Id,$"Kết giao: {npc.NameVi} và {friend.NameVi} trở thành bạn hữu.");
             }
             _db.Execute("INSERT INTO kz_bond_state VALUES (@key,'1')",DbArgs.One("@key","month:"+stamp));

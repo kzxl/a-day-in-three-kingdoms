@@ -385,6 +385,8 @@ internal sealed class SocialScreen : IScreenContribution
         }
 
         // 2. Local NPCs & Interaction Section
+        var retainerIds = retainers.Select(r => r.NpcId).ToHashSet();
+        var swornIds = swornBrothers.Select(s => s.NpcId).ToHashSet();
         var localColumns = new[] { "Nhân Sĩ", "Phẩm Giai", "Thân Phận", "Đặc Kỹ", "Hảo Cảm", "Quan Hệ", "Chiêu Mộ / Tình Trạng" };
         var localRows = localNpcs.Select(npc =>
         {
@@ -402,7 +404,7 @@ internal sealed class SocialScreen : IScreenContribution
                 _ => "⚪ Phẩm C"
             };
 
-            var isRetainer = retainers.Any(r => r.NpcId == npc.Id);
+            var isRetainer = retainerIds.Contains(npc.Id);
             var skillDisplay = npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => s.NameVi)) : "—";
 
             var commands = new List<ScreenCommand>
@@ -433,7 +435,7 @@ internal sealed class SocialScreen : IScreenContribution
                 }
             }
 
-            if (!swornBrothers.Any(s => s.NpcId == npc.Id) && swornBrothers.Count < 2 && affinity >= 80)
+            if (!swornIds.Contains(npc.Id) && swornBrothers.Count < 2 && affinity >= 80)
             {
                 commands.Insert(1, new ScreenCommand($"swear:{npc.Id}", "Kết Nghĩa 🤝", CommandKind.Primary));
             }
@@ -444,6 +446,11 @@ internal sealed class SocialScreen : IScreenContribution
             }
 
             var psyche = _social.GetPsycheProfile(npc.Id);
+            var disposition = _social.GetDisposition(npc.Id);
+            var salientMemory = _social.GetMemories(npc.Id, limit: 10).FirstOrDefault(m => m.Topic != "chat");
+            var salientMemoryText = salientMemory != null
+                ? $"[{GameDateCodec.Format(salientMemory.Date)}] {salientMemory.SummaryVi}"
+                : "Chưa có biến cố đáng nhớ";
             var affinityDisplay = affinity >= 0 ? $"+{affinity}" : affinity.ToString();
             var recruitStatus = isRetainer
                 ? "Đã đầu quân"
@@ -474,6 +481,8 @@ internal sealed class SocialScreen : IScreenContribution
                     new ScreenDetail("Đặc Kỹ", npc.Skills.Count > 0 ? string.Join(", ", npc.Skills.Select(s => $"[{s.NameVi}] {s.EffectSummary}")) : "Chưa khai mở"),
                     new ScreenDetail("Hảo Cảm", $"{affinity}/100"),
                     new ScreenDetail("Mức Độ Quan Hệ", impression),
+                    new ScreenDetail("Thái Độ & Ưu Đãi", disposition.SummaryVi),
+                    new ScreenDetail("Ký Ức Khắc Cốt", salientMemoryText),
                     new ScreenDetail("Số Lần Biếu Tặng", $"{giftCount} lần"),
                     new ScreenDetail("Tình Trạng Chiêu Mộ", req.StatusSummary)
                 ]);

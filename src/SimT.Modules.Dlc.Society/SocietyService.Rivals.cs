@@ -1,4 +1,4 @@
-﻿using SimT.Contracts.Data;
+using SimT.Contracts.Data;
 using SimT.Contracts.Identity;
 using SimT.Contracts.Logging;
 using SimT.Contracts.Modules;
@@ -11,10 +11,14 @@ internal sealed partial class SocietyService
 {
     // ------------------------------------------------------------- AI Merchant Rivalry
 
+    private bool? _hasRivalTable;
+
+    private bool HasRivalTable() =>
+        _hasRivalTable ??= _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='so_merchant_rival'") > 0;
+
     private void EnsureMerchantRivalsInitialized()
     {
-        var hasTable = _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='so_merchant_rival'") > 0;
-        if (!hasTable) return;
+        if (!HasRivalTable()) return;
 
         var count = _db.ScalarLong("SELECT COUNT(*) FROM so_merchant_rival");
         if (count > 0) return;
@@ -159,8 +163,7 @@ internal sealed partial class SocietyService
 
     private void SimulateMerchantTurnCore(GameDate date, string formattedDate, long tick)
     {
-        var hasTable = _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='so_merchant_rival'") > 0;
-        if (!hasTable) return;
+        if (!HasRivalTable()) return;
 
         var rivals = GetAllRivals();
         if (rivals.Count == 0) return;
@@ -347,8 +350,7 @@ internal sealed partial class SocietyService
 
     public IReadOnlyList<MerchantRivalDef> GetAllRivals()
     {
-        var hasTable = _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='so_merchant_rival'") > 0;
-        if (!hasTable) return Array.Empty<MerchantRivalDef>();
+        if (!HasRivalTable()) return Array.Empty<MerchantRivalDef>();
 
         var sql = """
             SELECT r.npc_id, r.enterprise_name, r.merchant_tier,
@@ -412,8 +414,7 @@ internal sealed partial class SocietyService
 
     public MerchantRivalDef? GetRival(long npcId)
     {
-        var hasTable = _db.ScalarLong("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='so_merchant_rival'") > 0;
-        if (!hasTable) return null;
+        if (!HasRivalTable()) return null;
 
         var sql = """
             SELECT r.npc_id, r.enterprise_name, r.merchant_tier,

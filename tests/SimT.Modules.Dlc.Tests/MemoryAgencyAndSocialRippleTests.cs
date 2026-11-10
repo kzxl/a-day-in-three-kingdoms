@@ -318,4 +318,34 @@ public sealed class MemoryAgencyAndSocialRippleTests : IDisposable
         Assert.Equal(playerCityId, seekGoal!.TargetCitadelId);
         Assert.Contains("tri âm", seekGoal.PlanDesc);
     }
+
+    [Fact]
+    public void SocialScreen_renders_active_memory_disposition_and_salient_memory_in_dossier_details()
+    {
+        using var kernel = _host.Boot();
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+        var localNpc = registry.All.First(n => n.CitadelId == player.CurrentCityId);
+
+        kernel.Db.Execute(
+            "INSERT OR REPLACE INTO kz_met_npc (npc_id, first_met_date, met_citadel_id) VALUES (@id, '184-01-02', @cit)",
+            new DbArgs().Add("@id", localNpc.Id).Add("@cit", player.CurrentCityId));
+        kernel.Db.Execute(
+            "INSERT OR REPLACE INTO kz_relationship (npc_id, affinity, trust, impression, gift_count, last_interaction_date) " +
+            "VALUES (@id, 75, 85, 'Tri kỷ', 2, '184-01-02')",
+            DbArgs.One("@id", localNpc.Id));
+        kernel.Db.Execute(
+            "INSERT INTO kz_memory (npc_id, date, topic, sentiment, affinity_delta, summary_vi) " +
+            "VALUES (@id, '184-01-02', 'wish', 'positive', 25, 'Hoàn thành tâm nguyện tìm bảo kiếm')",
+            DbArgs.One("@id", localNpc.Id));
+
+        var screen = kernel.Ui.Screens.First(s => s.ScreenId == "social.network");
+        var view = screen.Render();
+        var localSection = view.Sections.First(s => s.Heading.Contains("Nhân Sĩ Hữu Duyên Cùng Thành"));
+        var npcRow = localSection.Rows.First(r => r.Title != null && r.Title.Contains(localNpc.NameVi));
+
+        Assert.NotNull(npcRow.Details);
+        Assert.Contains(npcRow.Details!, d => d.Label == "Thái Độ & Ưu Đãi" && d.Value.Contains("Trọng vọng"));
+        Assert.Contains(npcRow.Details!, d => d.Label == "Ký Ức Khắc Cốt" && d.Value.Contains("Hoàn thành tâm nguyện tìm bảo kiếm"));
+    }
 }
