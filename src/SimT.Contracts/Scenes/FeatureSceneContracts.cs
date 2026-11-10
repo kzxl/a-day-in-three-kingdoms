@@ -98,7 +98,8 @@ public sealed record SocialScene(
     [property: JsonPropertyName("letters")] IReadOnlyList<SocialLetterView> Letters,
     [property: JsonPropertyName("retainers")] IReadOnlyList<SocialRetainerView> Retainers,
     [property: JsonPropertyName("giftItems")] IReadOnlyList<SocialGiftItemView> GiftItems,
-    [property: JsonPropertyName("world")] NpcBondScene? World = null)
+    [property: JsonPropertyName("world")] NpcBondScene? World = null,
+    [property: JsonPropertyName("incidents")] IReadOnlyList<SocialIncidentView>? Incidents = null)
 {
     [JsonPropertyName("kind")]
     public string Kind => "social";
@@ -168,7 +169,11 @@ public sealed record SocialNodeView(
     [property: JsonPropertyName("canRecruit")] bool CanRecruit,
     [property: JsonPropertyName("isRetainer")] bool IsRetainer,
     [property: JsonPropertyName("isSworn")] bool IsSworn,
-    [property: JsonPropertyName("angleDeg")] double AngleDeg);
+    [property: JsonPropertyName("angleDeg")] double AngleDeg,
+    [property: JsonPropertyName("loyalty")] int Loyalty = 100,
+    [property: JsonPropertyName("ambition")] int Ambition = 50,
+    [property: JsonPropertyName("integrity")] int Integrity = 50,
+    [property: JsonPropertyName("psycheBadgeVi")] string PsycheBadgeVi = "Trung dung");
 
 public sealed record SocialSkillView(
     [property: JsonPropertyName("skillCode")] string SkillCode,
@@ -204,7 +209,18 @@ public sealed record SocialRetainerView(
     [property: JsonPropertyName("facePath")] string FacePath,
     [property: JsonPropertyName("monthlyStipend")] long MonthlyStipend,
     [property: JsonPropertyName("bonusSummaryVi")] string BonusSummaryVi,
-    [property: JsonPropertyName("loyalty")] int Loyalty);
+    [property: JsonPropertyName("loyalty")] int Loyalty,
+    [property: JsonPropertyName("ambition")] int Ambition = 50,
+    [property: JsonPropertyName("integrity")] int Integrity = 50,
+    [property: JsonPropertyName("psycheBadgeVi")] string PsycheBadgeVi = "Trung dung",
+    [property: JsonPropertyName("isBetrayalRisk")] bool IsBetrayalRisk = false);
+
+public sealed record SocialIncidentView(
+    [property: JsonPropertyName("dayIndex")] long DayIndex,
+    [property: JsonPropertyName("npcNameVi")] string NpcNameVi,
+    [property: JsonPropertyName("typeBadgeVi")] string TypeBadgeVi,
+    [property: JsonPropertyName("changeText")] string ChangeText,
+    [property: JsonPropertyName("narrativeVi")] string NarrativeVi);
 
 public sealed record SocialGiftItemView(
     [property: JsonPropertyName("itemId")] long ItemId,

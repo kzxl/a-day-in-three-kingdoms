@@ -287,7 +287,7 @@ internal sealed class StallScreen : IScreenContribution
                         ],
                         []));
                 }
-                sections.Add(new ScreenSection("⚔️ Thị Trường Bị Lũng Đoạn & Gom Hàng Đầu Cơ", cornerColumns, cornerRows));
+                sections.Add(new ScreenSection("⚔️ Thị Trường Bị Lũng Đoạn & Gom Hàng Đầu Cơ", cornerColumns, cornerRows, SectionViewMode.CaravanDispatchBoard));
             }
 
             var smuggleOpps = _warfare.AvailableSmuggleOpportunities.Where(o => o.OriginCitadelId == city.Id).ToList();
@@ -318,7 +318,7 @@ internal sealed class StallScreen : IScreenContribution
                         ],
                         cmdList));
                 }
-                sections.Add(new ScreenSection("🔥 Buôn Lậu Quân Nhu Vượt Phòng Tuyến Tiền Tuyến", smuggleColumns, smuggleRows));
+                sections.Add(new ScreenSection("🔥 Buôn Lậu Quân Nhu Vượt Phòng Tuyến Tiền Tuyến", smuggleColumns, smuggleRows, SectionViewMode.CaravanDispatchBoard));
             }
 
             var recentRuns = _warfare.RecentSmuggleRuns(5);
@@ -338,7 +338,7 @@ internal sealed class StallScreen : IScreenContribution
                         ],
                         []));
                 }
-                sections.Add(new ScreenSection("📜 Nhật Ký Áp Tải Hàng Lậu Tiền Tuyến", runColumns, runRows));
+                sections.Add(new ScreenSection("📜 Nhật Ký Áp Tải Hàng Lậu Tiền Tuyến", runColumns, runRows, SectionViewMode.CaravanDispatchBoard));
             }
         }
 

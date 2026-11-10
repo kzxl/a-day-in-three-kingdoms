@@ -344,9 +344,22 @@ public static class SceneTrustGuard
         if (social.World is not null && id.StartsWith("search:", StringComparison.Ordinal) && id.Length <= 87) return true;
         if (social.World is not null && id.StartsWith("world:", StringComparison.Ordinal) && long.TryParse(id[6..],out var center))
             return social.World.Nodes.Concat(social.World.SearchResults).Any(n => n.NpcId == center);
-        if (id == "host_banquet")
+        if (id is "host_banquet" or "view:wpf_dossier")
             return true;
         var parts = id.Split(':');
+        if (parts.Length == 3 && parts[0] == "retainer" && parts[1] == "audit" && long.TryParse(parts[2], out var auditNpcId))
+        {
+            return social.Retainers.Any(r => r.NpcId == auditNpcId) || social.Nodes.Any(n => n.NpcId == auditNpcId && n.IsRetainer);
+        }
+        if (parts.Length == 4 && parts[0] == "retainer" && parts[1] == "placate" &&
+            long.TryParse(parts[2], out var placateNpcId) && int.TryParse(parts[3], out var placateAmt) && placateAmt > 0)
+        {
+            return social.Retainers.Any(r => r.NpcId == placateNpcId) || social.Nodes.Any(n => n.NpcId == placateNpcId && n.IsRetainer);
+        }
+        if (parts.Length == 3 && parts[0] == "sworn" && parts[1] == "aid" && long.TryParse(parts[2], out var swornNpcId))
+        {
+            return social.Nodes.Any(n => n.NpcId == swornNpcId && n.IsSworn);
+        }
         if (parts.Length == 2 && long.TryParse(parts[1], out var targetId))
         {
             return parts[0] switch

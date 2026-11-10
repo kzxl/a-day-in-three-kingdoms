@@ -611,7 +611,7 @@ internal sealed class CourtScreen : IScreenContribution
             sections.Add(new ScreenSection("Nhật Ký Chiếu Chỉ & Ban Bố Gần Đây", LogColumns, logRows));
         }
 
-        sections.Add(new ScreenSection("Sức Ép Tài Phú & Quân Phiệt Dòm Ngó (Cây To Đón Gió)", ScrutinyColumns, scrutinyRows));
+        sections.Add(new ScreenSection("Sức Ép Tài Phú & Quân Phiệt Dòm Ngó (Cây To Đón Gió)", ScrutinyColumns, scrutinyRows, SectionViewMode.ImperialCourtChamber));
         if (philanthropyRows.Count > 0)
         {
             sections.Add(new ScreenSection("Nhật Ký Cứu Tế Dân Sinh & Thiện Hạnh", PhilanthropyColumns, philanthropyRows));
@@ -646,7 +646,7 @@ internal sealed class CourtScreen : IScreenContribution
                     ]);
             }).ToList();
 
-            sections.Add(new ScreenSection("🏛️ Sóng Ngầm Quan Trường · Tam Đại Thế Lực Triều Đình", courtFactionColumns, courtFactionRows));
+            sections.Add(new ScreenSection("🏛️ Sóng Ngầm Quan Trường · Tam Đại Thế Lực Triều Đình", courtFactionColumns, courtFactionRows, SectionViewMode.ImperialCourtChamber));
         }
 
         // Imperial Inspection Section
@@ -654,7 +654,26 @@ internal sealed class CourtScreen : IScreenContribution
         if (recentInspections.Count > 0 || _service.OfficeId > 0)
         {
             var inspectColumns = new[] { "Thời Điểm", "Khâm Sai Đại Thần", "Đối Sách", "Kết Quả", "Tác Động", "Tường Thuật" };
-            var inspectRows = recentInspections.Select(ins =>
+            var inspectRows = new List<ScreenRow>
+            {
+                new(
+                    [
+                        "Thường trực",
+                        "Đoàn Ngự Sử Khâm Sai",
+                        "Chọn sách lược ứng phó",
+                        _service.OfficeId > 0 ? "⚖️ Đang Giám Sát Quan Phẩm" : "Chưa tại chức",
+                        "Công trạng & Phẩm hàm",
+                        "Khi Khâm Sai Đại Thần tuần thú châu quận, đại nhân có thể chọn Minh bạch sổ sách (cần Thanh Lưu ủng hộ), Biện giải hùng biện, hoặc Đút lót ngầm (cần Hoạn Quan che chở)."
+                    ],
+                    [
+                        new ScreenCommand("inspect:respond:open_ledger", "Minh Bạch Sổ Sách 📜", CommandKind.Primary),
+                        new ScreenCommand("inspect:respond:persuade", "Biện Giải Hùng Biện 🗣️", CommandKind.Secondary),
+                        new ScreenCommand("inspect:respond:bribe", "Đút Lót Ngầm 🤫 (400Q)", CommandKind.Secondary)
+                    ],
+                    Title: "Ngự Sử Đài — Sách Lược Nghênh Đón Khâm Sai")
+            };
+
+            inspectRows.AddRange(recentInspections.Select(ins =>
             {
                 var outcomeBadge = ins.Outcome switch
                 {
@@ -688,9 +707,9 @@ internal sealed class CourtScreen : IScreenContribution
                         new ScreenDetail("Biến Động", deltaText),
                         new ScreenDetail("Tường Thuật", ins.NarrativeVi)
                     ]);
-            }).ToList();
+            }));
 
-            sections.Add(new ScreenSection("⚖️ Ngự Sử Đài · Khâm Sai Thanh Sát & Phong Kỷ Quan Trường", inspectColumns, inspectRows));
+            sections.Add(new ScreenSection("⚖️ Ngự Sử Đài · Khâm Sai Thanh Sát & Phong Kỷ Quan Trường", inspectColumns, inspectRows, SectionViewMode.ImperialCourtChamber));
         }
 
         commands.Add(new ScreenCommand("inspect:respond:open_ledger", "Minh Bạch Sổ Sách 📜", CommandKind.Primary));

@@ -22,6 +22,8 @@ public sealed class GameDossierGridControl : Grid
     private static readonly Brush TextPrimaryBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xF0, 0xE4, 0xCE)));
     private static readonly Brush TextMutedBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x9E, 0x8F, 0x7C)));
     private static readonly Brush TextSuccessBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x5E, 0xA8, 0x72)));
+    private static readonly Brush TextDangerBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xD9, 0x53, 0x4F)));
+    private static readonly Brush DangerBorderBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x9E, 0x35, 0x2A)));
 
     private readonly ScreenSection _section;
     private readonly Action<string> _onCommand;
@@ -60,15 +62,16 @@ public sealed class GameDossierGridControl : Grid
 
     private UIElement BuildDossierCard(ScreenRow row)
     {
+        var hasDanger = row.Cells.Any(c => c.Contains("🔴") || c.Contains("⛔"));
         var card = new Border
         {
             Background = CardBg,
-            BorderBrush = PanelBorder,
-            BorderThickness = new Thickness(1),
+            BorderBrush = hasDanger ? DangerBorderBrush : PanelBorder,
+            BorderThickness = new Thickness(hasDanger ? 1.5 : 1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(12),
             Margin = new Thickness(6),
-            Width = 275,
+            Width = 285,
             Cursor = Cursors.Hand
         };
 
@@ -83,7 +86,7 @@ public sealed class GameDossierGridControl : Grid
             FontWeight = FontWeights.Bold,
             FontSize = 13.5,
             Foreground = TextPrimaryBrush,
-            MaxWidth = 175,
+            MaxWidth = 185,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
         DockPanel.SetDock(nameBlock, Dock.Left);
@@ -100,14 +103,22 @@ public sealed class GameDossierGridControl : Grid
 
         // Body content: Cells 2+
         var bodyStack = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
-        for (var i = 2; i < row.Cells.Count && i < 5; i++)
+        for (var i = 2; i < row.Cells.Count && i < 6; i++)
         {
             var colHeader = i < _section.Columns.Count ? _section.Columns[i] : $"#{i}";
+            var cellVal = row.Cells[i];
+            var fg = cellVal.Contains("🔴") || cellVal.Contains("⛔")
+                ? TextDangerBrush
+                : cellVal.Contains("🟢")
+                    ? TextSuccessBrush
+                    : colHeader.Contains("Hảo Cảm") || colHeader.Contains("Tâm Pháp") || colHeader.Contains("Tâm Tính")
+                        ? GoldBrush
+                        : TextMutedBrush;
             bodyStack.Children.Add(new TextBlock
             {
-                Text = $"{colHeader}: {row.Cells[i]}",
+                Text = $"{colHeader}: {cellVal}",
                 FontSize = 11,
-                Foreground = colHeader.Contains("Hảo Cảm") || colHeader.Contains("Tâm Pháp") ? GoldBrush : TextMutedBrush,
+                Foreground = fg,
                 Margin = new Thickness(0, 1, 0, 1),
                 TextTrimming = TextTrimming.CharacterEllipsis
             });
@@ -120,8 +131,12 @@ public sealed class GameDossierGridControl : Grid
             var bp = new WrapPanel { Orientation = Orientation.Horizontal };
             foreach (var cmd in row.Commands)
             {
-                var isPrimary = cmd.Kind == CommandKind.Primary || cmd.Id.StartsWith("duel:") || cmd.Id.StartsWith("accept:");
-                var btn = new GameButton(cmd.Label, isPrimary ? GameButtonVariant.Primary : GameButtonVariant.Secondary, isCompact: true)
+                var variant = cmd.Kind == CommandKind.Danger
+                    ? GameButtonVariant.Danger
+                    : (cmd.Kind == CommandKind.Primary || cmd.Id.StartsWith("duel:") || cmd.Id.StartsWith("accept:"))
+                        ? GameButtonVariant.Primary
+                        : GameButtonVariant.Secondary;
+                var btn = new GameButton(cmd.Label, variant, isCompact: true)
                 {
                     Margin = new Thickness(0, 0, 4, 4)
                 };

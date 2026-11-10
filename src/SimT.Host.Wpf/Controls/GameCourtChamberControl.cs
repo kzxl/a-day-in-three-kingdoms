@@ -24,6 +24,10 @@ public sealed class GameCourtChamberControl : Grid
     private static readonly Brush TextMutedBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x9E, 0x8F, 0x7C)));
     private static readonly Brush TextSuccessBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x5E, 0xA8, 0x72)));
     private static readonly Brush TextWarningBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xDF, 0x8A, 0x48)));
+    private static readonly Brush TextDangerBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xD9, 0x53, 0x4F)));
+    private static readonly Brush DangerBorderBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x9E, 0x35, 0x2A)));
+    private static readonly Brush DangerBgBrush = Freeze(new SolidColorBrush(Color.FromArgb(0x38, 0x7A, 0x1C, 0x18)));
+    private static readonly Brush TrackBgBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x2A, 0x1F, 0x16)));
 
     private readonly ScreenSection _section;
     private readonly Action<string> _onCommand;
@@ -50,6 +54,21 @@ public sealed class GameCourtChamberControl : Grid
                  heading.Contains("Thái Thú", StringComparison.OrdinalIgnoreCase))
         {
             BuildGovernorFiefView();
+        }
+        else if (heading.Contains("Cây To Đón Gió", StringComparison.OrdinalIgnoreCase) ||
+                 heading.Contains("Dòm Ngó", StringComparison.OrdinalIgnoreCase))
+        {
+            BuildWarlordScrutinyView();
+        }
+        else if (heading.Contains("Sóng Ngầm", StringComparison.OrdinalIgnoreCase) ||
+                 heading.Contains("Tam Đại Thế Lực", StringComparison.OrdinalIgnoreCase))
+        {
+            BuildCourtFactionsTriadView();
+        }
+        else if (heading.Contains("Ngự Sử Đài", StringComparison.OrdinalIgnoreCase) ||
+                 heading.Contains("Thanh Sát", StringComparison.OrdinalIgnoreCase))
+        {
+            BuildImperialInspectionView();
         }
         else if (heading.Contains("Thế Lực", StringComparison.OrdinalIgnoreCase) ||
                  heading.Contains("Chư Hầu", StringComparison.OrdinalIgnoreCase))
@@ -598,6 +617,397 @@ public sealed class GameCourtChamberControl : Grid
         });
         pill.Child = sp;
         return pill;
+    }
+
+    #endregion
+
+    #region Warlord Scrutiny & Extortion View (Cây To Đón Gió)
+
+    private void BuildWarlordScrutinyView()
+    {
+        var mainStack = new StackPanel();
+        Children.Add(mainStack);
+
+        foreach (var row in _section.Rows)
+        {
+            var c0 = row.Cells.Count > 0 ? row.Cells[0] : string.Empty;
+            var isDemand = c0.Contains("TRÁT LỆNH", StringComparison.OrdinalIgnoreCase);
+
+            if (!isDemand)
+            {
+                var threatBadgeText = row.Cells.Count > 1 ? row.Cells[1] : "🟢 Bình An";
+                var scoreText = row.Cells.Count > 2 ? row.Cells[2] : "0/100";
+                var wealthText = row.Cells.Count > 3 ? row.Cells[3] : "—";
+                var surchargeText = row.Cells.Count > 4 ? row.Cells[4] : "Không";
+                var statusText = row.Cells.Count > 5 ? row.Cells[5] : "—";
+
+                var scoreVal = ExtractLeadingInt(scoreText, 0);
+                var isHighRisk = scoreVal >= 60 || statusText.Contains("Cấm vận");
+                var barColor = scoreVal >= 85 ? TextDangerBrush : scoreVal >= 60 ? TextWarningBrush : scoreVal >= 40 ? GoldBrush : TextSuccessBrush;
+
+                var card = new Border
+                {
+                    Background = isHighRisk ? DangerBgBrush : ActiveOfficeBg,
+                    BorderBrush = isHighRisk ? DangerBorderBrush : GoldDimBrush,
+                    BorderThickness = new Thickness(1.5),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(14),
+                    Margin = new Thickness(0, 0, 0, 10)
+                };
+
+                var root = new StackPanel();
+                card.Child = root;
+
+                var head = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+                var titleBlock = new TextBlock
+                {
+                    Text = $"🦅 PHONG VŨ BIỂU QUÂN PHIỆT · {c0}",
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 14,
+                    Foreground = isHighRisk ? TextWarningBrush : GoldBrush
+                };
+                DockPanel.SetDock(titleBlock, Dock.Left);
+                head.Children.Add(titleBlock);
+
+                var badgeVariant = scoreVal >= 60 ? BadgeVariant.Warning : BadgeVariant.Gain;
+                var badge = new GameBadge(threatBadgeText, badgeVariant);
+                DockPanel.SetDock(badge, Dock.Right);
+                head.Children.Add(badge);
+                root.Children.Add(head);
+
+                // Thermometer Gauge Bar (0..100)
+                var gaugeLabelRow = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+                gaugeLabelRow.Children.Add(new TextBlock
+                {
+                    Text = "Nhiệt kế dòm ngó sản nghiệp (Cây To Đón Gió)",
+                    FontSize = 11,
+                    Foreground = TextMutedBrush
+                });
+                var scoreRight = new TextBlock
+                {
+                    Text = scoreText,
+                    FontSize = 11.5,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = barColor,
+                    HorizontalAlignment = HorizontalAlignment.Right
+                };
+                DockPanel.SetDock(scoreRight, Dock.Right);
+                gaugeLabelRow.Children.Add(scoreRight);
+                root.Children.Add(gaugeLabelRow);
+
+                var gaugeTrack = new Grid { Height = 10, Margin = new Thickness(0, 0, 0, 10) };
+                gaugeTrack.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(1, scoreVal), GridUnitType.Star) });
+                gaugeTrack.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(1, 100 - scoreVal), GridUnitType.Star) });
+                var trackBg = new Border { Background = TrackBgBrush, CornerRadius = new CornerRadius(4) };
+                SetColumnSpan(trackBg, 2);
+                gaugeTrack.Children.Add(trackBg);
+                var fillBar = new Border { Background = barColor, CornerRadius = new CornerRadius(4) };
+                SetColumn(fillBar, 0);
+                gaugeTrack.Children.Add(fillBar);
+                root.Children.Add(gaugeTrack);
+
+                var pillGrid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, 0, 10) };
+                pillGrid.Children.Add(BuildStatPill("💰 Tài Sản / Ngưỡng Bảo Hộ", wealthText, GoldBrush));
+                pillGrid.Children.Add(BuildStatPill("⚖️ Phụ Thu Thuế Chợ", surchargeText, surchargeText != "Không" ? TextWarningBrush : TextSuccessBrush));
+                pillGrid.Children.Add(BuildStatPill("📜 Tình Trạng Lãnh Địa", statusText, statusText.Contains("Cấm vận") ? TextDangerBrush : TextPrimaryBrush));
+                root.Children.Add(pillGrid);
+
+                if (row.Commands.Count > 0)
+                {
+                    var cmdWrap = new WrapPanel();
+                    cmdWrap.Children.Add(new TextBlock
+                    {
+                        Text = "Tán tài tụ nghĩa (hạ nhiệt dòm ngó): ",
+                        FontSize = 11.5,
+                        Foreground = TextMutedBrush,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(0, 0, 8, 4)
+                    });
+                    foreach (var cmd in row.Commands)
+                    {
+                        var btn = new GameButton(cmd.Label, cmd.Kind == CommandKind.Primary ? GameButtonVariant.Primary : GameButtonVariant.Secondary, isCompact: true)
+                        {
+                            Margin = new Thickness(0, 0, 6, 4)
+                        };
+                        var cid = cmd.Id;
+                        btn.Click += (_, _) => _onCommand(cid);
+                        cmdWrap.Children.Add(btn);
+                    }
+                    root.Children.Add(cmdWrap);
+                }
+
+                mainStack.Children.Add(card);
+            }
+            else
+            {
+                // Extortion Demand Card (Trát Lệnh Quân Phiệt)
+                var demTitle = row.Cells.Count > 1 ? row.Cells[1] : "Trát Trưng Thu Quân Nhu";
+                var demAmount = row.Cells.Count > 2 ? row.Cells[2] : "0 Quan";
+                var demDue = row.Cells.Count > 3 ? row.Cells[3] : "—";
+                var demDesc = row.Cells.Count > 5 ? row.Cells[5] : string.Empty;
+
+                var demCard = new Border
+                {
+                    Background = DangerBgBrush,
+                    BorderBrush = DangerBorderBrush,
+                    BorderThickness = new Thickness(1.5),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(14),
+                    Margin = new Thickness(0, 0, 0, 8)
+                };
+
+                var sp = new StackPanel();
+                demCard.Child = sp;
+
+                var hDock = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+                hDock.Children.Add(new TextBlock
+                {
+                    Text = $"{c0} · {demTitle}",
+                    FontWeight = FontWeights.Bold,
+                    FontSize = 13.5,
+                    Foreground = TextWarningBrush
+                });
+                var amtBadge = new GameBadge($"Đòi nộp: {demAmount} ({demDue})", BadgeVariant.Warning);
+                DockPanel.SetDock(amtBadge, Dock.Right);
+                hDock.Children.Add(amtBadge);
+                sp.Children.Add(hDock);
+
+                sp.Children.Add(new TextBlock
+                {
+                    Text = demDesc,
+                    FontSize = 11.5,
+                    Foreground = TextPrimaryBrush,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 8)
+                });
+
+                if (row.Commands.Count > 0)
+                {
+                    var bp = new WrapPanel();
+                    foreach (var cmd in row.Commands)
+                    {
+                        var variant = cmd.Kind switch
+                        {
+                            CommandKind.Primary => GameButtonVariant.Primary,
+                            CommandKind.Danger => GameButtonVariant.Danger,
+                            _ => GameButtonVariant.Secondary
+                        };
+                        var btn = new GameButton(cmd.Label, variant, isCompact: true)
+                        {
+                            Margin = new Thickness(0, 0, 6, 4)
+                        };
+                        var cid = cmd.Id;
+                        btn.Click += (_, _) => _onCommand(cid);
+                        bp.Children.Add(btn);
+                    }
+                    sp.Children.Add(bp);
+                }
+
+                mainStack.Children.Add(demCard);
+            }
+        }
+    }
+
+    #endregion
+
+    #region Court Factions Triad View (Sóng Ngầm Quan Trường)
+
+    private void BuildCourtFactionsTriadView()
+    {
+        var mainStack = new StackPanel();
+        Children.Add(mainStack);
+
+        var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+        mainStack.Children.Add(wrap);
+
+        foreach (var row in _section.Rows)
+        {
+            var name = row.Cells.Count > 0 ? row.Cells[0] : "Thế Lực Triều Đình";
+            var desc = row.Cells.Count > 1 ? row.Cells[1] : string.Empty;
+            var scoreText = row.Cells.Count > 2 ? row.Cells[2] : "0 Điểm";
+            var attitude = row.Cells.Count > 3 ? row.Cells[3] : "⚖️ Trung Lập";
+            var score = ExtractSignedInt(scoreText, 0);
+
+            var isFriendly = score >= 30;
+            var isHostile = score <= -30;
+
+            var card = new Border
+            {
+                Background = isFriendly ? ActiveOfficeBg : (isHostile ? DangerBgBrush : CardBg),
+                BorderBrush = isFriendly ? GoldBrush : (isHostile ? DangerBorderBrush : PanelBorder),
+                BorderThickness = new Thickness(isFriendly || isHostile ? 1.5 : 1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(14),
+                Margin = new Thickness(6),
+                Width = 300,
+                Cursor = Cursors.Hand
+            };
+
+            var stack = new StackPanel();
+            card.Child = stack;
+
+            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            head.Children.Add(new TextBlock
+            {
+                Text = $"🏛️ {name}",
+                FontWeight = FontWeights.Bold,
+                FontSize = 13.5,
+                Foreground = isFriendly ? GoldBrush : (isHostile ? TextWarningBrush : TextPrimaryBrush),
+                MaxWidth = 190,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            var badge = new GameBadge(scoreText, isFriendly ? BadgeVariant.Gain : (isHostile ? BadgeVariant.Warning : BadgeVariant.Default));
+            DockPanel.SetDock(badge, Dock.Right);
+            head.Children.Add(badge);
+            stack.Children.Add(head);
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = attitude,
+                FontSize = 11.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = isFriendly ? TextSuccessBrush : (isHostile ? TextDangerBrush : GoldDimBrush),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            // Bipolar Standing Bar (-100 .. 0 .. +100)
+            var normalized = Math.Clamp((score + 100) / 2, 1, 99);
+            var barGrid = new Grid { Height = 8, Margin = new Thickness(0, 0, 0, 8) };
+            barGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(normalized, GridUnitType.Star) });
+            barGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100 - normalized, GridUnitType.Star) });
+            var track = new Border { Background = TrackBgBrush, CornerRadius = new CornerRadius(3) };
+            SetColumnSpan(track, 2);
+            barGrid.Children.Add(track);
+            var fill = new Border
+            {
+                Background = score >= 0 ? TextSuccessBrush : TextDangerBrush,
+                CornerRadius = new CornerRadius(3)
+            };
+            SetColumn(fill, 0);
+            barGrid.Children.Add(fill);
+            stack.Children.Add(barGrid);
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = desc,
+                FontSize = 11,
+                Foreground = TextMutedBrush,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10)
+            });
+
+            if (row.Commands.Count > 0)
+            {
+                foreach (var cmd in row.Commands)
+                {
+                    var btn = new GameButton(cmd.Label, GameButtonVariant.Primary, isCompact: true)
+                    {
+                        HorizontalAlignment = HorizontalAlignment.Stretch
+                    };
+                    var cid = cmd.Id;
+                    btn.Click += (_, _) => _onCommand(cid);
+                    stack.Children.Add(btn);
+                }
+            }
+
+            card.MouseLeftButtonUp += (_, _) => _onInspect?.Invoke(_section, row);
+            wrap.Children.Add(card);
+        }
+    }
+
+    #endregion
+
+    #region Imperial Censorate Inspection View (Ngự Sử Đài Thanh Sát)
+
+    private void BuildImperialInspectionView()
+    {
+        var mainStack = new StackPanel();
+        Children.Add(mainStack);
+
+        foreach (var row in _section.Rows)
+        {
+            var isCommandRow = row.Commands.Count > 0;
+            var c0 = row.Cells.Count > 0 ? row.Cells[0] : "—";
+            var censorName = row.Cells.Count > 1 ? row.Cells[1] : "Khâm Sai Đại Thần";
+            var approach = row.Cells.Count > 2 ? row.Cells[2] : "—";
+            var outcome = row.Cells.Count > 3 ? row.Cells[3] : "—";
+            var delta = row.Cells.Count > 4 ? row.Cells[4] : "—";
+            var narrative = row.Cells.Count > 5 ? row.Cells[5] : string.Empty;
+
+            var isNegative = outcome.Contains("🔴") || outcome.Contains("🟠");
+            var card = new Border
+            {
+                Background = isCommandRow ? ActiveOfficeBg : (isNegative ? DangerBgBrush : CardBg),
+                BorderBrush = isCommandRow ? GoldBrush : (isNegative ? DangerBorderBrush : PanelBorder),
+                BorderThickness = new Thickness(isCommandRow ? 1.5 : 1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(14),
+                Margin = new Thickness(0, 0, 0, 8),
+                Cursor = Cursors.Hand
+            };
+
+            var sp = new StackPanel();
+            card.Child = sp;
+
+            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            head.Children.Add(new TextBlock
+            {
+                Text = isCommandRow ? $"⚖️ LỆNH BÀI NGỰ SỬ ĐÀI · {censorName}" : $"📜 {c0} · {censorName} ({approach})",
+                FontWeight = FontWeights.Bold,
+                FontSize = 13.5,
+                Foreground = isCommandRow ? GoldBrush : TextPrimaryBrush
+            });
+
+            var badgeVariant = outcome.Contains("🟢") ? BadgeVariant.Gain : (isNegative ? BadgeVariant.Warning : BadgeVariant.Default);
+            var badge = new GameBadge(isCommandRow ? outcome : $"{outcome} ({delta})", badgeVariant);
+            DockPanel.SetDock(badge, Dock.Right);
+            head.Children.Add(badge);
+            sp.Children.Add(head);
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = narrative,
+                FontSize = 11.5,
+                Foreground = isCommandRow ? TextMutedBrush : TextPrimaryBrush,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, isCommandRow ? 10 : 2)
+            });
+
+            if (isCommandRow)
+            {
+                var bp = new WrapPanel();
+                foreach (var cmd in row.Commands)
+                {
+                    var btn = new GameButton(cmd.Label, cmd.Kind == CommandKind.Primary ? GameButtonVariant.Primary : GameButtonVariant.Secondary, isCompact: true)
+                    {
+                        Margin = new Thickness(0, 0, 8, 4)
+                    };
+                    var cid = cmd.Id;
+                    btn.Click += (_, _) => _onCommand(cid);
+                    bp.Children.Add(btn);
+                }
+                sp.Children.Add(bp);
+            }
+
+            card.MouseLeftButtonUp += (_, _) => _onInspect?.Invoke(_section, row);
+            mainStack.Children.Add(card);
+        }
+    }
+
+    private static int ExtractLeadingInt(string text, int fallback)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return fallback;
+        var slashIdx = text.IndexOf('/');
+        var candidate = slashIdx > 0 ? text[..slashIdx] : text;
+        var digits = new string(candidate.Where(char.IsDigit).ToArray());
+        return int.TryParse(digits, out var val) ? Math.Clamp(val, 0, 100) : fallback;
+    }
+
+    private static int ExtractSignedInt(string text, int fallback)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return fallback;
+        var token = text.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? text;
+        return int.TryParse(token, out var val) ? Math.Clamp(val, -100, 100) : fallback;
     }
 
     #endregion

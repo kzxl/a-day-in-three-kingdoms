@@ -103,6 +103,34 @@
   border-bottom-color: #c4a062;
 }
 
+.tk-soc-tab-right {
+  margin-left: auto;
+  color: #e8b75c;
+  border: 1px solid #4a3a2a;
+  height: 32px;
+  align-self: center;
+  padding: 0 12px;
+  background: #241a13;
+}
+
+.tk-soc-card.is-risk {
+  border-color: #a8321f;
+}
+
+.tk-soc-retainer-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tk-soc-retainer-btns .tk-soc-act {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  flex: 1;
+  justify-content: center;
+}
+
 .tk-soc-body {
   flex: 1;
   min-height: 0;

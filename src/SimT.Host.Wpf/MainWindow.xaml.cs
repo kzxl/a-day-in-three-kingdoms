@@ -483,12 +483,26 @@ public partial class MainWindow : Window
                 SelectScreen("world.map");
                 break;
             case "politics.court":
+                SelectScreenAndFocusSection("politics.court", "Dòm Ngó");
+                break;
             case "social.network":
-                SelectScreen(action);
+                _preferSocialWpfView = true;
+                SelectScreenAndFocusSection("social.network", "Gia Thần");
                 break;
             default:
                 break;
         }
+    }
+
+    public bool SelectScreenAndFocusSection(string screenId, string sectionKeyword)
+    {
+        _pendingFocusSectionKeyword = sectionKeyword;
+        if (string.Equals(_screenId, screenId, StringComparison.Ordinal))
+        {
+            RenderSelected();
+            return true;
+        }
+        return SelectScreen(screenId);
     }
 
     private void Window_Closing(object sender, CancelEventArgs e)

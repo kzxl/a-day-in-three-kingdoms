@@ -64,6 +64,7 @@ function renderSocialScene(container, scene, bridge) {
   const skills = Array.isArray(scene.skills) ? scene.skills : [];
   const letters = Array.isArray(scene.letters) ? scene.letters : [];
   const retainers = Array.isArray(scene.retainers) ? scene.retainers : [];
+  const incidents = Array.isArray(scene.incidents) ? scene.incidents : [];
 
   if (scene.selectedNpcId && nodes.some((n) => n.npcId === scene.selectedNpcId)) rememberedNpcId = scene.selectedNpcId;
   else if (!nodes.some((n) => n.npcId === rememberedNpcId) && nodes.length > 0) rememberedNpcId = nodes[0].npcId;
@@ -113,6 +114,10 @@ function renderSocialScene(container, scene, bridge) {
       btn.addEventListener('click', () => { activeTabKey = key; redrawBody(); redrawTabs(); });
       tabsBox.appendChild(btn);
     }
+    const dossierSwitchBtn = el('button', 'tk-soc-tab tk-soc-tab-right', '📋 Sổ Giám Sát & Biến Cố');
+    dossierSwitchBtn.type = 'button';
+    dossierSwitchBtn.addEventListener('click', () => bridge.sendChoice('social', 'view:wpf_dossier'));
+    tabsBox.appendChild(dossierSwitchBtn);
   }
 
   function redrawInspector(cur) {
@@ -128,15 +133,23 @@ function renderSocialScene(container, scene, bridge) {
     headInfo.append(
       el('div', 'tk-soc-name', shortName(cur.nameVi)),
       el('div', 'tk-soc-role', `${cur.roleVi} · ${cur.cityNameVi}`),
-      el('div', 'tk-soc-rank', `Phẩm ${cur.rankCode || 'B'} · ${cur.tierTitleVi}`)
+      el('div', 'tk-soc-rank', `Phẩm ${cur.rankCode || 'B'} · ${cur.tierTitleVi} · [${cur.psycheBadgeVi || 'Trung dung'}]`)
     );
     head.append(avatar, headInfo);
     inspectorBox.appendChild(head);
 
-    for (const [lbl, val, color] of [['Hảo cảm', cur.affinity, '#c4a062'], ['Tín nhiệm', cur.trust, '#3f8f73']]) {
+    const statBars = [
+      ['Hảo cảm', cur.affinity, '#c4a062'],
+      ['Tín nhiệm', cur.trust, '#3f8f73'],
+      ['Dã tâm / Khí tiết', cur.ambition ?? 50, (cur.ambition ?? 50) >= 70 ? '#d96b43' : '#8a7235', `⚡${cur.ambition ?? 50}% · 🛡️${cur.integrity ?? 50}%`]
+    ];
+    if (cur.isRetainer) {
+      statBars.splice(2, 0, ['Trung thành', cur.loyalty ?? 100, (cur.loyalty ?? 100) < 55 ? '#d9534f' : '#5ea872']);
+    }
+    for (const [lbl, val, color, customRight] of statBars) {
       const wrap = el('div');
       const row = el('div', 'tk-soc-bar-row');
-      row.append(el('span', '', lbl), el('span', '', `${val} / 100`));
+      row.append(el('span', '', lbl), el('span', '', customRight || `${val} / 100`));
       const bar = el('div', 'tk-soc-bar');
       const fill = el('i');
       fill.style.cssText = `width:${Math.max(0, Math.min(100, val))}%;background:${color}`;
@@ -157,7 +170,31 @@ function renderSocialScene(container, scene, bridge) {
     giftBtn.append(el('span', '', 'Biếu quà'), el('em', '', firstGift ? `Tặng ${firstGift.nameVi} (còn ${firstGift.heldQuantity})` : '+hảo cảm · cần quà trong túi'));
     giftBtn.addEventListener('click', () => bridge.sendChoice('social', firstGift ? `gift:${cur.npcId}:${firstGift.itemId}` : `gift:${cur.npcId}`));
 
-    inspectorBox.append(chatBtn, giftBtn, el('div', 'tk-soc-sec', 'MỐC MỞ KHOÁ'));
+    inspectorBox.append(chatBtn, giftBtn);
+
+    if (cur.isRetainer) {
+      inspectorBox.appendChild(el('div', 'tk-soc-sec', 'QUẢN TRỊ GIA THẦN'));
+      const auditBtn = el('button', 'tk-soc-act is-primary');
+      auditBtn.type = 'button';
+      auditBtn.append(el('span', '', '⚖️ Thẩm tra sổ sách'), el('em', '', 'Chống tham ô'));
+      auditBtn.addEventListener('click', () => bridge.sendChoice('social', `retainer:audit:${cur.npcId}`));
+
+      const placateBtn = el('button', 'tk-soc-act');
+      placateBtn.type = 'button';
+      placateBtn.append(el('span', '', '🎁 Thưởng trấn an'), el('em', '', '-300 quan · +Loyalty'));
+      placateBtn.addEventListener('click', () => bridge.sendChoice('social', `retainer:placate:${cur.npcId}:300`));
+      inspectorBox.append(auditBtn, placateBtn);
+    }
+
+    if (cur.isSworn) {
+      const aidBtn = el('button', 'tk-soc-act is-primary');
+      aidBtn.type = 'button';
+      aidBtn.append(el('span', '', '🤝 Cứu trợ Kim Lan'), el('em', '', 'Nghĩa huynh tương trợ'));
+      aidBtn.addEventListener('click', () => bridge.sendChoice('social', `sworn:aid:${cur.npcId}`));
+      inspectorBox.appendChild(aidBtn);
+    }
+
+    inspectorBox.appendChild(el('div', 'tk-soc-sec', 'MỐC MỞ KHOÁ'));
 
     const recBtn = el('button', `tk-soc-act${cur.canRecruit && !cur.isRetainer ? ' is-primary' : ' is-disabled'}`);
     recBtn.type = 'button';
@@ -369,16 +406,41 @@ function renderSocialScene(container, scene, bridge) {
       }
     } else {
       for (const r of retainers) {
-        const card = el('div', 'tk-soc-card');
+        const card = el('div', `tk-soc-card${r.isBetrayalRisk ? ' is-risk' : ''}`);
+        const riskText = r.isBetrayalRisk ? ' · 🔴 Nguy cơ dị chí/tham ô' : '';
         card.append(
-          el('div', 'tk-soc-name', `${shortName(r.nameVi)} (Phẩm ${r.rankCode})`),
-          el('div', 'tk-soc-role', `${r.roleVi} · Bổng ${r.monthlyStipend} quan/tháng · Trung thành ${r.loyalty}/100`),
+          el('div', 'tk-soc-name', `${shortName(r.nameVi)} (Phẩm ${r.rankCode}) · [${r.psycheBadgeVi || 'Trung dung'}]`),
+          el('div', 'tk-soc-role', `${r.roleVi} · Bổng ${r.monthlyStipend} quan/tháng · Trung thành ${r.loyalty}/100${riskText}`),
+          el('div', 'tk-soc-role', `⚡ Dã tâm ${r.ambition ?? 50}% · 🛡️ Khí tiết ${r.integrity ?? 50}%`),
           el('div', 'tk-soc-rank', r.bonusSummaryVi)
         );
+        const btnRow = el('div', 'tk-soc-retainer-btns');
+        const auditBtn = el('button', 'tk-soc-act is-primary', '⚖️ Thẩm tra');
+        auditBtn.type = 'button';
+        auditBtn.addEventListener('click', () => bridge.sendChoice('social', `retainer:audit:${r.npcId}`));
+        const placateBtn = el('button', 'tk-soc-act', '🎁 Thưởng (300q)');
+        placateBtn.type = 'button';
+        placateBtn.addEventListener('click', () => bridge.sendChoice('social', `retainer:placate:${r.npcId}:300`));
+        btnRow.append(auditBtn, placateBtn);
+        card.appendChild(btnRow);
         grid.appendChild(card);
       }
     }
     pane.appendChild(grid);
+    if (!isMail && incidents.length > 0) {
+      pane.appendChild(el('div', 'tk-soc-sec', `⚡ NHẬT KÝ DÃ TÂM & BIẾN CỐ GIA THẦN (${incidents.length})`));
+      const incGrid = el('div', 'tk-soc-lib');
+      for (const inc of incidents) {
+        const ic = el('div', 'tk-soc-card');
+        ic.append(
+          el('div', 'tk-soc-name', `${inc.typeBadgeVi} — ${inc.npcNameVi}`),
+          el('div', 'tk-soc-rank', `Ngày ${inc.dayIndex} · ${inc.changeText}`),
+          el('div', 'tk-soc-role', inc.narrativeVi)
+        );
+        incGrid.appendChild(ic);
+      }
+      pane.appendChild(incGrid);
+    }
     bodyBox.appendChild(pane);
   }
 

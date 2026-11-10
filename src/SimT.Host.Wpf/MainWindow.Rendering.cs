@@ -12,6 +12,7 @@ namespace SimT.Host.Wpf;
 public partial class MainWindow
 {
     private int _selectedSectionTab;
+    private string? _pendingFocusSectionKeyword;
 
     private void RenderSelected()
     {
@@ -97,6 +98,20 @@ public partial class MainWindow
             : model.Attention.Select(alert => new AlertVm(alert)).ToList();
 
         GlobalCommands.Children.Clear();
+        if (entry.ScreenId == "social.network" && SceneOverlay.IsAvailable)
+        {
+            var canvasBtn = new GameButton("🕸️ Sơ Đồ Nhân Mạch (Canvas)", GameButtonVariant.Secondary)
+            {
+                Margin = new Thickness(0, 0, 8, 0),
+                ToolTip = "Chuyển sang giao diện Sơ Đồ Nhân Mạch trực quan"
+            };
+            canvasBtn.Click += (_, _) =>
+            {
+                _preferSocialWpfView = false;
+                RenderSelected();
+            };
+            GlobalCommands.Children.Add(canvasBtn);
+        }
         foreach (var command in model.Commands.Where(command => !command.RequiresQuantity))
             GlobalCommands.Children.Add(CommandButton(command, command.Id));
 
@@ -114,16 +129,29 @@ public partial class MainWindow
 
         ContentPanel.Children.Clear();
 
-        if (model.Sections.Count > 1)
+        var tabGroups = SectionTabPartitioner.BuildTabGroups(entry.ScreenId, model.Sections);
+        if (!string.IsNullOrWhiteSpace(_pendingFocusSectionKeyword))
         {
-            var tabItems = new List<GameTabItem>
-            {
-                new("all", "Tất cả", model.Sections.Sum(s => s.Rows.Count))
-            };
-            for (var i = 0; i < model.Sections.Count; i++)
-                tabItems.Add(new GameTabItem($"sec:{i}", model.Sections[i].Heading, model.Sections[i].Rows.Count));
+            _selectedSectionTab = SectionTabPartitioner.FindTabIndexForKeyword(
+                tabGroups, model.Sections, _pendingFocusSectionKeyword);
+            _pendingFocusSectionKeyword = null;
+        }
 
-            var tabs = new GameTabs(tabItems, Math.Clamp(_selectedSectionTab, 0, tabItems.Count - 1));
+        var activeIndices = Enumerable.Range(0, model.Sections.Count).ToHashSet();
+        var isAllTab = true;
+        if (tabGroups.Count > 0)
+        {
+            var clampedTab = Math.Clamp(_selectedSectionTab, 0, tabGroups.Count - 1);
+            _selectedSectionTab = clampedTab;
+            var activeGroup = tabGroups[clampedTab];
+            isAllTab = activeGroup.Id == "all";
+            activeIndices = activeGroup.SectionIndices.ToHashSet();
+
+            var tabItems = tabGroups
+                .Select(g => new GameTabItem(g.Id, g.Label, g.TotalRows))
+                .ToList();
+
+            var tabs = new GameTabs(tabItems, clampedTab);
             tabs.SelectionChanged += (idx, _) =>
             {
                 _selectedSectionTab = idx;
@@ -132,16 +160,22 @@ public partial class MainWindow
             ContentPanel.Children.Add(tabs);
         }
 
-        var immediateLimit = (_selectedSectionTab == 0 && !_isSmoke && _detailKey is null) ? 3 : model.Sections.Count;
+        var immediateLimit = (isAllTab && !_isSmoke && _detailKey is null) ? 3 : model.Sections.Count;
         var deferredSections = new List<ScreenSection>();
+        var renderedCount = 0;
         for (var i = 0; i < model.Sections.Count; i++)
         {
-            if (_selectedSectionTab > 0 && _selectedSectionTab - 1 != i)
+            if (!activeIndices.Contains(i))
                 continue;
-            if (i < immediateLimit)
+            if (renderedCount < immediateLimit)
+            {
                 ContentPanel.Children.Add(BuildCard(Filtered(model.Sections[i])));
+                renderedCount++;
+            }
             else
+            {
                 deferredSections.Add(model.Sections[i]);
+            }
         }
 
         if (model.Sections.Count == 0)

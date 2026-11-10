@@ -58,6 +58,18 @@ public sealed class GameCaravanDispatchControl : Border
         {
             Child = BuildContractBoard();
         }
+        else if (section.Heading.Contains("Lũng Đoạn", StringComparison.OrdinalIgnoreCase))
+        {
+            Child = BuildCorneredMarketBoard();
+        }
+        else if (section.Heading.Contains("Buôn Lậu", StringComparison.OrdinalIgnoreCase))
+        {
+            Child = BuildSmugglingConvoyBoard();
+        }
+        else if (section.Heading.Contains("Nhật Ký Áp Tải", StringComparison.OrdinalIgnoreCase))
+        {
+            Child = BuildSmugglingLogBoard();
+        }
         else
         {
             Child = BuildRouteDispatchDeck();
@@ -531,6 +543,244 @@ public sealed class GameCaravanDispatchControl : Border
         root.Children.Add(wrap);
         return root;
     }
+    #endregion
+
+    #region 4. Economic Warfare Boards (Thương Chiến Tam Quốc: Lũng Đoạn & Buôn Lậu)
+
+    private UIElement BuildCorneredMarketBoard()
+    {
+        var root = new StackPanel();
+        var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+
+        foreach (var row in _section.Rows)
+        {
+            var city = row.Cells.Count > 0 ? row.Cells[0] : "Thành Trấn";
+            var item = row.Cells.Count > 1 ? row.Cells[1] : "Mặt Hàng";
+            var qty = row.Cells.Count > 2 ? row.Cells[2] : "0 kiện";
+            var severity = row.Cells.Count > 3 ? row.Cells[3] : "⚠️ Độc quyền";
+            var impact = row.Cells.Count > 4 ? row.Cells[4] : string.Empty;
+
+            var card = new Border
+            {
+                Width = 285,
+                Background = CardBg,
+                BorderBrush = AccentGold,
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12),
+                Margin = new Thickness(0, 0, 10, 10),
+                Cursor = Cursors.Hand
+            };
+
+            var sp = new StackPanel();
+            var topDock = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            topDock.Children.Add(new TextBlock
+            {
+                Text = $"⚔️ {item} ({city})",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = AccentGold,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            var multBadge = new GameBadge("Giá x2.2", BadgeVariant.Gain);
+            DockPanel.SetDock(multBadge, Dock.Right);
+            topDock.Children.Add(multBadge);
+            sp.Children.Add(topDock);
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = $"Quy mô gom vét: {qty} · {severity}",
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = TextMain,
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = impact,
+                FontSize = 10.5,
+                Foreground = TextMuted,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            card.Child = sp;
+            card.MouseLeftButtonUp += (_, _) => _rowInspector?.Invoke(_section, row);
+            wrap.Children.Add(card);
+        }
+
+        root.Children.Add(wrap);
+        return root;
+    }
+
+    private UIElement BuildSmugglingConvoyBoard()
+    {
+        var root = new StackPanel();
+        var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+
+        foreach (var row in _section.Rows)
+        {
+            var dest = row.Cells.Count > 0 ? row.Cells[0] : "Tiền Tuyến";
+            var item = row.Cells.Count > 1 ? row.Cells[1] : "Quân Nhu";
+            var priceSpan = row.Cells.Count > 2 ? row.Cells[2] : "—";
+            var profitMargin = row.Cells.Count > 3 ? row.Cells[3] : "+250%";
+            var riskText = row.Cells.Count > 4 ? row.Cells[4] : "35%";
+            var statusText = row.Cells.Count > 5 ? row.Cells[5] : string.Empty;
+            var canSmuggle = row.Commands.Count > 0;
+
+            var digits = new string(riskText.TakeWhile(char.IsDigit).ToArray());
+            var riskPct = int.TryParse(digits, out var rVal) ? Math.Clamp(rVal, 5, 95) : 35;
+
+            var card = new Border
+            {
+                Width = 290,
+                Background = CardBg,
+                BorderBrush = canSmuggle ? CinnabarRed : CardBorder,
+                BorderThickness = new Thickness(canSmuggle ? 1.5 : 1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12),
+                Margin = new Thickness(0, 0, 10, 10),
+                Cursor = Cursors.Hand
+            };
+
+            var sp = new StackPanel();
+            var topDock = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            topDock.Children.Add(new TextBlock
+            {
+                Text = $"{dest} · {item}",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = TextMain,
+                MaxWidth = 185,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            var profBadge = new GameBadge($"Lời {profitMargin}", BadgeVariant.Gain);
+            DockPanel.SetDock(profBadge, Dock.Right);
+            topDock.Children.Add(profBadge);
+            sp.Children.Add(topDock);
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = $"Chênh lệch chợ đen: {priceSpan}",
+                FontFamily = MonoFont,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = AccentGold,
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            // Patrol Interception Risk Gauge
+            var riskLabelDock = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
+            riskLabelDock.Children.Add(new TextBlock
+            {
+                Text = "Rủi ro tuần binh chặn bắt:",
+                FontSize = 10,
+                Foreground = TextMuted
+            });
+            var riskRight = new TextBlock
+            {
+                Text = riskText,
+                FontSize = 10,
+                FontWeight = FontWeights.Bold,
+                Foreground = CinnabarRed,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+            DockPanel.SetDock(riskRight, Dock.Right);
+            riskLabelDock.Children.Add(riskRight);
+            sp.Children.Add(riskLabelDock);
+
+            var riskBar = new Grid { Height = 6, Margin = new Thickness(0, 0, 0, 8) };
+            riskBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(riskPct, GridUnitType.Star) });
+            riskBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100 - riskPct, GridUnitType.Star) });
+            var rTrack = new Border { Background = PanelBg, CornerRadius = new CornerRadius(3) };
+            Grid.SetColumnSpan(rTrack, 2);
+            riskBar.Children.Add(rTrack);
+            var rFill = new Border { Background = CinnabarRed, CornerRadius = new CornerRadius(3) };
+            Grid.SetColumn(rFill, 0);
+            riskBar.Children.Add(rFill);
+            sp.Children.Add(riskBar);
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = statusText,
+                FontSize = 10.5,
+                Foreground = canSmuggle ? JadeGreen : TextMuted,
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            if (canSmuggle)
+            {
+                foreach (var cmd in row.Commands)
+                {
+                    var btn = new GameButton(cmd.Label, GameButtonVariant.Primary, isCompact: true)
+                    {
+                        HorizontalAlignment = HorizontalAlignment.Stretch
+                    };
+                    var cid = cmd.Id;
+                    btn.Click += (_, _) => _commandInvoker?.Invoke(cid);
+                    sp.Children.Add(btn);
+                }
+            }
+
+            card.Child = sp;
+            card.MouseLeftButtonUp += (_, _) => _rowInspector?.Invoke(_section, row);
+            wrap.Children.Add(card);
+        }
+
+        root.Children.Add(wrap);
+        return root;
+    }
+
+    private UIElement BuildSmugglingLogBoard()
+    {
+        var root = new StackPanel();
+        foreach (var row in _section.Rows)
+        {
+            var day = row.Cells.Count > 0 ? row.Cells[0] : "—";
+            var route = row.Cells.Count > 1 ? row.Cells[1] : "—";
+            var cargo = row.Cells.Count > 2 ? row.Cells[2] : "—";
+            var outcome = row.Cells.Count > 3 ? row.Cells[3] : "—";
+            var narrative = row.Cells.Count > 4 ? row.Cells[4] : string.Empty;
+            var isCaught = outcome.Contains("❌");
+
+            var card = new Border
+            {
+                Background = CardBg,
+                BorderBrush = isCaught ? CinnabarRed : JadeGreen,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+
+            var sp = new StackPanel();
+            var topDock = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+            topDock.Children.Add(new TextBlock
+            {
+                Text = $"{day} · {route} ({cargo})",
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Foreground = TextMain
+            });
+            var badge = new GameBadge(outcome, isCaught ? BadgeVariant.Warning : BadgeVariant.Gain);
+            DockPanel.SetDock(badge, Dock.Right);
+            topDock.Children.Add(badge);
+            sp.Children.Add(topDock);
+
+            sp.Children.Add(new TextBlock
+            {
+                Text = narrative,
+                FontSize = 11,
+                Foreground = TextMuted,
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            card.Child = sp;
+            root.Children.Add(card);
+        }
+        return root;
+    }
+
     #endregion
 
     private static Brush Freeze(SolidColorBrush b)

@@ -397,11 +397,26 @@ public sealed class GameBazaarDeckControl : Grid
             actionDeck.Children.Add(sellBtn);
         }
 
+        // Tactical Market Cornering command (if eligible)
+        var cornerCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("warfare:corner:", StringComparison.Ordinal));
+        if (cornerCmd is not null)
+        {
+            var cornerBtn = new GameButton(cornerCmd.Label, GameButtonVariant.Danger)
+            {
+                Margin = new Thickness(0, 0, 0, 6),
+                ToolTip = "Thu gom lượng lớn hàng chiến lược trên sạp để thao túng giá thị trường (x2.2)"
+            };
+            var cid = cornerCmd.Id;
+            cornerBtn.Click += (_, _) => _commandInvoker?.Invoke(cid);
+            actionDeck.Children.Add(cornerBtn);
+        }
+
         // Secondary commands (e.g. store, take, modal)
         var extraCommands = row.Commands.Where(c =>
             !c.Id.StartsWith("buy:", StringComparison.Ordinal) &&
             !c.Id.StartsWith("sell:", StringComparison.Ordinal) &&
             !c.Id.StartsWith("npc_buy:", StringComparison.Ordinal) &&
+            !c.Id.StartsWith("warfare:corner:", StringComparison.Ordinal) &&
             !c.RequiresQuantity).ToList();
 
         if (extraCommands.Count > 0)

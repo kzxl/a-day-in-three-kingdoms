@@ -6,10 +6,12 @@ namespace SimT.Host.Wpf;
 
 public partial class MainWindow
 {
+    private bool _preferSocialWpfView;
+
     public bool TryOpenFeatureScene(string screenId, string? recommendation = null) => screenId switch
     {
         "world.map" => TryOpenMapScene(recommendation),
-        "social.network" => TryOpenSocialScene(recommendation),
+        "social.network" => !_preferSocialWpfView && TryOpenSocialScene(recommendation),
         _ => false
     };
 
@@ -62,6 +64,9 @@ public partial class MainWindow
             var tierKey = aff >= 80 ? "sworn" : aff >= 60 ? "trusted" : aff >= 35 ? "friend" : "known";
             var angle = (i * (360.0 / Math.Max(1, candidateNpcs.Count)) - 90.0 + 360.0) % 360.0;
 
+            var retObj = retainers.FirstOrDefault(r => r.NpcId == npc.Id);
+            var psyche = social.GetPsycheProfile(npc.Id);
+
             nodeViews.Add(new SocialNodeView(
                 npc.Id, npc.Code, RoleTitleVi.ShortName(npc.NameVi), RoleTitleVi.Format(npc.Role), rankCode,
                 map.Find(npc.CitadelId)?.NameVi ?? currentCityName,
@@ -71,7 +76,8 @@ public partial class MainWindow
                 firstSkill?.EffectSummary ?? "—",
                 firstSkill is not null && learnedCodes.Contains(firstSkill.Code),
                 $"{req.SigningFee} quan", req.CanRecruit,
-                retainers.Any(r => r.NpcId == npc.Id), swornIds.Contains(npc.Id), angle));
+                retObj is not null, swornIds.Contains(npc.Id), angle,
+                retObj?.Loyalty ?? 100, psyche.Ambition, psyche.Integrity, psyche.BadgeVi));
         }
 
         var skillViews = SocialScene.BuildSkillViews(reg, progresses, candidateNpcs);
@@ -105,10 +111,33 @@ public partial class MainWindow
                 "advisor" => "Tăng hiệu quả mưu lược & đàm đạo",
                 _ => "Quản lý sản nghiệp & kho bãi"
             };
+            var psyche = social.GetPsycheProfile(r.NpcId);
             return new SocialRetainerView(
                 r.NpcId, RoleTitleVi.ShortName(npc?.NameVi ?? $"#{r.NpcId}"),
                 RoleTitleVi.Format(r.RoleAssigned), social.GetNpcRank(r.NpcId).ToString(),
-                face, r.MonthlyStipend, bonus, r.Loyalty);
+                face, r.MonthlyStipend, bonus, r.Loyalty,
+                psyche.Ambition, psyche.Integrity, psyche.BadgeVi,
+                r.Loyalty < 55 && psyche.Ambition >= 70);
+        }).ToList();
+
+        var incidentViews = social.GetRecentRetainerIncidents(6).Select(inc =>
+        {
+            var npc = reg.Find(inc.NpcId);
+            var name = RoleTitleVi.ShortName(npc?.NameVi ?? $"#{inc.NpcId}");
+            var typeBadge = inc.IncidentType switch
+            {
+                "EMBEZZLE" => "🔴 Tham Ô Công Quỹ",
+                "DEMAND_RAISE" => "🟠 Yêu Sách Bổng Lộc",
+                "DESERTION" => "⛔ Đào Tẩu Bội Phản",
+                "AUDIT_CLEAR" => "⚖️ Thẩm Tra Sổ Sách",
+                "PLACATED" => "🎁 Ban Thưởng Trấn An",
+                "SWORN_AID" => "🤝 Nghĩa Trợ Huynh Đệ",
+                _ => inc.IncidentType
+            };
+            var changeText = inc.CopperAmount > 0
+                ? $"{inc.CopperAmount:N0} quan (Loyalty {inc.LoyaltyDelta:+0;-0;0})"
+                : $"Loyalty {inc.LoyaltyDelta:+0;-0;0}";
+            return new SocialIncidentView(inc.DayIndex, name, typeBadge, changeText, inc.NarrativeVi);
         }).ToList();
 
         var giftItems = new List<SocialGiftItemView>();
@@ -131,7 +160,8 @@ public partial class MainWindow
             SceneArtCatalog.PlayerPortraitFace, recText, selectedNpcId,
             nodeViews, skillViews, letterViews, retainerViews, giftItems,
             _kernel.Capabilities.TryGet<INpcBonds>(INpcBonds.CapabilityId, out var bonds) && bonds is not null
-                ? NpcBondScene.Build(bonds, reg, worldNpcId > 0 ? worldNpcId : selectedNpcId > 0 ? selectedNpcId : candidateNpcs[0].Id, worldSearch) : null));
+                ? NpcBondScene.Build(bonds, reg, worldNpcId > 0 ? worldNpcId : selectedNpcId > 0 ? selectedNpcId : candidateNpcs[0].Id, worldSearch) : null,
+            incidentViews));
     }
 
     public bool TryOpenMarketScene(string? recommendation = null, long selectedItemId = 0)
@@ -234,12 +264,19 @@ public partial class MainWindow
             return;
         }
         if (type != "choice") return;
+        if (id == "view:wpf_dossier")
+        {
+            _preferSocialWpfView = true;
+            SceneOverlay.HideScene();
+            RenderSelected();
+            return;
+        }
         if (id.StartsWith("world:", StringComparison.Ordinal) && long.TryParse(id[6..], out var center))
         { TryOpenSocialScene(worldNpcId: center); return; }
         if (id.StartsWith("search:", StringComparison.Ordinal))
         { TryOpenSocialScene(worldNpcId: _.World?.CenterId ?? 0, worldSearch: id[7..]); return; }
         await ExecuteScreenCommandAsync(id, "social.network");
-        TryOpenSocialScene();
+        TryOpenSocialScene(StatusText.Text, _.SelectedNpcId);
     }
 
     private async void HandleMarketSceneMessage(string type, string id, MarketScene _)
