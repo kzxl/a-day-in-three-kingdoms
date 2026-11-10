@@ -18,6 +18,7 @@ public sealed partial class TradeCompassModalWindow : HubModalWindowBase
     private readonly IWorldMap? _map;
     private readonly IMarketTrade? _trade;
     private readonly IItemCatalog? _catalog;
+    private readonly IEconomicWarfare? _warfare;
     private readonly List<ItemDef> _allItems = new();
     private string _activeCategoryFilter = "ALL";
     private ItemDef? _selectedItem;
@@ -30,6 +31,7 @@ public sealed partial class TradeCompassModalWindow : HubModalWindowBase
         _kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out _map);
         _kernel.Capabilities.TryGet<IMarketTrade>(CapabilityIds.MarketTrade, out _trade);
         _kernel.Capabilities.TryGet<IItemCatalog>(CapabilityIds.ItemCatalog, out _catalog);
+        _kernel.Capabilities.TryGet<IEconomicWarfare>(CapabilityIds.EconomicWarfare, out _warfare);
 
         if (_catalog is not null)
         {
@@ -160,12 +162,13 @@ public sealed partial class TradeCompassModalWindow : HubModalWindowBase
             DockPanel.SetDock(roiBadge, Dock.Right);
             dock.Children.Add(roiBadge);
 
+            var isCornered = _warfare?.ActiveCorneredMarkets.Any(c => c.ItemId == item.Id) == true;
             var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             info.Children.Add(new TextBlock
             {
-                Text = item.NameVi,
+                Text = isCornered ? $"⚔️ {item.NameVi} [Độc Quyền]" : item.NameVi,
                 FontWeight = FontWeights.Bold,
-                Foreground = (Brush)FindResource("Text")
+                Foreground = (Brush)FindResource(isCornered ? "Accent" : "Text")
             });
             info.Children.Add(new TextBlock
             {
@@ -253,7 +256,62 @@ public sealed partial class TradeCompassModalWindow : HubModalWindowBase
             .Take(3)
             .ToList();
 
-        if (topRoutes.Count == 0)
+        var smuggleOpps = _warfare?.AvailableSmuggleOpportunities
+            .Where(o => o.ItemId == item.Id)
+            .ToList() ?? [];
+
+        foreach (var opp in smuggleOpps)
+        {
+            var smuggleRow = new Border
+            {
+                Background = (Brush)FindResource("SurfaceAlt"),
+                BorderBrush = (Brush)FindResource("Accent"),
+                BorderThickness = new Thickness(1.5),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            var sDock = new DockPanel();
+            var sRight = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            DockPanel.SetDock(sRight, Dock.Right);
+            sRight.Children.Add(new TextBlock
+            {
+                Text = $"+{opp.ProfitMarginPercent}% (Chợ Đen)",
+                FontWeight = FontWeights.Bold,
+                FontSize = 13,
+                Foreground = (Brush)FindResource("Gain"),
+                HorizontalAlignment = HorizontalAlignment.Right
+            });
+            sRight.Children.Add(new TextBlock
+            {
+                Text = $"Rủi ro tuần binh: {opp.InterceptionRiskPercent}%",
+                Style = (Style)FindResource("Caption"),
+                Foreground = (Brush)FindResource("Loss"),
+                HorizontalAlignment = HorizontalAlignment.Right
+            });
+            sDock.Children.Add(sRight);
+
+            var sLeft = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            sLeft.Children.Add(new TextBlock
+            {
+                Text = $"🔥 [BUÔN LẬU TIỀN TUYẾN] {opp.OriginCitadelNameVi}  ➔  🏰 {opp.DestCitadelNameVi}",
+                FontWeight = FontWeights.Bold,
+                Foreground = (Brush)FindResource("Accent"),
+                FontSize = 13
+            });
+            sLeft.Children.Add(new TextBlock
+            {
+                Text = $"Giá nhập {opp.SmuggleBuyPrice}q ➔ Bán lậu {opp.SmuggleSellPrice}q · Vượt phong tỏa chiến sự",
+                Style = (Style)FindResource("Caption"),
+                Foreground = (Brush)FindResource("Muted"),
+                Margin = new Thickness(0, 2, 0, 0)
+            });
+            sDock.Children.Add(sLeft);
+            smuggleRow.Child = sDock;
+            RoutesPanel.Children.Add(smuggleRow);
+        }
+
+        if (topRoutes.Count == 0 && smuggleOpps.Count == 0)
         {
             RoutesPanel.Children.Add(new TextBlock
             {
@@ -377,14 +435,15 @@ public sealed partial class TradeCompassModalWindow : HubModalWindowBase
                     Margin = new Thickness(2, 2, 2, 2)
                 };
 
+                var isCorneredCity = _warfare?.ActiveCorneredMarkets.Any(c => c.CitadelId == city.Id && c.ItemId == item.Id) == true;
                 var cStack = new StackPanel();
                 var headerRow = new DockPanel();
                 headerRow.Children.Add(new TextBlock
                 {
-                    Text = city.NameVi,
+                    Text = isCorneredCity ? $"⚔️ {city.NameVi} (x2.2)" : city.NameVi,
                     FontWeight = FontWeights.SemiBold,
                     FontSize = 11,
-                    Foreground = (Brush)FindResource("Text")
+                    Foreground = (Brush)FindResource(isCorneredCity ? "Accent" : "Text")
                 });
                 cStack.Children.Add(headerRow);
 

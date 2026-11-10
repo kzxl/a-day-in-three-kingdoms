@@ -116,7 +116,7 @@ public sealed partial class GameStrategicBriefingControl : Border
         _rootContent.Children.Add(arenaGrid);
 
         // LEFT COLUMN: Daily Imperatives & Hot Trade Opportunities
-        leftCol.Children.Add(BuildDailyAgendaCard(today, attrs));
+        leftCol.Children.Add(BuildDailyAgendaCard(kernel, cityId, today, attrs));
         var weatherCard = BuildWeatherOutlookCard(kernel, cityId, today);
         if (weatherCard is not null)
         {
@@ -281,7 +281,7 @@ public sealed partial class GameStrategicBriefingControl : Border
     // =========================================================================
     // 2. Daily Agenda Card (Quân Cơ Mật Lệnh)
     // =========================================================================
-    private UIElement BuildDailyAgendaCard(GameDate today, IPlayerAttributes? attrs)
+    private UIElement BuildDailyAgendaCard(SimKernel kernel, long cityId, GameDate today, IPlayerAttributes? attrs)
     {
         var card = new GameSectionCard
         {
@@ -291,6 +291,64 @@ public sealed partial class GameStrategicBriefingControl : Border
         };
 
         var stack = new StackPanel();
+
+        // 0a. Urgent Political Court Alert (Extortion Demand or High Scrutiny)
+        if (kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.PoliticalCourt, out var court) && court is not null)
+        {
+            var demand = court.GetPendingExtortionDemands().FirstOrDefault();
+            var scrutiny = court.GetWarlordScrutiny();
+            if (demand is not null)
+            {
+                stack.Children.Add(BuildAgendaRow(
+                    "🚨 Tống Tiền Tối Hậu Thư",
+                    $"Sứ giả của {demand.WarlordName} đòi nộp {demand.AmountSilver:N0} Bạc trước ngày #{demand.DeadlineDay} ({demand.Reason}). Cần phúc đáp ngay để tránh tịch biên kho bãi!",
+                    "Ứng Phó Quan Phủ",
+                    () => RequestNavigate?.Invoke("politics.court"),
+                    BadgeVariant.Loss));
+            }
+            else if (scrutiny.ScrutinyScore >= 50)
+            {
+                stack.Children.Add(BuildAgendaRow(
+                    $"⚖️ Nghi Kỵ Chư Hầu ({scrutiny.ScrutinyScore}/100)",
+                    $"Mức độ nghi kỵ tại {scrutiny.RulingFactionName} đã lên cấp {scrutiny.RiskTier}. Nên hiến lương thảo hoặc vận động phe phái che chở.",
+                    "Giải Trừ Nghi Kỵ",
+                    () => RequestNavigate?.Invoke("politics.court"),
+                    BadgeVariant.Warning));
+            }
+        }
+
+        // 0b. Retainer Betrayal Risk Alert
+        if (kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+        {
+            var riskyRetainer = social.GetRetainers()
+                .OrderByDescending(r => r.BetrayalRiskPercent)
+                .FirstOrDefault(r => r.BetrayalRiskPercent >= 35 || r.Loyalty < 55);
+            if (riskyRetainer is not null)
+            {
+                stack.Children.Add(BuildAgendaRow(
+                    $"🕵️ Gia Thần Dao Động: {riskyRetainer.Name}",
+                    $"Trung thành còn {riskyRetainer.Loyalty}/100, nguy cơ phản bội {riskyRetainer.BetrayalRiskPercent}%. Hãy ban thưởng hoặc đàm đạo trấn an trước khi mật báo bị rò rỉ.",
+                    "Trấn An Danh Sĩ",
+                    () => RequestNavigate?.Invoke("npc.directory"),
+                    BadgeVariant.Warning));
+            }
+        }
+
+        // 0c. Contraband Smuggling Opportunity
+        if (kernel.Capabilities.TryGet<IEconomicWarfare>(CapabilityIds.EconomicWarfare, out var warfare) && warfare is not null)
+        {
+            var route = warfare.GetActiveContrabandRoutes()
+                .FirstOrDefault(r => r.OriginCityId == cityId || r.DestinationCityId == cityId);
+            if (route is not null)
+            {
+                stack.Children.Add(BuildAgendaRow(
+                    $"🔥 Thời Cơ Buôn Lậu: {route.ItemName}",
+                    $"Tuyến ngầm {route.OriginCityName} → {route.DestinationCityName} đang nhân giá x{(route.WarPriceMultiplierBps / 10000.0):0.0} (Tuần tra {route.PatrolRiskPercent}%).",
+                    "Vận Buôn Lậu",
+                    () => RequestNavigate?.Invoke("market.stall"),
+                    BadgeVariant.Purple));
+            }
+        }
 
         // 1. Health & Vitals recommendation
         var fatigue = attrs?.Vitals.Fatigue ?? 0;

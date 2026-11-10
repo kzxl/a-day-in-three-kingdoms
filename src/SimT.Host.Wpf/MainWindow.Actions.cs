@@ -347,7 +347,7 @@ public partial class MainWindow
         }
         else if (StrategicAdvisorBox.Tag is string targetScreen && !string.IsNullOrEmpty(targetScreen))
         {
-            SelectScreen(targetScreen);
+            NavigateByActionTag(targetScreen);
         }
         else
         {
@@ -359,7 +359,7 @@ public partial class MainWindow
     {
         if (TopProposalCard.Tag is string targetScreen && !string.IsNullOrEmpty(targetScreen))
         {
-            SelectScreen(targetScreen);
+            NavigateByActionTag(targetScreen);
         }
     }
 
@@ -368,8 +368,25 @@ public partial class MainWindow
         TopProposalCard.Visibility = Visibility.Collapsed;
     }
 
+    private void NavigateByActionTag(string tag)
+    {
+        if (tag.StartsWith("focus:", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = tag.Split(':', 3);
+            if (parts.Length == 3)
+            {
+                SelectScreenAndFocusSection(parts[1], parts[2]);
+                return;
+            }
+        }
+
+        SelectScreen(tag);
+    }
+
     public void UpdateStrategicState()
     {
+        UpdateTopProposalCard();
+
         if (StrategicAdvisorBox is null) return;
 
         // Check stamina / vitals
@@ -395,7 +412,26 @@ public partial class MainWindow
                 StrategicAdvisorBox.AdvisorName = "MƯU SĨ PHỦ ĐỆ";
                 StrategicAdvisorBox.AdvisorTitle = "Chính Lộ Tham Mưu";
                 StrategicAdvisorBox.AvatarInitials = "Mưu";
-                StrategicAdvisorBox.AdviceMessage = "Tích lũy uy danh qua việc chẩn tế dân bần và lập công vụ để triều đình cất nhắc phẩm hàm cao hơn.";
+                if (_kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.PoliticalCourt, out var court) && court is not null)
+                {
+                    var demand = court.GetPendingExtortionDemands().FirstOrDefault();
+                    var scrutiny = court.GetWarlordScrutiny();
+                    if (demand is not null)
+                    {
+                        StrategicAdvisorBox.AdviceMessage = $"CẤP BÁO: {demand.WarlordName} đòi nộp {demand.AmountSilver:N0} Bạc trước ngày #{demand.DeadlineDay} ({demand.Reason}). Hãy phúc đáp ngay!";
+                        StrategicAdvisorBox.ActionButtonLabel = "Nghi Kỵ";
+                        StrategicAdvisorBox.Tag = "focus:politics.court:NGHI KỴ";
+                        return;
+                    }
+                    if (scrutiny.ScrutinyScore >= 50)
+                    {
+                        StrategicAdvisorBox.AdviceMessage = $"Chư hầu {scrutiny.RulingFactionName} đang nghi kỵ ({scrutiny.ScrutinyScore}/100 - {scrutiny.RiskTier}). Nên hiến lương hoặc dựa thế phe phái!";
+                        StrategicAdvisorBox.ActionButtonLabel = "Phe Phái";
+                        StrategicAdvisorBox.Tag = "focus:politics.court:PHE PHÁI";
+                        return;
+                    }
+                }
+                StrategicAdvisorBox.AdviceMessage = "Tích lũy uy danh qua việc chẩn tế dân bần, kết giao Tam Đại Thế Lực và lập công vụ để triều đình cất nhắc phẩm hàm.";
                 StrategicAdvisorBox.ActionButtonLabel = "Triều Đình";
                 StrategicAdvisorBox.Tag = "politics.court";
                 return;
@@ -420,12 +456,13 @@ public partial class MainWindow
                 return;
 
             case "content.items":
+            case "content.item_hub":
                 StrategicAdvisorBox.AdvisorName = "BÁCH VẬT GIÁM ĐỊNH";
                 StrategicAdvisorBox.AdvisorTitle = "Đồ Giám Tiên Sinh";
                 StrategicAdvisorBox.AvatarInitials = "Giám";
                 StrategicAdvisorBox.AdviceMessage = "Nắm rõ hạn sử dụng và địa lý đặc sản 24 loại kỳ vật để vận tải liên châu không lo hao hụt mục nát.";
                 StrategicAdvisorBox.ActionButtonLabel = "Đồ Giám";
-                StrategicAdvisorBox.Tag = "content.items";
+                StrategicAdvisorBox.Tag = "content.item_hub";
                 return;
 
             case "player.reputation":
@@ -444,7 +481,7 @@ public partial class MainWindow
                 StrategicAdvisorBox.AvatarInitials = "Tiêu";
                 StrategicAdvisorBox.AdviceMessage = "Đường xa nhiều đạo tặc, hãy điều phối hộ vệ tinh nhuệ và nâng cấp xe thồ để tối ưu chuyến tải.";
                 StrategicAdvisorBox.ActionButtonLabel = "Thương Đoàn";
-                StrategicAdvisorBox.Tag = "caravan.dispatch";
+                StrategicAdvisorBox.Tag = "caravan.routes";
                 return;
 
             case "professions.trades":
@@ -460,9 +497,20 @@ public partial class MainWindow
                 StrategicAdvisorBox.AdvisorName = "NGUYỆT ĐÁN BÌNH SĨ";
                 StrategicAdvisorBox.AdvisorTitle = "Hào Kiệt Giám Định";
                 StrategicAdvisorBox.AvatarInitials = "Nhân";
+                if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+                {
+                    var risky = social.GetRetainers().OrderByDescending(r => r.BetrayalRiskPercent).FirstOrDefault(r => r.BetrayalRiskPercent >= 35 || r.Loyalty < 55);
+                    if (risky is not null)
+                    {
+                        StrategicAdvisorBox.AdviceMessage = $"Gia thần {risky.Name} đang dao động (Trung thành {risky.Loyalty}/100 · Phản tâm {risky.BetrayalRiskPercent}%). Hãy ban thưởng trấn an ngay!";
+                        StrategicAdvisorBox.ActionButtonLabel = "Trấn An";
+                        StrategicAdvisorBox.Tag = "focus:npc.directory:GIA THẦN";
+                        return;
+                    }
+                }
                 StrategicAdvisorBox.AdviceMessage = "Thiên hạ anh hùng quy về một mối. Thăm hỏi và tặng quà hợp sở thích để chiêu mộ danh sĩ làm gia thần.";
                 StrategicAdvisorBox.ActionButtonLabel = "Dạo Phố";
-                StrategicAdvisorBox.Tag = "world.stroll";
+                StrategicAdvisorBox.Tag = CitySceneScreenId;
                 return;
         }
 
@@ -475,7 +523,7 @@ public partial class MainWindow
             StrategicAdvisorBox.AvatarInitials = "Phú";
             StrategicAdvisorBox.AdviceMessage = $"Ngân lượng lưu động đạt {liquid:N0} quan! Đại nhân nên xem xét cấp vốn cho Thương Đoàn hoặc thâu tóm thêm Điền Trang.";
             StrategicAdvisorBox.ActionButtonLabel = "Thương Đoàn";
-            StrategicAdvisorBox.Tag = "caravan.dispatch";
+            StrategicAdvisorBox.Tag = "caravan.routes";
             return;
         }
 
@@ -486,5 +534,76 @@ public partial class MainWindow
         StrategicAdvisorBox.AdviceMessage = "Thương trường Tam Quốc biến động theo thiên thời địa lợi. Khảo sát giá cả các thành trì sẽ mở ra cơ hội sinh lời lớn.";
         StrategicAdvisorBox.ActionButtonLabel = "Khảo Sát Chợ";
         StrategicAdvisorBox.Tag = "market.stall";
+    }
+
+    private void UpdateTopProposalCard()
+    {
+        if (TopProposalCard is null) return;
+
+        // 1. Check urgent Warlord Extortion Demand or High Scrutiny (Crisis / Alert)
+        if (_kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.PoliticalCourt, out var court) && court is not null)
+        {
+            var demand = court.GetPendingExtortionDemands().FirstOrDefault();
+            if (demand is not null)
+            {
+                TopProposalCard.Severity = ProposalSeverity.Crisis;
+                TopProposalCard.SourceTitle = $"TỐI HẬU THƯ CHƯ HẦU · {demand.WarlordName.ToUpperInvariant()}";
+                TopProposalCard.SummaryText = $"Đòi cống nạp {demand.AmountSilver:N0} Bạc trước ngày #{demand.DeadlineDay} ({demand.Reason}). Nếu kháng lệnh sẽ bị khám xét tịch biên!";
+                TopProposalCard.PrimaryActionLabel = "Ứng Phó Ngay";
+                TopProposalCard.Tag = "focus:politics.court:NGHI KỴ";
+                TopProposalCard.Visibility = Visibility.Visible;
+                return;
+            }
+
+            var scrutiny = court.GetWarlordScrutiny();
+            if (scrutiny.ScrutinyScore >= 65)
+            {
+                TopProposalCard.Severity = ProposalSeverity.Alert;
+                TopProposalCard.SourceTitle = $"NGHI KỴ CHƯ HẦU ({scrutiny.ScrutinyScore}/100) · {scrutiny.RulingFactionName.ToUpperInvariant()}";
+                TopProposalCard.SummaryText = $"Mức độ nghi kỵ đã lên cấp {scrutiny.RiskTier} (Tài sản bị dòm ngó: {scrutiny.EstimatedWealthSilver:N0} Bạc). Hãy hiến lương thảo hoặc tìm phe phái che chở.";
+                TopProposalCard.PrimaryActionLabel = "Giải Trừ Nghi Kỵ";
+                TopProposalCard.Tag = "focus:politics.court:NGHI KỴ";
+                TopProposalCard.Visibility = Visibility.Visible;
+                return;
+            }
+        }
+
+        // 2. Check Retainer Betrayal Risk (Alert)
+        if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
+        {
+            var risky = social.GetRetainers()
+                .OrderByDescending(r => r.BetrayalRiskPercent)
+                .FirstOrDefault(r => r.BetrayalRiskPercent >= 40 || r.Loyalty < 50);
+            if (risky is not null)
+            {
+                TopProposalCard.Severity = ProposalSeverity.Alert;
+                TopProposalCard.SourceTitle = $"CẢNH BÁO PHẢN TÂM · GIA THẦN {risky.Name.ToUpperInvariant()}";
+                TopProposalCard.SummaryText = $"Lòng trung thành giảm còn {risky.Loyalty}/100 (Nguy cơ phản bội {risky.BetrayalRiskPercent}%). Cần ban thưởng hoặc ủy lạo trước khi mật tin bị bán cho đối thủ.";
+                TopProposalCard.PrimaryActionLabel = "Trấn An Gia Thần";
+                TopProposalCard.Tag = "focus:npc.directory:GIA THẦN";
+                TopProposalCard.Visibility = Visibility.Visible;
+                return;
+            }
+        }
+
+        // 3. Check High-Margin Contraband Smuggling Opportunity in current city (Opportunity)
+        if (_kernel.Capabilities.TryGet<IEconomicWarfare>(CapabilityIds.EconomicWarfare, out var warfare) && warfare is not null &&
+            _kernel.Capabilities.TryGet<IPlayerState>(CapabilityIds.PlayerState, out var player) && player is not null)
+        {
+            var route = warfare.GetActiveContrabandRoutes()
+                .FirstOrDefault(r => r.OriginCityId == player.CurrentCityId || r.DestinationCityId == player.CurrentCityId);
+            if (route is not null)
+            {
+                TopProposalCard.Severity = ProposalSeverity.Opportunity;
+                TopProposalCard.SourceTitle = $"MẬT BÁO BUÔN LẬU · {route.ItemName.ToUpperInvariant()}";
+                TopProposalCard.SummaryText = $"Tuyến chiến sự {route.OriginCityName} → {route.DestinationCityName} đang khan hiếm quốc cấm, giá chợ đen tăng vọt x{(route.WarPriceMultiplierBps / 10000.0):0.0} (Tuần tra {route.PatrolRiskPercent}%).";
+                TopProposalCard.PrimaryActionLabel = "Mở Sạp Chợ Đen";
+                TopProposalCard.Tag = "focus:market.stall:BUÔN LẬU";
+                TopProposalCard.Visibility = Visibility.Visible;
+                return;
+            }
+        }
+
+        TopProposalCard.Visibility = Visibility.Collapsed;
     }
 }
