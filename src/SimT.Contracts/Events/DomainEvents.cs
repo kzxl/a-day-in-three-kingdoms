@@ -66,3 +66,21 @@ public readonly record struct PlayerReputationChangedEvent(
     long NewFame,
     string TitleVi,
     GameDate Date) : IDomainEvent;
+
+/// <summary>
+/// Emitted when a market is cornered via economic warfare.
+/// </summary>
+public readonly record struct MarketCorneredEvent(
+    long CitadelId,
+    long ItemId,
+    int Severity,
+    GameDate Date) : IDomainEvent;
+
+/// <summary>
+/// Emitted when contraband or emergency supplies are successfully smuggled into a besieged citadel.
+/// </summary>
+public readonly record struct ContrabandDeliveredEvent(
+    long CitadelId,
+    long ItemId,
+    int Quantity,
+    GameDate Date) : IDomainEvent;

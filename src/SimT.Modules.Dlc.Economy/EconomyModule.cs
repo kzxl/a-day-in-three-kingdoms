@@ -45,6 +45,10 @@ public sealed class EconomyModule : ISimModule
         var valueChainService = new SimT.Modules.Dlc.Economy.ValueChain.ValueChainService(context.Db, items, map, npcs, marketService, context.Log, context.Capabilities);
         context.Capabilities.Provide(CapabilityIds.ValueChain, valueChainService);
 
+        // 1c. Economic Warfare & Contraband Smuggling
+        var economicWarfareService = new EconomicWarfareService(context.Db, context.Clock, wallet, bag, items, map, context.Log, marketService, context.Events, context.Capabilities);
+        context.Capabilities.Provide(CapabilityIds.EconomicWarfare, economicWarfareService);
+
         // 2. Caravan Service
         var freightPerUnit = context.Config.GetLong("freightPerUnit", CaravanService.DefaultFreightPerUnit);
         var caravanService = new CaravanService(context.Db, context.Clock, wallet, bag, map, items, player, context.Ids, context.Log, context.ActionTime, freightPerUnit, npcs, context.Capabilities);
@@ -70,10 +74,10 @@ public sealed class EconomyModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.PlayerEquipment, professionService);
 
         // UI Screens & Command Handlers
-        context.Ui.AddScreen(new StallScreen(marketService, marketService, items, map, bag, player, context.Clock, wallet, context.ActionTime, npcs, valueChainService));
+        context.Ui.AddScreen(new StallScreen(marketService, marketService, items, map, bag, player, context.Clock, wallet, context.ActionTime, npcs, valueChainService, economicWarfareService));
         context.Ui.AddScreen(new PlayerStallScreen(marketService, marketService, items, map, bag, player, context.Clock, wallet, context.ActionTime));
         context.Ui.AddScreen(new WarehouseScreen(marketService, items, map, bag, player, context.ActionTime));
-        context.Ui.AddCommandHandler(new MarketCommandHandler("market.stall", marketService, player));
+        context.Ui.AddCommandHandler(new MarketCommandHandler("market.stall", marketService, player, economicWarfareService));
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.player_stall", marketService, player));
         context.Ui.AddCommandHandler(new MarketCommandHandler("market.warehouse", marketService, player));
 
@@ -97,6 +101,7 @@ public sealed class EconomyModule : ISimModule
         context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => marketService.ChargeMonthlyStallRent(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed => marketService.RestockMonthly(closed.Date));
+        context.Events.Subscribe<MonthClosed>(closed => economicWarfareService.SimulateEconomicWarfarePulse(closed.Date));
         context.Events.Subscribe<MonthClosed>(closed =>
         {
             var military = context.Capabilities.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var mc) ? mc : null;

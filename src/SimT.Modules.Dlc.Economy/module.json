@@ -19,7 +19,8 @@
     "economy.value_chain",
     "market.rumor_events",
     "market.portfolio",
-    "market.player_stall"
+    "market.player_stall",
+    "economy.warfare"
   ],
   "consumes": [
     "content.items",
@@ -76,7 +77,9 @@
       "bk_player_bank",
       "bk_player_branch",
       "bk_player_convoy",
-      "pf_hegemony_enactment"
+      "pf_hegemony_enactment",
+      "mk_cornered_market",
+      "mk_smuggle_run_log"
     ],
     "migrations": [
       "migrations"

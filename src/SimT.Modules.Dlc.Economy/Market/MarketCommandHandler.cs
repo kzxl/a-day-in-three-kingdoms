@@ -11,12 +11,14 @@ internal sealed class MarketCommandHandler : IScreenCommandHandler
 {
     private readonly MarketService _service;
     private readonly IPlayerState _player;
+    private readonly IEconomicWarfare? _warfare;
 
-    public MarketCommandHandler(string screenId, MarketService service, IPlayerState player)
+    public MarketCommandHandler(string screenId, MarketService service, IPlayerState player, IEconomicWarfare? warfare = null)
     {
         ScreenId = screenId;
         _service = service;
         _player = player;
+        _warfare = warfare;
     }
 
     public string ScreenId { get; }
@@ -76,6 +78,21 @@ internal sealed class MarketCommandHandler : IScreenCommandHandler
         {
             var qty = parts.Length >= 3 && int.TryParse(parts[2], out var parsedQty) && parsedQty > 0 ? parsedQty : 1;
             return _service.BuyFromNpcOffer(cityId, offerId, qty).Message;
+        }
+
+        if (parts.Length >= 2 && string.Equals(parts[0], "warfare", StringComparison.OrdinalIgnoreCase) && _warfare is not null)
+        {
+            if (string.Equals(parts[1], "corner", StringComparison.OrdinalIgnoreCase) && parts.Length >= 4
+                && long.TryParse(parts[2], out var cornerItemId) && int.TryParse(parts[3], out var cornerQty))
+            {
+                return _warfare.CornerMarket(cityId, cornerItemId, cornerQty).Message;
+            }
+
+            if (string.Equals(parts[1], "smuggle", StringComparison.OrdinalIgnoreCase) && parts.Length >= 5
+                && long.TryParse(parts[2], out var destCityId) && long.TryParse(parts[3], out var smuggleItemId) && int.TryParse(parts[4], out var smuggleQty))
+            {
+                return _warfare.ExecuteSmuggleRun(cityId, destCityId, smuggleItemId, smuggleQty).MessageVi;
+            }
         }
 
         if (string.Equals(commandId, "store:all", StringComparison.OrdinalIgnoreCase))

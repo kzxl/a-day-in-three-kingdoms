@@ -25,6 +25,7 @@ internal sealed class StallScreen : IScreenContribution
     private readonly IActionTime _actionTime;
     private readonly INpcRegistry? _npcRegistry;
     private readonly IValueChainService? _valueChain;
+    private readonly IEconomicWarfare? _warfare;
 
     public StallScreen(
         IMarketTrade trade,
@@ -37,7 +38,8 @@ internal sealed class StallScreen : IScreenContribution
         IWallet wallet,
         IActionTime actionTime,
         INpcRegistry? npcRegistry = null,
-        IValueChainService? valueChain = null)
+        IValueChainService? valueChain = null,
+        IEconomicWarfare? warfare = null)
     {
         _trade = trade;
         _npcMarket = npcMarket;
@@ -50,6 +52,7 @@ internal sealed class StallScreen : IScreenContribution
         _actionTime = actionTime;
         _npcRegistry = npcRegistry;
         _valueChain = valueChain;
+        _warfare = warfare;
     }
 
     public string ScreenId => "market.stall";
@@ -105,13 +108,7 @@ internal sealed class StallScreen : IScreenContribution
                     supply,
                     Fmt(held)
                 ],
-                [
-                    new ScreenCommand($"buy:{item.Id}", "Mua 1", Cost: buyCost),
-                    new ScreenCommand($"sell:{item.Id}", "Bán 1", Cost: buyCost),
-                    new ScreenCommand($"buy:{item.Id}", "Mua…", RequiresQuantity: true, Preview: BuyPreview(buy, stock), Cost: buyCost),
-                    new ScreenCommand($"sell:{item.Id}", "Bán…", RequiresQuantity: true, Preview: SellPreview(sell, held), Cost: buyCost),
-                    new ScreenCommand($"item:modal:{item.Id}", "Kỳ Vật 🔍", CommandKind.Secondary)
-                ],
+                MakeItemCommands(item, buy, sell, stock, held, baseline, buyCost),
                 Title: item.NameVi,
                 Details:
                 [
@@ -270,6 +267,81 @@ internal sealed class StallScreen : IScreenContribution
             }
         }
 
+        if (_warfare is not null)
+        {
+            var cornered = _warfare.ActiveCorneredMarkets;
+            if (cornered.Count > 0)
+            {
+                var cornerColumns = new[] { "Thành Trấn", "Mặt Hàng Lũng Đoạn", "Quy Mô Gom Vét", "Mức Độ Độc Quyền", "Hệ Quả Lên Bổn Châu" };
+                var cornerRows = new List<ScreenRow>();
+                foreach (var c in cornered)
+                {
+                    var isCurrentCity = c.CitadelId == city.Id;
+                    cornerRows.Add(new ScreenRow(
+                        [
+                            isCurrentCity ? $"📍 {c.CitadelNameVi} (Hiện tại)" : c.CitadelNameVi,
+                            c.ItemNameVi,
+                            $"{c.HoardedQuantity:N0} kiện",
+                            c.Severity switch { 1 => "⚠️ Thiếu Hụt Cục Bộ", 2 => "🚨 Khủng Hoảng Trầm Trọng", _ => "☠️ Độc Quyền Toàn Diện" },
+                            c.StrategicImpactVi
+                        ],
+                        []));
+                }
+                sections.Add(new ScreenSection("⚔️ Thị Trường Bị Lũng Đoạn & Gom Hàng Đầu Cơ", cornerColumns, cornerRows));
+            }
+
+            var smuggleOpps = _warfare.AvailableSmuggleOpportunities.Where(o => o.OriginCitadelId == city.Id).ToList();
+            if (smuggleOpps.Count > 0)
+            {
+                var smuggleColumns = new[] { "Tiền Tuyến / Thành Bị Vây", "Quân Nhu Buôn Lậu", "Giá Nhập / Giá Bán Lậu", "Tỷ Suất Lợi Nhuận", "Hiểm Họa Tuần Binh", "Hành Động Áp Tải" };
+                var smuggleRows = new List<ScreenRow>();
+                foreach (var opp in smuggleOpps)
+                {
+                    var held = _bag.Quantity(city.Id, opp.ItemId);
+                    var canSmuggle = held >= 20;
+                    var runQty = Math.Min(held, 40);
+
+                    var cmdList = new List<ScreenCommand>();
+                    if (canSmuggle)
+                    {
+                        cmdList.Add(new ScreenCommand($"warfare:smuggle:{opp.DestCitadelId}:{opp.ItemId}:{runQty}", $"Vượt Tuyến ({runQty}k) 🚩", CommandKind.Primary));
+                    }
+
+                    smuggleRows.Add(new ScreenRow(
+                        [
+                            $"🏰 {opp.DestCitadelNameVi}",
+                            opp.ItemNameVi,
+                            $"{opp.SmuggleBuyPrice}q ➔ {opp.SmuggleSellPrice}q",
+                            $"+{opp.ProfitMarginPercent}%",
+                            $"{opp.InterceptionRiskPercent}% ({opp.RiskLevelVi})",
+                            canSmuggle ? $"Sẵn sàng ({held} kiện trong bao)" : $"Cần gom thêm hàng (có {held}/20)"
+                        ],
+                        cmdList));
+                }
+                sections.Add(new ScreenSection("🔥 Buôn Lậu Quân Nhu Vượt Phòng Tuyến Tiền Tuyến", smuggleColumns, smuggleRows));
+            }
+
+            var recentRuns = _warfare.RecentSmuggleRuns(5);
+            if (recentRuns.Count > 0)
+            {
+                var runColumns = new[] { "Ngày", "Lộ Trình Áp Tải", "Mặt Hàng & Số Lượng", "Kết Cục Vượt Tuyến", "Tường Trình Chi Tiết" };
+                var runRows = new List<ScreenRow>();
+                foreach (var r in recentRuns)
+                {
+                    runRows.Add(new ScreenRow(
+                        [
+                            $"Ngày {r.DayIndex}",
+                            $"{r.OriginCitadelNameVi} ➔ {r.DestCitadelNameVi}",
+                            $"{r.Quantity} kiện {r.ItemNameVi}",
+                            r.IsIntercepted ? "❌ BỊ CHẶN BẮT" : $"✅ THÀNH CÔNG (+{r.Revenue:N0}q)",
+                            r.NarrativeVi
+                        ],
+                        []));
+                }
+                sections.Add(new ScreenSection("📜 Nhật Ký Áp Tải Hàng Lậu Tiền Tuyến", runColumns, runRows));
+            }
+        }
+
         var recommendation = $"Tại chợ {city.NameVi}, ưu tiên mua mặt hàng đang rẻ hơn giá gốc rồi chở sang thành có hệ số giá cao hơn để hưởng chênh lệch.";
 
         return new ScreenModel(
@@ -367,6 +439,26 @@ internal sealed class StallScreen : IScreenContribution
         }
 
         return stock > baseline ? "dư" : "đủ";
+    }
+
+    private IReadOnlyList<ScreenCommand> MakeItemCommands(ItemDef item, long buy, long sell, int stock, int held, int baseline, string buyCost)
+    {
+        var cmds = new List<ScreenCommand>
+        {
+            new($"buy:{item.Id}", "Mua 1", Cost: buyCost),
+            new($"sell:{item.Id}", "Bán 1", Cost: buyCost),
+            new($"buy:{item.Id}", "Mua…", RequiresQuantity: true, Preview: BuyPreview(buy, stock), Cost: buyCost),
+            new($"sell:{item.Id}", "Bán…", RequiresQuantity: true, Preview: SellPreview(sell, held), Cost: buyCost),
+            new($"item:modal:{item.Id}", "Kỳ Vật 🔍", CommandKind.Secondary)
+        };
+
+        if (_warfare is not null && stock >= 25 && (item.Category is "food" or "mineral" or "arms" || item.Code is "rice" or "iron" or "herb" or "weapon"))
+        {
+            var cornerQty = Math.Min(stock, 40);
+            cmds.Add(new ScreenCommand($"warfare:corner:{item.Id}:{cornerQty}", $"Gom Độc Quyền ({cornerQty}k) ⚔️", CommandKind.Danger));
+        }
+
+        return cmds;
     }
 
     private static string Fmt(long value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);

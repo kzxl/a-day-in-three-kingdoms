@@ -1,3 +1,5 @@
+using SimT.Contracts.Data;
+using SimT.Contracts.Events;
 using SimT.Contracts.Modules;
 using SimT.Contracts.Playing;
 using SimT.Contracts.Time;
@@ -83,6 +85,23 @@ public sealed class PowerModule : ISimModule
         context.Events.Subscribe<MonthClosed>(closed =>
         {
             conflictEngine.AdvanceConflictMonth(closed.Date.DayIndex, 0);
+        });
+
+        // React to economic warfare events on city governance
+        context.Events.Subscribe<MarketCorneredEvent>(e =>
+        {
+            var unrestPen = e.Severity switch { 1 => 10, 2 => 20, _ => 35 };
+            var defPen = e.Severity switch { 1 => 5, 2 => 15, _ => 25 };
+            context.Db.Execute(
+                "UPDATE po_city_governance SET unrest_level = MIN(100, unrest_level + @u), defense_strength = MAX(0, defense_strength - @d) WHERE citadel_id = @c",
+                DbArgs.One("@u", unrestPen).Add("@d", defPen).Add("@c", e.CitadelId));
+        });
+
+        context.Events.Subscribe<ContrabandDeliveredEvent>(e =>
+        {
+            context.Db.Execute(
+                "UPDATE po_city_governance SET defense_strength = MIN(100, defense_strength + 8), unrest_level = MAX(0, unrest_level - 5) WHERE citadel_id = @c",
+                DbArgs.One("@c", e.CitadelId));
         });
 
         // Invariants

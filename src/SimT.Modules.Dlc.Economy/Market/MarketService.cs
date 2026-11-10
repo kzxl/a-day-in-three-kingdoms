@@ -227,7 +227,28 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
             price = Math.Max(1, price * warMult / 1000);
         }
 
+        var cornerMult = GetCorneringPriceFactorPermille(cityId, itemId);
+        if (cornerMult != 1000)
+        {
+            price = Math.Max(1, price * cornerMult / 1000);
+        }
+
         return price;
+    }
+
+    private int GetCorneringPriceFactorPermille(long citadelId, long itemId)
+    {
+        var sev = _db.ScalarLong(
+            "SELECT COALESCE(MAX(severity), 0) FROM mk_cornered_market WHERE citadel_id = @c AND item_id = @i AND status = 'ACTIVE'",
+            new DbArgs().Add("@c", citadelId).Add("@i", itemId));
+
+        return sev switch
+        {
+            1 => 1600,
+            2 => 2200,
+            >= 3 => 3000,
+            _ => 1000
+        };
     }
 
     private int GetWarPriceFactorPermille(long citadelId, ItemDef item)
