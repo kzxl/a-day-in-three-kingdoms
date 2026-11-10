@@ -617,6 +617,86 @@ internal sealed class CourtScreen : IScreenContribution
             sections.Add(new ScreenSection("Nhật Ký Cứu Tế Dân Sinh & Thiện Hạnh", PhilanthropyColumns, philanthropyRows));
         }
 
+        // Court Factions Section
+        var courtStandings = _service.CourtFactionStandings;
+        if (courtStandings.Count > 0)
+        {
+            var courtFactionColumns = new[] { "Thế Lực Triều Đình", "Đặc Tính & Chủ Trương", "Thân Thiện", "Thái Độ", "Vận Động Hành Lang" };
+            var courtFactionRows = courtStandings.Select(cf =>
+            {
+                var scoreText = cf.StandingScore >= 0 ? $"+{cf.StandingScore}" : cf.StandingScore.ToString();
+                return new ScreenRow(
+                    [
+                        cf.NameVi,
+                        cf.DescriptionVi,
+                        $"{scoreText} Điểm",
+                        cf.AttitudeVi,
+                        "Hỗ trợ ngân quỹ"
+                    ],
+                    [
+                        new ScreenCommand($"court:lobby:{cf.FactionCode}:300", "Vận Động 🎁 (300Q)", CommandKind.Primary)
+                    ],
+                    Title: $"{cf.NameVi} ({scoreText} Điểm)",
+                    Details:
+                    [
+                        new ScreenDetail("Thế Lực", cf.NameVi),
+                        new ScreenDetail("Mô Tả", cf.DescriptionVi),
+                        new ScreenDetail("Điểm Thân Thiện", $"{scoreText} (-100 đến +100)"),
+                        new ScreenDetail("Thái Độ Triều Đình", cf.AttitudeVi)
+                    ]);
+            }).ToList();
+
+            sections.Add(new ScreenSection("🏛️ Sóng Ngầm Quan Trường · Tam Đại Thế Lực Triều Đình", courtFactionColumns, courtFactionRows));
+        }
+
+        // Imperial Inspection Section
+        var recentInspections = _service.RecentImperialInspections(5);
+        if (recentInspections.Count > 0 || _service.OfficeId > 0)
+        {
+            var inspectColumns = new[] { "Thời Điểm", "Khâm Sai Đại Thần", "Đối Sách", "Kết Quả", "Tác Động", "Tường Thuật" };
+            var inspectRows = recentInspections.Select(ins =>
+            {
+                var outcomeBadge = ins.Outcome switch
+                {
+                    "PRAISED" => "🟢 Khen Ngợi Phong Thưởng",
+                    "PASSED" => "🟡 Chuẩn Y Thông Qua",
+                    "REPRIMANDED" => "🟠 Khiển Trách Phạt Vạ",
+                    "IMPEACHED" => "🔴 Đàn Hặc Cách Chức",
+                    _ => ins.Outcome
+                };
+                var deltaText = ins.MeritDelta != 0
+                    ? $"{ins.MeritDelta:+0;-0;0} Huân công"
+                    : "—";
+
+                return new ScreenRow(
+                    [
+                        $"Ngày {ins.DayIndex}",
+                        ins.InspectorNameVi,
+                        ins.ApproachCode,
+                        outcomeBadge,
+                        deltaText,
+                        ins.NarrativeVi
+                    ],
+                    [],
+                    Title: $"{ins.InspectorNameVi} — {outcomeBadge}",
+                    Details:
+                    [
+                        new ScreenDetail("Thời Điểm", $"Ngày {ins.DayIndex}"),
+                        new ScreenDetail("Khâm Sai", ins.InspectorNameVi),
+                        new ScreenDetail("Đối Sách", ins.ApproachCode),
+                        new ScreenDetail("Kết Quả", outcomeBadge),
+                        new ScreenDetail("Biến Động", deltaText),
+                        new ScreenDetail("Tường Thuật", ins.NarrativeVi)
+                    ]);
+            }).ToList();
+
+            sections.Add(new ScreenSection("⚖️ Ngự Sử Đài · Khâm Sai Thanh Sát & Phong Kỷ Quan Trường", inspectColumns, inspectRows));
+        }
+
+        commands.Add(new ScreenCommand("inspect:respond:open_ledger", "Minh Bạch Sổ Sách 📜", CommandKind.Primary));
+        commands.Add(new ScreenCommand("inspect:respond:persuade", "Biện Giải Hùng Biện 🗣️", CommandKind.Secondary));
+        commands.Add(new ScreenCommand("inspect:respond:bribe", "Đút Lót Ngầm 🤫 (400Q)", CommandKind.Secondary));
+
         return new ScreenModel(
             ScreenId,
             Title,
@@ -756,6 +836,25 @@ internal sealed class CourtCommandHandler : IScreenCommandHandler
         if (parts.Length == 3 && parts[0] == "policy" && long.TryParse(parts[2], out var citId))
         {
             return _service.EnactPolicy(parts[1], citId).Message;
+        }
+
+        if (commandId.StartsWith("court:lobby:"))
+        {
+            var lobbyParts = commandId["court:lobby:".Length..].Split(':');
+            var code = lobbyParts[0];
+            var amount = lobbyParts.Length > 1 && int.TryParse(lobbyParts[1], out var a) ? a : 300;
+            return _service.LobbyCourtFaction(code, amount).Message;
+        }
+
+        if (commandId == "inspect:trigger")
+        {
+            return _service.TriggerImperialInspection().Message;
+        }
+
+        if (commandId.StartsWith("inspect:respond:"))
+        {
+            var approach = commandId["inspect:respond:".Length..];
+            return _service.RespondToImperialInspection(approach).NarrativeVi;
         }
 
         return $"Lệnh '{commandId}' không thuộc DLC politics.";

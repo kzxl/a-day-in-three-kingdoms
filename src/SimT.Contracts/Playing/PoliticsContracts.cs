@@ -95,6 +95,18 @@ public interface IPoliticalCourt
 
     void SimulateWarlordScrutiny(SimT.Contracts.Time.GameDate date) { }
 
+    IReadOnlyList<CourtFactionStandingView> CourtFactionStandings => [];
+
+    ImperialInspectionResult RespondToImperialInspection(string approachCode) => new(false, "NONE", 0, 0, "Không có cuộc thanh sát nào.");
+
+    CourtResult ShiftCourtFactionStanding(string factionCode, int delta, string reasonVi) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult LobbyCourtFaction(string factionCode, int copperAmount) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    IReadOnlyList<ImperialInspectionLogView> RecentImperialInspections(int limit = 5) => [];
+
+    CourtResult TriggerImperialInspection() => CourtResult.Failure("Chưa được hỗ trợ.");
+
     CourtResult Apply(long officeId) => CourtResult.Failure("Chưa được hỗ trợ.");
 
     CourtResult Resign() => CourtResult.Failure("Chưa được hỗ trợ.");
@@ -353,6 +365,31 @@ public sealed record PhilanthropyLogView(
     int FameEarned,
     int VirtueEarned,
     int ScrutinyReduced,
+    string NarrativeVi);
+
+public sealed record CourtFactionStandingView(
+    string FactionCode,
+    string NameVi,
+    int StandingScore,
+    string DescriptionVi,
+    string AttitudeVi);
+
+public sealed record ImperialInspectionResult(
+    bool Success,
+    string Outcome,
+    int MeritDelta,
+    long CopperDelta,
+    string NarrativeVi);
+
+public sealed record ImperialInspectionLogView(
+    long Id,
+    long DayIndex,
+    long CitadelId,
+    string InspectorNameVi,
+    string ApproachCode,
+    string Outcome,
+    int MeritDelta,
+    long CopperDelta,
     string NarrativeVi);
 
 

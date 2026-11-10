@@ -58,7 +58,9 @@
       "po_fief_siege_log",
       "po_warlord_scrutiny",
       "po_scrutiny_demand",
-      "po_philanthropy_log"
+      "po_philanthropy_log",
+      "po_court_faction_standing",
+      "po_imperial_inspection_log"
     ],
     "migrations": [
       "migrations"
