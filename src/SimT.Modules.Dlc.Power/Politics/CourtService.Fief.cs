@@ -280,6 +280,70 @@ internal sealed partial class CourtService
             }
         }
 
+        // --- Aide Traits Impact & Emergent Governance Dynamics ---
+        var traitsCap = _capabilities?.TryGet<INpcTraits>(CapabilityIds.NpcTraits, out var tc) == true ? tc : null;
+        var civilTraits = fief.CivilAideNpcId > 0 && traitsCap is not null ? traitsCap.GetTraits(fief.CivilAideNpcId) : (IReadOnlyList<NpcTraitDef>)Array.Empty<NpcTraitDef>();
+        var militaryTraits = fief.MilitaryAideNpcId > 0 && traitsCap is not null ? traitsCap.GetTraits(fief.MilitaryAideNpcId) : (IReadOnlyList<NpcTraitDef>)Array.Empty<NpcTraitDef>();
+
+        // 1. Civil Aide Traits
+        if (civilTraits.Any(t => t.Code == NpcTraitCodes.ThamTai || t.Code == NpcTraitCodes.XaoQuyet))
+        {
+            var embezzled = Math.Min(35, Math.Max(12, fief.LocalTreasury > 0 ? (int)(fief.LocalTreasury * 0.05) : 12));
+            treasuryDelta -= embezzled;
+            meritsEarned = Math.Max(2, meritsEarned - 3);
+            civilAction += $" ⚠️ {civTitle} tính khí tham tài bòn rút {embezzled} Quan ngân khố, dân tâm xì xào phẫn nộ!";
+            _db.Execute("UPDATE po_city_governance SET unrest_level = MIN(100, unrest_level + 2) WHERE citadel_id = @citId", DbArgs.One("@citId", cityId));
+        }
+        else if (civilTraits.Any(t => t.Code == NpcTraitCodes.ThanhLiem))
+        {
+            treasuryDelta += 30;
+            meritsEarned += 4;
+            civilAction += $" ✨ {civTitle} giữ mình thanh liêm, kiểm toán nha môn nghiêm cẩn, tiết kiệm thêm +30 Quan!";
+            _db.Execute("UPDATE po_city_governance SET unrest_level = MAX(0, unrest_level - 3) WHERE citadel_id = @citId", DbArgs.One("@citId", cityId));
+        }
+
+        if (civilTraits.Any(t => t.Code == NpcTraitCodes.KeoKiet))
+        {
+            foodConsumed = (int)(foodConsumed * 0.75);
+            civilAction += " (Keo kiệt thắt chặt định mức lương: Tiết kiệm lương thực)";
+        }
+        else if (civilTraits.Any(t => t.Code == NpcTraitCodes.HieuHoc))
+        {
+            meritsEarned += 3;
+            civilAction += " (Hiếu học thi thư: +3 Huân công)";
+        }
+
+        // 2. Military Aide Traits
+        if (militaryTraits.Any(t => t.Code == NpcTraitCodes.TrungNghia))
+        {
+            garrisonDelta += 40;
+            meritsEarned += 3;
+            militaryAction += $" 🛡️ {milTitle} một lòng trung nghĩa, tận tâm thao luyện thu nạp thêm +40 dũng sĩ!";
+        }
+        else if (militaryTraits.Any(t => t.Code == NpcTraitCodes.NongNay))
+        {
+            militaryAction += $" ⚠️ {milTitle} nóng nảy áp đặt quân lệnh hà khắc, binh sĩ oán thán (Loạn +1%).";
+            _db.Execute("UPDATE po_city_governance SET unrest_level = MIN(100, unrest_level + 1) WHERE citadel_id = @citId", DbArgs.One("@citId", cityId));
+        }
+        else if (militaryTraits.Any(t => t.Code == NpcTraitCodes.DiemTinh))
+        {
+            militaryAction += $" 🏯 {milTitle} điềm tĩnh phòng thủ, vững thế thành môn (Thủ +3).";
+            _db.Execute("UPDATE po_city_governance SET defense_strength = defense_strength + 3 WHERE citadel_id = @citId", DbArgs.One("@citId", cityId));
+        }
+
+        // 3. Megaproject Monthly Bonuses
+        var projects = GetFiefMegaprojects(cityId);
+        if (projects.Any(p => p.ProjectCode == "CANAL" && p.IsCompleted))
+        {
+            popDelta += (int)(fief.Population * 0.01);
+            summary += " [Đại Kênh Thủy Lợi: +1% Dân]";
+        }
+        if (projects.Any(p => p.ProjectCode == "ACADEMY" && p.IsCompleted))
+        {
+            meritsEarned += 5;
+            summary += " [Thái Học Viện: +5 Huân Công]";
+        }
+
         _db.Transaction(() =>
         {
             if (popDelta != 0)

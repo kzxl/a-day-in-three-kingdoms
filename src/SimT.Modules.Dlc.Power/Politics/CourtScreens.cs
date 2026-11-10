@@ -11,6 +11,8 @@ internal sealed class CourtScreen : IScreenContribution
     private static readonly string[] FactionColumns = ["Thế Lực / Minh Chủ", "Thủ Phủ", "Lý Tưởng Cát Cứ", "Binh Lực", "Quốc Khố", "Quan Hệ"];
     private static readonly string[] CityColumns = ["Thành Trì", "Thế Lực Chiếm Giữ", "Bất Ổn", "Phòng Thủ", "Thuế Suất", "Hành Chính Địa Phương"];
     private static readonly string[] FiefColumns = ["Phong Ấp Châu Quận", "Dân Số & Binh Lực", "Nông Khẩn", "Thương Nghiệp", "Thành Phòng", "Trị An", "Ban Bệ Phụ Tá", "Phương Châm", "Ngân Khố Nha Môn"];
+    private static readonly string[] MegaprojectColumns = ["Đại Công Trình", "Quy Mô & Tác Dụng", "Kinh Phí Cần", "Đã Đầu Tư", "Tiến Độ", "Trạng Thái"];
+    private static readonly string[] ExpeditionColumns = ["Thời Điểm", "Chiến Dịch Viễn Chinh", "Binh Lực Xuất Chinh", "Thương Vong", "Chiến Lợi Phẩm / Huân Công", "Tường Trình Chiến Tích"];
     private static readonly string[] DigestColumns = ["Thời Điểm", "Phương Châm", "Biến Động Dân & Khố", "Binh Lực & Lương Thực", "Huân Công", "Tường Trình Nha Môn"];
     private static readonly string[] MemorialColumns = ["Ngày", "Thể Loại", "Sớ Thượng Tấu", "Kết Quả", "Công Trạng", "Hồi Âm Triều Đình"];
     private static readonly string[] CareerColumns = ["Ngày", "Biến Chuyển", "Chức Vị Cũ", "Chức Vị Mới", "Công Trạng", "Chiếu Chỉ Minh Chủ"];
@@ -88,12 +90,63 @@ internal sealed class CourtScreen : IScreenContribution
                     new ScreenCommand("develop_fief:commerce", "Mở Thị (65q)"),
                     new ScreenCommand("develop_fief:defense", "Cố Thủ (65q)"),
                     new ScreenCommand("develop_fief:order", "Tuần Phòng (65q)"),
+                    new ScreenCommand("launch_expedition:PACIFY_BANDITS", "Tiễu Phạt Sơn Tặc ⚔️", CommandKind.Primary),
+                    new ScreenCommand("launch_expedition:BORDER_PATROL", "Thao Diễn Biên Ải 🛡️"),
+                    new ScreenCommand("launch_expedition:SUPPORT_LORD", "Chi Viện Minh Chủ 🚩"),
                     new ScreenCommand("eval_governance", "Khảo Hạch Quý 📜", CommandKind.Primary),
                     new ScreenCommand("resign_governor", "Bàn Giao Ấn", CommandKind.Danger)
                 ]));
         }
 
-        // Section 3: Monthly Governance Digest (Tổng Kết Chánh Vụ Hàng Tháng)
+        // Section 3: Fief Megaprojects (Đại Công Trình Phong Ấp)
+        var projectRows = new List<ScreenRow>();
+        if (fief is not null)
+        {
+            foreach (var p in _service.GetFiefMegaprojects())
+            {
+                var pCmds = new List<ScreenCommand>();
+                if (!p.IsCompleted)
+                {
+                    pCmds.Add(new ScreenCommand($"invest_megaproject:{p.ProjectCode}:300", "Đầu tư 300q"));
+                    pCmds.Add(new ScreenCommand($"invest_megaproject:{p.ProjectCode}:600", "Đầu tư 600q", CommandKind.Primary));
+                }
+
+                projectRows.Add(new ScreenRow(
+                    [
+                        p.NameVi,
+                        p.DescriptionVi,
+                        $"{p.RequiredCopper:N0} Quan",
+                        $"{p.InvestedCopper:N0} Quan",
+                        $"{p.ProgressPercent}%",
+                        p.IsCompleted ? "✅ Đã Hoàn Thành" : $"Đang Xây ({p.ProgressPercent}%)"
+                    ],
+                    pCmds));
+            }
+        }
+
+        // Section 4: Fief Expedition Logs (Nhật Ký Xuất Chinh)
+        var expRows = new List<ScreenRow>();
+        foreach (var exp in _service.RecentExpeditionLogs(5))
+        {
+            expRows.Add(new ScreenRow(
+                [
+                    $"Ngày {exp.DayIndex}",
+                    exp.ExpeditionType switch
+                    {
+                        "PACIFY_BANDITS" => "⚔️ Tiễu Phạt Sơn Tặc",
+                        "BORDER_PATROL" => "🛡️ Thao Diễn Biên Ải",
+                        "SUPPORT_LORD" => "🚩 Chi Viện Minh Chủ",
+                        _ => exp.ExpeditionType
+                    },
+                    $"{exp.TroopsDispatched:N0} binh",
+                    $"{exp.Casualties:N0} người",
+                    $"+{exp.SpoilsCopper}q · +{exp.MeritsEarned} huân công",
+                    exp.NarrativeVi
+                ],
+                Array.Empty<ScreenCommand>()));
+        }
+
+        // Section 5: Monthly Governance Digest (Tổng Kết Chánh Vụ Hàng Tháng)
         var digestRows = new List<ScreenRow>();
         foreach (var d in _service.RecentMonthlyDigests(6))
         {
@@ -305,6 +358,16 @@ internal sealed class CourtScreen : IScreenContribution
             sections.Add(new ScreenSection("Thái Thú Phủ & Phong Ấp Châu Quận", FiefColumns, fiefRows, SectionViewMode.ImperialCourtChamber));
         }
 
+        if (projectRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Đại Công Trình Phong Ấp Châu Quận", MegaprojectColumns, projectRows));
+        }
+
+        if (expRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Nhật Ký Chiến Dịch Xuất Chinh Phong Ấp", ExpeditionColumns, expRows));
+        }
+
         if (digestRows.Count > 0)
         {
             sections.Add(new ScreenSection("Tổng Kết Chánh Vụ Phong Ấp Hàng Tháng", DigestColumns, digestRows));
@@ -391,6 +454,16 @@ internal sealed class CourtCommandHandler : IScreenCommandHandler
             if (parts[0] == "appoint_aide" && parts.Length >= 3 && long.TryParse(parts[2], out var aideNpcId))
             {
                 return _service.AppointFiefAide(aideNpcId, parts[1]).Message;
+            }
+
+            if (parts[0] == "invest_megaproject" && parts.Length >= 3 && int.TryParse(parts[2], out var investAmt))
+            {
+                return _service.InvestFiefMegaproject(parts[1], investAmt).Message;
+            }
+
+            if (parts[0] == "launch_expedition")
+            {
+                return _service.LaunchFiefExpedition(parts[1]).Message;
             }
 
             if (parts[0] == "apply" && long.TryParse(parts[1], out var officeId))

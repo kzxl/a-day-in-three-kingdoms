@@ -51,6 +51,14 @@ public interface IPoliticalCourt
 
     void SimulateMonthlyFiefAutonomy(SimT.Contracts.Time.GameDate date) { }
 
+    IReadOnlyList<FiefMegaprojectView> GetFiefMegaprojects(long citadelId = 0) => [];
+
+    CourtResult InvestFiefMegaproject(string projectCode, int copperAmount) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult LaunchFiefExpedition(string expeditionType) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    IReadOnlyList<FiefExpeditionLogView> RecentExpeditionLogs(int limit = 5) => [];
+
     CourtResult SubmitMemorial(string category, string proposalVi) => CourtResult.Failure("Chưa được hỗ trợ.");
 
     CourtResult RequestPromotion() => CourtResult.Failure("Chưa được hỗ trợ.");
@@ -220,4 +228,29 @@ public sealed record CourtMemorialView(
     string Outcome,
     int MeritAwarded,
     string ImpactNarrativeVi);
+
+public sealed record FiefMegaprojectView(
+    string ProjectCode,
+    string NameVi,
+    string DescriptionVi,
+    string Status,
+    int InvestedCopper,
+    int RequiredCopper,
+    int CompletedDay)
+{
+    public bool IsCompleted => Status == "COMPLETED" || InvestedCopper >= RequiredCopper;
+    public int ProgressPercent => RequiredCopper > 0 ? Math.Clamp((int)(InvestedCopper * 100L / RequiredCopper), 0, 100) : 0;
+}
+
+public sealed record FiefExpeditionLogView(
+    long Id,
+    long CitadelId,
+    int DayIndex,
+    string ExpeditionType,
+    int TroopsDispatched,
+    int Casualties,
+    int SpoilsCopper,
+    int MeritsEarned,
+    string NarrativeVi);
+
 

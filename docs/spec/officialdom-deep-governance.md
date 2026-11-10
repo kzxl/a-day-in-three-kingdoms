@@ -1,14 +1,14 @@
 # Deep Officialdom & Autonomous Fief Governance Specification
 
 ## 1. Overview
-The Deep Officialdom system expands political progression beyond static rank badges into an interactive governance loop. When holding rank 3 (Phẩm 3) or higher under a lord, the player can be appointed governor (*Thái Thú*) of an allied citadel. In this role, the player manages demographics, local garrison, military armories, and appoints an autonomous administrative cabinet.
+The Deep Officialdom system expands political progression beyond static rank badges into an interactive governance loop. When holding rank 3 (Phẩm 3) or higher under a lord, the player can be appointed governor (*Thái Thú*) of an allied citadel. In this role, the player manages demographics, local garrison, military armories, appoints an autonomous administrative cabinet, invests in late-game megaprojects, and deploys garrison troops on strategic military expeditions.
 
 ---
 
 ## 2. Architecture & Data Contracts
 
 ### 2.1 Database Schema
-Located in `0708-governor-aides-and-monthly-digest.sql`:
+Located in `0708-governor-aides-and-monthly-digest.sql` & `0709-fief-megaprojects-and-expeditions.sql`:
 
 1. **`po_governor_fief` extensions:**
    - `civil_aide_npc_id` (`INTEGER NOT NULL DEFAULT 0`): NPC ID appointed as Civil Aide (*Trưởng Thừa*).
@@ -22,6 +22,12 @@ Located in `0708-governor-aides-and-monthly-digest.sql`:
      - `population_delta`, `treasury_delta`, `food_consumed`, `garrison_delta`, `merits_earned`
      - `civil_action_vi`, `military_action_vi`, `summary_vi`
 
+3. **`po_fief_megaproject` table:**
+   - `citadel_id`, `project_code`, `status`, `invested_copper`, `required_copper`, `completed_day`
+
+4. **`po_fief_expedition_log` table:**
+   - `id`, `citadel_id`, `day_index`, `expedition_type`, `troops_dispatched`, `casualties`, `spoils_copper`, `merits_earned`, `narrative_vi`
+
 ### 2.2 Core Service & Autonomy Loop
 - **Event Wire-up**: `PowerModule.cs` subscribes `courtService.SimulateMonthlyFiefAutonomy(closed.Date)` to `MonthClosed`.
 - **Strategic Directives**:
@@ -29,29 +35,58 @@ Located in `0708-governor-aides-and-monthly-digest.sql`:
   - `COMM` (*Trọng Thương Thu Thuế*): Boosts commerce score, generates high monthly treasury taxes (+120 Quan), modest population influx (+1%).
   - `MILITARY` (*Quân Bị Tiễu Phỉ*): Trains and expands citadel garrison (+250 troops), reinforces fortifications (+6) and public order (+5), reduces unrest.
   - `BALANCE` (*Cân Bằng Toàn Diện*): Moderate all-around gains (+3 to all attributes, +35 Quan, +1% population).
-- **Aide Delegation**:
-  - `AppointFiefAide(npcId, role)`: Appoints any living NPC as Civil Aide or Military Aide; passing `0` dismisses the aide back to local bureaucratic staff.
-  - Actions and narratives dynamically highlight the appointed aide names in monthly digests.
+- **Aide Personality & Trait Dynamics**:
+  - `ThamTai` / `XaoQuyet`: Trưởng Thừa embezzles treasury copper and raises civil unrest (+2 unrest).
+  - `ThanhLiem`: Clean audit boosts treasury savings (+30 Quan) and decreases unrest (-3 unrest).
+  - `KeoKiet`: Strict rations reduce monthly grain consumption by 25%.
+  - `HieuHoc`: Civil scholar earns extra court merits (+3 merits).
+  - `TrungNghia` / `CanDam`: Đô Úy trains higher quality recruits (+40 garrison, +3 merits).
+  - `NongNay`: Strict corporal discipline raises garrison drill but slight unrest (+1 unrest).
+  - `DiemTinh`: Methodical defensive formations permanently strengthen wall defense (+3).
 
 ---
 
-## 3. UI Presentation
+## 3. Citadel Expeditions & Fief Megaprojects
 
-### 3.1 Imperial Court Chamber (`GameCourtChamberControl.cs`)
-- **Fiefdom Card**:
+### 3.1 Citadel Military Expeditions (`po_fief_expedition_log`)
+Governors can deploy accumulated garrison troops and armory weapons into tactical military operations:
+1. **`PACIFY_BANDITS` (*Tiễu Phạt Sơn Tặc*)**:
+   - Requirements: 300+ garrison troops, 20+ armory weapons.
+   - Effects: Clears local mountain bandits, reduces unrest by -12%, captures 200–350 Quan in spoils for local treasury, awards +25 court merits.
+2. **`BORDER_PATROL` (*Thao Diễn Biên Ải*)**:
+   - Requirements: 400+ garrison troops, 20+ armory weapons.
+   - Effects: Fortifies mountain passes, boosts citadel defense by +8, increases reputation by +3 and merits by +15.
+3. **`SUPPORT_LORD` (*Chi Viện Tiền Tuyến Minh Chủ*)**:
+   - Requirements: 800+ garrison troops, 40+ weapons, allegiance to a lord.
+   - Effects: Rushes reinforcements to the lord's frontline (+715 troops to warlord faction army), increases lord trust (+15) and awards +60 court merits.
+
+### 3.2 Fief Megaprojects (`po_fief_megaproject`)
+Endgame capital sinks allowing governors to permanently transform their regional seat:
+1. **`CANAL` (*Đại Kênh Thủy Lợi*)** - Cost: 1,500 Quan:
+   - Permanently grants +15 Agriculture and +1% monthly demographic growth.
+2. **`ACADEMY` (*Thái Học Viện*)** - Cost: 2,000 Quan:
+   - Grants +5 Merits every month and +2 Reputation quarterly.
+3. **`ARMORY` (*Đại Dã Thần Binh Xưởng*)** - Cost: 2,500 Quan:
+   - Expands weapon armory capacity by +100 units and grants +50 instant weapons.
+4. **`BASTION` (*Kim Thành Thang Trì*)** - Cost: 3,000 Quan:
+   - Permanently grants +25 Fortification score and +20 Citadel Defense strength.
+
+---
+
+## 4. UI Presentation & Screens
+- **Imperial Court Chamber (`GameCourtChamberControl.cs`)**:
   - Demographics & Garrison Bar: displays total population, stationed garrison troops, and weapons inventory with an active directive badge.
   - Aide Triptych: displays appointed Civil Aide (*Trưởng Thừa*) and Military Aide (*Đô Úy*).
   - Stat Matrix: 4 uniform pills for Agriculture (*Nông Khẩn*), Commerce (*Thương Nghiệp*), Fortification (*Thành Phòng*), and Public Order (*Trị An Dân Tâm*).
-  - Interactive Actions: instant directive toggles, focused development projects, and quarterly evaluations.
-
-### 3.2 Monthly Governance Digest (`CourtScreens.cs`)
-- Dedicated chronology section `Tổng Kết Chánh Vụ Phong Ấp Hàng Tháng`:
-  - Columns: `Thời Điểm`, `Phương Châm`, `Biến Động Dân & Khố`, `Binh Lực & Lương Thực`, `Huân Công`, `Tường Trình Nha Môn`.
-  - Provides transparent, at-a-glance feedback on autonomous cabinet performance every month.
+  - Quick action buttons for directives, developments, and military expeditions.
+- **Megaproject & Expedition Sections (`CourtScreens.cs`)**:
+  - `Đại Công Trình Phong Ấp Châu Quận`: Shows investment progress bars and funding triggers.
+  - `Nhật Ký Chiến Dịch Xuất Chinh Phong Ấp`: Complete history of tactical campaigns, casualties, and spoils.
+  - `Tổng Kết Chánh Vụ Phong Ấp Hàng Tháng`: Transparent monthly digest of autonomous cabinet actions.
 
 ---
 
-## 4. Verification & Invariants
+## 5. Verification & Invariants
 - **Deterministic Simulation**: All random outcomes use kernel `IRng` or deterministic formulas.
-- **Ledger Invariance**: Local fief treasury is isolated from the player's personal wallet, guaranteeing zero drift on Golden Replay hashes (`merchant-30d.json` balance 1514, `merchant-full.json` balance 778).
-- **Test Coverage**: Verified in `DeepOfficialdomTests.cs` (716 total passing tests across the engine).
+- **Ledger Invariance**: Local fief treasury is isolated from personal wallet, maintaining zero drift on Golden Replay hashes (`merchant-30d.json` balance 1514, `merchant-full.json` balance 778).
+- **Test Coverage**: 718 passing tests across the solution.

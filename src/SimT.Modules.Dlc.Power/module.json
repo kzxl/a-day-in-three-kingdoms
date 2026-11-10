@@ -51,7 +51,9 @@
       "po_governor_fief",
       "po_court_memorial",
       "po_career_log",
-      "po_governance_digest"
+      "po_governance_digest",
+      "po_fief_megaproject",
+      "po_fief_expedition_log"
     ],
     "migrations": [
       "migrations"

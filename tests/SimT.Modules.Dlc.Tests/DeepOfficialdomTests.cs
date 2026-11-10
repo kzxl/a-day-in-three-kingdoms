@@ -234,4 +234,101 @@ public sealed class DeepOfficialdomTests : IDisposable
         Assert.Equal(0, court.PlayerFief!.CivilAideNpcId);
         Assert.Equal("Chưa bổ nhiệm", court.PlayerFief!.CivilAideNameVi);
     }
+
+    [Fact]
+    public void Fief_megaproject_investment_and_infrastructure_completion()
+    {
+        using var kernel = _host.Boot();
+        var court = kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+        Assert.NotNull(court);
+        Assert.NotNull(wallet);
+
+        // Join faction with cities and become governor
+        var targetGov = court.Governances.First(g => g.FactionId > 0);
+        var faction = court.Factions.First(f => f.Id == targetGov.FactionId);
+        while (court.Reputation < 5) court.Serve();
+        court.JoinFaction(faction.Id);
+
+        var office3 = court.Offices.FirstOrDefault(o => o.Rank >= 3) ?? court.Offices[court.Offices.Count - 1];
+        while (court.Reputation < office3.ReputationRequired) court.Serve();
+        court.Apply(office3.Id);
+        court.AppointGovernor(targetGov.CitadelId);
+
+        // 1. Query Megaprojects
+        var projects = court.GetFiefMegaprojects();
+        Assert.NotEmpty(projects);
+        Assert.Contains(projects, p => p.ProjectCode == "CANAL");
+
+        var canal = projects.First(p => p.ProjectCode == "CANAL");
+        Assert.False(canal.IsCompleted);
+        Assert.Equal(0, canal.InvestedCopper);
+
+        // Give wallet funds to fund project
+        wallet.Pay(3000, "test", "Kinh phí thử nghiệm");
+
+        // 2. Partial investment
+        var initAgri = court.PlayerFief!.Agriculture;
+        var investPart = court.InvestFiefMegaproject("CANAL", 500);
+        Assert.True(investPart.Ok, investPart.Message);
+
+        var updatedProjects = court.GetFiefMegaprojects();
+        var canalMid = updatedProjects.First(p => p.ProjectCode == "CANAL");
+        Assert.Equal(500, canalMid.InvestedCopper);
+        Assert.False(canalMid.IsCompleted);
+
+        // 3. Complete the project
+        var investRest = court.InvestFiefMegaproject("CANAL", 1000);
+        Assert.True(investRest.Ok, investRest.Message);
+        Assert.Contains("KHÁNH THÀNH", investRest.Message);
+
+        var canalDone = court.GetFiefMegaprojects().First(p => p.ProjectCode == "CANAL");
+        Assert.True(canalDone.IsCompleted);
+        Assert.Equal("COMPLETED", canalDone.Status);
+
+        // Permanent agricultural bonus applied
+        Assert.Equal(initAgri + 15, court.PlayerFief!.Agriculture);
+    }
+
+    [Fact]
+    public void Citadel_military_expeditions_and_tactical_spoils()
+    {
+        using var kernel = _host.Boot();
+        var court = kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+        Assert.NotNull(court);
+
+        // Join faction with cities and become governor
+        var targetGov = court.Governances.First(g => g.FactionId > 0);
+        var faction = court.Factions.First(f => f.Id == targetGov.FactionId);
+        while (court.Reputation < 5) court.Serve();
+        court.JoinFaction(faction.Id);
+
+        var office3 = court.Offices.FirstOrDefault(o => o.Rank >= 3) ?? court.Offices[court.Offices.Count - 1];
+        while (court.Reputation < office3.ReputationRequired) court.Serve();
+        court.Apply(office3.Id);
+        court.AppointGovernor(targetGov.CitadelId);
+
+        // 1. Launch PACIFY_BANDITS
+        var initTreasury = court.PlayerFief!.LocalTreasury;
+        var initMerits = court.Merits;
+        var expRes = court.LaunchFiefExpedition("PACIFY_BANDITS");
+        Assert.True(expRes.Ok, expRes.Message);
+
+        // Treasury earned spoils, merits increased
+        var fiefAfter = court.PlayerFief!;
+        Assert.True(fiefAfter.LocalTreasury > initTreasury);
+        Assert.True(court.Merits > initMerits);
+
+        // 2. Launch BORDER_PATROL
+        var repBefore = court.Reputation;
+        var patrolRes = court.LaunchFiefExpedition("BORDER_PATROL");
+        Assert.True(patrolRes.Ok, patrolRes.Message);
+        Assert.True(court.Reputation >= repBefore + 3);
+
+        // 3. Logs recorded
+        var logs = court.RecentExpeditionLogs(5);
+        Assert.Equal(2, logs.Count);
+        Assert.Contains(logs, l => l.ExpeditionType == "PACIFY_BANDITS");
+        Assert.Contains(logs, l => l.ExpeditionType == "BORDER_PATROL");
+    }
 }
