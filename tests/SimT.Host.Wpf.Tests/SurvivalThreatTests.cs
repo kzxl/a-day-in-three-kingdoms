@@ -104,6 +104,20 @@ public sealed class SurvivalThreatTests
     }
 
     [Fact]
+    public void Evaluate_detects_warlord_extortion_and_retainer_betrayal_risk()
+    {
+        var vitals = new CharacterVitals(100, 100, 10, 80, 10, 100, 100);
+
+        var extortion = SurvivalThreatEvaluator.Evaluate(vitals, dangerLevel: 1, isAtWar: false, hasWarlordExtortion: true, hasRetainerBetrayalRisk: true);
+        Assert.Equal(SurvivalThreatKind.WarlordExtortion, extortion.Kind);
+        Assert.Equal("politics.court", extortion.ActionCommand);
+
+        var betrayal = SurvivalThreatEvaluator.Evaluate(vitals, dangerLevel: 1, isAtWar: false, hasWarlordExtortion: false, hasRetainerBetrayalRisk: true);
+        Assert.Equal(SurvivalThreatKind.RetainerBetrayalRisk, betrayal.Kind);
+        Assert.Equal("social.network", betrayal.ActionCommand);
+    }
+
+    [Fact]
     public void Banner_updates_visibility_and_fires_action_event_on_sta_thread()
     {
         WpfTestContext.RunOnSta(() =>

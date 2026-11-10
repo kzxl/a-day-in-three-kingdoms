@@ -248,4 +248,101 @@ internal sealed partial class CourtService
                 r.GetString(8)),
             DbArgs.One("@limit", limit));
     }
+
+    public void SimulateMonthlyCourtIntrigue(GameDate date)
+    {
+        if (OfficeId <= 0)
+        {
+            return;
+        }
+
+        var standings = CourtFactionStandings;
+        foreach (var fac in standings)
+        {
+            if (fac.FactionCode == "eunuch")
+            {
+                if (fac.StandingScore >= 50)
+                {
+                    _wallet.Pay(60, JournalCodes.CourtStipend, "Lộc ngầm nội thị Thập Thường Thị chia chác", $"court.eunuch.perk:{GameDateCodec.Format(date)}");
+                }
+                else if (fac.StandingScore <= -40)
+                {
+                    SetState("reputation", Math.Max(0, Reputation - 2));
+                }
+            }
+            else if (fac.FactionCode == "scholar")
+            {
+                if (fac.StandingScore >= 50)
+                {
+                    SetState("reputation", Reputation + 2);
+                    AddMerits(5);
+                }
+                else if (fac.StandingScore <= -40)
+                {
+                    SetState("reputation", Math.Max(0, Reputation - 3));
+                }
+            }
+            else if (fac.FactionCode == "militarist")
+            {
+                if (fac.StandingScore >= 50)
+                {
+                    AddMerits(8);
+                }
+                else if (fac.StandingScore <= -40)
+                {
+                    AddMerits(-5);
+                }
+            }
+        }
+
+        // Quarterly surprise inspection when local unrest is high
+        if (date.Month % 3 == 0)
+        {
+            var cityId = GovernorCityId > 0 ? GovernorCityId : 1;
+            var unrest = (int)_db.ScalarLong("SELECT COALESCE(unrest_level, 20) FROM po_city_governance WHERE citadel_id = @c", DbArgs.One("@c", cityId));
+            var scholarScore = standings.FirstOrDefault(s => s.FactionCode == "scholar")?.StandingScore ?? 0;
+
+            if (unrest > 45 || scholarScore <= -40)
+            {
+                RespondToImperialInspection("OPEN_LEDGER");
+            }
+        }
+    }
+
+    internal void OnMarketCornered(long citadelId, int severity)
+    {
+        var factionId = _db.ScalarLong("SELECT COALESCE(faction_id, 1) FROM po_city_governance WHERE citadel_id = @c", DbArgs.One("@c", citadelId));
+        if (factionId <= 0) factionId = 1;
+
+        var scrutinyDelta = Math.Clamp(severity * 15, 15, 45);
+        _db.Execute(
+            """
+            INSERT INTO po_warlord_scrutiny (faction_id, scrutiny_score, last_levy_day, embargo_until_day)
+            VALUES (@f, @s, 0, 0)
+            ON CONFLICT(faction_id) DO UPDATE SET
+                scrutiny_score = MIN(100, po_warlord_scrutiny.scrutiny_score + @s)
+            """,
+            DbArgs.One("@f", factionId).Add("@s", scrutinyDelta));
+
+        ShiftCourtFactionStanding("scholar", -10 * severity, "Đầu cơ lũng đoạn chợ búa làm khổ bá tánh");
+        ShiftCourtFactionStanding("eunuch", 5, "Gian thương thao túng giá cả");
+    }
+
+    internal void OnContrabandDelivered(long citadelId, int quantity)
+    {
+        var factionId = _db.ScalarLong("SELECT COALESCE(faction_id, 1) FROM po_city_governance WHERE citadel_id = @c", DbArgs.One("@c", citadelId));
+        if (factionId <= 0) factionId = 1;
+
+        _db.Execute(
+            """
+            INSERT INTO po_warlord_scrutiny (faction_id, scrutiny_score, last_levy_day, embargo_until_day)
+            VALUES (@f, 0, 0, 0)
+            ON CONFLICT(faction_id) DO UPDATE SET
+                scrutiny_score = MAX(0, po_warlord_scrutiny.scrutiny_score - 15)
+            """,
+            DbArgs.One("@f", factionId));
+
+        ShiftCourtFactionStanding("militarist", 10, "Phá vòng vây tiếp tế nhu yếu phẩm tiền tuyến");
+        AddMerits(Math.Max(5, quantity / 10));
+    }
 }

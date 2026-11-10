@@ -99,9 +99,14 @@ public sealed class GameSurvivalThreatBanner : Border
         Child = dock;
     }
 
-    public SurvivalThreatAssessment Update(CharacterVitals? vitals, int dangerLevel = 1, bool isAtWar = false)
+    public SurvivalThreatAssessment Update(
+        CharacterVitals? vitals,
+        int dangerLevel = 1,
+        bool isAtWar = false,
+        bool hasWarlordExtortion = false,
+        bool hasRetainerBetrayalRisk = false)
     {
-        var assessment = SurvivalThreatEvaluator.Evaluate(vitals, dangerLevel, isAtWar);
+        var assessment = SurvivalThreatEvaluator.Evaluate(vitals, dangerLevel, isAtWar, hasWarlordExtortion, hasRetainerBetrayalRisk);
 
         if (assessment.Kind == SurvivalThreatKind.None)
         {

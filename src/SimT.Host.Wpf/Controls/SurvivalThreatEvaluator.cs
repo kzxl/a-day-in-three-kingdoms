@@ -8,7 +8,9 @@ public enum SurvivalThreatKind
     CriticalHp = 1,
     SevereFatigue = 2,
     SevereStress = 3,
-    UnsafeTerritory = 4
+    UnsafeTerritory = 4,
+    WarlordExtortion = 5,
+    RetainerBetrayalRisk = 6
 }
 
 public sealed record SurvivalThreatAssessment(
@@ -40,7 +42,9 @@ public static class SurvivalThreatEvaluator
     public static SurvivalThreatAssessment Evaluate(
         CharacterVitals? vitals,
         int dangerLevel = 1,
-        bool isAtWar = false)
+        bool isAtWar = false,
+        bool hasWarlordExtortion = false,
+        bool hasRetainerBetrayalRisk = false)
     {
         if (vitals is not null)
         {
@@ -84,7 +88,33 @@ public static class SurvivalThreatEvaluator
             }
         }
 
-        // 4. Territory Danger Level (Level >= 3 or At War)
+        // 4. Warlord Extortion / Scrutiny Demand (Gói 1)
+        if (hasWarlordExtortion)
+        {
+            return new SurvivalThreatAssessment(
+                SurvivalThreatKind.WarlordExtortion,
+                "📜 TRÁT QUÂN PHIỆT",
+                "Quân phiệt sở tại đang gửi trát bức bách đòi quân phí hoặc rình rập tịch biên tài sản! Cần vào Quan Trường đối phó ngay.",
+                "Vào Quan Trường",
+                "politics.court",
+                "#DC2626",
+                "#2D1215");
+        }
+
+        // 5. Retainer Betrayal / Embezzlement Risk (Gói 3)
+        if (hasRetainerBetrayalRisk)
+        {
+            return new SurvivalThreatAssessment(
+                SurvivalThreatKind.RetainerBetrayalRisk,
+                "🐍 DÃ TÂM DỊ CHÍ",
+                "Có gia thần dã tâm cao đang bất mãn lòng trung, nguy cơ tham ô công quỹ hoặc phản chủ đào tẩu! Cần thẩm tra hoặc trấn an.",
+                "Thẩm Tra Gia Thần",
+                "social.network",
+                "#EAB308",
+                "#2A220E");
+        }
+
+        // 6. Territory Danger Level (Level >= 3 or At War)
         if (isAtWar || dangerLevel >= 3)
         {
             var secDesc = isAtWar ? "Chiến sự khốc liệt bùng nổ" : "Vùng biên ải sa trường hiểm trở (Độ hiểm nguy cấp 3)";

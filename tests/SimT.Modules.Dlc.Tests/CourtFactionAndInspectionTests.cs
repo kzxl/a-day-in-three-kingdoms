@@ -125,4 +125,57 @@ public sealed class CourtFactionAndInspectionTests : IDisposable
         var inspectMsg = Command(kernel, "politics.court", "inspect:respond:open_ledger");
         Assert.Contains("sổ sách nha môn", inspectMsg);
     }
+
+    [Fact]
+    public void Economic_warfare_events_trigger_warlord_scrutiny_and_court_faction_shifts()
+    {
+        using var kernel = _host.Boot();
+        var court = Court(kernel);
+        var events = kernel.Capabilities.Get<SimT.Contracts.Events.IEventPublisher>(CapabilityIds.EventPublisher);
+
+        // 1. Market cornering increases scrutiny and lowers Scholar standing
+        events.Publish(new SimT.Contracts.Events.MarketCorneredEvent(1, 1, 2, kernel.Today));
+
+        var scrutinyAfterCorner = court.CurrentScrutiny;
+        Assert.NotNull(scrutinyAfterCorner);
+        Assert.True(scrutinyAfterCorner.ScrutinyScore >= 30);
+
+        var scholarAfterCorner = court.CourtFactionStandings.First(s => s.FactionCode == "scholar").StandingScore;
+        Assert.True(scholarAfterCorner <= -20);
+
+        // 2. Contraband delivery into besieged city reduces scrutiny and boosts Militarist standing
+        var meritsBefore = court.Merits;
+        events.Publish(new SimT.Contracts.Events.ContrabandDeliveredEvent(1, 1, 50, kernel.Today));
+
+        var scrutinyAfterSupply = court.CurrentScrutiny;
+        Assert.True(scrutinyAfterSupply!.ScrutinyScore < scrutinyAfterCorner.ScrutinyScore);
+
+        var militaristScore = court.CourtFactionStandings.First(s => s.FactionCode == "militarist").StandingScore;
+        Assert.True(militaristScore >= 10);
+        Assert.True(court.Merits > meritsBefore);
+    }
+
+    [Fact]
+    public void Monthly_court_intrigue_grants_ally_perks_and_triggers_quarterly_inspection_when_unrest_is_high()
+    {
+        using var kernel = _host.Boot();
+        var court = Court(kernel);
+
+        // Hold an office (Rank 1)
+        kernel.Db.Execute("INSERT OR REPLACE INTO po_state (key, value) VALUES ('office_id', 1)");
+
+        // Set high standing with Scholars (>= 50)
+        court.ShiftCourtFactionStanding("scholar", 60, "Test ally");
+
+        // Set high unrest in city 1 (> 45)
+        kernel.Db.Execute("UPDATE po_city_governance SET unrest_level = 60 WHERE citadel_id = 1");
+
+        // Simulate quarterly month (Month 3)
+        court.SimulateMonthlyCourtIntrigue(new GameDate(190, 3, 30));
+
+        // Quarterly inspection was automatically recorded
+        var inspections = court.RecentImperialInspections(5);
+        Assert.NotEmpty(inspections);
+        Assert.Equal("REPRIMANDED", inspections[0].Outcome);
+    }
 }

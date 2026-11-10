@@ -292,7 +292,20 @@ public partial class MainWindow : Window
             {
                 dangerLevel = worldMap.GetEcosystem(playerState.CurrentCityId)?.DangerLevel ?? 1;
             }
-            SurvivalThreatBanner.Update(vitals, dangerLevel);
+
+            var hasWarlordExtortion = false;
+            if (_kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice, out var polCourt) && polCourt is not null)
+            {
+                hasWarlordExtortion = polCourt.ActiveScrutinyDemands.Count > 0 || (polCourt.CurrentScrutiny?.ScrutinyScore ?? 0) >= 80;
+            }
+
+            var hasRetainerBetrayalRisk = false;
+            if (_kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var socialNet) && socialNet is not null)
+            {
+                hasRetainerBetrayalRisk = socialNet.GetRetainers().Any(r => r.Loyalty < 55 && socialNet.GetPsycheProfile(r.NpcId).Ambition >= 70);
+            }
+
+            SurvivalThreatBanner.Update(vitals, dangerLevel, isAtWar: false, hasWarlordExtortion, hasRetainerBetrayalRisk);
         }
 
         RenderCalendar(today);
@@ -468,6 +481,10 @@ public partial class MainWindow : Window
                 break;
             case "map":
                 SelectScreen("world.map");
+                break;
+            case "politics.court":
+            case "social.network":
+                SelectScreen(action);
                 break;
             default:
                 break;

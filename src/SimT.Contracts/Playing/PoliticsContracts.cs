@@ -107,6 +107,8 @@ public interface IPoliticalCourt
 
     CourtResult TriggerImperialInspection() => CourtResult.Failure("Chưa được hỗ trợ.");
 
+    void SimulateMonthlyCourtIntrigue(SimT.Contracts.Time.GameDate date) { }
+
     CourtResult Apply(long officeId) => CourtResult.Failure("Chưa được hỗ trợ.");
 
     CourtResult Resign() => CourtResult.Failure("Chưa được hỗ trợ.");

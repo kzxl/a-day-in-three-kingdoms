@@ -64,6 +64,7 @@ public sealed class PowerModule : ISimModule
         {
             courtService.SimulateMonthlyFiefAutonomy(closed.Date);
             courtService.SimulateWarlordScrutiny(closed.Date);
+            courtService.SimulateMonthlyCourtIntrigue(closed.Date);
             foreach (var citadel in map.Citadels)
             {
                 courtService.SimulateMonthlyCityFoodAndFamine(citadel.Id, closed.Date);
@@ -95,6 +96,7 @@ public sealed class PowerModule : ISimModule
             context.Db.Execute(
                 "UPDATE po_city_governance SET unrest_level = MIN(100, unrest_level + @u), defense_strength = MAX(0, defense_strength - @d) WHERE citadel_id = @c",
                 DbArgs.One("@u", unrestPen).Add("@d", defPen).Add("@c", e.CitadelId));
+            courtService.OnMarketCornered(e.CitadelId, e.Severity);
         });
 
         context.Events.Subscribe<ContrabandDeliveredEvent>(e =>
@@ -102,6 +104,7 @@ public sealed class PowerModule : ISimModule
             context.Db.Execute(
                 "UPDATE po_city_governance SET defense_strength = MIN(100, defense_strength + 8), unrest_level = MAX(0, unrest_level - 5) WHERE citadel_id = @c",
                 DbArgs.One("@c", e.CitadelId));
+            courtService.OnContrabandDelivered(e.CitadelId, e.Quantity);
         });
 
         // Invariants
