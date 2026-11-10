@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using SimT.Contracts;
 using SimT.Contracts.Playing;
+using SimT.Core.Kernel;
 
 namespace SimT.Host.Wpf.Controls;
 
@@ -16,6 +18,7 @@ public sealed partial class GameWorldMapControl
     private sealed class MapCanvas : FrameworkElement
     {
         private readonly IWorldMap _map;
+        private readonly SimKernel? _kernel;
         private readonly long _currentCityId;
         private long _selectedCityId;
         private long _hoveredCityId;
@@ -99,9 +102,10 @@ public sealed partial class GameWorldMapControl
             HudBorderPen.Freeze();
         }
 
-        public MapCanvas(IWorldMap map, long currentCityId, long selectedCityId)
+        public MapCanvas(IWorldMap map, long currentCityId, long selectedCityId, SimKernel? kernel = null)
         {
             _map = map;
+            _kernel = kernel;
             _currentCityId = currentCityId;
             _selectedCityId = selectedCityId;
 
@@ -744,8 +748,8 @@ public sealed partial class GameWorldMapControl
             if (c is null) return;
 
             var eco = _map.GetEcosystem(citadelId);
-            const double hudW = 265;
-            const double hudH = 155;
+            const double hudW = 285;
+            const double hudH = 175;
 
             // Clamping position so it does not overflow canvas
             var posX = mouse.X + 16;
@@ -818,20 +822,64 @@ public sealed partial class GameWorldMapControl
             dc.DrawText(specFt, new Point(startX, curY));
             curY += specFt.Height + 4;
 
-            // 5. Distance from current location
-            var distanceText = (citadelId == _currentCityId)
-                ? "📍 Bạn hiện đang đóng quân tại thành này."
-                : $"🐎 {_map.QuoteTravel(_currentCityId, citadelId, TravelMode.Walk).ActualDays} ngày đường viễn hành.";
-            var distFt = new FormattedText(
-                distanceText,
-                Vietnamese,
-                FlowDirection.LeftToRight,
-                new Typeface(new FontFamily("Segoe UI"), FontStyles.Italic, FontWeights.SemiBold, FontStretches.Normal),
-                10,
-                (citadelId == _currentCityId) ? TextGreenBrush : TextGoldBrush,
-                1.0);
-            dc.DrawText(distFt, new Point(startX, curY));
-            curY += distFt.Height + 4;
+            // 5. Distance & Supply estimate from current location
+            if (citadelId == _currentCityId)
+            {
+                var distFt = new FormattedText(
+                    "📍 Bạn hiện đang đóng quân tại thành này.",
+                    Vietnamese,
+                    FlowDirection.LeftToRight,
+                    new Typeface(new FontFamily("Segoe UI"), FontStyles.Italic, FontWeights.SemiBold, FontStretches.Normal),
+                    10,
+                    TextGreenBrush,
+                    1.0);
+                dc.DrawText(distFt, new Point(startX, curY));
+                curY += distFt.Height + 4;
+            }
+            else
+            {
+                var walkQuote = _map.QuoteTravel(_currentCityId, citadelId, TravelMode.Walk);
+                var horseQuote = _map.QuoteTravel(_currentCityId, citadelId, TravelMode.Horse);
+
+                var totalRations = 0;
+                var liquidFunds = 0L;
+                if (_kernel != null)
+                {
+                    if (_kernel.Capabilities.TryGet<IBag>(CapabilityIds.PlayerBag, out var b) && b != null)
+                    {
+                        var rows = b.Rows(_currentCityId);
+                        totalRations = (rows.FirstOrDefault(r => r.ItemId == 1)?.Quantity ?? 0) +
+                                       (rows.FirstOrDefault(r => r.ItemId == 8)?.Quantity ?? 0);
+                    }
+                    if (_kernel.Capabilities.TryGet<IWallet>(CapabilityIds.PlayerWallet, out var w) && w != null)
+                    {
+                        liquidFunds = w.Liquid;
+                    }
+                }
+
+                var rationStatus = totalRations >= walkQuote.RationsNeeded ? "Đủ" : $"Thiếu {walkQuote.RationsNeeded - totalRations}p";
+                var distFt = new FormattedText(
+                    $"🚶 {walkQuote.ActualDays}N ({walkQuote.RationsNeeded} lương · 0q) | 🐎 {horseQuote.ActualDays}N ({horseQuote.TravelFee}q)",
+                    Vietnamese,
+                    FlowDirection.LeftToRight,
+                    new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
+                    10,
+                    TextGoldBrush,
+                    1.0);
+                dc.DrawText(distFt, new Point(startX, curY));
+                curY += distFt.Height + 2;
+
+                var supplyFt = new FormattedText(
+                    $"🌾 Dự trữ: {totalRations}/{walkQuote.RationsNeeded} ({rationStatus}) | 💰 Ví: {liquidFunds} Quan",
+                    Vietnamese,
+                    FlowDirection.LeftToRight,
+                    new Typeface("Segoe UI"),
+                    9.5,
+                    totalRations >= walkQuote.RationsNeeded ? TextGreenBrush : TextGoldBrush,
+                    1.0);
+                dc.DrawText(supplyFt, new Point(startX, curY));
+                curY += supplyFt.Height + 4;
+            }
 
             // 6. Action Hint
             var hintFt = new FormattedText(

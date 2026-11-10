@@ -44,6 +44,10 @@ public sealed partial class GameWorldMapControl : Border
     private readonly Button _horseModeBtn;
     private readonly Button _caravanModeBtn;
     private readonly TextBlock _routePathText;
+    private readonly TextBlock _walkSubtitleText = new();
+    private readonly TextBlock _horseSubtitleText = new();
+    private readonly TextBlock _caravanSubtitleText = new();
+    private readonly StackPanel _supplyMetricsPanel;
     private readonly TextBlock _expeditionMetricsText;
     private readonly Button _departBtn;
 
@@ -105,7 +109,7 @@ public sealed partial class GameWorldMapControl : Border
 
         // 2. Interactive Ornate Visual Map Canvas with Floating RPG Zoom HUD
         var mapContainer = new Grid();
-        _canvas = new MapCanvas(map, currentCityId, _selectedCityId);
+        _canvas = new MapCanvas(map, currentCityId, _selectedCityId, kernel);
         _canvas.NodeSelected += OnCanvasNodeSelected;
         mapContainer.Children.Add(_canvas);
         mapContainer.Children.Add(CreateMapZoomHud());
@@ -243,9 +247,9 @@ public sealed partial class GameWorldMapControl : Border
 
         // Mode toggles
         var modesGrid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 0, 0, 8) };
-        _walkModeBtn = CreateModeButton("🚶 Bộ Hành", "0 Lộ phí · Chuẩn", TravelMode.Walk);
-        _horseModeBtn = CreateModeButton("⚡ Dịch Mã", "Nhanh x2 · Bạc", TravelMode.Horse);
-        _caravanModeBtn = CreateModeButton("🛡️ Tiêu Cục", "Bảo Tiêu An Toàn", TravelMode.Caravan);
+        _walkModeBtn = CreateModeButton("🚶 Bộ Hành", _walkSubtitleText, "0 Lộ phí · Chuẩn", TravelMode.Walk);
+        _horseModeBtn = CreateModeButton("⚡ Dịch Mã", _horseSubtitleText, "Nhanh x2 · Bạc", TravelMode.Horse);
+        _caravanModeBtn = CreateModeButton("🛡️ Tiêu Cục", _caravanSubtitleText, "Bảo Tiêu An Toàn", TravelMode.Caravan);
         modesGrid.Children.Add(_walkModeBtn);
         modesGrid.Children.Add(_horseModeBtn);
         modesGrid.Children.Add(_caravanModeBtn);
@@ -261,6 +265,8 @@ public sealed partial class GameWorldMapControl : Border
             TextWrapping = TextWrapping.Wrap
         };
         rightStack.Children.Add(_routePathText);
+        _supplyMetricsPanel = new StackPanel { Margin = new Thickness(0, 4, 0, 6) };
+        rightStack.Children.Add(_supplyMetricsPanel);
 
         // Metrics breakdown
         _expeditionMetricsText = new TextBlock
@@ -303,7 +309,7 @@ public sealed partial class GameWorldMapControl : Border
         UpdatePlanUI();
     }
 
-    private Button CreateModeButton(string title, string subtitle, TravelMode mode)
+    private Button CreateModeButton(string title, TextBlock subText, string subtitle, TravelMode mode)
     {
         var stack = new StackPanel();
         stack.Children.Add(new TextBlock
@@ -313,14 +319,12 @@ public sealed partial class GameWorldMapControl : Border
             FontSize = 11.5,
             HorizontalAlignment = HorizontalAlignment.Center
         });
-        stack.Children.Add(new TextBlock
-        {
-            Text = subtitle,
-            FontSize = 9.5,
-            Foreground = (Brush)Application.Current.FindResource("Muted"),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 1, 0, 0)
-        });
+        subText.Text = subtitle;
+        subText.FontSize = 9.5;
+        subText.Foreground = (Brush)Application.Current.FindResource("Muted");
+        subText.HorizontalAlignment = HorizontalAlignment.Center;
+        subText.Margin = new Thickness(0, 1, 0, 0);
+        stack.Children.Add(subText);
 
         var btn = new Button
         {
@@ -439,22 +443,120 @@ public sealed partial class GameWorldMapControl : Border
         if (_selectedCityId == _currentCityId)
         {
             _routePathText.Text = $"📍 Bạn hiện đang đóng quân tại {targetCitadel.NameVi}.";
+            _supplyMetricsPanel.Children.Clear();
             _expeditionMetricsText.Text = "Bấm chọn một đại thành khác trên bản đồ để hoạch định lộ trình viễn hành.";
+            _walkSubtitleText.Text = "Tại chỗ";
+            _horseSubtitleText.Text = "Tại chỗ";
+            _caravanSubtitleText.Text = "Tại chỗ";
             _departBtn.IsEnabled = false;
             _departBtn.Content = $"Đang Ở {targetCitadel.NameVi} 📍";
             return;
         }
 
-        var quote = _map.QuoteTravel(_currentCityId, _selectedCityId, _selectedMode);
-        var pathNames = string.Join(" ➔ ", quote.PathNodeIds.Select(id => _map.Find(id)?.NameVi ?? id.ToString()));
+        var proj = ComputeSupplyProjection(_currentCityId, _selectedCityId, _selectedMode);
+        var quote = proj.Quote;
 
-        _routePathText.Text = $"🗺️ Lộ trình ({quote.ActualDays} ngày): {pathNames}";
+        // Dynamic subtitle calculations for 3 modes
+        var walkQuote = _map.QuoteTravel(_currentCityId, _selectedCityId, TravelMode.Walk);
+        var horseQuote = _map.QuoteTravel(_currentCityId, _selectedCityId, TravelMode.Horse);
+        var caravanQuote = _map.QuoteTravel(_currentCityId, _selectedCityId, TravelMode.Caravan);
 
-        var feeText = quote.TravelFee > 0 ? $"{quote.TravelFee} Quan Lộ Phí" : "Miễn phí lộ phí";
-        _expeditionMetricsText.Text = $"✦ Tiêu hao: {quote.RationsNeeded} phần lương khô | +{quote.FatigueExpected}% mệt mỏi | {feeText}";
+        _walkSubtitleText.Text = $"{walkQuote.ActualDays}N · 0q";
+        _horseSubtitleText.Text = $"{horseQuote.ActualDays}N (-{Math.Max(0, walkQuote.ActualDays - horseQuote.ActualDays)}N) · {horseQuote.TravelFee}q";
+        _caravanSubtitleText.Text = $"{caravanQuote.ActualDays}N · {caravanQuote.TravelFee}q";
 
-        _departBtn.IsEnabled = true;
-        _departBtn.Content = $"Khởi Hành Đến {targetCitadel.NameVi} ({quote.ActualDays}N) 🐎";
+        // Route path display with chokepoints
+        var pathItems = new List<string>();
+        for (var i = 0; i < proj.RouteSteps.Count; i++)
+        {
+            var step = proj.RouteSteps[i];
+            if (i == 0) pathItems.Add(step.FromName);
+            var toFormatted = step.IsChokepoint ? $"⚠️ {step.ToName} ({step.DangerLevel}★)" : step.ToName;
+            pathItems.Add(toFormatted);
+        }
+        _routePathText.Text = $"🗺️ Lộ trình ({quote.ActualDays} ngày): {string.Join(" ➔ ", pathItems)}";
+
+        // Populate supply and risk metric cards
+        _supplyMetricsPanel.Children.Clear();
+
+        // 1. Rations card
+        var rationStatusText = proj.MissingRations == 0
+            ? "Đủ dùng"
+            : (proj.HasEnoughFunds ? $"Thiếu {proj.MissingRations}p (Dịch trạm +{proj.RoadFoodFee}q)" : $"Thiếu {proj.MissingRations}p (Nguy cơ đói)");
+        var rationColor = proj.MissingRations == 0
+            ? Color.FromRgb(0x4E, 0xC9, 0x90)
+            : (proj.HasEnoughFunds ? Color.FromRgb(0xE5, 0xB5, 0x48) : Color.FromRgb(0xEF, 0x44, 0x44));
+        _supplyMetricsPanel.Children.Add(CreateSupplyMetricCard(
+            "🌾",
+            "Lương Thực",
+            $"{proj.TotalRationsAvailable} / {proj.RationsNeeded} phần",
+            $"Trong túi: {proj.GaoQty} Gạo, {proj.MeatQty} Thịt (Cần {proj.RationsNeeded} phần)",
+            rationStatusText,
+            rationColor));
+
+        // 2. Budget & Funds card
+        var budgetMain = proj.TotalCost > 0 ? $"{proj.TotalCost} Quan" : "0 Quan (Miễn phí)";
+        var budgetStatusText = proj.HasEnoughFunds ? "Đủ ngân lượng" : $"Thiếu {proj.TotalCost - proj.LiquidFunds}q";
+        var budgetColor = proj.HasEnoughFunds ? Color.FromRgb(0x4E, 0xC9, 0x90) : Color.FromRgb(0xEF, 0x44, 0x44);
+        _supplyMetricsPanel.Children.Add(CreateSupplyMetricCard(
+            "💰",
+            "Ngân Lượng",
+            budgetMain,
+            $"Lộ phí: {proj.TravelFee}q · Dịch trạm: {proj.RoadFoodFee}q | Ví: {proj.LiquidFunds}q",
+            budgetStatusText,
+            budgetColor));
+
+        // 3. Fatigue & Vitals card
+        var fatigueStatusText = proj.IsFatigueCritical
+            ? "Nguy cơ kiệt sức"
+            : (proj.ProjectedFatigue >= 70 ? "Mệt mỏi cao" : "Thể lực tốt");
+        var fatigueColor = proj.IsFatigueCritical
+            ? Color.FromRgb(0xEF, 0x44, 0x44)
+            : (proj.ProjectedFatigue >= 70 ? Color.FromRgb(0xE5, 0xB5, 0x48) : Color.FromRgb(0x4E, 0xC9, 0x90));
+        _supplyMetricsPanel.Children.Add(CreateSupplyMetricCard(
+            "💤",
+            "Thể Lực",
+            $"+{quote.FatigueExpected}% mệt mỏi",
+            $"Hiện tại: {proj.CurrentFatigue}% | Dự kiến sau chuyến đi: {proj.ProjectedFatigue}%",
+            fatigueStatusText,
+            fatigueColor));
+
+        // 4. Security & Cargo card
+        var securityMain = _selectedMode == TravelMode.Caravan
+            ? "Tiêu Cục Bảo Tiêu (Miễn cướp đường)"
+            : (proj.MaxDangerLevel >= 2 ? $"Nguy cơ sơn tặc (Hiểm trở Cấp {proj.MaxDangerLevel})" : "Quan lộ yên bình");
+        var securityStatusText = _selectedMode == TravelMode.Caravan
+            ? "Bảo Tiêu 100%"
+            : (proj.MaxDangerLevel >= 3 ? "Cực kỳ hiểm trở" : (proj.MaxDangerLevel == 2 ? "Có thổ phỉ" : "An toàn"));
+        var securityColor = _selectedMode == TravelMode.Caravan || proj.MaxDangerLevel <= 1
+            ? Color.FromRgb(0x4E, 0xC9, 0x90)
+            : (proj.MaxDangerLevel == 2 ? Color.FromRgb(0xE5, 0xB5, 0x48) : Color.FromRgb(0xEF, 0x44, 0x44));
+        _supplyMetricsPanel.Children.Add(CreateSupplyMetricCard(
+            "🛡️",
+            "An Ninh & Túi Đồ",
+            securityMain,
+            $"Tải trọng mang theo: {proj.CarryCapacity} đv (Hàng trong túi: {proj.CurrentCargoUnits} đv)",
+            securityStatusText,
+            securityColor));
+
+        _expeditionMetricsText.Text = string.Empty;
+
+        // Depart button validation
+        if (proj.CurrentFatigue >= 95)
+        {
+            _departBtn.IsEnabled = false;
+            _departBtn.Content = "Quá Kiệt Sức (Cần Nghỉ Ngơi) ⚠️";
+        }
+        else if (!proj.HasEnoughFunds)
+        {
+            _departBtn.IsEnabled = false;
+            _departBtn.Content = $"Thiếu Ngân Lượng ({proj.TotalCost} Quan) ⚠️";
+        }
+        else
+        {
+            _departBtn.IsEnabled = true;
+            _departBtn.Content = $"Khởi Hành Đến {targetCitadel.NameVi} ({quote.ActualDays}N) 🐎";
+        }
     }
 
     private static string GetSublocationIcon(string kind) => kind switch

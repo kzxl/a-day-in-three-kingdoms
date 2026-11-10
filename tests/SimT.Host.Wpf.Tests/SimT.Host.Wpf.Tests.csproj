@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
@@ -10,6 +10,13 @@
     <PackageReference Include="xunit" Version="2.5.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
     <ProjectReference Include="..\..\src\SimT.Host.Wpf\SimT.Host.Wpf.csproj" />
+    <ProjectReference Include="..\SimT.Testing\SimT.Testing.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Base.Content\SimT.Modules.Base.Content.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Base.World\SimT.Modules.Base.World.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Base.Player\SimT.Modules.Base.Player.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Economy\SimT.Modules.Dlc.Economy.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Character\SimT.Modules.Dlc.Character.csproj" />
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>
