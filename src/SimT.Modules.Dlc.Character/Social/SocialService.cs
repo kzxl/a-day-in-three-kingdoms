@@ -68,14 +68,32 @@ internal sealed partial class SocialService : ISocialNetwork
     public NpcDispositionDef GetDisposition(long npcId)
     {
         var rel = GetRelationship(npcId);
-        var recentMemories = _db.Query(
-            "SELECT topic, sentiment, affinity_delta FROM kz_memory WHERE npc_id = @id ORDER BY id DESC LIMIT 10",
-            r => (Topic: r.GetString(0), Sentiment: r.GetString(1), Delta: r.GetInt32(2)),
+        var memories = _db.Query(
+            "SELECT date, topic, sentiment, affinity_delta FROM kz_memory " +
+            "WHERE npc_id = @id AND topic <> 'chat' ORDER BY id DESC LIMIT 30",
+            r => (DateStr: r.GetString(0), Topic: r.GetString(1), Sentiment: r.GetString(2), Delta: r.GetInt32(3)),
             DbArgs.One("@id", npcId));
 
-        var hasBetrayal = recentMemories.Any(m => m.Topic == "betrayal" || (m.Sentiment == "negative" && m.Delta <= -20));
-        var hasRivalry = recentMemories.Any(m => m.Topic == "rival" || m.Topic == "feud");
-        var hasFavor = recentMemories.Any(m => m.Topic == "wish" || m.Topic == "bond_gratitude" || m.Topic == "cooperation");
+        var todayIndex = _clock.Today.DayIndex;
+        var archetype = GetPsycheProfile(npcId).Archetype;
+
+        var hasBetrayal = false;
+        var hasRivalry = false;
+        var hasFavor = false;
+
+        for (var i = 0; i < memories.Count; i++)
+        {
+            var m = memories[i];
+            var retention = ComputeMemoryRetention(m.Topic, m.Sentiment, m.DateStr, todayIndex, archetype);
+            var effectiveDelta = m.Delta * retention;
+
+            if (m.Topic == "betrayal" || (m.Sentiment == "negative" && effectiveDelta <= -15.0))
+                hasBetrayal = true;
+            else if ((m.Topic == "rival" || m.Topic == "feud") && effectiveDelta <= -1.0)
+                hasRivalry = true;
+            else if ((m.Topic == "wish" || m.Topic == "bond_gratitude" || m.Topic == "cooperation") && effectiveDelta >= 1.5)
+                hasFavor = true;
+        }
 
         if (rel.Affinity <= -20 || hasBetrayal || hasRivalry)
         {
@@ -98,6 +116,42 @@ internal sealed partial class SocialService : ISocialNetwork
         }
 
         return new NpcDispositionDef(npcId, false, false, 1000, "Bình thường");
+    }
+
+    internal static double ComputeMemoryRetention(
+        string topic,
+        string sentiment,
+        string dateStr,
+        long todayDayIndex,
+        CharacterArchetype archetype)
+    {
+        if (topic is "betrayal" or "wish" or "oath" or "introduction")
+            return 1.0;
+
+        var memDate = GameDateCodec.Parse(dateStr);
+        var deltaDays = Math.Max(0L, todayDayIndex - memDate.DayIndex);
+        if (deltaDays == 0)
+            return 1.0;
+
+        double baseHalfLifeDays = topic switch
+        {
+            "chat" => 30.0,
+            "gift" or "debate" or "recruit_declined" => 180.0,
+            "cooperation" => 360.0,
+            "rival" or "feud" or "bond_gratitude" => 540.0,
+            _ => 270.0
+        };
+
+        double archetypeFactor = archetype switch
+        {
+            CharacterArchetype.Hegemon when sentiment == "negative" => 1.5,
+            CharacterArchetype.Benevolent when sentiment == "positive" => 1.5,
+            CharacterArchetype.Pragmatist => 0.75,
+            _ => 1.0
+        };
+
+        var tau = Math.Max(15.0, baseHalfLifeDays * archetypeFactor);
+        return Math.Clamp(Math.Exp(-deltaDays / tau), 0.0, 1.0);
     }
 
     public IReadOnlyList<RelationshipDef> AllRelationships()

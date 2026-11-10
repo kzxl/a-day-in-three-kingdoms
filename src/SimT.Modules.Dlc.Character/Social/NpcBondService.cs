@@ -24,7 +24,8 @@ internal sealed class NpcBondService(ModuleContext context) : INpcBonds
             {
                 var registry = context.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
                 var all = registry.All.OrderBy(n => n.Id).ToArray();
-                var historical = all.Where(n => ForNpc(n.Id).Any(b => b.Source == "history")).Select(n => n.Id).ToHashSet();
+                var adjacency = LoadAdjacencyMap();
+                var historical = all.Where(n => GetFromMap(adjacency, n.Id).Any(b => b.Source == "history")).Select(n => n.Id).ToHashSet();
                 var eligible = all.Where(n => !historical.Contains(n.Id)).ToArray();
                 var targets = eligible.ToDictionary(n => n.Id, _ => context.Rng.Next(1, 4));
                 // Give everyone a first bond before filling extra slots; later NPCs cannot be stranded.
@@ -34,12 +35,15 @@ internal sealed class NpcBondService(ModuleContext context) : INpcBonds
                     var peers = all.Where(n => n.Id != npc.Id && !historical.Contains(n.Id) &&
                         (n.CitadelId == npc.CitadelId || n.Role == npc.Role)).ToList();
                     int target = pass == 1 ? 1 : targets[npc.Id];
-                    while (ForNpc(npc.Id).Count < target && peers.Count > 0)
+                    while (GetFromMap(adjacency, npc.Id).Count < target && peers.Count > 0)
                     {
                         var index = context.Rng.Next(0, peers.Count);
                         var other = peers[index]; peers.RemoveAt(index);
-                        if (ForNpc(other.Id).Count >= 3 || ForNpc(npc.Id).Any(b => b.Other(npc.Id) == other.Id)) continue;
-                        Insert(npc.Id, other.Id, context.Rng.Next(0, 5) == 0 ? "rival" : "friend", context.Rng.Next(25, 76), context.Clock.Today);
+                        if (GetFromMap(adjacency, other.Id).Count >= 3 || GetFromMap(adjacency, npc.Id).Any(b => b.Other(npc.Id) == other.Id)) continue;
+                        var kind = context.Rng.Next(0, 5) == 0 ? "rival" : "friend";
+                        var strength = context.Rng.Next(25, 76);
+                        Insert(npc.Id, other.Id, kind, strength, context.Clock.Today);
+                        AddToMap(adjacency, new NpcBond(Math.Min(npc.Id, other.Id), Math.Max(npc.Id, other.Id), kind, strength, context.Clock.Today, "sim"));
                     }
                 }
                 _db.Execute("INSERT INTO kz_bond_state VALUES ('initialized','1')");
@@ -48,6 +52,31 @@ internal sealed class NpcBondService(ModuleContext context) : INpcBonds
         finally
         {
             context.Rng.Reseed(sharedState);
+        }
+    }
+
+    private Dictionary<long, List<NpcBond>> LoadAdjacencyMap()
+    {
+        var allBonds = _db.Query(
+            "SELECT npc_a,npc_b,kind,strength,since_date,source FROM kz_npc_bond ORDER BY strength DESC,npc_a,npc_b,kind",
+            x => new NpcBond(x.GetInt64(0), x.GetInt64(1), x.GetString(2), x.GetInt32(3), GameDateCodec.Parse(x.GetString(4)), x.GetString(5)));
+        var map = new Dictionary<long, List<NpcBond>>();
+        for (var i = 0; i < allBonds.Count; i++)
+            AddToMap(map, allBonds[i]);
+        return map;
+    }
+
+    private static List<NpcBond> GetFromMap(Dictionary<long, List<NpcBond>> map, long npcId) =>
+        map.TryGetValue(npcId, out var list) ? list : [];
+
+    private static void AddToMap(Dictionary<long, List<NpcBond>> map, NpcBond bond)
+    {
+        if (!map.TryGetValue(bond.NpcA, out var listA)) map[bond.NpcA] = listA = [];
+        listA.Add(bond);
+        if (bond.NpcB != bond.NpcA)
+        {
+            if (!map.TryGetValue(bond.NpcB, out var listB)) map[bond.NpcB] = listB = [];
+            listB.Add(bond);
         }
     }
 
@@ -62,6 +91,7 @@ internal sealed class NpcBondService(ModuleContext context) : INpcBonds
         _db.Transaction(() =>
         {
             context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
+            var citadelByNpc = society?.AllActivities().ToDictionary(a => a.NpcId, a => a.CurrentCitadelId);
             var all = context.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry).All.OrderBy(n => n.Id).ToArray();
             var changes = 0;
             int start = all.Length == 0 ? 0 : context.Rng.Next(0, all.Length);
@@ -80,8 +110,11 @@ internal sealed class NpcBondService(ModuleContext context) : INpcBonds
                     changes++; break;
                 }
                 if (changes >= NpcBondRules.MonthlyChangeLimit || context.Rng.Next(0, 12) != 0) continue;
-                var peers = all.Where(n => n.Id != npc.Id && n.CurrentCitadelId(context.Capabilities) == npc.CurrentCitadelId(context.Capabilities)
-                    && !ForNpc(npc.Id).Any(b => b.Other(npc.Id) == n.Id)).ToArray();
+                var npcCitadelId = citadelByNpc != null && citadelByNpc.TryGetValue(npc.Id, out var cId) ? cId : npc.CitadelId;
+                var currentPeers = ForNpc(npc.Id).Select(b => b.Other(npc.Id)).ToHashSet();
+                var peers = all.Where(n => n.Id != npc.Id
+                    && (citadelByNpc != null && citadelByNpc.TryGetValue(n.Id, out var nCit) ? nCit : n.CitadelId) == npcCitadelId
+                    && !currentPeers.Contains(n.Id)).ToArray();
                 if (peers.Length == 0) continue;
                 var friend = peers[context.Rng.Next(0,peers.Length)];
                 Insert(npc.Id,friend.Id,"friend",40,date); changes++;

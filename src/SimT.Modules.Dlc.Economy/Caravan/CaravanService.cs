@@ -396,14 +396,24 @@ internal sealed class CaravanService : ICaravanGuild
         if (_capabilities != null && _capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social != null)
         {
             var destNpcs = _npcRegistry?.FindByCitadel(toCity) ?? Array.Empty<NpcDef>();
-            var grudgedNotables = destNpcs.Where(n => social.GetDisposition(n.Id).IsGrudged).ToList();
-            if (grudgedNotables.Count > 0 && (!effectiveEscort.HasValue || crew.EscortWar < 55))
+            var grudgedCount = 0;
+            var anyFavored = false;
+            for (var i = 0; i < destNpcs.Count; i++)
             {
-                var tollMarkup = Math.Min(400, grudgedNotables.Count * 120);
+                var disp = social.GetDisposition(destNpcs[i].Id);
+                if (disp.IsGrudged)
+                    grudgedCount++;
+                else if (disp.IsFavored)
+                    anyFavored = true;
+            }
+
+            if (grudgedCount > 0 && (!effectiveEscort.HasValue || crew.EscortWar < 55))
+            {
+                var tollMarkup = Math.Min(400, grudgedCount * 120);
                 fee = fee * (1000 + tollMarkup) / 1000;
                 routeDiplomacyNotice = " (quan ải thù địch phụ thu cước)";
             }
-            else if (destNpcs.Any(n => social.GetDisposition(n.Id).IsFavored))
+            else if (anyFavored)
             {
                 fee = Math.Max(1, fee * 850 / 1000);
                 routeDiplomacyNotice = " (tri kỷ địa phương miễn giảm thuế lộ)";

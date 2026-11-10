@@ -57,8 +57,10 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
         var choices = customChoices ?? BuildChoices(npc, currentCityId);
 
         _context.Capabilities.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
+        var localCitadelLookup = society?.AllActivities().ToDictionary(a => a.NpcId, a => a.CurrentCitadelId);
         var nearby = new[] { npc }
-            .Concat(npcs.All.Where(n => n.Id != npc.Id && n.CurrentCitadelId(society) == currentCityId))
+            .Concat(npcs.All.Where(n => n.Id != npc.Id &&
+                (localCitadelLookup != null && localCitadelLookup.TryGetValue(n.Id, out var cId) ? cId : n.CitadelId) == currentCityId))
             .Take(5)
             .Select(n => new SceneNpcThumb(
                 n.Id,
@@ -69,9 +71,17 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
 
         _context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var socialService);
         var psyche = socialService?.GetPsycheProfile(npc.Id);
-        var introduction = socialService?.GetMemories(npc.Id,100).FirstOrDefault(m => m.Topic == "introduction")?.SummaryVi
+        var memories = socialService?.GetMemories(npc.Id, 25) ?? Array.Empty<MemoryEntry>();
+        var introduction = memories.FirstOrDefault(m => m.Topic == "introduction")?.SummaryVi
             ?? socialService?.GetRelationship(npc.Id).Impression;
         if (introduction?.StartsWith("Bạn của ", StringComparison.Ordinal) == true) lines.Insert(0, introduction);
+
+        var recallLine = BuildEpisodicRecallLine(memories, _context.Clock.Today, psyche?.Archetype ?? CharacterArchetype.Pragmatist);
+        if (!string.IsNullOrWhiteSpace(recallLine) && !lines.Contains(recallLine, StringComparer.Ordinal))
+        {
+            var insertIdx = lines.Count > 0 && lines[0].StartsWith("Bạn của ", StringComparison.Ordinal) ? 1 : 0;
+            lines.Insert(insertIdx, recallLine);
+        }
 
         return new TalkScene(
             SceneId: $"talk:{npc.Id}", NpcId: npc.Id, NpcCode: npc.Code,
@@ -433,6 +443,49 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
         "xiangyang" or "tuong_duong" => "襄陽",
         _ => "城池"
     };
+
+    private static string? BuildEpisodicRecallLine(
+        IReadOnlyList<MemoryEntry> memories,
+        GameDate today,
+        CharacterArchetype archetype)
+    {
+        MemoryEntry? best = null;
+        var bestScore = 0.0;
+
+        for (var i = 0; i < memories.Count; i++)
+        {
+            var m = memories[i];
+            if (m.Topic is "chat" or "introduction")
+                continue;
+
+            var retention = SocialService.ComputeMemoryRetention(
+                m.Topic,
+                m.Sentiment,
+                GameDateCodec.Format(m.Date),
+                today.DayIndex,
+                archetype);
+            var score = Math.Abs(m.AffinityDelta) * retention;
+            if (score > bestScore && score >= 2.0)
+            {
+                bestScore = score;
+                best = m;
+            }
+        }
+
+        if (best is null)
+            return null;
+
+        return ClampLine90(best.Topic switch
+        {
+            "wish" => $"Ân tình giúp hoàn thành tâm nguyện năm {best.Date.Year}, tại hạ khắc cốt ghi tâm.",
+            "bond_gratitude" => ClampLine90(best.SummaryVi),
+            "betrayal" => $"Mối hận bội ước năm {best.Date.Year}, đừng tưởng thời gian trôi qua mà xóa nhòa!",
+            "feud" or "rival" => $"Chuyện hiềm khích bất hòa trước kia, trong lòng tại hạ vẫn chưa nguôi.",
+            "cooperation" => $"Nhớ lần hợp tác thương vụ thuận lợi trước đây, thật mong dịp tái ngộ.",
+            "gift" when best.AffinityDelta >= 6 => $"Món hậu lễ các hạ trao tặng lần trước, tại hạ vẫn luôn trân quý.",
+            _ => best.SummaryVi
+        });
+    }
 
     private static string SummarizeFeedback(string raw, string fallback)
     {
