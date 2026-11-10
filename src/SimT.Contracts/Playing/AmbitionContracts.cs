@@ -57,9 +57,25 @@ public sealed record EndgameAmbitionState(
     bool HasAnyVictory);
 
 /// <summary>
+/// A milestone achievement badge unlocked by the player across all gameplay pillars.
+/// </summary>
+public sealed record AchievementBadgeDef(
+    string Code,
+    string TitleVi,
+    string TitleEn,
+    string CategoryVi,
+    string Icon,
+    string DescriptionVi,
+    long CurrentValue,
+    long TargetValue,
+    bool IsUnlocked);
+
+/// <summary>
 /// Contract for evaluating endgame ambitions and victory conditions.
 /// </summary>
 public interface IEndgameAmbitions
 {
     EndgameAmbitionState Evaluate();
+
+    IReadOnlyList<AchievementBadgeDef> EvaluateAchievements() => Array.Empty<AchievementBadgeDef>();
 }

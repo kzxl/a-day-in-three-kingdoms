@@ -17,6 +17,24 @@ public sealed record ChildDef(
     string? FocusStat,
     int StatBonus);
 
+public sealed record PoliticalMarriageDef(
+    long ChildId,
+    string ChildNameVi,
+    long FactionId,
+    string FactionNameVi,
+    string SpouseTitleVi,
+    int MarriedDayIndex,
+    int TariffDiscountPermille,
+    int PrestigeBonus);
+
+public sealed record GenerationRecordDef(
+    int GenerationNumber,
+    string PatriarchNameVi,
+    long HeirChildId,
+    int AscendedDayIndex,
+    int InheritedPrestige,
+    string ChronicleVi);
+
 /// <summary>Read & action surface of <c>dlc.lineage</c>, provided as the <c>lineage.house</c> capability.</summary>
 public interface ILineageHouse
 {
@@ -38,6 +56,14 @@ public interface ILineageHouse
 
     IReadOnlyList<ChildDef> Children { get; }
 
+    int CurrentGeneration => 1;
+
+    int TotalTariffDiscountPermille => 0;
+
+    IReadOnlyList<PoliticalMarriageDef> PoliticalMarriages => Array.Empty<PoliticalMarriageDef>();
+
+    IReadOnlyList<GenerationRecordDef> GenerationHistory => Array.Empty<GenerationRecordDef>();
+
     LineageResult Marry();
 
     LineageResult Marry(long? npcId);
@@ -53,4 +79,8 @@ public interface ILineageHouse
     LineageResult AssignTutor(long childId, string mentorName, string focusStat);
 
     LineageResult TeachChild(long childId);
+
+    LineageResult ArrangePoliticalMarriage(long childId, long factionId) => LineageResult.Failure("Chưa hỗ trợ.");
+
+    LineageResult PassTorchToHeir() => LineageResult.Failure("Chưa hỗ trợ.");
 }

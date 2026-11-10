@@ -46,6 +46,8 @@ public static class CapabilityIds
     public const string GeopoliticalWar = "power.geopolitical-war";
     public const string EconomicWarfare = "economy.warfare";
     public const string EndgameAmbitions = "player.ambitions";
+    public const string EspionageNetwork = "society.espionage";
+    public const string ModLoader = "content.mod_loader";
     public const string EventPublisher = "core.events";
     public const string TimeService = "core.time";
     public const string Scheduler = "core.scheduler";

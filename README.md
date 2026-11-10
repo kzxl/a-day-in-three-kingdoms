@@ -1,6 +1,6 @@
 # A Day in the Three Kingdoms (Một Ngày Ở Tam Quốc · SimT)
 
-[![Build & Test](https://img.shields.io/badge/Tests-759%20Passed-emerald.svg)](tests/)
+[![Build & Test](https://img.shields.io/badge/Tests-763%20Passed-emerald.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%204%20DLC%20Pillars%20Monolith-blueviolet.svg)](docs/module-authoring.md)
 [![Platform](https://img.shields.io/badge/Platform-.NET%208%20%7C%20WPF%20%7C%20SQLite%20WAL-blue.svg)](src/SimT.Host.Wpf/)
 [![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
@@ -115,14 +115,14 @@ The gameplay systems are structured into cohesive, deep architectural modules:
 
 | Module | Kind | Focus Domains | Owned Schema |
 | --- | --- | --- | --- |
-| `base.content` | Base | 24+ trade goods, Item Encyclopedia Hub with deep lore records, category metadata & illustrations | `ct_item` |
+| `base.content` | Base | 32 trade goods, Item Encyclopedia Hub, and external JSON Modding SDK (`mods/*.json`) | `ct_item` |
 | `base.world` | Base | 20 citadels, 133 urban sublocations, 24 bidirectional trade routes, CityStroll interactive encounters | `wd_citadel`, `wd_route` |
-| `base.player` | Base | Protagonist attributes, per-city bag, wallet facade over ledger, two-way warehouse inventory exchange | `pl_player`, `pl_bag` |
-| `base.npc` | Base | 300 historical & procedural characters across 20 citadels | `np_npc` |
+| `base.player` | Base | Protagonist attributes, per-city bag, wallet facade, 5 Endgame Ambitions, and 11-badge Achievement Hall | `pl_player`, `pl_bag` |
+| `base.npc` | Base | 278 historical & procedural characters across 20 citadels | `np_npc` |
 | `dlc.economy` | Pillar | Market trading, seasonal prices, warehouses, banking & private banks, caravan logistics, professions, and farmland cultivation | `mk_*`, `cv_*`, `pf_*`, `fm_*` |
-| `dlc.character` | Pillar | NPC relationship tiers, dialogue trees, gift exchanges, sworn brotherhood, marriage, children, and lineage heir | `kz_*`, `dg_*`, `ln_*` |
-| `dlc.power` | Pillar | Court official appointments, reputation ranks, monthly stipends, martial duels, bandit stronghold suppression | `po_*`, `mi_*` |
-| `dlc.society` | Pillar | Autonomous 300-NPC simulation, rival merchants, karma consequences, dynamic life events, and chronicle logs | `so_*` |
+| `dlc.character` | Pillar | NPC relationship tiers, dialogue trees, sworn brotherhood, marriage, children, political marriages, and multi-generational heir succession | `kz_*`, `dg_*`, `ln_*` |
+| `dlc.power` | Pillar | Court official appointments, regional fiefdoms, martial duels, bandit strongholds, and Yangtze naval shipyards & riverine campaigns | `po_*`, `ml_*` |
+| `dlc.society` | Pillar | Autonomous 278-NPC simulation, rival merchants, karma consequences, covert spy network (`Tế Tác`), and 5 Legendary Hermit Tomes | `so_*` |
 
 ### Backward Compatibility & Idempotent Migrations
 Legacy saves containing historical records from individual micro-modules (`dlc.market`, `dlc.caravan`, etc.) are automatically normalized and mapped to the 4 Pillars via `SaveManager.NormalizeModules` and a global idempotent `MigrationRunner`.

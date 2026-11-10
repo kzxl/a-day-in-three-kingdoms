@@ -33,6 +33,45 @@ public sealed class EndgameAmbitionService : IEndgameAmbitions
         return new EndgameAmbitionState(branches, completedCount, completedCount > 0);
     }
 
+    public IReadOnlyList<AchievementBadgeDef> EvaluateAchievements()
+    {
+        var hasWallet = _capabilities.TryGet<IWallet>(CapabilityIds.PlayerWallet, out var wallet) && wallet is not null;
+        var hasAttrs = _capabilities.TryGet<IPlayerAttributes>(CapabilityIds.PlayerAttributes, out var attrs) && attrs is not null;
+        var hasRep = _capabilities.TryGet<IPlayerReputation>(CapabilityIds.PlayerReputation, out var rep) && rep is not null;
+        var hasLineage = _capabilities.TryGet<ILineageHouse>(CapabilityIds.LineageHouse, out var lineage) && lineage is not null;
+        var hasMilitary = _capabilities.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var military) && military is not null;
+        var hasSocial = _capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null;
+        var hasCourt = _capabilities.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice, out var court) && court is not null;
+        var hasEspionage = _capabilities.TryGet<IEspionageNetwork>(CapabilityIds.EspionageNetwork, out var espionage) && espionage is not null;
+
+        var balance = hasWallet ? wallet!.Balance : (_ledger?.Balance ?? 0);
+        var fame = hasRep ? rep!.Standing.Fame : 0;
+        var war = hasAttrs ? attrs!.Attributes.War : 0;
+        var childCount = hasLineage ? lineage!.ChildCount : 0;
+        var generation = hasLineage ? lineage!.CurrentGeneration : 1;
+        var alliances = hasLineage ? lineage!.PoliticalMarriages.Count : 0;
+        var clearedStrongholds = hasMilitary ? military!.AllStrongholds().Sum(s => s.ClearedCount) : 0;
+        var swornBrothers = hasSocial ? social!.AllRelationships().Count(r => r.Affinity >= 80) : 0;
+        var officeRank = hasCourt && court!.OfficeId > 0 ? (court.Offices.FirstOrDefault(o => o.Id == court.OfficeId)?.Rank ?? (int)court.OfficeId) : 0;
+        var acquiredTomes = hasEspionage ? espionage!.GetHermitTomes().Count(t => t.IsAcquired) : 0;
+        var spyCells = hasEspionage ? espionage!.GetSpyNodes().Count(n => n.IntelLevel > 0) : 0;
+
+        return
+        [
+            new("ach_first_fortune", "Thương Nhân Khởi Nghiệp", "Rising Merchant", "Thương Nghiệp", "🪙", "Tích lũy 5.000 Quan ngân lượng trong thương quỹ", balance, 5000, balance >= 5000),
+            new("ach_grand_tycoon", "Phú Giả Nhất Phương", "Regional Tycoon", "Thương Nghiệp", "💎", "Tích lũy 25.000 Quan ngân lượng", balance, 25000, balance >= 25000),
+            new("ach_bandit_slayer", "Bình Tặc Tiên Phong", "Bandit Suppressor", "Võ Nghiệp", "⚔️", "Tiễu trừ thành công ít nhất 1 sào huyệt sơn tặc", clearedStrongholds, 1, clearedStrongholds >= 1),
+            new("ach_peerless_warrior", "Vạn Phu Mạc Địch", "Peerless Warrior", "Võ Nghiệp", "🐯", "Rèn luyện Võ Lực đạt mốc 80 điểm trở lên", war, 80, war >= 80),
+            new("ach_sworn_oath", "Tri Kỷ Tâm Giao", "Sworn Confidant", "Giao Hảo", "🍑", "Kết giao sinh tử (Hảo cảm ≥ 80) với ít nhất 1 danh sĩ", swornBrothers, 1, swornBrothers >= 1),
+            new("ach_imperial_mandarin", "Bước Chân Quan Trường", "Imperial Mandarin", "Chính Trị", "🏛️", "Được sắc phong quan chức triều đình hoặc chư hầu", officeRank, 1, officeRank >= 1),
+            new("ach_dynasty_heir", "Khai Chi Tán Diệp", "Dynasty Scion", "Gia Tộc", "🌿", "Sinh con nối dõi hoặc truyền thừa sang Đời thứ 2", Math.Max(childCount, generation - 1), 1, childCount >= 1 || generation >= 2),
+            new("ach_royal_inlaw", "Quốc Thích Liên Hôn", "Royal In-Law", "Gia Tộc", "🤝", "Kết thông gia liên hôn với ít nhất 1 thế lực chư hầu", alliances, 1, alliances >= 1),
+            new("ach_shadow_master", "Thiên La Địa Võng", "Spymaster", "Mật Vụ", "🕵️", "Thiết lập mạng lưới Tế Tác tại ít nhất 2 thành trì", spyCells, 2, spyCells >= 2),
+            new("ach_hermit_scholar", "Chân Truyền Ẩn Sĩ", "Hermit's Disciple", "Kỳ Ngộ", "📘", "Tầm sư học đạo và lĩnh hội ít nhất 1 bộ Kỳ Thư Tam Quốc", acquiredTomes, 1, acquiredTomes >= 1),
+            new("ach_realm_renowned", "Danh Chấn Cửu Châu", "Realm Renowned", "Danh Vọng", "🌟", "Uy danh giang hồ & triều dã đạt 150 điểm", fame, 150, fame >= 150)
+        ];
+    }
+
     private AmbitionBranch EvaluateKingmaker()
     {
         var hasCourt = _capabilities.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice, out var court) && court is not null;

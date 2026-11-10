@@ -172,6 +172,60 @@ internal sealed class MilitaryScreen : IScreenContribution
             sections.Add(new ScreenSection($"🌾 Lệnh Tiếp Tế Quân Lương Doanh ({requisitions.Count})", reqColumns, reqRows, SectionViewMode.TacticalWarCamp));
         }
 
+        // 4. Naval Shipyard & Riverine Fleet Section (Pillar 2)
+        var fleet = _military.GetNavalFleet(currentCityId);
+        var navalColumns = new[] { "Hạng Mục Thủy Sư", "Quy Mô Hiện Tại", "Chi Phí / Yêu Cầu", "Thủy Lực Cộng Thêm", "Chiến Tích Tuần Giang", "Thao Tác Quân Cảng" };
+        var lastPatrolText = fleet.LastPatrolDate.HasValue ? GameDateCodec.Format(fleet.LastPatrolDate.Value) : "Chưa xuất kích";
+        var navalRows = new List<ScreenRow>
+        {
+            new(
+                ["🚤 Mông Xung Xung Kích Hạm", $"{fleet.MongXungCount} chiếc", "120 Quan / chiếc", "+15 Thủy Lực", $"Tổng: {fleet.NavalPower} điểm", "Tàu nhẹ bọc da trâu phá trận"],
+                [new ScreenCommand($"naval:build:{currentCityId}:MongXung", "Đóng Mông Xung (120Q) 🚤", CommandKind.Secondary)],
+                Title: "Mông Xung Xung Kích Hạm",
+                Details:
+                [
+                    new ScreenDetail("Loại Chiến Thuyền", "Mông Xung (Tàu xung kích tốc chiến)"),
+                    new ScreenDetail("Số Lượng Sở Hữu", $"{fleet.MongXungCount} chiếc"),
+                    new ScreenDetail("Chi Phí Đóng Mới", "120 Quan"),
+                    new ScreenDetail("Thủy Lực Tăng Thêm", "+15 điểm / chiếc")
+                ]),
+            new(
+                ["⛵ Đấu Hạm Chiến Thuyền", $"{fleet.DauHamCount} chiếc", "260 Quan / chiếc", "+35 Thủy Lực", $"Tổng: {fleet.NavalPower} điểm", "Chiến hạm chủ lực chở cung nỏ"],
+                [new ScreenCommand($"naval:build:{currentCityId}:DauHam", "Đóng Đấu Hạm (260Q) ⛵", CommandKind.Secondary)],
+                Title: "Đấu Hạm Chiến Thuyền",
+                Details:
+                [
+                    new ScreenDetail("Loại Chiến Thuyền", "Đấu Hạm (Chiến thuyền giáp chiến)"),
+                    new ScreenDetail("Số Lượng Sở Hữu", $"{fleet.DauHamCount} chiếc"),
+                    new ScreenDetail("Chi Phí Đóng Mới", "260 Quan"),
+                    new ScreenDetail("Thủy Lực Tăng Thêm", "+35 điểm / chiếc")
+                ]),
+            new(
+                ["🚢 Lâu Thuyền Đại Soái Hạm", $"{fleet.LauThuyenCount} chiếc", "500 Quan / chiếc", "+75 Thủy Lực", $"Tổng: {fleet.NavalPower} điểm", "Soái hạm 3 tầng lầu áp đảo Trường Giang"],
+                [new ScreenCommand($"naval:build:{currentCityId}:LauThuyen", "Đóng Lâu Thuyền (500Q) 🚢", CommandKind.Primary)],
+                Title: "Lâu Thuyền Đại Soái Hạm",
+                Details:
+                [
+                    new ScreenDetail("Loại Chiến Thuyền", "Lâu Thuyền (Đại chiến hạm chỉ huy)"),
+                    new ScreenDetail("Số Lượng Sở Hữu", $"{fleet.LauThuyenCount} chiếc"),
+                    new ScreenDetail("Chi Phí Đóng Mới", "500 Quan"),
+                    new ScreenDetail("Thủy Lực Tăng Thêm", "+75 điểm / chiếc")
+                ]),
+            new(
+                ["🌊 Chiến Dịch Tuần Giang Tiễu Phỉ", $"{fleet.TotalShips} chiến thuyền", "Thủy lực ≥ 15 · -15 Mệt mỏi", $"Thủy lực: {fleet.NavalPower}", $"{fleet.PatrolVictoryCount} trận thắng ({lastPatrolText})", "Quét sạch thủy tặc, hộ tống đường sông"],
+                [new ScreenCommand($"naval:campaign:{currentCityId}", "Xuất Kích Thủy Quân 🌊", fleet.NavalPower >= 15 ? CommandKind.Danger : CommandKind.Secondary)],
+                Title: $"Thủy Sư Đô Đốc Phủ · {currentCitadelName}",
+                Details:
+                [
+                    new ScreenDetail("Tổng Chiến Thuyền", $"{fleet.TotalShips} chiếc ({fleet.MongXungCount} Mông Xung, {fleet.DauHamCount} Đấu Hạm, {fleet.LauThuyenCount} Lâu Thuyền)"),
+                    new ScreenDetail("Tổng Thủy Lực", $"{fleet.NavalPower} điểm"),
+                    new ScreenDetail("Chiến Tích Bình Giang", $"{fleet.PatrolVictoryCount} lần đại thắng"),
+                    new ScreenDetail("Lần Xuất Kích Cuối", lastPatrolText)
+                ])
+        };
+
+        sections.Add(new ScreenSection($"⛵ Thủy Quân Đô Đốc Phủ & Chiến Thuyền · {currentCitadelName} ({fleet.TotalShips} tàu · Thủy lực {fleet.NavalPower})", navalColumns, navalRows, SectionViewMode.TacticalWarCamp));
+
         var pAttr = _attributes.Attributes;
         var totalCleared = strongholds.Sum(s => s.ClearedCount);
 
@@ -211,17 +265,45 @@ internal sealed class MilitaryScreen : IScreenContribution
 internal sealed class MilitaryCommandHandler : IScreenCommandHandler
 {
     private readonly IMilitaryCommand _military;
+    private readonly IPlayerState? _player;
 
-    public MilitaryCommandHandler(IMilitaryCommand military)
+    public MilitaryCommandHandler(IMilitaryCommand military, IPlayerState? player = null)
     {
         _military = military;
+        _player = player;
     }
 
     public string ScreenId => "military.arena";
 
     public string? Execute(string commandId)
     {
-        if (commandId.StartsWith("duel:"))
+        if (commandId.StartsWith("naval:build:"))
+        {
+            var raw = commandId["naval:build:".Length..];
+            var parts = raw.Split(':');
+            long citId = _player?.CurrentCityId ?? 1L;
+            string kindStr = parts[0];
+            if (parts.Length >= 2 && long.TryParse(parts[0], out var parsedCitId))
+            {
+                citId = parsedCitId;
+                kindStr = parts[1];
+            }
+
+            if (Enum.TryParse<NavalShipKind>(kindStr, true, out var shipKind))
+            {
+                return _military.CommissionWarship(citId, shipKind);
+            }
+        }
+        else if (commandId.StartsWith("naval:campaign"))
+        {
+            long citId = _player?.CurrentCityId ?? 1L;
+            if (commandId.StartsWith("naval:campaign:") && long.TryParse(commandId["naval:campaign:".Length..], out var parsedCitId))
+            {
+                citId = parsedCitId;
+            }
+            return _military.LaunchNavalCampaign(citId);
+        }
+        else if (commandId.StartsWith("duel:"))
         {
             var raw = commandId["duel:".Length..];
             var parts = raw.Split(':');

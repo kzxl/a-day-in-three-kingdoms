@@ -13,12 +13,15 @@
     "society.merchant_rivalry",
     "society.karma",
     "society.rumors",
-    "history.rumor_events"
+    "history.rumor_events",
+    "society.espionage"
   ],
   "consumes": [
     "world.map",
     "npc.registry",
-    "player.state"
+    "player.state",
+    "player.wallet",
+    "player.attributes"
   ],
   "owns": {
     "tables": [
@@ -37,7 +40,9 @@
       "so_personal_event",
       "so_npc_bond",
       "so_npc_needs",
-      "so_npc_goal"
+      "so_npc_goal",
+      "so_spy_network",
+      "so_hermit_tome"
     ],
     "migrations": [
       "migrations"

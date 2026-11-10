@@ -143,7 +143,9 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
             new("filter:grain", "🍚 Lương Thực (2)", _activeCategory == "grain" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:medicine", "🌿 Dược Liệu (2)", _activeCategory == "medicine" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:material", "⚒️ Khoáng Sản (5)", _activeCategory == "material" ? CommandKind.Primary : CommandKind.Secondary),
-            new("filter:luxury", "✨ Xa Xỉ (4)", _activeCategory == "luxury" ? CommandKind.Primary : CommandKind.Secondary)
+            new("filter:luxury", "✨ Xa Xỉ (4)", _activeCategory == "luxury" ? CommandKind.Primary : CommandKind.Secondary),
+            new("mod:create_template", "🧩 Tạo Mẫu Mod JSON", CommandKind.Secondary),
+            new("mod:apply:tk.treasures.pack", "📥 Nạp Gói Mod Mẫu", CommandKind.Secondary)
         };
 
         var status = $"Đang duyệt '{activeFilterLabel}' · {entries.Count} kỳ vật hiển thị · Nhấn vào từng hàng để xem hình minh họa và thông số đồ giám chuyên sâu.";
@@ -209,6 +211,23 @@ public sealed class ItemHubScreen : IScreenContribution, IScreenCommandHandler
                     wh.Take(player.CurrentCityId, takeItemId, qty, out var msg);
                     return msg;
                 }
+            }
+        }
+
+        if (commandId.Equals("mod:create_template", StringComparison.OrdinalIgnoreCase))
+        {
+            if (_broker.TryGet<IModLoaderService>(CapabilityIds.ModLoader, out var modLoader) && modLoader is not null)
+            {
+                return modLoader.CreateSampleModTemplate();
+            }
+        }
+
+        if (commandId.StartsWith("mod:apply:", StringComparison.OrdinalIgnoreCase))
+        {
+            var modId = commandId["mod:apply:".Length..].Trim();
+            if (_broker.TryGet<IModLoaderService>(CapabilityIds.ModLoader, out var modLoader) && modLoader is not null)
+            {
+                return modLoader.ApplyModPackage(modId);
             }
         }
 

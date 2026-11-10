@@ -18,6 +18,9 @@ public sealed class ContentModule : ISimModule
         var hub = new ItemHubService(catalog);
         context.Capabilities.Provide(CapabilityIds.ItemHub, hub);
 
+        var modLoader = new ModLoaderService(context.Db, hub, catalog.RegisterDynamicItem);
+        context.Capabilities.Provide(CapabilityIds.ModLoader, modLoader);
+
         var screen = new ItemHubScreen(hub, context.Capabilities);
         context.Ui.AddScreen(screen);
         context.Ui.AddCommandHandler(screen);
@@ -27,7 +30,7 @@ public sealed class ContentModule : ISimModule
 
     private sealed class ItemCatalog : IItemCatalog
     {
-        private readonly ItemDef[] _items;
+        private readonly List<ItemDef> _items;
         private readonly Dictionary<long, ItemDef> _byId;
 
         public ItemCatalog(IDbSession db)
@@ -43,12 +46,26 @@ public sealed class ContentModule : ISimModule
                         row.GetInt64(5),
                         row.GetInt32(6),
                         row.GetInt32(7)))
-                .ToArray();
+                .ToList();
 
-            _byId = new Dictionary<long, ItemDef>(_items.Length);
+            _byId = new Dictionary<long, ItemDef>(_items.Count);
             foreach (var item in _items)
             {
                 _byId[item.Id] = item;
+            }
+        }
+
+        public void RegisterDynamicItem(ItemDef item)
+        {
+            _byId[item.Id] = item;
+            var idx = _items.FindIndex(x => x.Id == item.Id || string.Equals(x.Code, item.Code, StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0)
+            {
+                _items[idx] = item;
+            }
+            else
+            {
+                _items.Add(item);
             }
         }
 

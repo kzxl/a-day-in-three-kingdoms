@@ -16,7 +16,7 @@ internal sealed record ChildTutorInfo(string Name, string Mentor, string Focus, 
 /// Household and succession. Marriage and childbirth are paid events, upkeep is a real monthly
 /// cashflow, and exactly one heir may be designated — the database enforces the last one.
 /// </summary>
-internal sealed class LineageService : ILineageHouse
+internal sealed partial class LineageService : ILineageHouse
 {
     public const long DowryCost = 300;
     public const long ChildCost = 50;
@@ -38,6 +38,7 @@ internal sealed class LineageService : ILineageHouse
     private readonly ILog _log;
     private readonly INpcRegistry? _registry;
     private readonly ISocialNetwork? _social;
+    private readonly SimT.Contracts.Modules.ICapabilityBroker? _capabilities;
 
     public LineageService(
         IDbSession db,
@@ -48,7 +49,8 @@ internal sealed class LineageService : ILineageHouse
         IActionTime actionTime,
         ILog log,
         INpcRegistry? registry = null,
-        ISocialNetwork? social = null)
+        ISocialNetwork? social = null,
+        SimT.Contracts.Modules.ICapabilityBroker? capabilities = null)
     {
         _db = db;
         _clock = clock;
@@ -59,6 +61,7 @@ internal sealed class LineageService : ILineageHouse
         _log = log;
         _registry = registry;
         _social = social;
+        _capabilities = capabilities;
     }
 
     public bool IsMarried => _db.ScalarLong("SELECT COUNT(*) FROM ln_spouse") > 0;

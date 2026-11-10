@@ -129,6 +129,11 @@
                                                      Variant="Primary" Click="ChronicleRecord_Click" HorizontalAlignment="Left" />
                             </StackPanel>
                         </Border>
+
+                        <!-- Achievement Hall Section (Pillar 5) -->
+                        <TextBlock x:Name="AchievementHallHeader" Text="🏅 ĐIỆN THÀNH TỰU · DANH HIỆU BÁCH NGHIỆP"
+                                   Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="0,8,0,8" />
+                        <StackPanel x:Name="AchievementsStackPanel" Margin="0,0,0,8" />
                     </StackPanel>
                 </ScrollViewer>
             </Border>

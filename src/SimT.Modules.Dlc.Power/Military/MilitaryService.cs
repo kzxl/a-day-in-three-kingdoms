@@ -6,7 +6,7 @@ using SimT.Contracts.Time;
 
 namespace SimT.Modules.Dlc.Power;
 
-internal sealed class MilitaryService : IMilitaryCommand
+internal sealed partial class MilitaryService : IMilitaryCommand
 {
     private readonly IDbSession _db;
     private readonly IGameClock _clock;

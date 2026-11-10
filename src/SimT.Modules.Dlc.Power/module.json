@@ -60,7 +60,8 @@
       "po_scrutiny_demand",
       "po_philanthropy_log",
       "po_court_faction_standing",
-      "po_imperial_inspection_log"
+      "po_imperial_inspection_log",
+      "ml_naval_shipyard"
     ],
     "migrations": [
       "migrations"

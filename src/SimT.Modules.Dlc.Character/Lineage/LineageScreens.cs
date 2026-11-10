@@ -63,6 +63,10 @@ internal sealed class FamilyScreen : IScreenContribution
         {
             commands.Add(new ScreenCommand("upgrade_shrine", $"Tu Bổ Từ Đường (Cấp {_service.ShrineLevel + 1} · {_service.ShrineLevel * 500} Quan)"));
         }
+        if (_service.HeirName is not null)
+        {
+            commands.Add(new ScreenCommand("succeed_heir", $"👑 Truyền Ngôi Thế Tử ({_service.HeirName})", CommandKind.Primary));
+        }
 
         var status = _service.IsMarried
             ? $"Chính thất: {_service.SpouseName} · {_service.ChildCount} con · phí tháng {_service.MonthlyUpkeep} Quan"
@@ -149,6 +153,7 @@ internal sealed class FamilyScreen : IScreenContribution
                 {
                     rowCmds.Add(new ScreenCommand($"heir:{c.Id}", "Lập Kế Vị"));
                 }
+                rowCmds.Add(new ScreenCommand($"alliance:{c.Id}:1", "🤝 Liên Hôn Chư Hầu (250Q)"));
 
                 return new ScreenRow(
                     [
@@ -163,6 +168,44 @@ internal sealed class FamilyScreen : IScreenContribution
             }).ToList();
 
             sections.Add(new ScreenSection("Tử Tức & Giáo Dưỡng", childCols, childRows, SectionViewMode.DossierGrid));
+        }
+
+        var alliances = _service.PoliticalMarriages;
+        var genHistory = _service.GenerationHistory;
+        if (alliances.Count > 0 || genHistory.Count > 0)
+        {
+            var dynastyCols = new[] { "Hạng Mục Thế Gia", "Nhân Vật / Thế Hệ", "Đối Tác / Danh Xưng", "Đặc Quyền Gia Tộc", "Biên Niên Sử" };
+            var dynastyRows = new List<ScreenRow>();
+
+            foreach (var al in alliances)
+            {
+                dynastyRows.Add(new ScreenRow(
+                    [
+                        "🤝 Liên Hôn Chư Hầu",
+                        al.ChildNameVi,
+                        $"{al.SpouseTitleVi} ({al.FactionNameVi})",
+                        $"Giảm {al.TariffDiscountPermille / 10.0:0.#}% thuế · +{al.PrestigeBonus} Gia uy",
+                        GameDateCodec.ShortVi(GameDate.FromDayIndex(al.MarriedDayIndex))
+                    ],
+                    Array.Empty<ScreenCommand>(),
+                    Title: $"Liên Hôn: {al.ChildNameVi} & {al.SpouseTitleVi}"));
+            }
+
+            foreach (var gen in genHistory)
+            {
+                dynastyRows.Add(new ScreenRow(
+                    [
+                        $"👑 Truyền Thừa Đời {gen.GenerationNumber}",
+                        gen.PatriarchNameVi,
+                        "Tân Gia Chủ Kế Nghiệp",
+                        $"Gia uy kế thừa: {gen.InheritedPrestige}",
+                        gen.ChronicleVi
+                    ],
+                    Array.Empty<ScreenCommand>(),
+                    Title: $"Đời thứ {gen.GenerationNumber}: {gen.PatriarchNameVi}"));
+            }
+
+            sections.Add(new ScreenSection($"🏛️ Liên Minh Thế Gia & Biên Niên Truyền Thừa (Đời thứ {_service.CurrentGeneration} · Miễn thuế {_service.TotalTariffDiscountPermille / 10.0:0.#}%)", dynastyCols, dynastyRows, SectionViewMode.DossierGrid));
         }
 
         return new ScreenModel(
@@ -223,6 +266,20 @@ internal sealed class FamilyCommandHandler : IScreenCommandHandler
         if (commandId == "hold_offering")
         {
             return _service.HoldOffering().Message;
+        }
+
+        if (commandId == "succeed_heir")
+        {
+            return _service.PassTorchToHeir().Message;
+        }
+
+        if (commandId.StartsWith("alliance:"))
+        {
+            var parts = commandId["alliance:".Length..].Split(':');
+            if (parts.Length >= 2 && long.TryParse(parts[0], out var cId) && long.TryParse(parts[1], out var fId))
+            {
+                return _service.ArrangePoliticalMarriage(cId, fId).Message;
+            }
         }
 
         if (commandId.StartsWith("teach:"))

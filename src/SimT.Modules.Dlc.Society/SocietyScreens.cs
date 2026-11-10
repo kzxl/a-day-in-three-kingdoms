@@ -57,6 +57,8 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
 
         if (_filterKind == "rumors") return RenderRumors();
 
+        if (_filterKind == "espionage") return RenderEspionage(currentCityId, currentCitadelName);
+
         var allEvents = _chronicle.RecentEvents(limit: 60);
         var localEvents = allEvents.Where(e => e.CitadelId == currentCityId).ToList();
 
@@ -140,6 +142,7 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
             new("filter:history", "🐉 Sử Biến", _filterKind == "history" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", _filterKind == "rivals" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:karma", "⚖️ Nhân Quả", _filterKind == "karma" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:espionage", "🕵️ Mật Thám & Kỳ Thư", _filterKind == "espionage" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:rumors", "Tin Đồn", _filterKind == "rumors" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:migration", "🏃 Di Cư", _filterKind == "migration" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:travel", "🗺️ Du Hành", _filterKind == "travel" ? CommandKind.Primary : CommandKind.Secondary)
@@ -526,6 +529,29 @@ internal sealed class SocietyCommandHandler : IScreenCommandHandler
                 }
             }
             return "Không thể kích hoạt sự kiện nhân quả này.";
+        }
+
+        if (_screen.Chronicle is IEspionageNetwork espionage)
+        {
+            if (commandId.StartsWith("spy:deploy:") && long.TryParse(commandId["spy:deploy:".Length..], out var deployCitId))
+            {
+                return espionage.DeploySpyCell(deployCitId);
+            }
+
+            if (commandId.StartsWith("spy:whisper:"))
+            {
+                var parts = commandId["spy:whisper:".Length..].Split(':');
+                if (parts.Length >= 2 && long.TryParse(parts[0], out var whisperCitId))
+                {
+                    return espionage.ExecuteCovertWhisper(whisperCitId, parts[1]);
+                }
+            }
+
+            if (commandId.StartsWith("tome:seek:"))
+            {
+                var code = commandId["tome:seek:".Length..];
+                return espionage.SeekHermitTome(code);
+            }
         }
 
         return null;

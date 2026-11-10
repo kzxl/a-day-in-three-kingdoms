@@ -57,7 +57,7 @@ public sealed class CharacterModule : ISimModule
         context.Capabilities.Provide(CapabilityIds.Dialogue, dialogueService);
 
         // 3. Lineage Service
-        var lineageService = new LineageService(context.Db, context.Clock, wallet, context.Rng, context.Ids, context.ActionTime, context.Log, registry, socialService);
+        var lineageService = new LineageService(context.Db, context.Clock, wallet, context.Rng, context.Ids, context.ActionTime, context.Log, registry, socialService, context.Capabilities);
         context.Capabilities.Provide(CapabilityIds.LineageHouse, lineageService);
 
         context.Ui.AddScreen(new FamilyScreen(lineageService));

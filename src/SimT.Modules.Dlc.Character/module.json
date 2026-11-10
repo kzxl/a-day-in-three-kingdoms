@@ -41,7 +41,9 @@
       "kz_wish_state",
       "kz_met_npc",
       "kz_roster_milestone",
-      "kz_retainer_audit_log"
+      "kz_retainer_audit_log",
+      "ln_generation_log",
+      "ln_political_marriage"
     ],
     "migrations": ["migrations"]
   },

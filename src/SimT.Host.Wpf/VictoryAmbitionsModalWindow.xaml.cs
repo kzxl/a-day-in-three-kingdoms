@@ -213,6 +213,24 @@ public partial class VictoryAmbitionsModalWindow : HubModalWindowBase
             EpilogueBox.Opacity = 0.85;
             ChronicleRecordButton.Visibility = Visibility.Collapsed;
         }
+
+        // Render Achievement Hall Badges (Pillar 5)
+        var achievements = _ambitions.EvaluateAchievements();
+        var unlockedCount = achievements.Count(a => a.IsUnlocked);
+        AchievementHallHeader.Text = $"🏅 ĐIỆN THÀNH TỰU · DANH HIỆU BÁCH NGHIỆP ({unlockedCount} / {achievements.Count} ĐẠT THÀNH)";
+        AchievementsStackPanel.Children.Clear();
+        foreach (var ach in achievements)
+        {
+            var achReq = new AmbitionRequirement(
+                ach.Code,
+                $"{ach.Icon} [{ach.CategoryVi}] {ach.TitleVi}",
+                ach.DescriptionVi,
+                ach.CurrentValue,
+                ach.TargetValue,
+                "",
+                ach.IsUnlocked);
+            AchievementsStackPanel.Children.Add(BuildRequirementRow(achReq));
+        }
     }
 
     private UIElement BuildRequirementRow(AmbitionRequirement req)

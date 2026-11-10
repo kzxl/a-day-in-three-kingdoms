@@ -256,6 +256,37 @@ public sealed record ArmorySimulationResult(
     string StatusVi);
 
 /// <summary>
+/// Warship classes for Yangtze and Yellow River naval warfare.
+/// </summary>
+public enum NavalShipKind
+{
+    /// <summary>Mông Xung (Fast assault ramming vessel).</summary>
+    MongXung = 0,
+
+    /// <summary>Đấu Hạm (Armored riverine combat warship).</summary>
+    DauHam = 1,
+
+    /// <summary>Lâu Thuyền (Multi-deck command flagship).</summary>
+    LauThuyen = 2
+}
+
+/// <summary>
+/// State of a citadel's naval shipyard and riverine fleet.
+/// </summary>
+public sealed record NavalFleetDef(
+    long CitadelId,
+    int MongXungCount,
+    int DauHamCount,
+    int LauThuyenCount,
+    int NavalPower,
+    int PatrolVictoryCount,
+    GameDate? LastPatrolDate,
+    bool IsNavalPort = true)
+{
+    public int TotalShips => MongXungCount + DauHamCount + LauThuyenCount;
+}
+
+/// <summary>
 /// Military, martial arena, and expedition surface owned by <c>dlc.military</c>.
 /// </summary>
 public interface IMilitaryCommand
@@ -301,4 +332,13 @@ public interface IMilitaryCommand
 
     /// <summary>Reinforces the military armory of a citadel with additional weapons.</summary>
     void ReinforceArmory(long citadelId, int weaponCount, string statusVi) { }
+
+    /// <summary>Queries the naval shipyard and fleet state of a citadel.</summary>
+    NavalFleetDef GetNavalFleet(long citadelId) => new(citadelId, 0, 0, 0, 0, 0, null, false);
+
+    /// <summary>Commissions a new warship at a citadel's naval dockyard.</summary>
+    string CommissionWarship(long citadelId, NavalShipKind shipKind) => string.Empty;
+
+    /// <summary>Launches a riverine naval campaign to suppress water pirates and secure waterways.</summary>
+    string LaunchNavalCampaign(long citadelId) => string.Empty;
 }
