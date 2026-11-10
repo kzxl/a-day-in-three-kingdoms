@@ -331,4 +331,88 @@ public sealed class DeepOfficialdomTests : IDisposable
         Assert.Contains(logs, l => l.ExpeditionType == "PACIFY_BANDITS");
         Assert.Contains(logs, l => l.ExpeditionType == "BORDER_PATROL");
     }
+
+    [Fact]
+    public void Emergent_fief_crises_and_tactical_resolution_decisions()
+    {
+        using var kernel = _host.Boot();
+        var court = kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+        Assert.NotNull(court);
+
+        // Join faction and become governor
+        var targetGov = court.Governances.First(g => g.FactionId > 0);
+        var faction = court.Factions.First(f => f.Id == targetGov.FactionId);
+        while (court.Reputation < 5) court.Serve();
+        court.JoinFaction(faction.Id);
+
+        var office3 = court.Offices.FirstOrDefault(o => o.Rank >= 3) ?? court.Offices[court.Offices.Count - 1];
+        while (court.Reputation < office3.ReputationRequired) court.Serve();
+        court.Apply(office3.Id);
+        court.AppointGovernor(targetGov.CitadelId);
+
+        // 1. Trigger Crisis
+        var trigRes = court.TriggerEmergentFiefCrisis();
+        Assert.True(trigRes.Ok, trigRes.Message);
+
+        var active = court.GetActiveFiefCrises();
+        Assert.NotEmpty(active);
+        var crisis = active[0];
+        Assert.Equal("PENDING", crisis.Status);
+
+        // 2. Resolve Crisis
+        var choice = crisis.CrisisCode switch
+        {
+            "CRISIS_FLOOD" => "DISPATCH_CIVIL",
+            "CRISIS_PLAGUE" => "ESTABLISH_CLINIC",
+            "CRISIS_BANDIT_RAID" => "DISPATCH_MILITARY",
+            _ => "CONFISCATE"
+        };
+
+        var res = court.ResolveFiefCrisis(crisis.Id, choice);
+        Assert.True(res.Ok, res.Message);
+
+        // Now active crises should be empty and recent crises should contain it as RESOLVED
+        Assert.Empty(court.GetActiveFiefCrises());
+        var recent = court.GetRecentFiefCrises(5);
+        Assert.NotEmpty(recent);
+        Assert.Equal("RESOLVED", recent[0].Status);
+        Assert.False(string.IsNullOrWhiteSpace(recent[0].OutcomeVi));
+    }
+
+    [Fact]
+    public void Citadel_siege_defense_simulation_and_tactical_phases()
+    {
+        using var kernel = _host.Boot();
+        var court = kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+        Assert.NotNull(court);
+
+        // Join faction and become governor
+        var targetGov = court.Governances.First(g => g.FactionId > 0);
+        var faction = court.Factions.First(f => f.Id == targetGov.FactionId);
+        while (court.Reputation < 5) court.Serve();
+        court.JoinFaction(faction.Id);
+
+        var office3 = court.Offices.FirstOrDefault(o => o.Rank >= 3) ?? court.Offices[court.Offices.Count - 1];
+        while (court.Reputation < office3.ReputationRequired) court.Serve();
+        court.Apply(office3.Id);
+        court.AppointGovernor(targetGov.CitadelId);
+
+        var meritsBefore = court.Merits;
+
+        // 1. Simulate Siege Defense with AMBUSH_FIRE
+        var siegeRes = court.SimulateCitadelSiege("Giặc Khăn Vàng Ba Quận", 1500, "AMBUSH_FIRE");
+        Assert.True(siegeRes.Ok, siegeRes.Message);
+        Assert.Contains("ĐẠI THẮNG", siegeRes.Message);
+        Assert.True(court.Merits > meritsBefore);
+
+        // 2. Assert log recorded
+        var logs = court.RecentSiegeLogs(5);
+        Assert.NotEmpty(logs);
+        var latest = logs[0];
+        Assert.Equal("VICTORY", latest.Outcome);
+        Assert.Equal("AMBUSH_FIRE", latest.TacticalStance);
+        Assert.True(latest.AttackerCasualties > latest.DefenseCasualties);
+        Assert.True(latest.SpoilsCopper > 0);
+        Assert.False(string.IsNullOrWhiteSpace(latest.BattlePhasesVi));
+    }
 }

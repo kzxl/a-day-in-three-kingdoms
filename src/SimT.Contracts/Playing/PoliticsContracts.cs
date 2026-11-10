@@ -59,6 +59,18 @@ public interface IPoliticalCourt
 
     IReadOnlyList<FiefExpeditionLogView> RecentExpeditionLogs(int limit = 5) => [];
 
+    IReadOnlyList<FiefCrisisView> GetActiveFiefCrises(long citadelId = 0) => [];
+
+    IReadOnlyList<FiefCrisisView> GetRecentFiefCrises(int limit = 5) => [];
+
+    CourtResult ResolveFiefCrisis(long crisisId, string choiceCode) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult TriggerEmergentFiefCrisis() => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult SimulateCitadelSiege(string attackerName, int enemyTroops, string tacticalStance) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    IReadOnlyList<FiefSiegeLogView> RecentSiegeLogs(int limit = 5) => [];
+
     CourtResult SubmitMemorial(string category, string proposalVi) => CourtResult.Failure("Chưa được hỗ trợ.");
 
     CourtResult RequestPromotion() => CourtResult.Failure("Chưa được hỗ trợ.");
@@ -252,5 +264,35 @@ public sealed record FiefExpeditionLogView(
     int SpoilsCopper,
     int MeritsEarned,
     string NarrativeVi);
+
+public sealed record FiefCrisisView(
+    long Id,
+    long CitadelId,
+    string CrisisCode,
+    string TitleVi,
+    string DescriptionVi,
+    int Severity,
+    string Status,
+    int CreatedDay,
+    int ResolvedDay,
+    string ResolutionChoice,
+    string OutcomeVi);
+
+public sealed record FiefSiegeLogView(
+    long Id,
+    long CitadelId,
+    int DayIndex,
+    string AttackerFactionName,
+    int AttackerTroops,
+    int DefenseTroops,
+    string TacticalStance,
+    string Outcome,
+    int DefenseCasualties,
+    int AttackerCasualties,
+    int SpoilsCopper,
+    int MeritsEarned,
+    string BattlePhasesVi,
+    string NarrativeVi);
+
 
 

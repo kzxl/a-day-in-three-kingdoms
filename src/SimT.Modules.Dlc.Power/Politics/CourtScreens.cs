@@ -11,6 +11,8 @@ internal sealed class CourtScreen : IScreenContribution
     private static readonly string[] FactionColumns = ["Thế Lực / Minh Chủ", "Thủ Phủ", "Lý Tưởng Cát Cứ", "Binh Lực", "Quốc Khố", "Quan Hệ"];
     private static readonly string[] CityColumns = ["Thành Trì", "Thế Lực Chiếm Giữ", "Bất Ổn", "Phòng Thủ", "Thuế Suất", "Hành Chính Địa Phương"];
     private static readonly string[] FiefColumns = ["Phong Ấp Châu Quận", "Dân Số & Binh Lực", "Nông Khẩn", "Thương Nghiệp", "Thành Phòng", "Trị An", "Ban Bệ Phụ Tá", "Phương Châm", "Ngân Khố Nha Môn"];
+    private static readonly string[] CrisisColumns = ["Thời Điểm", "Biến Cố Châu Quận", "Tình Hình Khẩn Cấp", "Mức Độ", "Trạng Thái", "Quyết Sách / Hệ Quả"];
+    private static readonly string[] SiegeColumns = ["Thời Điểm", "Địch Thủ Vây Thành", "Binh Lực Địch/Ta", "Chiến Thuật", "Thương Vong", "Chiến Tích & Huân Công", "Diễn Biến Chiến Cuộc"];
     private static readonly string[] MegaprojectColumns = ["Đại Công Trình", "Quy Mô & Tác Dụng", "Kinh Phí Cần", "Đã Đầu Tư", "Tiến Độ", "Trạng Thái"];
     private static readonly string[] ExpeditionColumns = ["Thời Điểm", "Chiến Dịch Viễn Chinh", "Binh Lực Xuất Chinh", "Thương Vong", "Chiến Lợi Phẩm / Huân Công", "Tường Trình Chiến Tích"];
     private static readonly string[] DigestColumns = ["Thời Điểm", "Phương Châm", "Biến Động Dân & Khố", "Binh Lực & Lương Thực", "Huân Công", "Tường Trình Nha Môn"];
@@ -93,9 +95,78 @@ internal sealed class CourtScreen : IScreenContribution
                     new ScreenCommand("launch_expedition:PACIFY_BANDITS", "Tiễu Phạt Sơn Tặc ⚔️", CommandKind.Primary),
                     new ScreenCommand("launch_expedition:BORDER_PATROL", "Thao Diễn Biên Ải 🛡️"),
                     new ScreenCommand("launch_expedition:SUPPORT_LORD", "Chi Viện Minh Chủ 🚩"),
+                    new ScreenCommand("trigger_crisis", "Khảo Sát Biến Cố 🚨"),
+                    new ScreenCommand("simulate_siege:FORTIFY_WALLS", "Thủ Thành Cự Địch 🏰", CommandKind.Primary),
+                    new ScreenCommand("simulate_siege:AMBUSH_FIRE", "Hỏa Công Đột Kích 🔥"),
                     new ScreenCommand("eval_governance", "Khảo Hạch Quý 📜", CommandKind.Primary),
                     new ScreenCommand("resign_governor", "Bàn Giao Ấn", CommandKind.Danger)
                 ]));
+        }
+
+        // Section: Active & Recent Fief Crises (Biến Cố Châu Quận)
+        var crisisRows = new List<ScreenRow>();
+        if (fief is not null)
+        {
+            foreach (var cr in _service.GetRecentFiefCrises(6))
+            {
+                var crCmds = new List<ScreenCommand>();
+                if (cr.Status == "PENDING")
+                {
+                    if (cr.CrisisCode == "CRISIS_FLOOD")
+                    {
+                        crCmds.Add(new ScreenCommand($"resolve_crisis:{cr.Id}:DISPATCH_CIVIL", "Đắp đê khẩn"));
+                        crCmds.Add(new ScreenCommand($"resolve_crisis:{cr.Id}:EMERGENCY_FUNDS", "Phát chẩn", CommandKind.Primary));
+                    }
+                    else if (cr.CrisisCode == "CRISIS_PLAGUE")
+                    {
+                        crCmds.Add(new ScreenCommand($"resolve_crisis:{cr.Id}:ESTABLISH_CLINIC", "Lập dược xá", CommandKind.Primary));
+                        crCmds.Add(new ScreenCommand($"resolve_crisis:{cr.Id}:QUARANTINE", "Cách ly"));
+                    }
+                    else if (cr.CrisisCode == "CRISIS_BANDIT_RAID")
+                    {
+                        crCmds.Add(new ScreenCommand($"resolve_crisis:{cr.Id}:DISPATCH_MILITARY", "Đô Úy diệt phỉ", CommandKind.Primary));
+                        crCmds.Add(new ScreenCommand($"resolve_crisis:{cr.Id}:DEFEND_WALLS", "Đóng cửa thành"));
+                    }
+                    else if (cr.CrisisCode == "CRISIS_SECRET_ENVOY")
+                    {
+                        crCmds.Add(new ScreenCommand($"resolve_crisis:{cr.Id}:BEHEAD_ENVOY", "Trảm sứ nộp đầu", CommandKind.Danger));
+                        crCmds.Add(new ScreenCommand($"resolve_crisis:{cr.Id}:CONFISCATE", "Tịch thu hoàng kim", CommandKind.Primary));
+                    }
+                }
+
+                crisisRows.Add(new ScreenRow(
+                    [
+                        $"Ngày {cr.CreatedDay}",
+                        cr.TitleVi,
+                        cr.DescriptionVi,
+                        cr.Severity > 1 ? "⚠️ Khẩn cấp" : "Thông thường",
+                        cr.Status == "PENDING" ? "🚨 Đang Chờ Quyết Sách" : "✅ Đã Bình Định",
+                        cr.Status == "PENDING" ? "Chưa giải quyết" : cr.OutcomeVi
+                    ],
+                    crCmds));
+            }
+        }
+
+        // Section: Citadel Siege Defense Logs (Chiến Báo Thủ Thành)
+        var siegeRows = new List<ScreenRow>();
+        foreach (var s in _service.RecentSiegeLogs(5))
+        {
+            siegeRows.Add(new ScreenRow(
+                [
+                    $"Ngày {s.DayIndex}",
+                    s.AttackerFactionName,
+                    $"{s.AttackerTroops:N0} địch vs {s.DefenseTroops:N0} ta",
+                    s.TacticalStance switch
+                    {
+                        "FORTIFY_WALLS" => "🏰 Kiên Thủ Thành Quách",
+                        "SALLY_OUT" => "⚔️ Xuất Thành Nghênh Chiến",
+                        _ => "🔥 Hỏa Công Phục Kích"
+                    },
+                    $"Ta: -{s.DefenseCasualties:N0} | Địch: -{s.AttackerCasualties:N0}",
+                    $"+{s.SpoilsCopper}q · +{s.MeritsEarned} huân công",
+                    s.NarrativeVi
+                ],
+                Array.Empty<ScreenCommand>()));
         }
 
         // Section 3: Fief Megaprojects (Đại Công Trình Phong Ấp)
@@ -358,6 +429,16 @@ internal sealed class CourtScreen : IScreenContribution
             sections.Add(new ScreenSection("Thái Thú Phủ & Phong Ấp Châu Quận", FiefColumns, fiefRows, SectionViewMode.ImperialCourtChamber));
         }
 
+        if (crisisRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Biến Cố Khẩn Cấp & Quyết Sách Châu Quận", CrisisColumns, crisisRows));
+        }
+
+        if (siegeRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Chiến Báo Công Thủ Thành Trì & Phản Kích", SiegeColumns, siegeRows));
+        }
+
         if (projectRows.Count > 0)
         {
             sections.Add(new ScreenSection("Đại Công Trình Phong Ấp Châu Quận", MegaprojectColumns, projectRows));
@@ -443,9 +524,22 @@ internal sealed class CourtCommandHandler : IScreenCommandHandler
                 : $"{eval.Grade} · {eval.RankAction}: {eval.NarrativeVi} (Công trạng: {(eval.MeritChange >= 0 ? "+" : "")}{eval.MeritChange}, Thưởng: {eval.BonusStipend} Quan)";
         }
 
+        if (commandId == "trigger_crisis") return _service.TriggerEmergentFiefCrisis().Message;
+
         var parts = commandId.Split(':');
         if (parts.Length >= 2)
         {
+            if (parts[0] == "resolve_crisis" && parts.Length >= 3 && long.TryParse(parts[1], out var crId))
+            {
+                return _service.ResolveFiefCrisis(crId, parts[2]).Message;
+            }
+
+            if (parts[0] == "simulate_siege")
+            {
+                var stance = parts[1];
+                return _service.SimulateCitadelSiege("Đại Quân Cát Cứ", 1200, stance).Message;
+            }
+
             if (parts[0] == "fief_directive")
             {
                 return _service.SetFiefDirective(parts[1]).Message;

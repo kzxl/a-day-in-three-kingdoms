@@ -53,7 +53,9 @@
       "po_career_log",
       "po_governance_digest",
       "po_fief_megaproject",
-      "po_fief_expedition_log"
+      "po_fief_expedition_log",
+      "po_fief_crisis",
+      "po_fief_siege_log"
     ],
     "migrations": [
       "migrations"
