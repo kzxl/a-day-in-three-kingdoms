@@ -293,24 +293,24 @@ public sealed partial class GameStrategicBriefingControl : Border
         var stack = new StackPanel();
 
         // 0a. Urgent Political Court Alert (Extortion Demand or High Scrutiny)
-        if (kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.PoliticalCourt, out var court) && court is not null)
+        if (kernel.Capabilities.TryGet<IPoliticalCourt>(CapabilityIds.CourtOffice, out var court) && court is not null)
         {
-            var demand = court.GetPendingExtortionDemands().FirstOrDefault();
-            var scrutiny = court.GetWarlordScrutiny();
+            var demand = court.ActiveScrutinyDemands.FirstOrDefault();
+            var scrutiny = court.CurrentScrutiny;
             if (demand is not null)
             {
                 stack.Children.Add(BuildAgendaRow(
                     "🚨 Tống Tiền Tối Hậu Thư",
-                    $"Sứ giả của {demand.WarlordName} đòi nộp {demand.AmountSilver:N0} Bạc trước ngày #{demand.DeadlineDay} ({demand.Reason}). Cần phúc đáp ngay để tránh tịch biên kho bãi!",
+                    $"Sứ giả của {demand.FactionNameVi} đòi nộp {demand.DemandCopper:N0} Quan trước ngày #{demand.DueDayIndex} ({demand.TitleVi}). Cần phúc đáp ngay để tránh tịch biên kho bãi!",
                     "Ứng Phó Quan Phủ",
                     () => RequestNavigate?.Invoke("politics.court"),
                     BadgeVariant.Loss));
             }
-            else if (scrutiny.ScrutinyScore >= 50)
+            else if (scrutiny is not null && scrutiny.ScrutinyScore >= 50)
             {
                 stack.Children.Add(BuildAgendaRow(
                     $"⚖️ Nghi Kỵ Chư Hầu ({scrutiny.ScrutinyScore}/100)",
-                    $"Mức độ nghi kỵ tại {scrutiny.RulingFactionName} đã lên cấp {scrutiny.RiskTier}. Nên hiến lương thảo hoặc vận động phe phái che chở.",
+                    $"Mức độ nghi kỵ tại {scrutiny.FactionNameVi} đã lên cấp {scrutiny.ThreatLevel}. Nên hiến lương thảo hoặc vận động phe phái che chở.",
                     "Giải Trừ Nghi Kỵ",
                     () => RequestNavigate?.Invoke("politics.court"),
                     BadgeVariant.Warning));
@@ -321,13 +321,15 @@ public sealed partial class GameStrategicBriefingControl : Border
         if (kernel.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social is not null)
         {
             var riskyRetainer = social.GetRetainers()
-                .OrderByDescending(r => r.BetrayalRiskPercent)
-                .FirstOrDefault(r => r.BetrayalRiskPercent >= 35 || r.Loyalty < 55);
+                .FirstOrDefault(r => r.Loyalty < 55 && social.GetPsycheProfile(r.NpcId).Ambition >= 70);
             if (riskyRetainer is not null)
             {
+                kernel.Capabilities.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var npcReg);
+                var retainerName = npcReg?.Find(riskyRetainer.NpcId)?.NameVi ?? $"Gia thần #{riskyRetainer.NpcId}";
+                var ambition = social.GetPsycheProfile(riskyRetainer.NpcId).Ambition;
                 stack.Children.Add(BuildAgendaRow(
-                    $"🕵️ Gia Thần Dao Động: {riskyRetainer.Name}",
-                    $"Trung thành còn {riskyRetainer.Loyalty}/100, nguy cơ phản bội {riskyRetainer.BetrayalRiskPercent}%. Hãy ban thưởng hoặc đàm đạo trấn an trước khi mật báo bị rò rỉ.",
+                    $"🕵️ Gia Thần Dao Động: {retainerName}",
+                    $"Trung thành còn {riskyRetainer.Loyalty}/100, dã tâm {ambition}/100. Hãy ban thưởng hoặc đàm đạo trấn an trước khi mật báo bị rò rỉ.",
                     "Trấn An Danh Sĩ",
                     () => RequestNavigate?.Invoke("npc.directory"),
                     BadgeVariant.Warning));
@@ -337,13 +339,13 @@ public sealed partial class GameStrategicBriefingControl : Border
         // 0c. Contraband Smuggling Opportunity
         if (kernel.Capabilities.TryGet<IEconomicWarfare>(CapabilityIds.EconomicWarfare, out var warfare) && warfare is not null)
         {
-            var route = warfare.GetActiveContrabandRoutes()
-                .FirstOrDefault(r => r.OriginCityId == cityId || r.DestinationCityId == cityId);
+            var route = warfare.AvailableSmuggleOpportunities
+                .FirstOrDefault(r => r.OriginCitadelId == cityId || r.DestCitadelId == cityId);
             if (route is not null)
             {
                 stack.Children.Add(BuildAgendaRow(
-                    $"🔥 Thời Cơ Buôn Lậu: {route.ItemName}",
-                    $"Tuyến ngầm {route.OriginCityName} → {route.DestinationCityName} đang nhân giá x{(route.WarPriceMultiplierBps / 10000.0):0.0} (Tuần tra {route.PatrolRiskPercent}%).",
+                    $"🔥 Thời Cơ Buôn Lậu: {route.ItemNameVi}",
+                    $"Tuyến ngầm {route.OriginCitadelNameVi} → {route.DestCitadelNameVi} đang lãi +{route.ProfitMarginPercent}% (Tuần binh {route.InterceptionRiskPercent}%).",
                     "Vận Buôn Lậu",
                     () => RequestNavigate?.Invoke("market.stall"),
                     BadgeVariant.Purple));
