@@ -165,7 +165,7 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
             case "gift":
             {
                 var playerState = _context.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
-                var giftChoices = BuildGiftChoices(playerState.CurrentCityId);
+                var giftChoices = BuildGiftChoices(playerState.CurrentCityId, npc.Id);
                 if (giftChoices.Count == 0 ||
                     !_context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) ||
                     social is null)
@@ -223,27 +223,60 @@ internal sealed partial class DialogueService(ModuleContext context) : IDialogue
         return new TalkChoiceOutcome(ok, msg, UpdatedScene: WithFeedbackExpression(BuildTalkScene(npc.Id, msg), expression));
     }
 
-    private IReadOnlyList<SceneChoice> BuildGiftChoices(long currentCityId)
+    private IReadOnlyList<SceneChoice> BuildGiftChoices(long currentCityId, long npcId)
     {
         var bag = _context.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
         var items = _context.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
-        var list = bag.Rows(currentCityId)
-            .Where(r => r.Quantity > 0)
+        var bagRows = bag.Rows(currentCityId)
+                         .Where(r => r.Quantity > 0)
+                         .ToList();
+
+        if (bagRows.Count == 0) return Array.Empty<SceneChoice>();
+
+        var sortedItems = bagRows
             .Select(r => (Row: r, Item: items.Find(r.ItemId)))
             .Where(x => x.Item is not null)
             .OrderByDescending(x => x.Item!.BasePrice)
-            .ThenBy(x => x.Item!.Id)
+            .ThenBy(x => x.Row.ItemId)
             .Take(5)
-            .Select(x => new SceneChoice(
-                $"gift:{x.Item!.Id}",
-                Clamp40($"Tặng {x.Item.NameVi} (còn {x.Row.Quantity})"),
-                $"{x.Item.BasePrice} quan"))
             .ToList();
 
-        if (list.Count > 0)
-            list.Add(new SceneChoice("gift:cancel", "Thôi", "Quay lại"));
+        var choices = new List<SceneChoice>();
+        _context.Capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social);
 
-        return list;
+        foreach (var (r, item) in sortedItems)
+        {
+            var eval = social?.EvaluateGift(npcId, item!.Id);
+            string label;
+            string desc;
+
+            if (eval is not null && eval.IsRejected)
+            {
+                label = Clamp40($"Tặng {item!.NameVi} (Từ chối)");
+                desc = $"{item.BasePrice}q · {eval.WarningVi}";
+            }
+            else if (eval is not null && !string.IsNullOrEmpty(eval.WarningVi))
+            {
+                label = Clamp40($"Tặng {item!.NameVi} · ⚠️ Hối lộ");
+                desc = $"{item.BasePrice}q · {eval.WarningVi} (+{eval.ProjectedAffinityGain})";
+            }
+            else if (eval is not null && !string.IsNullOrEmpty(eval.SynergyBadgeVi))
+            {
+                label = Clamp40($"Tặng {item!.NameVi} · {eval.SynergyBadgeVi}");
+                desc = $"{item.BasePrice}q · Dự kiến +{eval.ProjectedAffinityGain} Hảo cảm";
+            }
+            else
+            {
+                var gain = eval?.ProjectedAffinityGain ?? 0;
+                label = Clamp40($"Tặng {item!.NameVi} (còn {r.Quantity})");
+                desc = gain > 0 ? $"{item.BasePrice}q · Dự kiến +{gain} Hảo cảm" : $"{item.BasePrice}q · Còn {r.Quantity}";
+            }
+
+            choices.Add(new SceneChoice($"gift:{item!.Id}", label, desc));
+        }
+
+        choices.Add(new SceneChoice("gift:cancel", "Thôi", "Quay lại"));
+        return choices;
     }
 
     private IReadOnlyList<SceneChoice> BuildChoices(NpcDef npc, long currentCityId)

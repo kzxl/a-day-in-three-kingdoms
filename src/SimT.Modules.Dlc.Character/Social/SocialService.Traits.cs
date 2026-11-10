@@ -188,4 +188,139 @@ internal sealed partial class SocialService : INpcTraits
         RecordMetNpc(npcId, _clock.Today, npc.CurrentCitadelId(_capabilities));
         return bonus;
     }
+
+    public GiftEvaluationView EvaluateGift(long npcId, long itemId)
+    {
+        var npc = _registry.Find(npcId);
+        var item = _items.Find(itemId);
+        if (npc is null || item is null)
+        {
+            return new GiftEvaluationView(itemId, item?.NameVi ?? "Vật phẩm", 0, item?.BasePrice ?? 0, 0, string.Empty, string.Empty, true);
+        }
+
+        var qty = _bag.Quantity(_player.CurrentCityId, itemId);
+        var rank = EvaluateNpcRank(npc);
+        var traits = GetTraits(npcId);
+        var isMeRuouWine = (item.Code == "ruou" || item.NameVi.Contains("rượu", StringComparison.OrdinalIgnoreCase)) && traits.Any(t => t.Code == NpcTraitCodes.MeRuou);
+
+        // Check high-rank rejection (exempt if trait synergy like MeRuou applies)
+        if (!isMeRuouWine && rank == NpcRank.S && item.BasePrice < 35 && (item.Category == "grain" || item.Category == "material" || item.Category == "food"))
+        {
+            return new GiftEvaluationView(itemId, item.NameVi, qty, item.BasePrice, 0, string.Empty, "Nhân sĩ bậc S từ chối lễ mọn", true);
+        }
+
+        if (rank == NpcRank.A && item.BasePrice < 20 && (item.Category == "grain" || item.Category == "material"))
+        {
+            return new GiftEvaluationView(itemId, item.NameVi, qty, item.BasePrice, 0, string.Empty, "Nhân sĩ bậc A từ chối vật phẩm tầm thường", true);
+        }
+
+        var nAttr = npc.Attributes;
+        var preferenceMultiplier = 1.0;
+        var isFavorite = false;
+        var synergyBadge = string.Empty;
+
+        // 1. Archetype base preferences
+        if ((nAttr.War >= 75 || npc.Role.Contains("Tướng") || npc.Role.Contains("Hổ")) &&
+            (item.Code == "sat" || item.Code == "dong" || item.Code == "ruou"))
+        {
+            preferenceMultiplier = 1.5;
+            isFavorite = true;
+            synergyBadge = "⚔️ Hợp Tính Võ Tướng";
+        }
+        else if ((nAttr.Int >= 75 || nAttr.Pol >= 75 || npc.Role.Contains("Sĩ") || npc.Role.Contains("Thừa Tướng")) &&
+                 (item.Code == "tra" || item.Code == "tram_huong" || item.Code == "sam" || item.Code == "thuoc"))
+        {
+            preferenceMultiplier = 1.5;
+            isFavorite = true;
+            synergyBadge = "📜 Hợp Tính Danh Nho";
+        }
+        else if ((nAttr.Com >= 70 || npc.Role == "merchant") &&
+                 (item.Code == "lua" || item.Code == "gam" || item.Code == "tram_huong" || item.Code == "tra" || item.Code == "dong"))
+        {
+            preferenceMultiplier = 1.5;
+            isFavorite = true;
+            synergyBadge = "💰 Hợp Tính Thương Gia";
+        }
+        else if (item.Category == "luxury")
+        {
+            preferenceMultiplier = 1.3;
+            synergyBadge = "💎 Quý Vật";
+        }
+
+        // 2. Trait preferences
+        ApplyTraitGiftAdjustments(npcId, item, ref preferenceMultiplier, ref isFavorite, out var flatTraitBonus, out var _);
+
+        var warning = string.Empty;
+        if (traits.Any(t => t.Code == NpcTraitCodes.MeRuou) && (item.Code == "ruou" || item.NameVi.Contains("rượu", StringComparison.OrdinalIgnoreCase)))
+        {
+            synergyBadge = "🍶 Hợp Mê Rượu (+55%)";
+        }
+        else if (traits.Any(t => t.Code == NpcTraitCodes.HieuHoc) && (item.Code is "tra" or "giay" or "sach" || item.Category == "book" || item.NameVi.Contains("sách", StringComparison.OrdinalIgnoreCase) || item.NameVi.Contains("trà", StringComparison.OrdinalIgnoreCase)))
+        {
+            synergyBadge = "📜 Hợp Hiếu Học (+50%)";
+        }
+        else if (traits.Any(t => t.Code == NpcTraitCodes.MeVo) && (item.Code is "sat" or "dong" or "cung_ten" or "binh_khi" || item.Category == "weapon" || item.NameVi.Contains("đao", StringComparison.OrdinalIgnoreCase) || item.NameVi.Contains("kiếm", StringComparison.OrdinalIgnoreCase)))
+        {
+            synergyBadge = "⚔️ Hợp Mê Võ (+50%)";
+        }
+        else if (traits.Any(t => t.Code == NpcTraitCodes.ThanhLiem) && item.BasePrice >= NpcTraitRules.ThanhLiemBriberyPriceThreshold && item.Code != "tra" && item.Code != "giay" && item.Code != "sach" && item.Category != "book")
+        {
+            warning = "Coi là hối lộ (-45%)";
+        }
+
+        // 3. Projected gain
+        var currentRel = GetRelationship(npcId);
+        int gain;
+        if (rank == NpcRank.C)
+        {
+            var baseFactor = Math.Clamp((int)(item.BasePrice / 15), 4, 15);
+            gain = (int)Math.Round(baseFactor * preferenceMultiplier);
+            if (currentRel.Affinity >= 80) gain = Math.Max(2, (int)(gain * 0.5));
+            else if (currentRel.Affinity >= 50) gain = Math.Max(3, (int)(gain * 0.75));
+        }
+        else if (rank == NpcRank.B)
+        {
+            var baseFactor = Math.Clamp((int)(item.BasePrice / 20), 3, 12);
+            gain = (int)Math.Round(baseFactor * preferenceMultiplier * 0.85);
+            if (currentRel.Affinity >= 80) gain = Math.Max(1, (int)(gain * 0.4));
+            else if (currentRel.Affinity >= 50) gain = Math.Max(2, (int)(gain * 0.65));
+        }
+        else if (rank == NpcRank.A)
+        {
+            var baseFactor = Math.Clamp((int)(item.BasePrice / 25), 2, 10);
+            gain = (int)Math.Round(baseFactor * preferenceMultiplier * 0.65);
+            if (currentRel.Affinity >= 80) gain = Math.Max(1, (int)(gain * 0.35));
+            else if (currentRel.Affinity >= 50) gain = Math.Max(2, (int)(gain * 0.55));
+        }
+        else // Rank S
+        {
+            var baseFactor = Math.Clamp((int)(item.BasePrice / 30), 2, 8);
+            gain = (int)Math.Round(baseFactor * preferenceMultiplier * 0.45);
+            if (currentRel.Affinity >= 80) gain = Math.Max(1, (int)(gain * 0.3));
+            else if (currentRel.Affinity >= 50) gain = Math.Max(1, (int)(gain * 0.5));
+        }
+
+        gain = Math.Max(1, gain + flatTraitBonus);
+
+        return new GiftEvaluationView(itemId, item.NameVi, qty, item.BasePrice, gain, synergyBadge, warning, false);
+    }
+
+    public IReadOnlyList<GiftEvaluationView> GetBestGiftsForNpc(long npcId, long cityId)
+    {
+        var targetCity = cityId > 0 ? cityId : _player.CurrentCityId;
+        var bagRows = _bag.Rows(targetCity).Where(r => r.Quantity > 0).ToList();
+        if (bagRows.Count == 0) return Array.Empty<GiftEvaluationView>();
+
+        var list = new List<GiftEvaluationView>();
+        foreach (var r in bagRows)
+        {
+            list.Add(EvaluateGift(npcId, r.ItemId));
+        }
+
+        return list.OrderBy(g => g.IsRejected)
+                   .ThenBy(g => !string.IsNullOrEmpty(g.WarningVi))
+                   .ThenByDescending(g => g.ProjectedAffinityGain)
+                   .ThenByDescending(g => g.BasePrice)
+                   .ToList();
+    }
 }

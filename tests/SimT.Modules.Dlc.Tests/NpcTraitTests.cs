@@ -246,4 +246,44 @@ public sealed class NpcTraitTests : IDisposable
         Assert.True(bonus > 0);
         Assert.Equal(affBefore + bonus, affAfter);
     }
+
+    [Fact]
+    public void Smart_gifting_evaluates_traits_synergies_bribery_warnings_and_dialogue_choices()
+    {
+        using var kernel = _host.Boot();
+        var social = kernel.Capabilities.Get<ISocialNetwork>(CapabilityIds.SocialNetwork);
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var items = kernel.Capabilities.Get<IItemCatalog>(CapabilityIds.ItemCatalog);
+        var bag = kernel.Capabilities.Get<IBag>(CapabilityIds.PlayerBag);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+
+        var zhangFei = registry.FindByCode("npc_0002")!; // Mê rượu, Mê võ
+        var ruou = items.FindByCode("ruou")!;
+        var gam = items.FindByCode("gam")!; // silk / luxury
+
+        // 1. Evaluate gift for Zhang Fei: wine should trigger Mê rượu synergy
+        var wineEval = social.EvaluateGift(zhangFei.Id, ruou.Id);
+        Assert.False(wineEval.IsRejected);
+        Assert.Contains("Mê Rượu", wineEval.SynergyBadgeVi);
+        Assert.True(wineEval.ProjectedAffinityGain > 0);
+
+        // 2. Put items in player's bag at current city
+        bag.Add(player.CurrentCityId, ruou.Id, 2);
+        bag.Add(player.CurrentCityId, gam.Id, 1);
+
+        // 3. GetBestGiftsForNpc: wine should rank at top for Zhang Fei
+        var bestGifts = social.GetBestGiftsForNpc(zhangFei.Id, player.CurrentCityId);
+        Assert.NotEmpty(bestGifts);
+        Assert.Equal(ruou.Id, bestGifts[0].ItemId);
+
+        // 4. Test Dialogue Choice presentation
+        var dialogue = kernel.Capabilities.Get<SimT.Contracts.Scenes.IDialogueModule>(CapabilityIds.Dialogue);
+        var outcome = dialogue.HandleChoice(zhangFei.Id, "gift");
+        Assert.NotNull(outcome.UpdatedScene);
+        Assert.NotNull(outcome.UpdatedScene.Choices);
+
+        var wineChoice = outcome.UpdatedScene.Choices.FirstOrDefault(c => c.Id == $"gift:{ruou.Id}");
+        Assert.NotNull(wineChoice);
+        Assert.Contains("Mê Rượu", wineChoice.LabelVi);
+    }
 }

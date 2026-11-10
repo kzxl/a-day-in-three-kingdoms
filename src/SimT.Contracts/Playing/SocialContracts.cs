@@ -232,4 +232,21 @@ public interface ISocialNetwork
 
     /// <summary>Records a mutually beneficial commercial or commission cooperation with an NPC, boosting affinity and trust.</summary>
     void RecordCooperation(long npcId, int affinityDelta, int trustDelta, string summaryVi);
+
+    /// <summary>Evaluates an item as a gift for an NPC, returning projected affinity gain, synergy badges, and warnings.</summary>
+    GiftEvaluationView EvaluateGift(long npcId, long itemId) => new(itemId, "Vật phẩm", 1, 10, 5, string.Empty, string.Empty, false);
+
+    /// <summary>Evaluates all items currently in the player's inventory at a city and sorts them by gift compatibility for an NPC.</summary>
+    IReadOnlyList<GiftEvaluationView> GetBestGiftsForNpc(long npcId, long cityId) => Array.Empty<GiftEvaluationView>();
 }
+
+/// <summary>Projected gift compatibility, synergy badges, and warnings for an NPC.</summary>
+public sealed record GiftEvaluationView(
+    long ItemId,
+    string ItemNameVi,
+    int Quantity,
+    long BasePrice,
+    int ProjectedAffinityGain,
+    string SynergyBadgeVi,
+    string WarningVi,
+    bool IsRejected);

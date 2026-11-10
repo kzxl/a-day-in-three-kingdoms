@@ -513,15 +513,15 @@ internal sealed class SocialCommandHandler : IScreenCommandHandler
                     return _social.GiftNpc(npcId, explicitItemId);
                 }
 
-                // Auto-pick first available gift item in current city's bag
+                // Smart gift picker: choose top recommended non-rejected item
                 var currentCity = _player.CurrentCityId;
-                var bagRows = _bag.Rows(currentCity);
-                if (bagRows.Count == 0)
+                var bestGifts = _social.GetBestGiftsForNpc(npcId, currentCity);
+                if (bestGifts.Count == 0)
                 {
                     return "Trong hành trang tại thành này không có vật phẩm nào để tặng.";
                 }
 
-                var giftItem = bagRows.First();
+                var giftItem = bestGifts.FirstOrDefault(g => !g.IsRejected) ?? bestGifts[0];
                 return _social.GiftNpc(npcId, giftItem.ItemId);
             }
         }

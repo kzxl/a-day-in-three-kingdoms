@@ -537,9 +537,10 @@ internal sealed partial class SocialService : ISocialNetwork
                    ?? throw new SimException("social.item_not_found", $"Vật phẩm mã {itemId} không tồn tại.");
 
         var rank = EvaluateNpcRank(npc);
+        var isMeRuouWine = (item.Code == "ruou" || item.NameVi.Contains("rượu", StringComparison.OrdinalIgnoreCase)) && HasTrait(npc.Id, NpcTraitCodes.MeRuou);
 
-        // High-rank NPCs reject mundane/cheap bulk commodities
-        if (rank == NpcRank.S && item.BasePrice < 35 && (item.Category == "grain" || item.Category == "material" || item.Category == "food"))
+        // High-rank NPCs reject mundane/cheap bulk commodities (unless trait synergy applies)
+        if (!isMeRuouWine && rank == NpcRank.S && item.BasePrice < 35 && (item.Category == "grain" || item.Category == "material" || item.Category == "food"))
         {
             throw new SimException("social.gift_rejected",
                 $"{npc.NameVi} khẽ xua tay từ chối: 'Tại hạ chí tại bốn phương, lễ mọn {item.NameVi} này xin các hạ mang về dùng hoặc chẩn cấp dân nghèo.'");
