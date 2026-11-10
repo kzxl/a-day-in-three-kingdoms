@@ -64,6 +64,9 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
         {
             "local" => localEvents,
             "history" => _chronicle.RecentEvents(limit: 60, category: "history").ToList(),
+            "military" => allEvents.Where(e => e.EventKind is "martial" or "history" or "turmoil").ToList(),
+            "economy" => allEvents.Where(e => e.EventKind is "commerce" or "store" or "bankruptcy").ToList(),
+            "social" => allEvents.Where(e => e.EventKind is "relationship" or "marriage" or "governance" or "scholarly").ToList(),
             "migration" => allEvents.Where(e => e.StatImpact != null && e.StatImpact.Contains("Di cư") || e.StatImpact != null && e.StatImpact.Contains("tị nạn") || e.StatImpact != null && e.StatImpact.Contains("Tránh giặc")).ToList(),
             "martial" => allEvents.Where(e => e.EventKind == "martial").ToList(),
             "commerce" => allEvents.Where(e => e.EventKind == "commerce").ToList(),
@@ -129,17 +132,16 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
 
         var commands = new List<ScreenCommand>
         {
-            new("filter:relationship", "Quan hệ", CommandKind.Secondary),
-            new("filter:rumors", "Tin đồn", CommandKind.Secondary),
-            new("filter:all", "Tất Cả", _filterKind == "all" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:all", "📜 Tất Cả", _filterKind == "all" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:military", "⚔️ Quân Sự", _filterKind == "military" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:economy", "💰 Kinh Tế", _filterKind == "economy" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:social", "👥 Nhân Vật", _filterKind == "social" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:local", $"📍 Tại {currentCitadelName}", _filterKind == "local" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:history", "🐉 Sử Biến", _filterKind == "history" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:rivals", "🏆 Phú Hào", _filterKind == "rivals" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:karma", "⚖️ Nhân Quả", _filterKind == "karma" ? CommandKind.Primary : CommandKind.Secondary),
+            new("filter:rumors", "Tin Đồn", _filterKind == "rumors" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:migration", "🏃 Di Cư", _filterKind == "migration" ? CommandKind.Primary : CommandKind.Secondary),
-            new("filter:local", $"Tại {currentCitadelName}", _filterKind == "local" ? CommandKind.Primary : CommandKind.Secondary),
-            new("filter:martial", "⚔️ Võ Nghiệp", _filterKind == "martial" ? CommandKind.Primary : CommandKind.Secondary),
-            new("filter:commerce", "💰 Thương Lộ", _filterKind == "commerce" ? CommandKind.Primary : CommandKind.Secondary),
-            new("filter:scholarly", "📜 Mưu Lược", _filterKind == "scholarly" ? CommandKind.Primary : CommandKind.Secondary),
             new("filter:travel", "🗺️ Du Hành", _filterKind == "travel" ? CommandKind.Primary : CommandKind.Secondary)
         };
 
@@ -459,6 +461,9 @@ internal sealed partial class SocietyChronicleScreen : IScreenContribution
 
     private static string FilterLabel(string filter) => filter switch
     {
+        "military" => "Quân sự & Chiến cuộc",
+        "economy" => "Kinh tế & Thương nghiệp",
+        "social" => "Nhân vật & Bang phái",
         "history" => "Sử biến thiên hạ",
         "rivals" => "Bảng phú hào",
         "karma" => "Nhân quả báo ứng",

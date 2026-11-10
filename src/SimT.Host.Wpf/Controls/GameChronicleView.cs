@@ -116,9 +116,9 @@ public sealed partial class GameChronicleView : Border
         headerRow.Children.Add(titleStack);
         topSection.Children.Add(headerRow);
 
-        // Filter Bar (7 Categories + All + Actionable)
+        // Filter Bar (Macro Channels + Search)
         _filterBar = new WrapPanel { Orientation = Orientation.Horizontal };
-        BuildFilterButtons();
+        BuildFilterBarUi();
         topSection.Children.Add(_filterBar);
 
         Grid.SetRow(topSection, 0);
@@ -162,62 +162,12 @@ public sealed partial class GameChronicleView : Border
     public void Bind(SimKernel kernel)
     {
         _kernel = kernel;
-        BuildFilterButtons();
         LoadEvents();
+        BuildFilterBarUi();
         RenderList();
     }
 
-    private void BuildFilterButtons()
-    {
-        _filterBar.Children.Clear();
-
-        var filters = new (string Key, string Label)[]
-        {
-            ("all", "📜 Toàn Bộ"),
-            ("history", "🐉 Sử biến"),
-            ("rumors", "Tin đồn"),
-            ("actionable", "⚡ Chờ Quyết Sách"),
-            ("turmoil", "🔥 Loạn Lạc"),
-            ("bankruptcy", "💰 Phá Sản"),
-            ("store", "🏪 Cửa Hiệu"),
-            ("appointment", "🏛️ Bổ Nhiệm"),
-            ("marriage", "🌸 Hôn Sự"),
-            ("bond", "🤝 Kết Giao"),
-            ("faction", "🚩 Thế Lực")
-        };
-
-        foreach (var (key, label) in filters)
-        {
-            if (key == "rumors" && _kernel?.Capabilities.IsProvided(CapabilityIds.TavernRumors) != true) continue;
-            var btn = new Button
-            {
-                Content = label,
-                Tag = key,
-                Margin = new Thickness(0, 0, 6, 0),
-                Padding = new Thickness(10, 4, 10, 4),
-                FontSize = 11,
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-
-            var isActive = key == _currentFilter;
-            btn.Background = isActive ? CinnabarSeal : ParchmentCardBg;
-            btn.Foreground = isActive ? TextIvory : TextParchmentMuted;
-            btn.BorderBrush = isActive ? GoldAccent : BorderBronze;
-            btn.BorderThickness = new Thickness(1);
-
-            btn.Click += (s, _) =>
-            {
-                if (s is Button b && b.Tag is string newKey)
-                {
-                    _currentFilter = newKey;
-                    BuildFilterButtons();
-                    RenderList();
-                }
-            };
-
-            _filterBar.Children.Add(btn);
-        }
-    }
+    private void BuildFilterButtons() => BuildFilterBarUi();
 
     private void LoadEvents()
     {
@@ -320,12 +270,11 @@ public sealed partial class GameChronicleView : Border
     {
         _eventListStack.Children.Clear();
 
-        var filtered = _allEvents.Where(e =>
+        var filtered = GetFilteredEvents();
+        if (_resultCountText != null)
         {
-            if (_currentFilter == "actionable") return e.CanIntervene;
-            if (_currentFilter == "all") return true;
-            return e.CategoryKey == _currentFilter;
-        }).ToList();
+            _resultCountText.Text = $"Hiển thị {filtered.Count} / {_allEvents.Count} phong vân biến cố";
+        }
 
         if (filtered.Count == 0)
         {

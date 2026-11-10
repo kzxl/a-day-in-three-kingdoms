@@ -9,40 +9,10 @@ namespace SimT.Host.Wpf.Tests;
 
 public sealed class TravelSupplyProjectionTests
 {
-    private static void RunOnSta(Action action)
-    {
-        Exception? ex = null;
-        var thread = new Thread(() =>
-        {
-            try
-            {
-                if (Application.Current == null)
-                {
-                    var app = new Application();
-                    var darkTheme = new ResourceDictionary
-                    {
-                        Source = new Uri("/SimT.Host.Wpf;component/Themes/Dark.xaml", UriKind.RelativeOrAbsolute)
-                    };
-                    app.Resources.MergedDictionaries.Add(darkTheme);
-                }
-                action();
-            }
-            catch (Exception e)
-            {
-                ex = e;
-            }
-        });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-        if (ex != null)
-            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex).Throw();
-    }
-
     [Fact]
     public void Travel_supply_projection_calculates_rations_funds_and_safety_accurately()
     {
-        RunOnSta(() =>
+        WpfTestContext.RunOnSta(() =>
         {
             using var host = new TestHost("map-projection");
             using var kernel = host.Boot();
@@ -105,7 +75,7 @@ public sealed class TravelSupplyProjectionTests
     [Fact]
     public void Travel_supply_projection_flags_insufficient_funds_when_wallet_is_empty()
     {
-        RunOnSta(() =>
+        WpfTestContext.RunOnSta(() =>
         {
             using var host = new TestHost("map-wallet");
             using var kernel = host.Boot();
@@ -133,7 +103,7 @@ public sealed class TravelSupplyProjectionTests
     [Fact]
     public void Travel_supply_projection_handles_same_citadel_gracefully()
     {
-        RunOnSta(() =>
+        WpfTestContext.RunOnSta(() =>
         {
             using var host = new TestHost("map-same");
             using var kernel = host.Boot();

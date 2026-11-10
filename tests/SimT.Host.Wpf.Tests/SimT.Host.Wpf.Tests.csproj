@@ -17,6 +17,7 @@
     <ProjectReference Include="..\..\src\SimT.Modules.Base.Npc\SimT.Modules.Base.Npc.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Economy\SimT.Modules.Dlc.Economy.csproj" />
     <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Character\SimT.Modules.Dlc.Character.csproj" />
+    <ProjectReference Include="..\..\src\SimT.Modules.Dlc.Society\SimT.Modules.Dlc.Society.csproj" />
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

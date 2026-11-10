@@ -1,4 +1,4 @@
-﻿using SimT.Contracts.Data;
+using SimT.Contracts.Data;
 using SimT.Contracts.Playing;
 using SimT.Core.Kernel;
 
@@ -294,5 +294,40 @@ public sealed class SocietyTests : IDisposable
         Assert.NotEmpty(events3);
         var diff = events1.Count != events3.Count || !events1.SequenceEqual(events3);
         Assert.True(diff, "Different campaign seeds must produce divergent society simulation outcomes.");
+    }
+
+    [Fact]
+    public void Society_chronicle_screen_filters_macro_channels_and_preserves_commands()
+    {
+        using var kernel = _host.Boot();
+        var chronicle = kernel.Capabilities.Get<ISocietyChronicle>(CapabilityIds.SocietyChronicle);
+        var map = kernel.Capabilities.Get<IWorldMap>(CapabilityIds.WorldMap);
+        var player = kernel.Capabilities.Get<IPlayerState>(CapabilityIds.PlayerState);
+
+        var screen = new SimT.Modules.Dlc.Society.SocietyChronicleScreen(chronicle, map, player, kernel.Clock);
+
+        // 1. Military filter
+        screen.SetFilter("military");
+        var milModel = screen.Render();
+        Assert.NotNull(milModel);
+        Assert.Contains(milModel.Commands, c => c.Id == "filter:military" && c.Kind == SimT.Contracts.Ui.CommandKind.Primary);
+
+        // 2. Economy filter
+        screen.SetFilter("economy");
+        var ecoModel = screen.Render();
+        Assert.NotNull(ecoModel);
+        Assert.Contains(ecoModel.Commands, c => c.Id == "filter:economy" && c.Kind == SimT.Contracts.Ui.CommandKind.Primary);
+
+        // 3. Social filter
+        screen.SetFilter("social");
+        var socModel = screen.Render();
+        Assert.NotNull(socModel);
+        Assert.Contains(socModel.Commands, c => c.Id == "filter:social" && c.Kind == SimT.Contracts.Ui.CommandKind.Primary);
+
+        // 4. Default / All filter
+        screen.SetFilter("all");
+        var allModel = screen.Render();
+        Assert.NotNull(allModel);
+        Assert.Contains(allModel.Commands, c => c.Id == "filter:all" && c.Kind == SimT.Contracts.Ui.CommandKind.Primary);
     }
 }
