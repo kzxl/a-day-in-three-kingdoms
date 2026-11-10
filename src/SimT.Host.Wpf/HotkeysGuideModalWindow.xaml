@@ -1,0 +1,338 @@
+<local:HubModalWindowBase x:Class="SimT.Host.Wpf.HotkeysGuideModalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SimT.Host.Wpf"
+        xmlns:controls="clr-namespace:SimT.Host.Wpf.Controls"
+        Title="Cẩm Nang Phím Tắt &amp; Thao Tác Nhanh [F1]"
+        Height="620" Width="960"
+        MinHeight="560" MinWidth="840"
+        Background="{StaticResource Bg}"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource Surface}"
+                BorderBrush="{StaticResource Line}" BorderThickness="1"
+                CornerRadius="8" Padding="16,12" Margin="0,0,0,14">
+            <DockPanel>
+                <Border Width="40" Height="40" Background="{StaticResource Bg}"
+                        BorderBrush="{StaticResource Accent}" BorderThickness="1.5"
+                        CornerRadius="8" Margin="0,0,14,0" VerticalAlignment="Center">
+                    <TextBlock Text="⌨️" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="CẨM NANG PHÍM TẮT &amp; ĐIỀU HƯỚNG CHIẾN LƯỢC"
+                               FontSize="15" FontWeight="Bold" Foreground="{StaticResource Accent}" />
+                    <TextBlock Text="Các phím tắt toàn cục giúp thao tác tức thời, điều hướng nhanh màn hình và mở các công cụ bổ trợ"
+                               Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" Margin="0,2,0,0" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Main Content: 3 Columns Grid -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Column 1: Time & Actions -->
+            <Border Grid.Column="0" Background="{StaticResource Surface}"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="8" Padding="14,12" Margin="0,0,8,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="TIẾN TRÌNH &amp; THỜI GIAN" Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="2,0,0,10" />
+
+                        <!-- Space -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="Space" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Tiến 1 Ngày" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Tuần hoàn chánh sự, thời tiết, chợ" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- W -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="W" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Tiến 7 Ngày (1 Tuần)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Tua nhanh thời gian một tuần" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- R -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="R" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Nghỉ Ngơi Dưỡng Sức" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Hồi phục thể lực và sinh lực" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Enter -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="Enter" FontWeight="Bold" Foreground="{StaticResource Text}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Xem Chi Tiết" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Mở bảng thanh tra dòng đang chọn" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Esc -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="Esc" FontWeight="Bold" Foreground="{StaticResource Text}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Trở Về / Đóng Cửa Sổ" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Quay lại trong thành hoặc đóng cửa sổ" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Ctrl + F -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="Ctrl+F" FontWeight="Bold" Foreground="{StaticResource Text}" FontSize="11" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Tìm Kiếm &amp; Lọc" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Focus vào ô tìm kiếm bảng danh sách" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Column 2: Direct Screen Navigation -->
+            <Border Grid.Column="1" Background="{StaticResource Surface}"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="8" Padding="14,12" Margin="4,0,4,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="ĐIỀU HƯỚNG MÀN HÌNH (1 - 9)" Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="2,0,0,10" />
+
+                        <!-- 1 -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="0,0,10,0">
+                                    <TextBlock Text="1" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <TextBlock Text="Trong Thành (Dạo phố, quán rượu, phủ)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 2 -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="0,0,10,0">
+                                    <TextBlock Text="2" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <TextBlock Text="Nhật Trình (Tiêu điểm &amp; báo cáo ngày)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 3 / M -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="0,0,10,0">
+                                    <TextBlock Text="3 / M" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <TextBlock Text="Bản Đồ Thiên Hạ (13 châu, di chuyển)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 4 -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="0,0,10,0">
+                                    <TextBlock Text="4" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <TextBlock Text="Mệnh Cách (Cộng điểm thiên mệnh)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 5 / C -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="0,0,10,0">
+                                    <TextBlock Text="5 / C" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <TextBlock Text="Chợ Thành (Mua bán theo thị giá)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 6 -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="0,0,10,0">
+                                    <TextBlock Text="6" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <TextBlock Text="Sạp Hàng &amp; Tiền Trang Cá Nhân" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 7 -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="0,0,10,0">
+                                    <TextBlock Text="7" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <TextBlock Text="Kho Hàng (Lưu trữ lương &amp; hàng hóa)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 8 -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,6">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="0,0,10,0">
+                                    <TextBlock Text="8" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <TextBlock Text="Tiền Trang (Vay nợ, gửi tiết kiệm)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+
+                        <!-- 9 -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,7">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="0,0,10,0">
+                                    <TextBlock Text="9" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <TextBlock Text="Ngân Trang (Vận chuyển ngân lượng)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Column 3: Strategic Tools & Radar -->
+            <Border Grid.Column="2" Background="{StaticResource Surface}"
+                    BorderBrush="{StaticResource Line}" BorderThickness="1"
+                    CornerRadius="8" Padding="14,12" Margin="8,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="CÔNG CỤ CHIẾN LƯỢC &amp; HỆ THỐNG" Style="{StaticResource Overline}" Foreground="{StaticResource Accent}" Margin="2,0,0,10" />
+
+                        <!-- B -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="B" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="La Bàn Giá (Trade Radar)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Bản đồ nhiệt giá cả &amp; Tuyến buôn hời" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- V -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="V" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Đại Nghiệp (Ambitions)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="5 Con đường vinh quang &amp; Kết cục" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- P -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="P" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Hồ Sơ Nhân Vật (Profile)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Tứ duy, danh hiệu, sức khỏe &amp; gia thế" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- O -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="O" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Cài Đặt &amp; DLC Tam Quốc" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Kiểm tra invariants &amp; quản lý module" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- F1 -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="F1" FontWeight="Bold" Foreground="{StaticResource Accent}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Cẩm Nang Phím Tắt" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Mở bảng hướng dẫn phím tắt này" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- F3 -->
+                        <Border Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8">
+                            <DockPanel>
+                                <Border Background="{StaticResource Bg}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="0,0,10,0">
+                                    <TextBlock Text="F3" FontWeight="Bold" Foreground="{StaticResource Text}" FontSize="12" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Lớp Phủ Gỡ Lỗi (Debug)" FontWeight="SemiBold" Foreground="{StaticResource Text}" FontSize="12.5" />
+                                    <TextBlock Text="Bật/tắt thông tin FPS, bộ nhớ &amp; event log" Style="{StaticResource Caption}" Foreground="{StaticResource Faint}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="{StaticResource Surface}"
+                BorderBrush="{StaticResource Line}" BorderThickness="1"
+                CornerRadius="8" Padding="14,10">
+            <DockPanel>
+                <TextBlock Text="💡 Mẹo: Có thể dùng cả bàn phím số (NumPad 1-9) để chuyển đổi nhanh các màn hình chính!"
+                           Style="{StaticResource Caption}" Foreground="{StaticResource Accent}" VerticalAlignment="Center" DockPanel.Dock="Left" />
+                <Button Content="Đã Hiểu [Esc]" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Click="Close_Click" Padding="16,6" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</local:HubModalWindowBase>

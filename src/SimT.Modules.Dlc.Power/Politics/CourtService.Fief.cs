@@ -614,4 +614,88 @@ internal sealed partial class CourtService
 
         return new QuarterlyEvalResult(fief.CitadelId, cityName, grade, meritDelta, bonus, rankAction, narrative);
     }
+
+    public IReadOnlyList<AideCandidateView> GetAideCandidates(long citadelId = 0)
+    {
+        var targetCity = citadelId > 0 ? citadelId : GovernorCityId;
+        if (targetCity <= 0) return Array.Empty<AideCandidateView>();
+
+        var npcs = _capabilities?.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var n) == true ? n : null;
+        if (npcs is null) return Array.Empty<AideCandidateView>();
+
+        var traitsCap = _capabilities?.TryGet<INpcTraits>(CapabilityIds.NpcTraits, out var tc) == true ? tc : null;
+        var fief = PlayerFief;
+
+        var residents = npcs.FindByCitadel(targetCity).Where(c => !c.IsDeceasedFlag).ToList();
+        var result = new List<AideCandidateView>();
+
+        foreach (var npc in residents)
+        {
+            var traits = traitsCap is not null ? traitsCap.GetTraits(npc.Id) : Array.Empty<NpcTraitDef>();
+            var traitNames = traits.Select(t => t.NameVi).ToList();
+
+            string rec;
+            if (traits.Any(t => t.Code == NpcTraitCodes.ThanhLiem))
+            {
+                rec = "★ Đại Hiền Thần: Tiết kiệm +30q/tháng, -3% Loạn (Khuyên dùng Trưởng Thừa)";
+            }
+            else if (traits.Any(t => t.Code == NpcTraitCodes.TrungNghia))
+            {
+                rec = "★ Đại Danh Tướng: Chiêu mộ +40 Tinh binh/tháng, +3 Huân công (Khuyên dùng Đô Úy)";
+            }
+            else if (traits.Any(t => t.Code == NpcTraitCodes.HieuHoc))
+            {
+                rec = "★ Văn Thần Hiếu Học: Hưng học thi thư (+3 Huân công/tháng)";
+            }
+            else if (traits.Any(t => t.Code == NpcTraitCodes.DiemTinh))
+            {
+                rec = "★ Trấn Thủ Điềm Tĩnh: Gia cố thành phòng môn hạ (+3 Thủ/tháng)";
+            }
+            else if (traits.Any(t => t.Code == NpcTraitCodes.KeoKiet))
+            {
+                rec = "Tiết Kiệm Lương Thảo: Thắt chặt định mức, giảm 25% lương ăn";
+            }
+            else if (traits.Any(t => t.Code == NpcTraitCodes.ThamTai || t.Code == NpcTraitCodes.XaoQuyet))
+            {
+                rec = "⚠️ Cảnh Báo: Bòn rút ~5% ngân khố/tháng, tăng bất ổn";
+            }
+            else if (traits.Any(t => t.Code == NpcTraitCodes.NongNay))
+            {
+                rec = "⚠️ Quân Pháp Hà Khắc: Dễ kích động binh sĩ (+1% Loạn/tháng)";
+            }
+            else if (npc.Attributes.War >= 70)
+            {
+                rec = "Võ tướng thiện chiến, thích hợp cầm quân tiễu phỉ (Đô Úy)";
+            }
+            else if (npc.Attributes.Pol >= 70)
+            {
+                rec = "Nho sĩ thông tỏ chánh đạo, thích hợp an dân (Trưởng Thừa)";
+            }
+            else
+            {
+                rec = "Danh sĩ bản địa trấn giữ châu quận";
+            }
+
+            var isCivil = fief is not null && fief.CivilAideNpcId == npc.Id;
+            var isMil = fief is not null && fief.MilitaryAideNpcId == npc.Id;
+
+            result.Add(new AideCandidateView(
+                npc.Id,
+                npc.NameVi,
+                npc.Role,
+                npc.Attributes.Pol,
+                npc.Attributes.Int,
+                npc.Attributes.War,
+                npc.Attributes.Dip,
+                traitNames,
+                rec,
+                isCivil,
+                isMil));
+        }
+
+        return result.OrderByDescending(c => c.IsCurrentCivilAide || c.IsCurrentMilitaryAide)
+                     .ThenByDescending(c => c.TraitsVi.Any(t => t.Contains("Thanh liêm") || t.Contains("Trung nghĩa")))
+                     .ThenByDescending(c => c.Politics + c.Intellect + c.War)
+                     .ToList();
+    }
 }

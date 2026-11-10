@@ -290,6 +290,12 @@ public partial class MainWindow
         settingsWindow.ShowDialog();
     }
 
+    private void HotkeysGuide_Click(object sender, RoutedEventArgs e)
+    {
+        var guideWindow = new HotkeysGuideModalWindow { Owner = this };
+        guideWindow.ShowDialog();
+    }
+
     private void PlayerCard_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         OpenPlayerProfileModal();

@@ -101,6 +101,7 @@ public interface IPoliticalCourt
     IReadOnlyList<CityDemographicsView> AllDemographics() => [];
 
     FamineSimulationResult? SimulateMonthlyCityFoodAndFamine(long citadelId, SimT.Contracts.Time.GameDate date) => null;
+    IReadOnlyList<AideCandidateView> GetAideCandidates(long citadelId = 0) => [];
 }
 
 public sealed record CityDemographicsView(
@@ -194,6 +195,19 @@ public sealed record FiefStatusView(
     string MilitaryAideNameVi = "Chưa có",
     string PolicyDirective = "BALANCE",
     string LastMonthlyDigest = "");
+
+public sealed record AideCandidateView(
+    long NpcId,
+    string NameVi,
+    string Role,
+    int Politics,
+    int Intellect,
+    int War,
+    int Charm,
+    IReadOnlyList<string> TraitsVi,
+    string RecommendationVi,
+    bool IsCurrentCivilAide,
+    bool IsCurrentMilitaryAide);
 
 public sealed record GovernanceMonthlyDigestView(
     long Id,

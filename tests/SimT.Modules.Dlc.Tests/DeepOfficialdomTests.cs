@@ -415,4 +415,59 @@ public sealed class DeepOfficialdomTests : IDisposable
         Assert.True(latest.SpoilsCopper > 0);
         Assert.False(string.IsNullOrWhiteSpace(latest.BattlePhasesVi));
     }
+
+    [Fact]
+    public void Aide_candidates_and_talent_scouting_recommendations_and_court_screen_render()
+    {
+        using var kernel = _host.Boot();
+        var court = kernel.Capabilities.Get<IPoliticalCourt>(CapabilityIds.CourtOffice);
+        Assert.NotNull(court);
+
+        // Appoint governor
+        var targetGov = court.Governances.First(g => g.FactionId > 0);
+        var faction = court.Factions.First(f => f.Id == targetGov.FactionId);
+        while (court.Reputation < 5) court.Serve();
+        court.JoinFaction(faction.Id);
+
+        var office3 = court.Offices.FirstOrDefault(o => o.Rank >= 3) ?? court.Offices[court.Offices.Count - 1];
+        while (court.Reputation < office3.ReputationRequired) court.Serve();
+        court.Apply(office3.Id);
+        court.AppointGovernor(targetGov.CitadelId);
+
+        // 1. Get aide candidates for governor city
+        var candidates = court.GetAideCandidates(targetGov.CitadelId);
+        Assert.NotEmpty(candidates);
+
+        var first = candidates[0];
+        Assert.True(first.NpcId > 0);
+        Assert.False(string.IsNullOrWhiteSpace(first.NameVi));
+        Assert.False(string.IsNullOrWhiteSpace(first.RecommendationVi));
+
+        // 2. Appoint first candidate as civil aide
+        var appRes = court.AppointFiefAide(first.NpcId, "CIVIL");
+        Assert.True(appRes.Ok, appRes.Message);
+
+        var updatedFief = court.PlayerFief;
+        Assert.NotNull(updatedFief);
+        Assert.Equal(first.NpcId, updatedFief.CivilAideNpcId);
+
+        // 3. Verify candidates reflect the appointment
+        var updatedCandidates = court.GetAideCandidates(targetGov.CitadelId);
+        var appointedCandidate = updatedCandidates.First(c => c.NpcId == first.NpcId);
+        Assert.True(appointedCandidate.IsCurrentCivilAide);
+        Assert.False(appointedCandidate.IsCurrentMilitaryAide);
+
+        // 4. Verify CourtScreen includes Chiêu Hiền Sảnh
+        var screen = kernel.Ui.Screens.FirstOrDefault(s => s.ScreenId == "politics.court");
+        Assert.NotNull(screen);
+        var model = screen.Render();
+        Assert.Contains(model.Sections, s => s.Heading.Contains("Chiêu Hiền Sảnh"));
+        Assert.NotNull(model.Metrics);
+        Assert.Contains(model.Metrics, m => m.Label == "Phong Ấp");
+
+        // 5. Dismiss civil aide
+        var dismissRes = court.AppointFiefAide(0, "CIVIL");
+        Assert.True(dismissRes.Ok, dismissRes.Message);
+        Assert.Equal(0, court.PlayerFief!.CivilAideNpcId);
+    }
 }

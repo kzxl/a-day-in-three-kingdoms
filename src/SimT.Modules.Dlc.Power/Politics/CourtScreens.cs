@@ -19,6 +19,7 @@ internal sealed class CourtScreen : IScreenContribution
     private static readonly string[] MemorialColumns = ["Ngày", "Thể Loại", "Sớ Thượng Tấu", "Kết Quả", "Công Trạng", "Hồi Âm Triều Đình"];
     private static readonly string[] CareerColumns = ["Ngày", "Biến Chuyển", "Chức Vị Cũ", "Chức Vị Mới", "Công Trạng", "Chiếu Chỉ Minh Chủ"];
     private static readonly string[] LogColumns = ["Ngày", "Thành", "Chính Sách", "Chi Phí", "Uy Tín", "Bất Ổn", "Tường Trình"];
+    private static readonly string[] AideColumns = ["Danh Sĩ Châu Quận", "Đảm Nhiệm Hiện Tại", "Chỉ Số Chánh Trị / Quân Bị", "Đặc Tính Tính Cách", "Tác Động Chánh Vụ Phong Ấp"];
 
     private readonly CourtService _service;
     private readonly IPlayerState _player;
@@ -144,6 +145,40 @@ internal sealed class CourtScreen : IScreenContribution
                         cr.Status == "PENDING" ? "Chưa giải quyết" : cr.OutcomeVi
                     ],
                     crCmds));
+            }
+        }
+
+        // Section: Aide Recruitment & Talent Scouting (Chiêu Hiền Sảnh)
+        var candidateRows = new List<ScreenRow>();
+        if (fief is not null)
+        {
+            var candidates = _service.GetAideCandidates(fief.CitadelId);
+            foreach (var c in candidates)
+            {
+                var cmdList = new List<ScreenCommand>();
+                if (c.IsCurrentCivilAide)
+                {
+                    cmdList.Add(new ScreenCommand("appoint_aide:CIVIL:0", "Bãi Miễn Trưởng Thừa", CommandKind.Danger));
+                }
+                else if (c.IsCurrentMilitaryAide)
+                {
+                    cmdList.Add(new ScreenCommand("appoint_aide:MILITARY:0", "Bãi Miễn Đô Úy", CommandKind.Danger));
+                }
+                else
+                {
+                    cmdList.Add(new ScreenCommand($"appoint_aide:CIVIL:{c.NpcId}", "Cử Trưởng Thừa 🌾", CommandKind.Primary));
+                    cmdList.Add(new ScreenCommand($"appoint_aide:MILITARY:{c.NpcId}", "Cử Đô Úy ⚔️", CommandKind.Secondary));
+                }
+
+                candidateRows.Add(new ScreenRow(
+                    [
+                        c.NameVi,
+                        c.IsCurrentCivilAide ? "★ Trưởng Thừa (Văn)" : c.IsCurrentMilitaryAide ? "★ Đô Úy (Võ)" : "Chưa bổ nhiệm",
+                        $"Chính {c.Politics} · Trí {c.Intellect} · Vũ {c.War} · Mị {c.Charm}",
+                        string.Join(", ", c.TraitsVi.Count > 0 ? c.TraitsVi : ["Bình thường"]),
+                        c.RecommendationVi
+                    ],
+                    cmdList));
             }
         }
 
@@ -417,6 +452,20 @@ internal sealed class CourtScreen : IScreenContribution
             alerts.Add(new ScreenAlert($"Cần thêm {next.ReputationRequired - _service.Reputation} uy tín để nhận {next.NameVi}.", AlertLevel.Info));
         }
 
+        if (fief is not null)
+        {
+            var activeCrises = _service.GetActiveFiefCrises(fief.CitadelId);
+            if (activeCrises.Count > 0)
+            {
+                alerts.Add(new ScreenAlert($"🚨 KHẨN BÁO PHONG ẤP: Có {activeCrises.Count} biến cố khẩn cấp đang chờ đại nhân định đoạt!", AlertLevel.Critical));
+            }
+            var fiefGov = _service.Governances.FirstOrDefault(g => g.CitadelId == fief.CitadelId);
+            if (fiefGov is not null && fiefGov.UnrestLevel >= 35)
+            {
+                alerts.Add(new ScreenAlert($"⚠️ CẢNH BÁO TRỊ AN: Bất ổn {fief.CitadelNameVi} lên tới {fiefGov.UnrestLevel}%, nguy cơ bạo loạn!", AlertLevel.Warning));
+            }
+        }
+
         var totalStipend = _service.MonthlyStipend + (_service.AllegianceFactionId > 0 ? CourtService.FactionStipendBonus : 0);
 
         var sections = new List<ScreenSection>
@@ -427,6 +476,11 @@ internal sealed class CourtScreen : IScreenContribution
         if (fiefRows.Count > 0)
         {
             sections.Add(new ScreenSection("Thái Thú Phủ & Phong Ấp Châu Quận", FiefColumns, fiefRows, SectionViewMode.ImperialCourtChamber));
+        }
+
+        if (candidateRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Chiêu Hiền Sảnh · Bổ Nhiệm Trưởng Thừa & Đô Úy Phong Ấp", AideColumns, candidateRows));
         }
 
         if (crisisRows.Count > 0)
@@ -485,7 +539,7 @@ internal sealed class CourtScreen : IScreenContribution
                     _service.OfficeId == 0 ? "Chưa nhận chức" : $"Bổng {_service.MonthlyStipend} quan/tháng",
                     _service.OfficeId == 0 ? MetricTone.Neutral : MetricTone.Positive),
                 new ScreenMetric("Phong Ấp", fief?.CitadelNameVi ?? "Chưa có",
-                    fief is null ? "Chưa phong đất" : "Trấn nhậm thái thú",
+                    fief is null ? "Chưa phong đất" : $"{fief.LocalTreasury:N0}q khố · {fief.GarrisonTroops:N0} binh",
                     fief is null ? MetricTone.Neutral : MetricTone.Positive),
                 new ScreenMetric("Minh Chủ", _service.AllegianceFactionName ?? "Tự do",
                     _service.AllegianceFactionId == 0 ? "Chưa quy thuận" : "Quân kỳ bảo hộ",

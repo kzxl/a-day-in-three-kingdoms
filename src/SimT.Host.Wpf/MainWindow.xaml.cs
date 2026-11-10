@@ -397,6 +397,10 @@ public partial class MainWindow : Window
 
         switch (e.Key)
         {
+            case System.Windows.Input.Key.F1:
+                HotkeysGuide_Click(this, new RoutedEventArgs()); e.Handled = true; break;
+            case System.Windows.Input.Key.P:
+                OpenPlayerProfileModal(); e.Handled = true; break;
             case System.Windows.Input.Key.F3:
                 DebugOverlay.ToggleVisibility();
                 e.Handled = true;
@@ -429,6 +433,10 @@ public partial class MainWindow : Window
                 else if (SceneOverlay.ActiveScene is TalkScene or DuelScene or EventScene or DebateScene) { SceneOverlay.HideScene(); RenderSelected(); }
                 else CloseInspector();
                 e.Handled = true; break;
+            case >= System.Windows.Input.Key.NumPad1 and <= System.Windows.Input.Key.NumPad9:
+                var numIndex = e.Key - System.Windows.Input.Key.NumPad1;
+                if (numIndex < NavList.Items.Count) { NavList.SelectedIndex = numIndex; e.Handled = true; }
+                break;
             case >= System.Windows.Input.Key.D1 and <= System.Windows.Input.Key.D9:
                 var index = e.Key - System.Windows.Input.Key.D1;
                 if (index < NavList.Items.Count) { NavList.SelectedIndex = index; e.Handled = true; }
