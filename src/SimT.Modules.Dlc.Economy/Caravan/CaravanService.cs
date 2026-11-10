@@ -373,13 +373,26 @@ internal sealed class CaravanService : ICaravanGuild
         var baseFee = units * _freightPerUnit;
         var fleet = Fleet;
 
-        // Fleet discount + Accountant bonus (up to 25% discount based on Com stat)
+        // Fleet discount + Accountant bonus + Political Marriage tariff discount
         var fleetDiscountPermille = (int)(fleet.CostDiscount * 1000);
         var acctDiscountPermille = crew.AccountantCom > 0 ? Math.Min(250, crew.AccountantCom * 250 / 100) : 0;
-        var totalDiscountPermille = Math.Min(500, fleetDiscountPermille + acctDiscountPermille);
+        var allianceDiscountPermille = _capabilities?.TryGet<ILineageHouse>(CapabilityIds.LineageHouse, out var lineage) == true && lineage is not null
+            ? lineage.TotalTariffDiscountPermille
+            : 0;
+        var totalDiscountPermille = Math.Min(600, fleetDiscountPermille + acctDiscountPermille + allianceDiscountPermille);
         var fee = Math.Max(1, baseFee * (1000 - totalDiscountPermille) / 1000);
 
         var routeDiplomacyNotice = string.Empty;
+        if (_capabilities?.TryGet<IMilitaryCommand>(CapabilityIds.MilitaryCommand, out var military) == true && military is not null)
+        {
+            var originFleet = military.GetNavalFleet(fromCity);
+            var destFleet = military.GetNavalFleet(toCity);
+            if ((originFleet.PatrolVictoryCount > 0 || destFleet.PatrolVictoryCount > 0) && days > 1)
+            {
+                days = Math.Max(1, days - 1);
+                routeDiplomacyNotice += " (thủy sư hộ tống thông suốt đường sông)";
+            }
+        }
         if (_capabilities != null && _capabilities.TryGet<ISocialNetwork>(CapabilityIds.SocialNetwork, out var social) && social != null)
         {
             var destNpcs = _npcRegistry?.FindByCitadel(toCity) ?? Array.Empty<NpcDef>();

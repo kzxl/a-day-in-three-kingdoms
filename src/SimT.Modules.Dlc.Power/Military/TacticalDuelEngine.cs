@@ -118,7 +118,8 @@ public static class TacticalDuelEngine
         int? seed = null,
         IReadOnlyList<NpcTraitDef>? opponentTraits = null,
         int destinyDamageBonus = 0,
-        bool hasWarlordKeystone = false)
+        bool hasWarlordKeystone = false,
+        TacticalDuelAction? preferredStance = null)
     {
         var rng = seed.HasValue ? new Random(seed.Value) : new Random();
         var opponentBranch = ResolveNpcBranch(opponent);
@@ -133,7 +134,7 @@ public static class TacticalDuelEngine
         var playerHp = playerMaxHp;
         var opponentHp = opponentMaxHp;
 
-        var playerSpirit = pAttr.Wil >= 80 ? 10 : 0;
+        var playerSpirit = (pAttr.Wil >= 80 ? 10 : 0) + (preferredStance == TacticalDuelAction.FocusSpirit ? 20 : 0);
         var opponentSpirit = nAttr.Wil >= 80 ? 10 : 0;
 
         var playerCharged = false;
@@ -213,6 +214,22 @@ public static class TacticalDuelEngine
         nBranchAtk *= traitAtkMult;
         nBranchDef *= traitIncomingMult;
 
+        if (preferredStance == TacticalDuelAction.Attack)
+        {
+            pBranchAtk *= 1.15;
+            skillNotes.Add("Sách lược [Cường Công Áp Đảo] (+15% sát thương công kích)");
+        }
+        else if (preferredStance == TacticalDuelAction.Defend)
+        {
+            nBranchAtk *= 0.80;
+            skillNotes.Add("Sách lược [Thủ Thế Phản Kích] (-20% sát thương nhận vào)");
+        }
+        else if (preferredStance is TacticalDuelAction.FocusSpirit or TacticalDuelAction.SpecialStrike)
+        {
+            pSkillMult += 0.12;
+            skillNotes.Add("Sách lược [Tụ Khí Tuyệt Sát] (+20 Khí lực khởi đầu, +12% uy lực tuyệt kỹ)");
+        }
+
         if (opponentTraits is not null)
         {
             if (opponentTraits.Any(t => string.Equals(t.Code, NpcTraitCodes.NongNay, StringComparison.OrdinalIgnoreCase)))
@@ -224,7 +241,7 @@ public static class TacticalDuelEngine
         int round = 1;
         while (round <= maxRounds && playerHp > 0 && opponentHp > 0)
         {
-            var pAction = ChoosePlayerAction(playerSpirit, playerCharged, opponentHp, opponentSpirit, rng);
+            var pAction = ChoosePlayerAction(playerSpirit, playerCharged, opponentHp, opponentSpirit, rng, preferredStance);
             var oAction = ChooseOpponentAction(nWar, opponentSpirit, opponentCharged, playerHp, rng);
 
             // Execute Clash
@@ -304,8 +321,25 @@ public static class TacticalDuelEngine
         bool charged,
         int opponentHp,
         int opponentSpirit,
-        Random rng)
+        Random rng,
+        TacticalDuelAction? preferredStance = null)
     {
+        if (preferredStance == TacticalDuelAction.Defend && (opponentSpirit >= 30 || charged))
+        {
+            return TacticalDuelAction.Defend;
+        }
+
+        if (preferredStance is TacticalDuelAction.SpecialStrike or TacticalDuelAction.FocusSpirit)
+        {
+            if (spirit >= 30) return TacticalDuelAction.SpecialStrike;
+            return TacticalDuelAction.FocusSpirit;
+        }
+
+        if (preferredStance == TacticalDuelAction.Attack && spirit < 30)
+        {
+            return TacticalDuelAction.Attack;
+        }
+
         if (spirit >= 30)
         {
             var roll = rng.NextDouble();

@@ -158,7 +158,10 @@ internal sealed partial class MilitaryService : IMilitaryCommand
 
     public DuelResult ChallengeArena(long npcId) => ChallengeArena(npcId, TroopBranch.Infantry);
 
-    public DuelResult ChallengeArena(long npcId, TroopBranch playerBranch)
+    public DuelResult ChallengeArena(long npcId, TroopBranch playerBranch) =>
+        ChallengeArena(npcId, playerBranch, null);
+
+    public DuelResult ChallengeArena(long npcId, TroopBranch playerBranch, TacticalDuelAction? preferredStance)
     {
         var npc = _registry.Find(npcId)
                   ?? throw new SimException("military.npc_not_found", $"Không tìm thấy võ sĩ mã {npcId}.");
@@ -206,7 +209,7 @@ internal sealed partial class MilitaryService : IMilitaryCommand
             destinyDamage = destiny.GetModifier("duel_damage_bonus");
             hasWarlord = destiny.HasKeystone("binhgia_keystone_warlord");
         }
-        var duel = TacticalDuelEngine.SimulateDuel(_attributes, npc, playerBranch, opponentTraits: opponentTraits, destinyDamageBonus: destinyDamage, hasWarlordKeystone: hasWarlord);
+        var duel = TacticalDuelEngine.SimulateDuel(_attributes, npc, playerBranch, opponentTraits: opponentTraits, destinyDamageBonus: destinyDamage, hasWarlordKeystone: hasWarlord, preferredStance: preferredStance);
 
         if (duel.Won && social is not null)
         {

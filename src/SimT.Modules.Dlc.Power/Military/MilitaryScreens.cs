@@ -73,7 +73,9 @@ internal sealed class MilitaryScreen : IScreenContribution
                     "Sẵn sàng giao đấu"
                 ],
                 [
-                    new ScreenCommand($"duel:{w.Id}", "Tỷ Võ ⚔", CommandKind.Primary),
+                    new ScreenCommand($"duel:{w.Id}:Infantry:Attack", "Cường Công ⚔", CommandKind.Primary),
+                    new ScreenCommand($"duel:{w.Id}:Cavalry:SpecialStrike", "Tuyệt Sát 💥", CommandKind.Secondary),
+                    new ScreenCommand($"duel:{w.Id}:Archers:Defend", "Thủ Phản 🛡️", CommandKind.Secondary),
                     new ScreenCommand($"npc:modal:{w.Id}", "Hồ Sơ 🔍", CommandKind.Secondary)
                 ],
                 Title: $"{w.NameVi} — {w.Role}",
@@ -310,7 +312,8 @@ internal sealed class MilitaryCommandHandler : IScreenCommandHandler
             if (long.TryParse(parts[0], out var npcId))
             {
                 var branch = parts.Length > 1 && Enum.TryParse<TroopBranch>(parts[1], true, out var b) ? b : TroopBranch.Infantry;
-                var duel = _military.ChallengeArena(npcId, branch);
+                TacticalDuelAction? stance = parts.Length > 2 && Enum.TryParse<TacticalDuelAction>(parts[2], true, out var s) ? s : null;
+                var duel = _military.ChallengeArena(npcId, branch, stance);
                 return duel.CombatSummaryVi;
             }
         }

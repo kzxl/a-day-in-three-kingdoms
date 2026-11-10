@@ -122,4 +122,40 @@ public sealed class FuturePillarsTests : IDisposable
         var achievements = ambitions.EvaluateAchievements();
         Assert.True(achievements.Count >= 10);
     }
+
+    [Fact]
+    public void Pillar6_Cross_pillar_synergy_and_tactical_stance_cards_operate_end_to_end()
+    {
+        using var kernel = _host.Boot();
+        var trade = kernel.Capabilities.Get<IMarketTrade>(CapabilityIds.MarketTrade);
+        var lineage = kernel.Capabilities.Get<ILineageHouse>(CapabilityIds.LineageHouse);
+        var espionage = kernel.Capabilities.Get<IEspionageNetwork>(CapabilityIds.EspionageNetwork);
+        var military = kernel.Capabilities.Get<IMilitaryCommand>(CapabilityIds.MilitaryCommand);
+        var wallet = kernel.Capabilities.Get<IWallet>(CapabilityIds.PlayerWallet);
+
+        wallet.Pay(5000, "test.grant", "Seed synergy funds", "test:synergy:grant");
+
+        var baseBuyPrice = trade.QuoteBuy(1L, 4L);   // Silk (base price high enough to show 5% discount)
+        var baseSellPrice = trade.QuoteSell(1L, 4L);
+
+        // 1. Political Marriage reduces market buy quote
+        lineage.Marry();
+        lineage.Beget();
+        var child = Assert.Single(lineage.Children);
+        Assert.True(lineage.ArrangePoliticalMarriage(child.Id, 3L).Ok); // Eastern Wu (-6% tariff)
+        var discountedBuyPrice = trade.QuoteBuy(1L, 4L);
+        Assert.True(discountedBuyPrice < baseBuyPrice);
+
+        // 2. Espionage price_whisper boosts market sell quote by +15%
+        espionage.DeploySpyCell(1L);
+        espionage.ExecuteCovertWhisper(1L, "price_whisper");
+        var boostedSellPrice = trade.QuoteSell(1L, 4L);
+        Assert.True(boostedSellPrice > baseSellPrice);
+
+        // 3. Tactical Stance Cards in Arena Duel
+        var registry = kernel.Capabilities.Get<INpcRegistry>(CapabilityIds.NpcRegistry);
+        var targetNpc = registry.FindByCitadel(1L).First();
+        var duel = military.ChallengeArena(targetNpc.Id, TroopBranch.Cavalry, TacticalDuelAction.SpecialStrike);
+        Assert.Contains("Tụ Khí Tuyệt Sát", duel.CombatSummaryVi);
+    }
 }

@@ -312,6 +312,10 @@ public interface IMilitaryCommand
     /// <summary>Challenges an NPC warrior to a duel in the local arena with chosen troop branch.</summary>
     DuelResult ChallengeArena(long npcId, TroopBranch playerBranch);
 
+    /// <summary>Challenges an NPC warrior to a duel with chosen troop branch and tactical stance card.</summary>
+    DuelResult ChallengeArena(long npcId, TroopBranch playerBranch, TacticalDuelAction? preferredStance) =>
+        ChallengeArena(npcId, playerBranch);
+
     /// <summary>Resolves the martial troop branch preferred by an NPC.</summary>
     TroopBranch ResolveNpcBranch(long npcId);
 

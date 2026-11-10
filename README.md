@@ -1,6 +1,6 @@
 # A Day in the Three Kingdoms (Một Ngày Ở Tam Quốc · SimT)
 
-[![Build & Test](https://img.shields.io/badge/Tests-763%20Passed-emerald.svg)](tests/)
+[![Build & Test](https://img.shields.io/badge/Tests-764%20Passed-emerald.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%204%20DLC%20Pillars%20Monolith-blueviolet.svg)](docs/module-authoring.md)
 [![Platform](https://img.shields.io/badge/Platform-.NET%208%20%7C%20WPF%20%7C%20SQLite%20WAL-blue.svg)](src/SimT.Host.Wpf/)
 [![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)

@@ -302,6 +302,16 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
                 price = Math.Max(1, (long)Math.Round(price * (1.0 - Math.Min(90, discount) / 100.0)));
             }
         }
+
+        if (_capabilities?.TryGet<ILineageHouse>(CapabilityIds.LineageHouse, out var lineage) == true && lineage is not null)
+        {
+            var allianceDiscPermille = lineage.TotalTariffDiscountPermille;
+            if (allianceDiscPermille > 0)
+            {
+                price = Math.Max(1, price * (1000 - Math.Min(250, allianceDiscPermille)) / 1000);
+            }
+        }
+
         return price;
     }
 
@@ -322,6 +332,16 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
                 baseSell = Math.Max(1, (long)Math.Round(baseSell * (1.0 + bonus / 100.0)));
             }
         }
+
+        if (_capabilities?.TryGet<IEspionageNetwork>(CapabilityIds.EspionageNetwork, out var espionage) == true && espionage is not null)
+        {
+            var spyNode = espionage.GetSpyNode(cityId);
+            if (spyNode.IntelLevel > 0 && string.Equals(spyNode.ActiveOperation, "price_whisper", StringComparison.OrdinalIgnoreCase))
+            {
+                baseSell = Math.Max(1, (long)Math.Round(baseSell * 1.15));
+            }
+        }
+
         return baseSell;
     }
 

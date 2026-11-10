@@ -37,7 +37,9 @@
     "military.command",
     "power.geopolitical-war",
     "politics.court",
-    "player.destiny"
+    "player.destiny",
+    "lineage.house",
+    "society.espionage"
   ],
   "owns": {
     "tables": [
