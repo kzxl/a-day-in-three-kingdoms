@@ -1,6 +1,6 @@
 # A Day in the Three Kingdoms (Một Ngày Ở Tam Quốc · SimT)
 
-[![Build & Test](https://img.shields.io/badge/Tests-715%20Passed-emerald.svg)](tests/)
+[![Build & Test](https://img.shields.io/badge/Tests-759%20Passed-emerald.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/Architecture-Core%20%2B%204%20DLC%20Pillars%20Monolith-blueviolet.svg)](docs/module-authoring.md)
 [![Platform](https://img.shields.io/badge/Platform-.NET%208%20%7C%20WPF%20%7C%20SQLite%20WAL-blue.svg)](src/SimT.Host.Wpf/)
 [![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
@@ -156,8 +156,14 @@ Legacy saves containing historical records from individual micro-modules (`dlc.m
 - **Deep Officialdom, Governor Fiefdom & Promotion/Demotion**:
   - Full Nine-Rank career progression with quantitative Merits (Huân Công) and active promotion petitions (`RequestPromotion`).
   - Strict ministerial demotion and censure (`DemoteOffice`) when failing consecutive lord tasks or mismanaging local famine/unrest.
-  - Governor's Manor (Thái Thú Phủ) for Rank 3+ ministers: administer agricultural reclamation, commerce markets, fortification defense, and public order with local treasury accounts and quarterly evaluations.
-  - Imperial Council Memorials (Triều Hội Thượng Tấu) to petition warlords for economic reforms, military campaigns, personnel appointments, or disaster relief.
+- **Governor's Manor (Thái Thú Phủ) & Imperial Council Memorials**:
+  - Rank 3+ ministers administer agricultural reclamation, commerce markets, fortification defense, and public order with local treasury accounts, autonomous aides, fief megaprojects, and siege defense.
+  - Submit formal Imperial Council Memorials (Triều Hội Thượng Tấu) to petition warlords for economic reforms, military campaigns, personnel appointments, or disaster relief.
+- **Cross-Pillar Intrigue, Economic Warfare & Proactive Strategic Briefing**:
+  - **Economic Warfare (`dlc.economy`)**: Market cornering monopolies (`CornerMarket`) and high-risk contraband smuggling corridors (`SmuggleContraband`).
+  - **Retainer Ambition & Treasury Audit (`dlc.character`)**: Retainer ambition friction, embezzlement detection, formal audits (`AuditRetainer`), and sworn brother combat/intrigue assistance (`RequestSwornAssist`).
+  - **Warlord Scrutiny & Court Factions (`dlc.power`)**: Dynamic warlord suspicion/extortion demands (`AppeaseWarlord`), court faction standing, lobbying (`LobbyFaction`), and imperial censorate inspections (`HandleImperialInspection`).
+  - **Proactive Strategic HUD (`SimT.Host.Wpf`)**: `TopProposalCard` daily action advisor, `GameStrategicBriefingControl` 360-degree command overview, and real-time survival/threat pulse mitigation banners.
 - **Comprehensive Desktop Hotkey Navigation**:
   - `Space` / `W`: Advance 1 day / 7 days
   - `M`: World Map (`world.map`)
@@ -175,10 +181,10 @@ Legacy saves containing historical records from individual micro-modules (`dlc.m
 | --- | --- | --- |
 | Architecture rules | 44 | `dotnet test tests/SimT.Architecture.Tests` |
 | Kernel primitives, contracts and hardening | 164 | `dotnet test tests/SimT.Core.Tests` |
-| Consolidated DLC Pillars behavior | 453 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
-| Commodity market mechanics | 46 | `dotnet test tests/SimT.Modules.Market.Tests` |
-| WPF Desktop Host component tests | 8 | `dotnet test tests/SimT.Host.Wpf.Tests` |
-| **Total test suite** | **715** | `dotnet test SimT.sln` |
+| Consolidated DLC Pillars behavior | 479 | `dotnet test tests/SimT.Modules.Dlc.Tests` |
+| Commodity market mechanics | 50 | `dotnet test tests/SimT.Modules.Market.Tests` |
+| WPF Desktop Host component tests | 22 | `dotnet test tests/SimT.Host.Wpf.Tests` |
+| **Total test suite** | **759** | `dotnet test SimT.sln` |
 | Golden ledger hashes | 2 | `SimT.Cli golden …` |
 | Invariants at end of every replay | 60 | printed by `SimT.Cli` |
 | WPF render smoke | 1 | `SimT.Host.Wpf.exe --smoke` |

@@ -14,15 +14,7 @@
         <Image x:Name="BgImage" Stretch="UniformToFill" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.18" />
 
         <!-- Radial Scrim / Vignette overlay to keep text & UI high-contrast lacquer -->
-        <Border>
-            <Border.Background>
-                <RadialGradientBrush Center="0.5,0.45" RadiusX="0.85" RadiusY="0.85">
-                    <GradientStop Color="#4515110D" Offset="0.0" />
-                    <GradientStop Color="#C515110D" Offset="0.65" />
-                    <GradientStop Color="#F915110D" Offset="1.0" />
-                </RadialGradientBrush>
-            </Border.Background>
-        </Border>
+        <Border Background="{StaticResource TitleVignetteBrush}" />
 
         <!-- Subtle Ambient Particles Canvas: Floating Stroll Petals / Golden Embers -->
         <controls:GameAmbientParticlesControl Kind="StrollPetals" Opacity="0.35" IsHitTestVisible="False" />
@@ -270,7 +262,7 @@
                                         <StackPanel>
                                             <TextBlock Text="⚖️ TÍN NGHĨA THƯƠNG TRƯỜNG" Style="{StaticResource Overline}" />
                                             <TextBlock Text="{Binding CredibilityText}" Style="{StaticResource NumberLarge}"
-                                                       FontSize="17" Margin="0,3,0,1" Foreground="#4A90E2" />
+                                                       FontSize="17" Margin="0,3,0,1" Foreground="{StaticResource Azure}" />
                                             <TextBlock Text="Chữ tín thương gia" Style="{StaticResource Caption}" FontSize="10.5" Foreground="{StaticResource Faint}" />
                                         </StackPanel>
                                     </Border>

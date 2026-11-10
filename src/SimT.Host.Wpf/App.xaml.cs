@@ -20,6 +20,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        try { Console.OutputEncoding = System.Text.Encoding.UTF8; } catch { }
         Audio.GameAudio.Initialize(e.Args.Contains("--smoke") || e.Args.Contains("--demo"));
 
         DispatcherUnhandledException += (_, args) =>

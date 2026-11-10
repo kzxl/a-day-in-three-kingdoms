@@ -104,7 +104,7 @@
                                                FontWeight="Bold" FontSize="16" Foreground="{StaticResource Text}" />
                                     <Border Background="{StaticResource Gain}" CornerRadius="3"
                                             Padding="4,1" Margin="6,0,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="BẠN" FontSize="9" FontWeight="Bold" Foreground="#0E1116" />
+                                        <TextBlock Text="BẠN" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BadgeDarkInk}" />
                                     </Border>
                                 </StackPanel>
                                 <TextBlock x:Name="PlayerTitleText" Text="Hiệp Khách Hành Giả"
@@ -138,17 +138,17 @@
                                              Background="{StaticResource Bg}" Foreground="{StaticResource Gain}"
                                              BorderBrush="{StaticResource Line}" BorderThickness="1" />
                                 <TextBlock x:Name="PlayerHpLabel" Text="HP: 100 / 100"
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF"
+                                           FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource PureWhite}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Grid>
 
                             <!-- Spirit / Khí Bar -->
                             <Grid>
                                 <ProgressBar x:Name="PlayerSpiritBar" Height="14" Minimum="0" Maximum="100" Value="0"
-                                             Background="{StaticResource Bg}" Foreground="#06B6D4"
+                                             Background="{StaticResource Bg}" Foreground="{StaticResource SpiritCyan}"
                                              BorderBrush="{StaticResource Line}" BorderThickness="1" />
                                 <TextBlock x:Name="PlayerSpiritLabel" Text="Khí Lực: 0 / 100"
-                                           FontSize="10" FontWeight="SemiBold" Foreground="#FFFFFF"
+                                           FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource PureWhite}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Grid>
                         </StackPanel>
@@ -266,17 +266,17 @@
                                              Background="{StaticResource Bg}" Foreground="{StaticResource Gain}"
                                              BorderBrush="{StaticResource Line}" BorderThickness="1" />
                                 <TextBlock x:Name="OpponentHpLabel" Text="HP: 100 / 100"
-                                           FontSize="11" FontWeight="SemiBold" Foreground="#FFFFFF"
+                                           FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource PureWhite}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Grid>
 
                             <!-- Spirit / Khí Bar -->
                             <Grid>
                                 <ProgressBar x:Name="OpponentSpiritBar" Height="14" Minimum="0" Maximum="100" Value="0"
-                                             Background="{StaticResource Bg}" Foreground="#06B6D4"
+                                             Background="{StaticResource Bg}" Foreground="{StaticResource SpiritCyan}"
                                              BorderBrush="{StaticResource Line}" BorderThickness="1" />
                                 <TextBlock x:Name="OpponentSpiritLabel" Text="Khí Lực: 0 / 100"
-                                           FontSize="10" FontWeight="SemiBold" Foreground="#FFFFFF"
+                                           FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource PureWhite}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Grid>
                         </StackPanel>

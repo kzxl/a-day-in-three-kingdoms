@@ -90,7 +90,7 @@
                             <TextBlock x:Name="HeaderHpText" Text="❤️ HP 100/100" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Gain}" />
                         </Border>
                         <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
-                            <TextBlock x:Name="HeaderStaminaText" Text="⚡ Thể Lực 100/100" FontSize="10.5" FontWeight="SemiBold" Foreground="#4A90E2" />
+                            <TextBlock x:Name="HeaderStaminaText" Text="⚡ Thể Lực 100/100" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Azure}" />
                         </Border>
                         <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
                             <TextBlock x:Name="HeaderFameText" Text="★ Uy Danh 100" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Accent}" />
@@ -112,7 +112,7 @@
                         <StackPanel HorizontalAlignment="Center">
                             <TextBlock Text="CHIẾN LỰC" Style="{StaticResource Overline}" HorizontalAlignment="Center" />
                             <TextBlock x:Name="CombatPowerText" Text="0" Style="{StaticResource NumberLarge}"
-                                       Foreground="#FF7B54" HorizontalAlignment="Center" Margin="0,1,0,0" />
+                                       Foreground="{StaticResource CombatCoral}" HorizontalAlignment="Center" Margin="0,1,0,0" />
                             <TextBlock x:Name="CombatTierText" Text="Bình Thường" Style="{StaticResource Caption}"
                                        Foreground="{StaticResource Faint}" FontSize="10" HorizontalAlignment="Center" />
                         </StackPanel>
@@ -176,14 +176,14 @@
                                     <Border Grid.Column="0" Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="0,0,3,0">
                                         <StackPanel>
                                             <TextBlock Text="⚔️ QUÂN SỰ" Style="{StaticResource Overline}" FontSize="9.5" />
-                                            <TextBlock x:Name="BranchMartialText" Text="0" Style="{StaticResource Number}" FontWeight="Bold" Foreground="#FF6B6B" Margin="0,2,0,0" />
+                                            <TextBlock x:Name="BranchMartialText" Text="0" Style="{StaticResource Number}" FontWeight="Bold" Foreground="{StaticResource MartialRed}" Margin="0,2,0,0" />
                                             <TextBlock Text="Võ Lực + Thống Soái" FontSize="9" Foreground="{StaticResource Faint}" />
                                         </StackPanel>
                                     </Border>
                                     <Border Grid.Column="1" Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="8,6" Margin="3,0,3,0">
                                         <StackPanel>
                                             <TextBlock Text="🧠 MƯU LƯỢC" Style="{StaticResource Overline}" FontSize="9.5" />
-                                            <TextBlock x:Name="BranchStrategyText" Text="0" Style="{StaticResource Number}" FontWeight="Bold" Foreground="#4D96FF" Margin="0,2,0,0" />
+                                            <TextBlock x:Name="BranchStrategyText" Text="0" Style="{StaticResource Number}" FontWeight="Bold" Foreground="{StaticResource StrategyBlue}" Margin="0,2,0,0" />
                                             <TextBlock Text="Trí Tuệ + Chính Trị" FontSize="9" Foreground="{StaticResource Faint}" />
                                         </StackPanel>
                                     </Border>
@@ -269,7 +269,7 @@
                                         <StackPanel>
                                             <DockPanel>
                                                 <TextBlock Text="⚡ THỂ LỰC (STAMINA)" Style="{StaticResource Overline}" />
-                                                <TextBlock x:Name="ProtagonistStaminaValText" Text="100/100" Style="{StaticResource Number}" HorizontalAlignment="Right" Foreground="#4A90E2" />
+                                                <TextBlock x:Name="ProtagonistStaminaValText" Text="100/100" Style="{StaticResource Number}" HorizontalAlignment="Right" Foreground="{StaticResource Azure}" />
                                             </DockPanel>
                                             <controls:GameGaugeBar x:Name="ProtagonistStaminaGauge" Height="6" Margin="0,6,0,0" />
                                         </StackPanel>
@@ -323,7 +323,7 @@
                                     <Border Grid.Column="2" Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="4,0,0,0">
                                         <StackPanel>
                                             <TextBlock Text="★ UY DANH &amp; DANH TIẾNG" Style="{StaticResource Overline}" FontSize="9.5" />
-                                            <TextBlock x:Name="ProtagonistFameBadgeText" Text="100 Danh Vọng" FontSize="13" FontWeight="Bold" Foreground="#F5D061" Margin="0,3,0,0" />
+                                            <TextBlock x:Name="ProtagonistFameBadgeText" Text="100 Danh Vọng" FontSize="13" FontWeight="Bold" Foreground="{StaticResource FameGold}" Margin="0,3,0,0" />
                                         </StackPanel>
                                     </Border>
                                 </Grid>
@@ -476,7 +476,7 @@
                                                 BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,4,0">
                                             <StackPanel>
                                                 <TextBlock Text="HẢO CẢM &amp; ẤN TƯỢNG" Style="{StaticResource Overline}" />
-                                                <TextBlock x:Name="KizunaAffinityDetail" FontSize="13" FontWeight="Bold" Foreground="#FF6B8B" Margin="0,3,0,0" />
+                                                <TextBlock x:Name="KizunaAffinityDetail" FontSize="13" FontWeight="Bold" Foreground="{StaticResource AffinityRose}" Margin="0,3,0,0" />
                                             </StackPanel>
                                         </Border>
                                         <Border Grid.Column="1" Background="{StaticResource SurfaceAlt}" BorderBrush="{StaticResource Line}"
@@ -493,7 +493,7 @@
                                         <StackPanel>
                                             <DockPanel>
                                                 <TextBlock Text="MỨC ĐỘ THÂN THIẾT" Style="{StaticResource Overline}" />
-                                                <TextBlock x:Name="AffinityBarText" Text="0/100" Style="{StaticResource Caption}" HorizontalAlignment="Right" Foreground="#FF6B8B" />
+                                                <TextBlock x:Name="AffinityBarText" Text="0/100" Style="{StaticResource Caption}" HorizontalAlignment="Right" Foreground="{StaticResource AffinityRose}" />
                                             </DockPanel>
                                             <controls:GameGaugeBar x:Name="AffinityGauge" Height="6" Margin="0,6,0,0" />
                                         </StackPanel>

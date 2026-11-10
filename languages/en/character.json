@@ -29,5 +29,8 @@
   "profession.woodwork": "Carpentry",
   "profession.physician": "Medicine & Healing",
   "profession.divination": "Divination & Augury",
-  "profession.brewing": "Brewing & Distilling"
+  "profession.brewing": "Brewing & Distilling",
+  "character.retainer_ambition": "Retainer Ambition",
+  "character.retainer_audit": "Treasury Audit",
+  "character.sworn_assist": "Sworn Brother Assist"
 }

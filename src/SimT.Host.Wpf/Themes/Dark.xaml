@@ -18,6 +18,34 @@
     <SolidColorBrush x:Key="Gain" Color="#3F6B55" />
     <SolidColorBrush x:Key="Loss" Color="#A8321F" />
 
+    <!-- Semantic Vitals, Combat & Advisory Tokens -->
+    <SolidColorBrush x:Key="HpTrack" Color="#2B1414" />
+    <SolidColorBrush x:Key="HpFill" Color="#EF4444" />
+    <SolidColorBrush x:Key="StaminaTrack" Color="#1C281F" />
+    <SolidColorBrush x:Key="StaminaFill" Color="#34D399" />
+    <SolidColorBrush x:Key="FatigueTrack" Color="#2B1A14" />
+    <SolidColorBrush x:Key="FatigueFill" Color="#F59E0B" />
+    <SolidColorBrush x:Key="AdvisoryBg" Color="#221A12" />
+    <SolidColorBrush x:Key="AdvisoryBorder" Color="#4A3924" />
+    <SolidColorBrush x:Key="AdvisoryPillBg" Color="#2A1F12" />
+    <SolidColorBrush x:Key="AdvisoryPillBorder" Color="#6B5330" />
+    <SolidColorBrush x:Key="AdvisoryText" Color="#E2C27D" />
+    <SolidColorBrush x:Key="Scrim" Color="#66000000" />
+    <SolidColorBrush x:Key="Azure" Color="#4A90E2" />
+    <SolidColorBrush x:Key="CombatCoral" Color="#FF7B54" />
+    <SolidColorBrush x:Key="MartialRed" Color="#FF6B6B" />
+    <SolidColorBrush x:Key="StrategyBlue" Color="#4D96FF" />
+    <SolidColorBrush x:Key="FameGold" Color="#F5D061" />
+    <SolidColorBrush x:Key="AffinityRose" Color="#FF6B8B" />
+    <SolidColorBrush x:Key="BadgeDarkInk" Color="#0E1116" />
+    <SolidColorBrush x:Key="PureWhite" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SpiritCyan" Color="#06B6D4" />
+    <RadialGradientBrush x:Key="TitleVignetteBrush" Center="0.5,0.45" RadiusX="0.85" RadiusY="0.85">
+        <GradientStop Color="#4515110D" Offset="0.0" />
+        <GradientStop Color="#C515110D" Offset="0.65" />
+        <GradientStop Color="#F915110D" Offset="1.0" />
+    </RadialGradientBrush>
+
     <!-- Typography -->
     <Style TargetType="TextBlock">
         <Setter Property="Foreground" Value="{StaticResource Text}" />

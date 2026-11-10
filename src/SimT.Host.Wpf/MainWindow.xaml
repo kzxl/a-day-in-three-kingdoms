@@ -97,24 +97,24 @@
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock x:Name="HpLabelText" Text="Máu" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,5,0" VerticalAlignment="Center" />
                             <Grid Width="50" Height="8" Margin="0,0,5,0" VerticalAlignment="Center">
-                                <Border Background="#2B1414" CornerRadius="3" />
-                                <Border x:Name="VisualHpFill" Background="#EF4444" CornerRadius="3" HorizontalAlignment="Left" Width="50" />
+                                <Border Background="{StaticResource HpTrack}" CornerRadius="3" />
+                                <Border x:Name="VisualHpFill" Background="{StaticResource HpFill}" CornerRadius="3" HorizontalAlignment="Left" Width="50" />
                             </Grid>
-                            <TextBlock x:Name="VisualHpText" Text="--/--" FontSize="11" FontWeight="SemiBold" Foreground="#EF4444" Margin="0,0,10,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="VisualHpText" Text="--/--" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource HpFill}" Margin="0,0,10,0" VerticalAlignment="Center" />
 
                             <TextBlock x:Name="StaminaLabelText" Text="Thể lực" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,5,0" VerticalAlignment="Center" />
                             <Grid Width="50" Height="8" Margin="0,0,5,0" VerticalAlignment="Center">
-                                <Border Background="#1C281F" CornerRadius="3" />
-                                <Border x:Name="VisualStaminaFill" Background="#34D399" CornerRadius="3" HorizontalAlignment="Left" Width="35" />
+                                <Border Background="{StaticResource StaminaTrack}" CornerRadius="3" />
+                                <Border x:Name="VisualStaminaFill" Background="{StaticResource StaminaFill}" CornerRadius="3" HorizontalAlignment="Left" Width="35" />
                             </Grid>
-                            <TextBlock x:Name="VisualStaminaText" Text="--/--" FontSize="11" FontWeight="SemiBold" Foreground="#34D399" Margin="0,0,10,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="VisualStaminaText" Text="--/--" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource StaminaFill}" Margin="0,0,10,0" VerticalAlignment="Center" />
 
                             <TextBlock x:Name="FatigueLabelText" Text="Mệt" FontSize="11" Foreground="{StaticResource Muted}" Margin="0,0,5,0" VerticalAlignment="Center" />
                             <Grid Width="40" Height="8" Margin="0,0,5,0" VerticalAlignment="Center">
-                                <Border Background="#2B1A14" CornerRadius="3" />
-                                <Border x:Name="VisualFatigueFill" Background="#F59E0B" CornerRadius="3" HorizontalAlignment="Left" Width="20" />
+                                <Border Background="{StaticResource FatigueTrack}" CornerRadius="3" />
+                                <Border x:Name="VisualFatigueFill" Background="{StaticResource FatigueFill}" CornerRadius="3" HorizontalAlignment="Left" Width="20" />
                             </Grid>
-                            <TextBlock x:Name="VisualFatigueText" Text="--%" FontSize="11" FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,10,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="VisualFatigueText" Text="--%" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource FatigueFill}" Margin="0,0,10,0" VerticalAlignment="Center" />
 
                             <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
                                     BorderThickness="1" CornerRadius="3" Padding="6,1" VerticalAlignment="Center">
@@ -259,16 +259,16 @@
                 <StackPanel Grid.Row="1" Margin="0,8,0,0">
                     <controls:GameSurvivalThreatBanner x:Name="SurvivalThreatBanner" Margin="0,0,0,6" />
                     <Border x:Name="RecommendationBanner" Padding="12,8"
-                            Background="#221A12" BorderBrush="#4A3924" BorderThickness="1" CornerRadius="5"
+                            Background="{StaticResource AdvisoryBg}" BorderBrush="{StaticResource AdvisoryBorder}" BorderThickness="1" CornerRadius="5"
                             Visibility="Collapsed">
                         <DockPanel>
                             <Border DockPanel.Dock="Left" Width="3" CornerRadius="2"
                                     Background="{StaticResource Accent}" Margin="0,1,10,1" />
-                            <Border DockPanel.Dock="Left" Background="#2A1F12" BorderBrush="#6B5330"
+                            <Border DockPanel.Dock="Left" Background="{StaticResource AdvisoryPillBg}" BorderBrush="{StaticResource AdvisoryPillBorder}"
                                     BorderThickness="1" CornerRadius="3" Padding="7,2" Margin="0,0,10,0"
                                     VerticalAlignment="Center">
                                 <TextBlock x:Name="RecommendationBadgeText" Text="NÊN LÀM" FontSize="10" FontWeight="Bold"
-                                           Foreground="#E2C27D" />
+                                           Foreground="{StaticResource AdvisoryText}" />
                             </Border>
                             <TextBlock x:Name="RecommendationText" Foreground="{StaticResource Ink}"
                                        FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Center" />
@@ -300,7 +300,7 @@
 
             <!-- ===== Inspector: overlays the page ===== -->
             <Border x:Name="InspectorScrim" Grid.Column="1" Panel.ZIndex="19" Visibility="Collapsed"
-                    Background="#66000000" MouseLeftButtonDown="Scrim_Click" />
+                    Background="{StaticResource Scrim}" MouseLeftButtonDown="Scrim_Click" />
 
             <Border x:Name="InspectorPanel" Grid.Column="1" Panel.ZIndex="20" Width="380"
                     HorizontalAlignment="Right" Visibility="Collapsed"

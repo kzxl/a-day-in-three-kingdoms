@@ -201,6 +201,7 @@ public partial class MainWindow : Window
         SettingsButton.Label = loc.Get("action.settings");
 
         StrategicTitleText.Text = loc.Get("nav.command_title");
+        HpLabelText.Text = loc.Get("vitals.hp");
         StaminaLabelText.Text = loc.Get("vitals.stamina");
         FatigueLabelText.Text = loc.Get("vitals.fatigue");
         FilterLabelText.Text = loc.Get("action.filter");

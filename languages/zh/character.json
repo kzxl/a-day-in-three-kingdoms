@@ -29,5 +29,8 @@
   "profession.woodwork": "百工木艺",
   "profession.physician": "岐黄医道",
   "profession.divination": "阴阳占卜",
-  "profession.brewing": "杜康酿造"
+  "profession.brewing": "杜康酿造",
+  "character.retainer_ambition": "门客野心与贪墨",
+  "character.retainer_audit": "彻查账目审计",
+  "character.sworn_assist": "义兄义弟助阵"
 }
