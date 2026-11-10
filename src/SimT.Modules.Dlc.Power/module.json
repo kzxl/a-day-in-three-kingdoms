@@ -55,7 +55,10 @@
       "po_fief_megaproject",
       "po_fief_expedition_log",
       "po_fief_crisis",
-      "po_fief_siege_log"
+      "po_fief_siege_log",
+      "po_warlord_scrutiny",
+      "po_scrutiny_demand",
+      "po_philanthropy_log"
     ],
     "migrations": [
       "migrations"

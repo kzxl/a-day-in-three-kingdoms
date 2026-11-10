@@ -20,6 +20,8 @@ internal sealed class CourtScreen : IScreenContribution
     private static readonly string[] CareerColumns = ["Ngày", "Biến Chuyển", "Chức Vị Cũ", "Chức Vị Mới", "Công Trạng", "Chiếu Chỉ Minh Chủ"];
     private static readonly string[] LogColumns = ["Ngày", "Thành", "Chính Sách", "Chi Phí", "Uy Tín", "Bất Ổn", "Tường Trình"];
     private static readonly string[] AideColumns = ["Danh Sĩ Châu Quận", "Đảm Nhiệm Hiện Tại", "Chỉ Số Chánh Trị / Quân Bị", "Đặc Tính Tính Cách", "Tác Động Chánh Vụ Phong Ấp"];
+    private static readonly string[] ScrutinyColumns = ["Thế Lực Sở Tại", "Mức Độ Dòm Ngó", "Áp Lực Quân Phiệt", "Sản Nghiệp / Giới Hạn Che Chở", "Phụ Thu Thuế Chợ", "Tình Trạng & Trát Lệnh"];
+    private static readonly string[] PhilanthropyColumns = ["Thời Điểm", "Bá Tánh Thụ Hưởng", "Ngân Khoản Phát Chẩn", "Danh Vọng & Đức Độ", "Hạ Nhiệt Dòm Ngó", "Tường Trình Thiện Hạnh"];
 
     private readonly CourtService _service;
     private readonly IPlayerState _player;
@@ -412,6 +414,73 @@ internal sealed class CourtScreen : IScreenContribution
                 Array.Empty<ScreenCommand>()));
         }
 
+        // Section: Warlord Scrutiny & Demands (Cây To Đón Gió - Sức Ép Quân Phiệt)
+        var scrutinyRows = new List<ScreenRow>();
+        var scrutiny = _service.CurrentScrutiny;
+        if (scrutiny is not null)
+        {
+            var threatBadge = scrutiny.ThreatLevel switch
+            {
+                "AN_TOAN" => "🟢 Bình An (0-39)",
+                "DO_XET" => "🟡 Dò Xét (40-59)",
+                "SACH_NHIEU" => "🟠 Sách Nhiễu (60-84)",
+                _ => "🔴 Hiểm Họa (85-100)"
+            };
+
+            var cmds = new List<ScreenCommand>
+            {
+                new("scrutiny:donate:200", "Cứu Tế Dân Nghèo (200q) 🌾", CommandKind.Primary),
+                new("scrutiny:donate:500", "Đại Phát Chẩn (500q) 🕊️"),
+                new("scrutiny:donate:1000", "Công Đức Nghìn Vàng (1000q) 🏛️")
+            };
+
+            scrutinyRows.Add(new ScreenRow(
+                [
+                    $"🚩 {scrutiny.FactionNameVi} ({scrutiny.LeaderNameVi})",
+                    threatBadge,
+                    $"{scrutiny.ScrutinyScore}/100 điểm dòm ngó",
+                    $"Tiền mặt: {scrutiny.LiquidWealth:N0}q / Giới hạn: {scrutiny.ShieldingThreshold:N0}q",
+                    scrutiny.SurchargePercent > 0 ? $"+{scrutiny.SurchargePercent}% phụ thu" : "Không",
+                    scrutiny.IsEmbargoed ? $"⛔ Cấm vận ({scrutiny.EmbargoRemainingDays} ngày)" : scrutiny.StatusSummaryVi
+                ],
+                cmds));
+
+            foreach (var dem in scrutiny.ActiveDemands)
+            {
+                scrutinyRows.Add(new ScreenRow(
+                    [
+                        $"⚡ TRÁT LỆNH #{dem.Id}",
+                        dem.TitleVi,
+                        $"{dem.DemandCopper:N0} Quan",
+                        $"Hạn: Ngày {dem.DueDayIndex}",
+                        "🚨 Khẩn cấp",
+                        dem.DescriptionVi
+                    ],
+                    [
+                        new ScreenCommand($"scrutiny:pay:{dem.Id}", $"Nộp Đủ ({dem.DemandCopper}q)", CommandKind.Primary),
+                        new ScreenCommand($"scrutiny:bribe:{dem.Id}", $"Đút Lót ({dem.DemandCopper / 2}q)"),
+                        new ScreenCommand($"scrutiny:defy:{dem.Id}", "Kháng Lệnh ⚔️", CommandKind.Danger)
+                    ]));
+            }
+        }
+
+        // Section: Philanthropy Logs
+        var philanthropyRows = new List<ScreenRow>();
+        foreach (var phil in _service.RecentPhilanthropyLogs(5))
+        {
+            var citName = citadelNames.TryGetValue(phil.CitadelId, out var cn) ? cn : "Bổn châu";
+            philanthropyRows.Add(new ScreenRow(
+                [
+                    $"Ngày {phil.DayIndex}",
+                    citName,
+                    $"{phil.CopperDonated:N0} Quan",
+                    $"+{phil.FameEarned} Danh vọng / +{phil.VirtueEarned} Đức độ",
+                    $"-{phil.ScrutinyReduced} điểm dòm ngó",
+                    phil.NarrativeVi
+                ],
+                Array.Empty<ScreenCommand>()));
+        }
+
         // General Commands
         var commands = new List<ScreenCommand>
         {
@@ -463,6 +532,22 @@ internal sealed class CourtScreen : IScreenContribution
             if (fiefGov is not null && fiefGov.UnrestLevel >= 35)
             {
                 alerts.Add(new ScreenAlert($"⚠️ CẢNH BÁO TRỊ AN: Bất ổn {fief.CitadelNameVi} lên tới {fiefGov.UnrestLevel}%, nguy cơ bạo loạn!", AlertLevel.Warning));
+            }
+        }
+
+        if (scrutiny is not null)
+        {
+            if (scrutiny.ThreatLevel == "HIEM_HOA")
+            {
+                alerts.Add(new ScreenAlert($"🚨 HIỂM HỌA QUÂN PHIỆT: Điểm dòm ngó tại {scrutiny.FactionNameVi} lên tới {scrutiny.ScrutinyScore}/100! Nguy cơ bị tịch biên sản nghiệp!", AlertLevel.Critical));
+            }
+            else if (scrutiny.ThreatLevel == "SACH_NHIEU")
+            {
+                alerts.Add(new ScreenAlert($"⚠️ SỨC ÉP QUÂN PHIỆT: Minh chủ {scrutiny.FactionNameVi} đang để mắt đòi quân phí ({scrutiny.ScrutinyScore}/100)!", AlertLevel.Warning));
+            }
+            if (scrutiny.IsEmbargoed)
+            {
+                alerts.Add(new ScreenAlert($"⛔ CẤM VẬN BUÔN BÁN: Lãnh địa {scrutiny.FactionNameVi} cấm giao thương còn {scrutiny.EmbargoRemainingDays} ngày do kháng lệnh nộp quân nhu!", AlertLevel.Warning));
             }
         }
 
@@ -524,6 +609,12 @@ internal sealed class CourtScreen : IScreenContribution
         if (logRows.Count > 0)
         {
             sections.Add(new ScreenSection("Nhật Ký Chiếu Chỉ & Ban Bố Gần Đây", LogColumns, logRows));
+        }
+
+        sections.Add(new ScreenSection("Sức Ép Tài Phú & Quân Phiệt Dòm Ngó (Cây To Đón Gió)", ScrutinyColumns, scrutinyRows));
+        if (philanthropyRows.Count > 0)
+        {
+            sections.Add(new ScreenSection("Nhật Ký Cứu Tế Dân Sinh & Thiện Hạnh", PhilanthropyColumns, philanthropyRows));
         }
 
         return new ScreenModel(
@@ -639,6 +730,26 @@ internal sealed class CourtCommandHandler : IScreenCommandHandler
                 var category = parts[1];
                 var proposal = parts.Length > 2 ? parts[2] : "Hiến sách an bang định quốc";
                 return _service.SubmitMemorial(category, proposal).Message;
+            }
+
+            if (parts[0] == "scrutiny")
+            {
+                if (parts.Length >= 3 && parts[1] == "pay" && long.TryParse(parts[2], out var payId))
+                {
+                    return _service.ResolveScrutinyDemand(payId, "PAY").Message;
+                }
+                if (parts.Length >= 3 && parts[1] == "bribe" && long.TryParse(parts[2], out var bribeId))
+                {
+                    return _service.ResolveScrutinyDemand(bribeId, "BRIBE").Message;
+                }
+                if (parts.Length >= 3 && parts[1] == "defy" && long.TryParse(parts[2], out var defyId))
+                {
+                    return _service.ResolveScrutinyDemand(defyId, "DEFY").Message;
+                }
+                if (parts.Length >= 3 && parts[1] == "donate" && int.TryParse(parts[2], out var donAmt))
+                {
+                    return _service.DonatePhilanthropy(donAmt).Message;
+                }
             }
         }
 

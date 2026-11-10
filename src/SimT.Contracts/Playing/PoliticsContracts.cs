@@ -83,6 +83,18 @@ public interface IPoliticalCourt
 
     CourtResult Serve() => CourtResult.Failure("Chưa được hỗ trợ.");
 
+    WarlordScrutinyView? CurrentScrutiny => null;
+
+    IReadOnlyList<ScrutinyDemandView> ActiveScrutinyDemands => [];
+
+    IReadOnlyList<PhilanthropyLogView> RecentPhilanthropyLogs(int limit = 5) => [];
+
+    CourtResult ResolveScrutinyDemand(long demandId, string choiceCode) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    CourtResult DonatePhilanthropy(int copperAmount) => CourtResult.Failure("Chưa được hỗ trợ.");
+
+    void SimulateWarlordScrutiny(SimT.Contracts.Time.GameDate date) { }
+
     CourtResult Apply(long officeId) => CourtResult.Failure("Chưa được hỗ trợ.");
 
     CourtResult Resign() => CourtResult.Failure("Chưa được hỗ trợ.");
@@ -306,6 +318,41 @@ public sealed record FiefSiegeLogView(
     int SpoilsCopper,
     int MeritsEarned,
     string BattlePhasesVi,
+    string NarrativeVi);
+
+public sealed record WarlordScrutinyView(
+    long FactionId,
+    string FactionNameVi,
+    string LeaderNameVi,
+    int ScrutinyScore,
+    string ThreatLevel,
+    string StatusSummaryVi,
+    long LiquidWealth,
+    long ShieldingThreshold,
+    int SurchargePercent,
+    bool IsEmbargoed,
+    int EmbargoRemainingDays,
+    IReadOnlyList<ScrutinyDemandView> ActiveDemands);
+
+public sealed record ScrutinyDemandView(
+    long Id,
+    long FactionId,
+    string FactionNameVi,
+    string DemandType,
+    string TitleVi,
+    string DescriptionVi,
+    int DemandCopper,
+    int DueDayIndex,
+    string Status);
+
+public sealed record PhilanthropyLogView(
+    long Id,
+    long CitadelId,
+    int DayIndex,
+    int CopperDonated,
+    int FameEarned,
+    int VirtueEarned,
+    int ScrutinyReduced,
     string NarrativeVi);
 
 

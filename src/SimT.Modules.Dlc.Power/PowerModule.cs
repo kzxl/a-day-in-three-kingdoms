@@ -61,6 +61,7 @@ public sealed class PowerModule : ISimModule
         context.Events.Subscribe<MonthClosed>(closed =>
         {
             courtService.SimulateMonthlyFiefAutonomy(closed.Date);
+            courtService.SimulateWarlordScrutiny(closed.Date);
             foreach (var citadel in map.Citadels)
             {
                 courtService.SimulateMonthlyCityFoodAndFamine(citadel.Id, closed.Date);
