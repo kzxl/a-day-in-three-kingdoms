@@ -1122,6 +1122,8 @@ internal sealed partial class SocialService : ISocialNetwork
                         DbArgs.One("@id", ret.Id));
                     _log.Warn($"Failed to pay stipend for retainer {name} on {formattedDate}; loyalty reduced.");
                 }
+
+                ProcessRetainerAmbitionFriction(ret, name, formattedDate, date.DayIndex);
             }
         });
     }

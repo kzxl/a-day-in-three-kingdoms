@@ -40,7 +40,8 @@
       "kz_npc_wish",
       "kz_wish_state",
       "kz_met_npc",
-      "kz_roster_milestone"
+      "kz_roster_milestone",
+      "kz_retainer_audit_log"
     ],
     "migrations": ["migrations"]
   },

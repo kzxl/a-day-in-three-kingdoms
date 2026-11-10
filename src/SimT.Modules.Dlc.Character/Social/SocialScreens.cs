@@ -123,7 +123,7 @@ internal sealed class SocialScreen : IScreenContribution
         var swornBrothers = _social.GetSwornBrothers();
         if (swornBrothers.Count > 0)
         {
-            var swornColumns = new[] { "Nghĩa Huynh Đệ", "Danh Phận", "Ngày Thề Ước", "Tương Trợ", "Hồ Sơ" };
+            var swornColumns = new[] { "Nghĩa Huynh Đệ", "Danh Phận", "Ngày Thề Ước", "Tương Trợ", "Hành Động" };
             var swornRows = swornBrothers.Select(sw =>
             {
                 var npc = _registry.Find(sw.NpcId);
@@ -137,7 +137,8 @@ internal sealed class SocialScreen : IScreenContribution
                         "Kim Lan Tri Kỷ"
                     ],
                     [
-                        new ScreenCommand($"npc:modal:{sw.NpcId}", "Hồ Sơ 🔍", CommandKind.Primary)
+                        new ScreenCommand($"sworn:aid:{sw.NpcId}", "Cứu Trợ 🤝", CommandKind.Primary),
+                        new ScreenCommand($"npc:modal:{sw.NpcId}", "Hồ Sơ 🔍", CommandKind.Secondary)
                     ],
                     Title: $"{name} ({sw.BondTitle})",
                     Details:
@@ -156,21 +157,33 @@ internal sealed class SocialScreen : IScreenContribution
         // 2. Retainers section
         if (retainers.Count > 0)
         {
-            var retainerColumns = new[] { "Tên Danh Tướng/Mưu Sĩ", "Chức Vụ", "Bổng Lộc", "Trung Thành", "Ngày Đầu Quân" };
+            var retainerColumns = new[] { "Tên Danh Tướng/Mưu Sĩ", "Chức Vụ", "Bổng Lộc", "Trung Thành", "Tâm Tính (Dã Tâm/Khí Tiết)", "Tình Trạng", "Ngày Đầu Quân" };
             var retainerRows = retainers.Select(ret =>
             {
                 var npc = _registry.Find(ret.NpcId);
                 var name = npc?.NameVi ?? $"Mã {ret.NpcId}";
+                var psyche = _social.GetPsycheProfile(ret.NpcId);
+                var isRisky = ret.Loyalty < 55 && psyche.Ambition >= 70;
+                var statusDisplay = isRisky
+                    ? "🔴 Nguy cơ bội phản/tham ô"
+                    : ret.Loyalty >= 80
+                        ? "🟢 Kiên trung như nhất"
+                        : "🟡 Bình ổn";
+
                 return new ScreenRow(
                     [
-                        name,
+                        $"{name} [{psyche.BadgeVi}]",
                         SocialService.RoleTitleVi(ret.RoleAssigned),
                         $"{ret.MonthlyStipend} Quan/tháng",
                         $"{ret.Loyalty}/100",
+                        $"⚡{psyche.Ambition}% / 🛡️{psyche.Integrity}%",
+                        statusDisplay,
                         GameDateCodec.Format(ret.RecruitedDate)
                     ],
                     [
-                        new ScreenCommand($"npc:modal:{ret.NpcId}", "Hồ Sơ 🔍", CommandKind.Primary),
+                        new ScreenCommand($"retainer:audit:{ret.NpcId}", "Thẩm Tra ⚖️", CommandKind.Primary),
+                        new ScreenCommand($"retainer:placate:{ret.NpcId}:300", "Thưởng Trấn An 🎁", CommandKind.Secondary),
+                        new ScreenCommand($"npc:modal:{ret.NpcId}", "Hồ Sơ 🔍", CommandKind.Secondary),
                         new ScreenCommand($"dismiss:{ret.NpcId}", "Giải Trừ ✖", CommandKind.Danger)
                     ],
                     Title: $"{name} — {SocialService.RoleTitleVi(ret.RoleAssigned)}",
@@ -179,12 +192,59 @@ internal sealed class SocialScreen : IScreenContribution
                         new ScreenDetail("Họ Tên", name),
                         new ScreenDetail("Trách Nhiệm", SocialService.RoleTitleVi(ret.RoleAssigned)),
                         new ScreenDetail("Bổng Lộc", $"{ret.MonthlyStipend} Quan mỗi tháng"),
-                        new ScreenDetail("Lòng Trung Thành", $"{ret.Loyalty}/100"),
+                        new ScreenDetail("Lòng Trung Thành", $"{ret.Loyalty}/100 ({statusDisplay})"),
+                        new ScreenDetail("Dã Tâm & Tiết Tháo", $"Khát vọng danh vọng: {psyche.Ambition}%, Tiết tháo chính trực: {psyche.Integrity}%"),
                         new ScreenDetail("Bổ Nhiệm Ngày", GameDateCodec.Format(ret.RecruitedDate))
                     ]);
             }).ToList();
 
             sections.Add(new ScreenSection($"🛡️ Đội Ngũ Gia Thần & Môn Khách ({retainers.Count})", retainerColumns, retainerRows, SectionViewMode.DossierGrid));
+        }
+
+        // 2b. Retainer Ambition & Incident Logs Section
+        var recentIncidents = _social.GetRecentRetainerIncidents(6);
+        if (recentIncidents.Count > 0)
+        {
+            var incColumns = new[] { "Ngày", "Gia Thần", "Sự Kiện / Biến Cố", "Biến Động", "Chi Tiết Sự Việc" };
+            var incRows = recentIncidents.Select(inc =>
+            {
+                var npc = _registry.Find(inc.NpcId);
+                var name = npc?.NameVi ?? $"Mã #{inc.NpcId}";
+                var typeBadge = inc.IncidentType switch
+                {
+                    "EMBEZZLE" => "🔴 Tham Ô Công Quỹ",
+                    "DEMAND_RAISE" => "🟠 Yêu Sách Bổng Lộc",
+                    "DESERTION" => "⛔ Đào Tẩu Bội Phản",
+                    "AUDIT_CLEAR" => "⚖️ Thẩm Tra Sổ Sách",
+                    "PLACATED" => "🎁 Ban Thưởng Trấn An",
+                    "SWORN_AID" => "🤝 Nghĩa Trợ Huynh Đệ",
+                    _ => inc.IncidentType
+                };
+                var changeText = inc.CopperAmount > 0
+                    ? $"{inc.CopperAmount:N0} Quan (Loyalty: {inc.LoyaltyDelta:+0;-0;0})"
+                    : $"Loyalty: {inc.LoyaltyDelta:+0;-0;0}";
+
+                return new ScreenRow(
+                    [
+                        $"Ngày {inc.DayIndex}",
+                        name,
+                        typeBadge,
+                        changeText,
+                        inc.NarrativeVi
+                    ],
+                    [],
+                    Title: $"{typeBadge} — {name}",
+                    Details:
+                    [
+                        new ScreenDetail("Thời Điểm", $"Ngày {inc.DayIndex}"),
+                        new ScreenDetail("Nhân Sự", name),
+                        new ScreenDetail("Phân Loại", typeBadge),
+                        new ScreenDetail("Tác Động", changeText),
+                        new ScreenDetail("Tường Thuật", inc.NarrativeVi)
+                    ]);
+            }).ToList();
+
+            sections.Add(new ScreenSection($"⚡ Nhật Ký Dã Tâm & Biến Cố Gia Thần ({recentIncidents.Count})", incColumns, incRows, SectionViewMode.DossierGrid));
         }
 
         // 3. Equipped Skills Loadout Section (6 Slots)
@@ -578,6 +638,36 @@ internal sealed class SocialCommandHandler : IScreenCommandHandler
             if (long.TryParse(commandId["swear:".Length..], out var npcId))
             {
                 return _social.SwearBrotherhood(npcId);
+            }
+        }
+        else if (commandId.StartsWith("sworn:aid:"))
+        {
+            if (long.TryParse(commandId["sworn:aid:".Length..], out var npcId))
+            {
+                var aid = _social.RequestSwornBrotherAid(npcId);
+                return aid.NarrativeVi;
+            }
+        }
+        else if (commandId.StartsWith("retainer:audit:"))
+        {
+            if (long.TryParse(commandId["retainer:audit:".Length..], out var npcId))
+            {
+                var audit = _social.AuditRetainer(npcId);
+                return audit.NarrativeVi;
+            }
+        }
+        else if (commandId.StartsWith("retainer:placate:"))
+        {
+            var parts = commandId["retainer:placate:".Length..].Split(':');
+            if (long.TryParse(parts[0], out var npcId))
+            {
+                long bonus = 300;
+                if (parts.Length > 1 && long.TryParse(parts[1], out var parsedBonus))
+                {
+                    bonus = parsedBonus;
+                }
+                var placate = _social.PlacateRetainer(npcId, bonus);
+                return placate.NarrativeVi;
             }
         }
         else if (commandId == "host_banquet")

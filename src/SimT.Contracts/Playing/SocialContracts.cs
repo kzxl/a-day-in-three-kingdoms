@@ -238,7 +238,58 @@ public interface ISocialNetwork
 
     /// <summary>Evaluates all items currently in the player's inventory at a city and sorts them by gift compatibility for an NPC.</summary>
     IReadOnlyList<GiftEvaluationView> GetBestGiftsForNpc(long npcId, long cityId) => Array.Empty<GiftEvaluationView>();
+
+    /// <summary>Conducts a strict internal audit on a retainer to deter corruption or uncover embezzlement.</summary>
+    RetainerAuditResult AuditRetainer(long npcId) => new(false, 0, 0, "Không có nghi vấn.");
+
+    /// <summary>Placates a retainer's ambition by bestowing extra bonus copper, boosting loyalty and staving off defection.</summary>
+    RetainerPlacateResult PlacateRetainer(long npcId, long copperBonus) => new(false, 0, 0, "Không thể ban thưởng.");
+
+    /// <summary>Requests emergency financial or shelter assistance from a sworn brother.</summary>
+    SwornBrotherAidResult RequestSwornBrotherAid(long npcId) => new(false, 0, "Không thể yêu cầu cứu trợ.");
+
+    /// <summary>Retrieves recent retainer ambition frictions, audits, and sworn assistance logs.</summary>
+    IReadOnlyList<RetainerAuditLogView> GetRecentRetainerIncidents(int limit = 10) => Array.Empty<RetainerAuditLogView>();
 }
+
+/// <summary>
+/// Result of an internal loyalty/ledger audit on a retainer.
+/// </summary>
+public sealed record RetainerAuditResult(
+    bool IsEmbezzling,
+    int RiskLevel,
+    long EmbezzledAmount,
+    string NarrativeVi);
+
+/// <summary>
+/// Result of placating a retainer's ambition with bonus stipend or gifts.
+/// </summary>
+public sealed record RetainerPlacateResult(
+    bool Success,
+    int OldLoyalty,
+    int NewLoyalty,
+    string NarrativeVi);
+
+/// <summary>
+/// Result of requesting emergency support from a sworn brother.
+/// </summary>
+public sealed record SwornBrotherAidResult(
+    bool Success,
+    long CopperAid,
+    string NarrativeVi);
+
+/// <summary>
+/// Historical record of retainer ambition frictions, embezzlement, or sworn brother assistance.
+/// </summary>
+public sealed record RetainerAuditLogView(
+    long Id,
+    long DayIndex,
+    long RetainerId,
+    long NpcId,
+    string IncidentType,
+    long CopperAmount,
+    int LoyaltyDelta,
+    string NarrativeVi);
 
 /// <summary>Projected gift compatibility, synergy badges, and warnings for an NPC.</summary>
 public sealed record GiftEvaluationView(
