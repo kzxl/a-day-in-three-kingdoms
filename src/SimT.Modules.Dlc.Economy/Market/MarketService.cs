@@ -551,6 +551,128 @@ internal sealed partial class MarketService : IMarketTrade, IMarketWarehouse, IM
         return true;
     }
 
+    public bool StoreAll(long cityId, bool perishableOnly, out string message)
+    {
+        var warehouse = Info(cityId);
+        if (warehouse is null)
+        {
+            message = "Chưa thuê kho ở thành này.";
+            return false;
+        }
+
+        var freeSpace = warehouse.Capacity - warehouse.Used;
+        if (freeSpace <= 0)
+        {
+            message = $"Kho đã đầy: {warehouse.Used}/{warehouse.Capacity}.";
+            return false;
+        }
+
+        var candidateRows = _bag.Rows(cityId)
+            .Where(r => r.Quantity > 0)
+            .Select(r => (Row: r, Item: _items.Find(r.ItemId)))
+            .Where(x => x.Item is not null)
+            .ToList();
+
+        if (perishableOnly)
+        {
+            candidateRows = candidateRows.Where(x => x.Item!.ShelfLifeDays > 0).ToList();
+        }
+
+        if (candidateRows.Count == 0)
+        {
+            message = perishableOnly
+                ? "Trong hành trang không có hàng dễ hỏng nào cần gửi."
+                : "Trong hành trang không có hàng hoá nào để gửi vào kho.";
+            return false;
+        }
+
+        // Prioritize perishable items first, then higher value
+        var sorted = candidateRows
+            .OrderByDescending(x => x.Item!.ShelfLifeDays > 0)
+            .ThenByDescending(x => x.Item!.BasePrice)
+            .ToList();
+
+        var totalStored = 0;
+        var kindsCount = 0;
+
+        _db.Transaction(() =>
+        {
+            var remainingSpace = freeSpace;
+            foreach (var (r, item) in sorted)
+            {
+                if (remainingSpace <= 0) break;
+                var toStore = Math.Min(r.Quantity, remainingSpace);
+                if (toStore <= 0) continue;
+
+                if (!_bag.Remove(cityId, r.ItemId, toStore))
+                {
+                    throw new SimException("market.bag_race", "Bag changed while storing; rolled back.");
+                }
+
+                _db.Execute(
+                    """
+                    INSERT INTO mk_warehouse_stock(citadel_id, item_id, quantity) VALUES(@city, @item, @quantity)
+                    ON CONFLICT(citadel_id, item_id) DO UPDATE SET quantity = quantity + excluded.quantity
+                    """,
+                    new DbArgs().Add("@city", cityId).Add("@item", r.ItemId).Add("@quantity", toStore));
+
+                totalStored += toStore;
+                remainingSpace -= toStore;
+                kindsCount++;
+            }
+        });
+
+        if (totalStored == 0)
+        {
+            message = "Không thể gửi hàng vào kho.";
+            return false;
+        }
+
+        var updatedInfo = Info(cityId);
+        var remCap = updatedInfo != null ? Math.Max(0, updatedInfo.Capacity - updatedInfo.Used) : 0;
+        message = $"Đã cất {totalStored} đơn vị ({kindsCount} loại hàng) vào kho. Kho còn trống {remCap} chỗ.";
+        return true;
+    }
+
+    public bool TakeAll(long cityId, out string message)
+    {
+        var warehouse = Info(cityId);
+        if (warehouse is null)
+        {
+            message = "Chưa thuê kho ở thành này.";
+            return false;
+        }
+
+        var stockList = Stock(cityId);
+        if (stockList.Count == 0)
+        {
+            message = "Kho hàng tại thành này hiện đang trống.";
+            return false;
+        }
+
+        var totalTaken = 0;
+        var kindsCount = 0;
+
+        _db.Transaction(() =>
+        {
+            foreach (var line in stockList)
+            {
+                if (line.Quantity <= 0) continue;
+
+                _db.Execute(
+                    "DELETE FROM mk_warehouse_stock WHERE citadel_id=@city AND item_id=@item",
+                    new DbArgs().Add("@city", cityId).Add("@item", line.ItemId));
+
+                _bag.Add(cityId, line.ItemId, line.Quantity);
+                totalTaken += line.Quantity;
+                kindsCount++;
+            }
+        });
+
+        message = $"Đã lấy toàn bộ {totalTaken} đơn vị ({kindsCount} loại hàng) từ kho ra hành trang.";
+        return true;
+    }
+
     public bool Rent(long cityId, out string message)
     {
         if (Info(cityId) is not null)

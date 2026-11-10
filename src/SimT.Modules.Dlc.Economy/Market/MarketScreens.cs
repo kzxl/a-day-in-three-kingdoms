@@ -512,9 +512,25 @@ internal sealed class WarehouseScreen : IScreenContribution
             new("Sắp hỏng", Fmt(atRisk), "đơn vị trong 10 ngày", atRisk > 0 ? MetricTone.Warning : MetricTone.Neutral)
         };
 
-        var commands = rows.Count == 0
-            ? Array.Empty<ScreenCommand>()
-            : Array.Empty<ScreenCommand>();
+        var screenCommands = new List<ScreenCommand>();
+        var perishableInBag = _items.All.Any(it => it.ShelfLifeDays > 0 && _bag.Quantity(city.Id, it.Id) > 0);
+        var anyInBag = _items.All.Any(it => _bag.Quantity(city.Id, it.Id) > 0);
+        var freeCapacity = Math.Max(0, info.Capacity - info.Used);
+
+        if (anyInBag && freeCapacity > 0)
+        {
+            screenCommands.Add(new ScreenCommand("store:all", "📥 Cất Hết Vào Kho", CommandKind.Primary));
+        }
+
+        if (perishableInBag && freeCapacity > 0)
+        {
+            screenCommands.Add(new ScreenCommand("store:perishable", "🌾 Cất Hàng Dễ Hỏng", CommandKind.Secondary));
+        }
+
+        if (stock.Count > 0)
+        {
+            screenCommands.Add(new ScreenCommand("take:all", "📤 Lấy Hết Ra Túi", CommandKind.Secondary));
+        }
 
         var bagRows = new List<ScreenRow>();
         foreach (var item in _items.All)
@@ -564,7 +580,7 @@ internal sealed class WarehouseScreen : IScreenContribution
             $"{Title} — {city.NameVi}",
             $"Sức chứa {info.Used}/{info.Capacity} · phí {info.MonthlyRent} quan/tháng · hàng dễ hỏng mất dần mỗi ngày",
             sections,
-            commands,
+            screenCommands,
             metrics,
             alerts,
             warehouseRec);

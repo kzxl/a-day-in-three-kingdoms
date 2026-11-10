@@ -46,6 +46,10 @@ public interface IMarketWarehouse
 
     bool Take(long cityId, long itemId, int quantity, out string message);
 
+    bool StoreAll(long cityId, bool perishableOnly, out string message);
+
+    bool TakeAll(long cityId, out string message);
+
     bool Rent(long cityId, out string message);
 }
 

@@ -78,6 +78,24 @@ internal sealed class MarketCommandHandler : IScreenCommandHandler
             return _service.BuyFromNpcOffer(cityId, offerId, qty).Message;
         }
 
+        if (string.Equals(commandId, "store:all", StringComparison.OrdinalIgnoreCase))
+        {
+            _service.StoreAll(cityId, false, out var msg);
+            return msg;
+        }
+
+        if (string.Equals(commandId, "store:perishable", StringComparison.OrdinalIgnoreCase))
+        {
+            _service.StoreAll(cityId, true, out var msg);
+            return msg;
+        }
+
+        if (string.Equals(commandId, "take:all", StringComparison.OrdinalIgnoreCase))
+        {
+            _service.TakeAll(cityId, out var msg);
+            return msg;
+        }
+
         if (parts.Length < 2 || !long.TryParse(parts[1], out var itemId))
         {
             return "Lệnh không hợp lệ.";
