@@ -63,6 +63,7 @@ public partial class MainWindow : Window
         VersionText.TextTrimming = TextTrimming.CharacterEllipsis;
         DarkTitleBar.Apply(this);
         PlayerHudCard.ProfileClicked += OpenPlayerProfileModal;
+        SurvivalThreatBanner.ThreatActionTriggered += OnThreatActionTriggered;
         RegisterModalPresenters();
 
         GamePreferences.Instance.Apply(_kernel.Localization);
@@ -270,7 +271,13 @@ public partial class MainWindow : Window
 
             if (vitals is not null)
             {
-                VisualStaminaFill.Width = Math.Clamp((vitals.MaxStamina > 0 ? (double)vitals.CurrentStamina / vitals.MaxStamina : 1.0) * 65.0, 2.0, 65.0);
+                var maxHp = vitals.MaxHp > 0 ? vitals.MaxHp : 100;
+                var hpRatio = Math.Clamp((double)vitals.Health / maxHp, 0.0, 1.0);
+                VisualHpFill.Width = Math.Clamp(hpRatio * 50.0, 2.0, 50.0);
+                VisualHpText.Text = $"{vitals.Health}/{maxHp}";
+                VisualHpFill.Background = hpRatio <= 0.30 ? (Brush)FindResource("Loss") : new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44));
+
+                VisualStaminaFill.Width = Math.Clamp((vitals.MaxStamina > 0 ? (double)vitals.CurrentStamina / vitals.MaxStamina : 1.0) * 50.0, 2.0, 50.0);
                 VisualStaminaText.Text = $"{vitals.CurrentStamina}/{vitals.MaxStamina}";
                 VisualFatigueFill.Width = Math.Clamp(Math.Clamp(vitals.Fatigue / 100.0, 0.0, 1.0) * 55.0, 2.0, 55.0);
                 VisualFatigueText.Text = $"{vitals.Fatigue}%";
@@ -278,6 +285,14 @@ public partial class MainWindow : Window
             }
             VisualStandingText.Text = shortStanding;
             PlayerHudCard.Configure(playerState.Name, citadelName, regionName, vitals, fameStanding);
+
+            // Proactive Survival & Threat Pulse Banner
+            var dangerLevel = 1;
+            if (_kernel.Capabilities.TryGet<IWorldMap>(CapabilityIds.WorldMap, out var worldMap) && worldMap is not null)
+            {
+                dangerLevel = worldMap.GetEcosystem(playerState.CurrentCityId)?.DangerLevel ?? 1;
+            }
+            SurvivalThreatBanner.Update(vitals, dangerLevel);
         }
 
         RenderCalendar(today);
@@ -440,6 +455,21 @@ public partial class MainWindow : Window
             case >= System.Windows.Input.Key.D1 and <= System.Windows.Input.Key.D9:
                 var index = e.Key - System.Windows.Input.Key.D1;
                 if (index < NavList.Items.Count) { NavList.SelectedIndex = index; e.Handled = true; }
+                break;
+        }
+    }
+
+    private void OnThreatActionTriggered(string action)
+    {
+        switch (action)
+        {
+            case "rest":
+                Rest_Click(this, new RoutedEventArgs());
+                break;
+            case "map":
+                SelectScreen("world.map");
+                break;
+            default:
                 break;
         }
     }
