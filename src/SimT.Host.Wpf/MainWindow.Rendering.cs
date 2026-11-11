@@ -30,7 +30,6 @@ public partial class MainWindow
 
         if (!string.Equals(_screenId, entry.ScreenId, StringComparison.Ordinal))
         {
-            _detailKey = null;
             _selectedSectionTab = 0;
         }
 
@@ -154,14 +153,13 @@ public partial class MainWindow
             var tabs = new GameTabs(tabItems, clampedTab);
             tabs.SelectionChanged += (idx, _) =>
             {
-                _detailKey = null;
                 _selectedSectionTab = idx;
                 RenderSelected();
             };
             ContentPanel.Children.Add(tabs);
         }
 
-        var immediateLimit = (isAllTab && !_isSmoke && _detailKey is null) ? 3 : model.Sections.Count;
+        var immediateLimit = (isAllTab && !_isSmoke) ? 3 : model.Sections.Count;
         var deferredSections = new List<ScreenSection>();
         var renderedCount = 0;
         for (var i = 0; i < model.Sections.Count; i++)
@@ -197,7 +195,6 @@ public partial class MainWindow
                     ContentPanel.Children.Insert(insertIdx++, BuildCard(Filtered(sec)));
             }));
         }
-        RestoreDetail(model);
         RefreshBadges();
         AnimatePageTransition();
     }
@@ -227,7 +224,6 @@ public partial class MainWindow
         FilterBox.Visibility = Visibility.Collapsed;
         FilterHint.Visibility = Visibility.Collapsed;
         ContentPanel.Children.Clear();
-        CloseInspector();
     }
 
     private void UpdateRecommendationBanner(string? recommendation)
@@ -286,8 +282,6 @@ public partial class MainWindow
             wideColumn: 5));
 
         ContentPanel.Children.Add(MonthFooter());
-        if (_detailKey is null)
-            CloseInspector();
     }
 
     private GameMetricCard BuildMetric(ScreenMetric metric) => new(metric);
@@ -537,13 +531,7 @@ public partial class MainWindow
 
         var table = new GameTable(section, rows, visibleColumns, flexColumn, numeric);
         table.ActionClicked += RowCommand_Click;
-        table.RowInspected += (sec, row) =>
-        {
-            ShowInspector(sec, row);
-            var modalCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("npc:modal:"));
-            if (modalCmd is not null && long.TryParse(modalCmd.Id["npc:modal:".Length..], out var id))
-                TryOpenNpcModal(id);
-        };
+        table.RowInspected += (sec, row) => ShowInspector(sec, row);
 
         if (_firstGrid is null)
         {

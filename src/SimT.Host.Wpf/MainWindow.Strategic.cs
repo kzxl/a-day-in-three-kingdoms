@@ -340,7 +340,6 @@ public partial class MainWindow
             ContentPanel.Children.Add(BuildCard(Filtered(section)));
 
         ContentPanel.Children.Add(MonthFooter());
-        RestoreDetail(model);
         RefreshBadges();
         AnimatePageTransition();
     }
@@ -381,7 +380,6 @@ public partial class MainWindow
             ContentPanel.Children.Add(BuildCard(Filtered(milestoneSection)));
 
         ContentPanel.Children.Add(MonthFooter());
-        RestoreDetail(model);
         RefreshBadges();
         AnimatePageTransition();
     }
@@ -425,7 +423,6 @@ public partial class MainWindow
             ContentPanel.Children.Add(BuildCard(Filtered(section)));
 
         ContentPanel.Children.Add(MonthFooter());
-        RestoreDetail(model);
         RefreshBadges();
         AnimatePageTransition();
     }

@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
 using System.Windows;
@@ -37,7 +37,6 @@ public partial class MainWindow : Window
     private bool _loaded;
     private bool _isNavigating;
     private string _screenId = string.Empty;
-    private string? _detailKey;
     private GameTable? _firstGrid;
     private ScreenSection? _firstSection;
     private string _filter = string.Empty;
@@ -206,7 +205,6 @@ public partial class MainWindow : Window
         FatigueLabelText.Text = loc.Get("vitals.fatigue");
         FilterLabelText.Text = loc.Get("action.filter");
         FilterHint.Text = loc.Get("action.filter_hint");
-        InspectorTitleText.Text = loc.Get("action.details");
         RecommendationBadgeText.Text = loc.Get("action.advised");
     }
 
@@ -383,7 +381,6 @@ public partial class MainWindow : Window
         if (_firstSection is null || _firstSection.Rows.Count == 0) return false;
         UpdateLayout();
         if (_firstGrid is not null) _firstGrid.SelectedIndex = 0;
-        ShowInspector(_firstSection, _firstSection.Rows[0]);
         return true;
     }
 
@@ -460,7 +457,6 @@ public partial class MainWindow : Window
             case System.Windows.Input.Key.Escape:
                 if (SceneOverlay.ActiveScene is MapScene or SocialScene or MarketScene or DossierScene) SelectScreen(CitySceneScreenId);
                 else if (SceneOverlay.ActiveScene is TalkScene or DuelScene or EventScene or DebateScene) { SceneOverlay.HideScene(); RenderSelected(); }
-                else CloseInspector();
                 e.Handled = true; break;
             case >= System.Windows.Input.Key.NumPad1 and <= System.Windows.Input.Key.NumPad9:
                 var numIndex = e.Key - System.Windows.Input.Key.NumPad1;

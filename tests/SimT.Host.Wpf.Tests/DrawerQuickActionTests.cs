@@ -1,3 +1,4 @@
+using System.IO;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -186,5 +187,18 @@ public sealed class DrawerQuickActionTests
 
             Assert.Equal(0, workbenchInspectCalls);
         });
+    }
+
+    [Fact]
+    public void MainWindow_xaml_does_not_contain_legacy_inspector_drawer()
+    {
+        var xamlPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..", "..",
+            "src", "SimT.Host.Wpf", "MainWindow.xaml"));
+        Assert.True(File.Exists(xamlPath));
+        var xaml = File.ReadAllText(xamlPath);
+        Assert.DoesNotContain("InspectorPanel", xaml);
+        Assert.DoesNotContain("InspectorScrim", xaml);
     }
 }

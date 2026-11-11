@@ -231,16 +231,36 @@ public sealed class GameTable : Grid
             rowGrid.Children.Add(actionsPanel);
         }
 
-        var detailBtn = new Border
+        if (vm.Row.Info.Count > 0)
         {
-            Width = 28, Height = 26, Background = HeaderBg, BorderBrush = HeaderBorder, BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(4), Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center, ToolTip = "Xem chi tiết dòng này (double-click hoặc Enter)",
-            Child = new Path { Data = DotsGeom, Stroke = BronzeBrush, StrokeThickness = 1.5, Width = 11.5, Height = 11.5, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
-        };
-        detailBtn.MouseLeftButtonDown += (_, e) => { e.Handled = true; RowInspected?.Invoke(_section, vm.Row); };
-        SetColumn(detailBtn, _visibleColumns + 1);
-        rowGrid.Children.Add(detailBtn);
+            var tipTitle = vm.Row.Title ?? (vm.Cells.Length > 0 ? vm.Cells[0].Text : _section.Heading);
+            card.ToolTip = new GameRichTooltip(
+                tipTitle,
+                stats: vm.Row.Info.Take(8).Select(d => (d.Label, d.Value)).ToList());
+        }
+
+        var hasModalTarget = vm.Row.Commands.Any(c =>
+            c.Id.StartsWith("item:modal:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("npc:modal:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("buy:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("sell:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("store:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("take:", StringComparison.Ordinal) ||
+            c.Id.StartsWith("talk:npc:", StringComparison.Ordinal));
+
+        if (hasModalTarget)
+        {
+            var detailBtn = new Border
+            {
+                Width = 28, Height = 26, Background = HeaderBg, BorderBrush = HeaderBorder, BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4), Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center, ToolTip = "Mở hồ sơ / đồ giám chi tiết (double-click hoặc Enter)",
+                Child = new Path { Data = DotsGeom, Stroke = BronzeBrush, StrokeThickness = 1.5, Width = 11.5, Height = 11.5, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+            };
+            detailBtn.MouseLeftButtonDown += (_, e) => { e.Handled = true; RowInspected?.Invoke(_section, vm.Row); };
+            SetColumn(detailBtn, _visibleColumns + 1);
+            rowGrid.Children.Add(detailBtn);
+        }
 
         card.Child = rowGrid;
         var item = new ListBoxItem { Content = card, DataContext = vm, Tag = vm,
