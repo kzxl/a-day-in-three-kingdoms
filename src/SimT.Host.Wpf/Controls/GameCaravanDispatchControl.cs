@@ -367,8 +367,6 @@ public sealed class GameCaravanDispatchControl : Border
                 btn.Click += (_, _) => _commandInvoker?.Invoke(cmd.Id);
                 actionStack.Children.Add(btn);
             }
-
-            _rowInspector?.Invoke(_section, targetRow);
         }
 
         // Build route list items

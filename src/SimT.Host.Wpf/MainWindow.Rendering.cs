@@ -154,6 +154,7 @@ public partial class MainWindow
             var tabs = new GameTabs(tabItems, clampedTab);
             tabs.SelectionChanged += (idx, _) =>
             {
+                _detailKey = null;
                 _selectedSectionTab = idx;
                 RenderSelected();
             };

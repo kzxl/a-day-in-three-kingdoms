@@ -218,7 +218,6 @@ public sealed class GameItemCodexControl : Grid
             _selectedRow = row;
             RefreshShelfSelection();
             RefreshPedestal();
-            _onInspect?.Invoke(_section, row);
         };
 
         return card;

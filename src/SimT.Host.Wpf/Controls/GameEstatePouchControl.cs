@@ -152,7 +152,8 @@ public sealed class GameEstatePouchControl : Grid
 
         card.MouseEnter += (_, _) => card.Background = CardHoverBg;
         card.MouseLeave += (_, _) => card.Background = CardBg;
-        card.MouseLeftButtonUp += (_, _) => _onInspect?.Invoke(_section, row);
+        if (row.Commands.Count == 0)
+            card.MouseLeftButtonUp += (_, _) => _onInspect?.Invoke(_section, row);
 
         return card;
     }
@@ -246,7 +247,8 @@ public sealed class GameEstatePouchControl : Grid
 
         card.MouseEnter += (_, _) => card.Background = CardHoverBg;
         card.MouseLeave += (_, _) => card.Background = CardBg;
-        card.MouseLeftButtonUp += (_, _) => _onInspect?.Invoke(_section, row);
+        if (row.Commands.Count == 0)
+            card.MouseLeftButtonUp += (_, _) => _onInspect?.Invoke(_section, row);
 
         return card;
     }

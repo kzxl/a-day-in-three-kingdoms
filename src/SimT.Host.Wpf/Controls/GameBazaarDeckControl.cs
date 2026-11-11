@@ -230,7 +230,6 @@ public sealed class GameBazaarDeckControl : Grid
         }
 
         RenderDealTray(row);
-        _rowInspector?.Invoke(_section, row);
     }
 
     private void RenderDealTray(ScreenRow row)
@@ -397,6 +396,57 @@ public sealed class GameBazaarDeckControl : Grid
             actionDeck.Children.Add(sellBtn);
         }
 
+        // Warehouse Store / Take commands (if eligible)
+        var storeCmd = row.Commands.FirstOrDefault(c => c.RequiresQuantity && c.Id.StartsWith("store:", StringComparison.Ordinal));
+        if (storeCmd is not null)
+        {
+            var canStore = held > 0;
+            var actualStoreQty = Math.Min(_tradeQuantity, Math.Max(1, held));
+            var storeBtn = new GameButton(
+                canStore ? $"📥 Gửi Vào Kho ({actualStoreQty} đv)" : "Trong Túi Không Có",
+                GameButtonVariant.Primary)
+            {
+                IsEnabled = canStore,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            if (canStore)
+            {
+                storeBtn.Click += (_, _) =>
+                {
+                    var uri = storeCmd.Id.Split(':');
+                    var verb = uri[0];
+                    var targetId = uri.Length > 1 ? uri[1] : string.Empty;
+                    _commandInvoker?.Invoke($"{verb}:{targetId}:{actualStoreQty}");
+                };
+            }
+            actionDeck.Children.Add(storeBtn);
+        }
+
+        var takeCmd = row.Commands.FirstOrDefault(c => c.RequiresQuantity && c.Id.StartsWith("take:", StringComparison.Ordinal));
+        if (takeCmd is not null)
+        {
+            var canTake = stock > 0;
+            var actualTakeQty = Math.Min(_tradeQuantity, Math.Max(1, stock));
+            var takeBtn = new GameButton(
+                canTake ? $"📤 Lấy Ra Túi ({actualTakeQty} đv)" : "Trong Kho Không Có",
+                GameButtonVariant.Secondary)
+            {
+                IsEnabled = canTake,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            if (canTake)
+            {
+                takeBtn.Click += (_, _) =>
+                {
+                    var uri = takeCmd.Id.Split(':');
+                    var verb = uri[0];
+                    var targetId = uri.Length > 1 ? uri[1] : string.Empty;
+                    _commandInvoker?.Invoke($"{verb}:{targetId}:{actualTakeQty}");
+                };
+            }
+            actionDeck.Children.Add(takeBtn);
+        }
+
         // Tactical Market Cornering command (if eligible)
         var cornerCmd = row.Commands.FirstOrDefault(c => c.Id.StartsWith("warfare:corner:", StringComparison.Ordinal));
         if (cornerCmd is not null)
@@ -411,11 +461,13 @@ public sealed class GameBazaarDeckControl : Grid
             actionDeck.Children.Add(cornerBtn);
         }
 
-        // Secondary commands (e.g. store, take, modal)
+        // Secondary commands (e.g. stall stock/unstock, modal)
         var extraCommands = row.Commands.Where(c =>
             !c.Id.StartsWith("buy:", StringComparison.Ordinal) &&
             !c.Id.StartsWith("sell:", StringComparison.Ordinal) &&
             !c.Id.StartsWith("npc_buy:", StringComparison.Ordinal) &&
+            !(storeCmd is not null && c.Id.StartsWith("store:", StringComparison.Ordinal)) &&
+            !(takeCmd is not null && c.Id.StartsWith("take:", StringComparison.Ordinal)) &&
             !c.Id.StartsWith("warfare:corner:", StringComparison.Ordinal) &&
             !c.RequiresQuantity).ToList();
 
@@ -511,32 +563,69 @@ public sealed class GameBazaarDeckControl : Grid
         return border;
     }
 
-    private static long ExtractBuyPrice(ScreenRow row)
+    private long ExtractBuyPrice(ScreenRow row)
     {
-        if (row.Cells.Count > 1 && long.TryParse(row.Cells[1].Replace(".", string.Empty).Replace(",", string.Empty).Trim(), out var p))
+        var idx = FindColumnIndex("Giá mua", "Ưu đãi", "Giá niêm yết", "Giá đề xuất");
+        if (idx >= 0 && idx < row.Cells.Count && TryParseLeadingLong(row.Cells[idx], out var byCol))
+            return byCol;
+        if (_section.Columns.Count == 0 && row.Cells.Count > 1 && TryParseLeadingLong(row.Cells[1], out var p))
             return p;
         return 0;
     }
 
-    private static long ExtractSellPrice(ScreenRow row)
+    private long ExtractSellPrice(ScreenRow row)
     {
-        if (row.Cells.Count > 2 && long.TryParse(row.Cells[2].Replace(".", string.Empty).Replace(",", string.Empty).Trim(), out var p))
+        var idx = FindColumnIndex("Giá bán", "Giá sỉ chợ", "Giá gốc");
+        if (idx >= 0 && idx < row.Cells.Count && TryParseLeadingLong(row.Cells[idx], out var byCol))
+            return byCol;
+        if (_section.Columns.Count == 0 && row.Cells.Count > 2 && TryParseLeadingLong(row.Cells[2], out var p))
             return p;
         return 0;
     }
 
-    private static int ExtractStock(ScreenRow row)
+    private int ExtractStock(ScreenRow row)
     {
-        if (row.Cells.Count > 3 && int.TryParse(row.Cells[3].Replace(".", string.Empty).Replace(",", string.Empty).Trim(), out var s))
-            return s;
+        var idx = FindColumnIndex("Tồn sạp", "Còn lại", "Trong kho", "Số lượng");
+        if (idx >= 0 && idx < row.Cells.Count && TryParseLeadingLong(row.Cells[idx], out var byCol))
+            return (int)Math.Clamp(byCol, 0, int.MaxValue);
+        if (_section.Columns.Count == 0 && row.Cells.Count > 3 && TryParseLeadingLong(row.Cells[3], out var s))
+            return (int)Math.Clamp(s, 0, int.MaxValue);
         return 0;
     }
 
-    private static int ExtractHeld(ScreenRow row)
+    private int ExtractHeld(ScreenRow row)
     {
-        if (row.Cells.Count > 5 && int.TryParse(row.Cells[5].Replace(".", string.Empty).Replace(",", string.Empty).Trim(), out var h))
-            return h;
+        var idx = FindColumnIndex("Trong túi");
+        if (idx >= 0 && idx < row.Cells.Count && TryParseLeadingLong(row.Cells[idx], out var byCol))
+            return (int)Math.Clamp(byCol, 0, int.MaxValue);
+        if (_section.Columns.Count == 0 && row.Cells.Count > 5 && TryParseLeadingLong(row.Cells[5], out var h))
+            return (int)Math.Clamp(h, 0, int.MaxValue);
         return 0;
+    }
+
+    private int FindColumnIndex(params string[] keywords)
+    {
+        for (var i = 0; i < _section.Columns.Count; i++)
+        {
+            var col = _section.Columns[i];
+            foreach (var kw in keywords)
+            {
+                if (col.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+        }
+        return -1;
+    }
+
+    private static bool TryParseLeadingLong(string raw, out long value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+        var cleaned = raw.Replace(".", string.Empty).Replace(",", string.Empty).Trim();
+        var len = 0;
+        while (len < cleaned.Length && char.IsDigit(cleaned[len]))
+            len++;
+        return len > 0 && long.TryParse(cleaned.AsSpan(0, len), out value);
     }
 
     private static Brush Freeze(SolidColorBrush b)
