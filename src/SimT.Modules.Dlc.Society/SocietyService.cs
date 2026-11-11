@@ -86,18 +86,20 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
             {
                 var a = npc.Attributes;
                 var focus = DetermineFocusPath(a);
-                var wealth = InitialWealth(focus);
+                var wealth = ComputeInitialWealth(npc, focus);
+                var initialRep = ComputeInitialReputation(npc);
                 var initialAction = InitialAction(focus);
 
                 _db.Execute(
                     "INSERT INTO so_npc_activity (npc_id, current_citadel_id, current_wealth, focus_path, current_action, stamina, reputation, updated_date) " +
-                    "VALUES (@npcId, @citadelId, @wealth, @focus, @action, 100, 50, @date)",
+                    "VALUES (@npcId, @citadelId, @wealth, @focus, @action, 100, @rep, @date)",
                     new DbArgs()
                         .Add("@npcId", npc.Id)
                         .Add("@citadelId", npc.CitadelId)
                         .Add("@wealth", wealth)
                         .Add("@focus", focus)
                         .Add("@action", initialAction)
+                        .Add("@rep", initialRep)
                         .Add("@date", formattedDate));
 
                 _db.Execute(
@@ -457,6 +459,60 @@ internal sealed partial class SocietyService : ISocietyChronicle, IMerchantRival
             return "governor";
         }
         return "wanderer";
+    }
+
+    private Dictionary<long, NpcStatDelta> LoadAllStatDeltasMap()
+    {
+        return _db.Query(
+            "SELECT npc_id, war_delta, ldr_delta, int_delta, pol_delta, dip_delta, com_delta, log_delta, cra_delta, updated_date FROM so_npc_stat_delta",
+            record => new NpcStatDelta(
+                record.GetInt64(0),
+                record.GetInt32(1),
+                record.GetInt32(2),
+                record.GetInt32(3),
+                record.GetInt32(4),
+                record.GetInt32(5),
+                record.GetInt32(6),
+                record.GetInt32(7),
+                record.GetInt32(8),
+                GameDateCodec.Parse(record.GetString(9))))
+            .ToDictionary(d => d.NpcId);
+    }
+
+    internal static int ComputeInitialReputation(NpcDef npc)
+    {
+        var a = npc.Attributes;
+        var role = npc.Role ?? string.Empty;
+        var baseAttrScore = (a.War + a.Ldr + a.Int + a.Pol + a.Dip + a.Com) / 3; // ~80..190
+
+        var roleBonus = 0;
+        if (role.Contains("Hoàng Đế") || role.Contains("Thái Sư") || role.Contains("Tướng Quốc"))
+            roleBonus = 720;
+        else if (role.Contains("Quân Chủ") || role.Contains("Minh Chủ") || role.Contains("Châu Mục"))
+            roleBonus = 520;
+        else if (role.Contains("Thái Thú") || role.Contains("Thứ Sử") || role.Contains("Đại Tướng") || role.Contains("Giáo Tổ"))
+            roleBonus = 340;
+        else if (Math.Max(a.War, Math.Max(a.Int, a.Ldr)) >= 94)
+            roleBonus = 280;
+        else if (Math.Max(a.War, Math.Max(a.Int, Math.Max(a.Ldr, a.Pol))) >= 86)
+            roleBonus = 140;
+
+        return Math.Clamp(baseAttrScore + roleBonus, 45, 960);
+    }
+
+    private static long ComputeInitialWealth(NpcDef npc, string focus)
+    {
+        var role = npc.Role ?? string.Empty;
+        // Rulers and Governors already follow CityGovernance deterministically (govScore = 300),
+        // so giving them realistic noble treasuries preserves 100% of non-ruler AI goal selection!
+        if (role.Contains("Hoàng Đế") || role.Contains("Thái Sư") || role.Contains("Tướng Quốc"))
+            return 26000 + (npc.Attributes.Pol * 40);
+        if (role.Contains("Quân Chủ") || role.Contains("Châu Mục"))
+            return 16000 + (npc.Attributes.Pol * 30);
+        if (role.Contains("Thái Thú") || role.Contains("Giáo Tổ"))
+            return 7500 + (npc.Attributes.Pol * 20);
+
+        return InitialWealth(focus);
     }
 
     private static long InitialWealth(string focus) => focus switch

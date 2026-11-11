@@ -107,7 +107,9 @@ internal sealed class PlayerReputationScreen : IScreenContribution
                 $"{e.Fame:N0}",
                 e.RenownTierVi
             ],
-            Array.Empty<ScreenCommand>()
+            e.IsPlayer || e.CharacterId <= 0
+                ? Array.Empty<ScreenCommand>()
+                : [new ScreenCommand($"npc:modal:{e.CharacterId}", "Hồ Sơ 🔍", CommandKind.Secondary)]
         )).ToList();
         sections.Add(new ScreenSection("BẢNG PHONG THẦN · XẾP HẠNG UY DANH THIÊN HẠ", LeaderboardColumns, leaderboardRows, SectionViewMode.ReputationHallOfFame));
 

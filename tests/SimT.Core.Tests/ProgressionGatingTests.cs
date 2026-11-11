@@ -15,6 +15,7 @@ public sealed class ProgressionGatingTests
     [InlineData("social.network")]
     [InlineData("npc.directory")]
     [InlineData("society.chronicle")]
+    [InlineData("society.rankings")]
     [InlineData("player.destiny")]
     [InlineData("player.reputation")]
     public void Core_starter_screens_are_unlocked_on_day_one(string screenId)

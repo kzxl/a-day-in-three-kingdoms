@@ -166,16 +166,21 @@ public sealed class PlayerReputationService : IPlayerReputation
             RenownTierVi: playerStanding.RankVi,
             IsPlayer: true));
 
-        // Attempt to fetch from NPC Registry & Society
+        // Attempt to fetch from NPC Registry & Society (Batch pre-loaded to avoid N+1 SQL queries)
         var npcsAdded = false;
         if (_broker.TryGet<INpcRegistry>(CapabilityIds.NpcRegistry, out var registry) && registry is not null)
         {
             _broker.TryGet<ISocietyChronicle>(CapabilityIds.SocietyChronicle, out var society);
+            var actMap = society?.AllActivities().ToDictionary(a => a.NpcId);
 
             foreach (var npc in registry.All)
             {
-                var activity = society?.GetNpcActivity(npc.Id);
-                var fame = activity?.Reputation ?? ComputeNpcInnateFame(npc);
+                NpcActivityDef? activity = null;
+                actMap?.TryGetValue(npc.Id, out activity);
+                if (activity?.IsDeceased == true || npc.IsDeceasedFlag) continue;
+
+                var innateFame = ComputeNpcInnateFame(npc);
+                var fame = activity is not null ? Math.Max(activity.Reputation, innateFame) : innateFame;
                 var npcCityName = cityName;
                 if (activity is not null && wm is not null)
                 {
@@ -188,7 +193,7 @@ public sealed class PlayerReputationService : IPlayerReputation
                     if (c is not null) npcCityName = c.NameVi;
                 }
 
-                var (_, tierTitle, rankTitle, _, _) = ComputeTier(fame);
+                var (_, _, rankTitle, _, _) = ComputeTier(fame);
 
                 list.Add(new FameLeaderboardEntry(
                     Rank: 0,
@@ -230,19 +235,35 @@ public sealed class PlayerReputationService : IPlayerReputation
             }
         }
 
-        // Sort descending by Fame
-        list.Sort((a, b) => b.Fame.CompareTo(a.Fame));
+        // Sort descending by Fame (tie-break: historical notables before novice player so player must earn overtakes)
+        list.Sort((a, b) =>
+        {
+            var cmp = b.Fame.CompareTo(a.Fame);
+            if (cmp != 0) return cmp;
+            if (a.IsPlayer != b.IsPlayer) return a.IsPlayer ? 1 : -1;
+            return a.CharacterId.CompareTo(b.CharacterId);
+        });
 
         // Assign ordinal ranks
         var ranked = new List<FameLeaderboardEntry>(list.Count);
+        FameLeaderboardEntry? rankedPlayer = null;
         for (var i = 0; i < list.Count; i++)
         {
-            var item = list[i];
-            ranked.Add(item with { Rank = i + 1 });
+            var item = list[i] with { Rank = i + 1 };
+            ranked.Add(item);
+            if (item.IsPlayer) rankedPlayer = item;
         }
 
-        // Return top N
-        return ranked.Take(top).ToList();
+        // Return top N; if player ranks outside top N, keep top (N - 1) luminaries and anchor player at bottom with true Rank
+        var safeTop = Math.Max(2, top);
+        if (ranked.Count <= safeTop || rankedPlayer is null || rankedPlayer.Rank <= safeTop)
+        {
+            return ranked.Take(safeTop).ToList();
+        }
+
+        var result = ranked.Take(safeTop - 1).ToList();
+        result.Add(rankedPlayer);
+        return result;
     }
 
     public void GainFame(

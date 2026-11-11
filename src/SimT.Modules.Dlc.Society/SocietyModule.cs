@@ -47,6 +47,10 @@ public sealed class SocietyModule : ISimModule
         context.Ui.AddScreen(screen);
         context.Ui.AddCommandHandler(new SocietyCommandHandler(screen));
 
+        var rankingsScreen = new RealmRankingsScreen(service, map, player, context.Clock);
+        context.Ui.AddScreen(rankingsScreen);
+        context.Ui.AddCommandHandler(new RealmRankingsCommandHandler(rankingsScreen));
+
         context.Events.Subscribe<MonthClosed>(month => service.OnMonthClosed(month.Date));
 
         foreach (var invariant in SocietyInvariants.All())

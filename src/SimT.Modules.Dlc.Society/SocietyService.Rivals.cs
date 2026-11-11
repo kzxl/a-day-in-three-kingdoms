@@ -169,10 +169,17 @@ internal sealed partial class SocietyService
         if (rivals.Count == 0) return;
 
         IMarketTrade? marketTrade = null;
+        IWallet? playerWallet = null;
+        ISocialNetwork? socialNet = null;
         if (_broker != null)
         {
             _broker.TryGet(CapabilityIds.MarketTrade, out marketTrade);
+            _broker.TryGet(CapabilityIds.PlayerWallet, out playerWallet);
+            _broker.TryGet(CapabilityIds.SocialNetwork, out socialNet);
         }
+
+        var playerRich = (playerWallet?.Balance ?? 0) >= 10000;
+        var topRivalNpcId = rivals[0].NpcId;
 
         _db.Transaction(() =>
         {
@@ -184,12 +191,21 @@ internal sealed partial class SocietyService
                 var currentCit = _map.Find(currentCitId);
                 var currentCitName = currentCit?.NameVi ?? "Bản xứ";
 
-                // Scout target citadel along travel routes
+                // Scout target citadel along travel routes (Always consume RNG first to keep stream invariant!)
                 var neighbours = _map.RouteNeighbours(currentCitId);
                 var targetCitId = rival.TargetCitadelId;
-                if (neighbours.Count > 0 && (!neighbours.Contains(targetCitId) || rng.Next(100) < 30))
+                var rerollTarget = rng.Next(100) < 30;
+                if (neighbours.Count > 0 && (!neighbours.Contains(targetCitId) || rerollTarget))
                 {
                     targetCitId = neighbours.OrderByDescending(nid => _map.Find(nid)?.PriceFactorPermille ?? 1000).First();
+                }
+
+                // Anti-Snowballing Rivalry Pressure: When player amasses >= 10,000 Quan, the #1 Merchant Tycoon
+                // actively targets the player's current market to contest commercial hegemony!
+                var isCoalitionLeader = playerRich && rival.NpcId == topRivalNpcId;
+                if (isCoalitionLeader)
+                {
+                    targetCitId = _player.CurrentCityId;
                 }
                 var targetCit = _map.Find(targetCitId);
                 var targetCitName = targetCit?.NameVi ?? "Lân bang";
@@ -331,7 +347,19 @@ internal sealed partial class SocietyService
                         .Add("@date", formattedDate)
                         .Add("@id", rival.NpcId));
 
-                if (tierUpgraded)
+                if (isCoalitionLeader)
+                {
+                    var playerCitId = _player.CurrentCityId;
+                    var playerCitName = _map.Find(playerCitId)?.NameVi ?? currentCitName;
+                    var headline = $"[Thương Chiến Chèn Ép] {rival.EnterpriseName} vây ép nguồn cung tại {playerCitName}!";
+                    var detail = $"Thấy cơ nghiệp của bạn vượt mốc vạn kim, {rival.NpcNameVi} liên kết các đại thương hội dồn xe hàng về {playerCitName} nhằm kìm hãm thế độc tôn của bạn.";
+                    LogEvent(formattedDate, rival.NpcId, rival.NpcNameVi, playerCitId, playerCitName, "commerce", headline, detail, "Áp lực liên minh phú thương", tick);
+                    if (socialNet != null && socialNet.HasMet(rival.NpcId))
+                    {
+                        socialNet.RecordCooperation(rival.NpcId, -6, -4, $"Cạnh tranh khốc liệt: {rival.NpcNameVi} phát động thương chiến chèn ép thị phần của bạn tại {playerCitName}.");
+                    }
+                }
+                else if (tierUpgraded)
                 {
                     var title = MerchantRivalDef.TierToTitle(newTier);
                     var headline = $"{rival.EnterpriseName} thăng cấp lên [{title}]!";
@@ -343,6 +371,10 @@ internal sealed partial class SocietyService
                     var headline = $"{rival.NpcNameVi} thâu tóm {buyQty} {goodName} tại {currentCitName}!";
                     var detail = $"Đoàn xe của {rival.EnterpriseName} vừa quét sạch nguồn cung {goodName} tại chợ {currentCitName}, khiến giá bán lẻ tại sạp tăng vọt.";
                     LogEvent(formattedDate, rival.NpcId, rival.NpcNameVi, currentCitId, currentCitName, "commerce", headline, detail, $"Thị trường {goodName} khan hiếm", tick);
+                    if (socialNet != null && socialNet.HasMet(rival.NpcId))
+                    {
+                        socialNet.RecordCooperation(rival.NpcId, -3, -2, $"Tranh mua hàng hiếm: {rival.NpcNameVi} vét sạch {goodName} ngay trước mũi bạn tại {currentCitName}.");
+                    }
                 }
             }
         });

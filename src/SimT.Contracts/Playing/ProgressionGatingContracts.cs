@@ -43,6 +43,8 @@ public static class ProgressionGating
                 return new(true, "Danh Sĩ", "Mở khóa", "Danh bạ nhân vật và anh hùng thời loạn.");
             case "society.chronicle":
                 return new(true, "Thiên Hạ Niên Giám", "Mở khóa", "Theo dõi biến động và sự kiện toàn cõi.");
+            case "society.rankings":
+                return new(true, "Phong Vân Bảng", "Mở khóa", "Bảng xếp hạng tiền tài, danh vọng, võ học, mưu lược và quyền thế toàn cõi.");
 
             // Advanced Gated Screens
             case "world.map":

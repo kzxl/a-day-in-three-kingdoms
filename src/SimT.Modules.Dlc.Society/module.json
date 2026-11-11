@@ -21,7 +21,9 @@
     "npc.registry",
     "player.state",
     "player.wallet",
-    "player.attributes"
+    "player.attributes",
+    "player.reputation",
+    "social.network"
   ],
   "owns": {
     "tables": [
@@ -49,6 +51,7 @@
     ]
   },
   "screens": [
-    "society.chronicle"
+    "society.chronicle",
+    "society.rankings"
   ]
 }

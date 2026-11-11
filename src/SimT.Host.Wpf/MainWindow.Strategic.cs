@@ -1,4 +1,4 @@
-using SimT.Contracts.Time;
+﻿using SimT.Contracts.Time;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Threading;
@@ -88,6 +88,7 @@ public partial class MainWindow
                 Tag = "society.chronicle",
                 SubItems =
                 [
+                    new() { Id = "society.rankings", Title = "Phong Vân Bảng", Subtitle = "Xếp hạng tài phú, uy danh, võ học" },
                     new() { Id = "society.chronicle", Title = "Thiên Hạ Niên Giám", Subtitle = "Biến động thời cuộc" },
                     new() { Id = "politics.court", Title = "Quan Trường", Subtitle = "Xin chức, lĩnh bổng" },
                     new() { Id = "military.arena", Title = "Binh Nghiệp", Subtitle = "Lôi đài, dẹp giặc" }
